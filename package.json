@@ -1,14 +1,22 @@
 {
   "name": "restaurant-checklist",
   "type": "module",
-  "version": "0.0.1",
+  "version": "1.0.0",
+  "description": "Restaurant inventory management system with Poster POS integration",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "start": "astro preview --host 0.0.0.0 --port 3000",
     "astro": "astro"
   },
+  "keywords": ["restaurant", "inventory", "poster", "management"],
   "dependencies": {
-    "astro": "^5.12.0"
+    "@tailwindcss/vite": "^4.1.11",
+    "astro": "^5.12.0",
+    "tailwindcss": "^4.1.11"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

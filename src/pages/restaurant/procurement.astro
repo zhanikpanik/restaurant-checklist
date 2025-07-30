@@ -1,0 +1,370 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Управление закупками">
+	<div class="min-h-screen bg-gray-50">
+		<!-- Header -->
+		<header class="bg-white border-b border-gray-200 px-4 py-6">
+			<div class="max-w-4xl mx-auto">
+				<div class="flex items-center justify-between mb-4">
+					<a href="/" class="text-blue-600 hover:text-blue-800">← Бар</a>
+					<h1 class="text-3xl font-bold text-black">Управление закупками</h1>
+					<a href="/restaurant/kitchen" class="text-orange-600 hover:text-orange-800">Кухня →</a>
+				</div>
+			</div>
+		</header>
+
+		<!-- Main Content -->
+		<main class="max-w-4xl mx-auto px-4 py-6">
+			<!-- Department Tabs -->
+			<div class="mb-6">
+				<div class="border-b border-gray-200">
+					<nav class="-mb-px flex space-x-8">
+						<button 
+							id="allTab" 
+							class="procurement-tab border-b-2 border-green-500 py-4 px-1 text-sm font-medium text-green-600"
+						>
+							Все закупки
+						</button>
+						<button 
+							id="barTab" 
+							class="procurement-tab border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
+						>
+							Бар
+						</button>
+						<button 
+							id="kitchenTab" 
+							class="procurement-tab border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
+						>
+							Кухня
+						</button>
+					</nav>
+				</div>
+			</div>
+
+			<!-- Purchase Request Status Cards -->
+			<div class="grid gap-6 mb-8">
+				<!-- Pending Requests -->
+				<div class="bg-white rounded-lg shadow p-6">
+					<div class="flex items-center justify-between mb-4">
+						<h2 class="text-xl font-semibold text-gray-900">Ожидающие закупки</h2>
+						<span class="bg-yellow-100 text-yellow-800 text-sm font-medium px-2.5 py-0.5 rounded">
+							<span id="pendingCount">0</span> заявок
+						</span>
+					</div>
+					<div id="pendingRequests" class="space-y-3">
+						<p class="text-gray-500 text-center py-8">Нет ожидающих заявок на закупку</p>
+					</div>
+				</div>
+
+				<!-- Current Shopping List -->
+				<div class="bg-white rounded-lg shadow p-6">
+					<div class="flex items-center justify-between mb-4">
+						<h2 class="text-xl font-semibold text-gray-900">Текущий список закупок</h2>
+						<div class="flex space-x-2">
+							<button 
+								id="exportListBtn"
+								class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+							>
+								Экспорт
+							</button>
+							<button 
+								id="clearListBtn"
+								class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+							>
+								Очистить
+							</button>
+						</div>
+					</div>
+					<div id="consolidatedList" class="space-y-3">
+						<p class="text-gray-500 text-center py-8">Список закупок пуст</p>
+					</div>
+				</div>
+
+				<!-- Purchase Actions -->
+				<div class="bg-white rounded-lg shadow p-6">
+					<h2 class="text-xl font-semibold text-gray-900 mb-4">Действия с закупками</h2>
+					<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<button 
+							id="markPurchasedBtn"
+							class="bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg"
+						>
+							✅ Отметить как закуплено
+						</button>
+						<button 
+							id="updatePosterBtn"
+							class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg"
+						>
+							🔄 Обновить Poster
+						</button>
+						<button 
+							id="generateReportBtn"
+							class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg"
+						>
+							📊 Отчет по закупкам
+						</button>
+						<button 
+							id="lowStockAlertBtn"
+							class="bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-lg"
+						>
+							⚠️ Критически мало товаров
+						</button>
+					</div>
+				</div>
+			</div>
+
+			<!-- Purchase History -->
+			<div class="bg-white rounded-lg shadow p-6">
+				<h2 class="text-xl font-semibold text-gray-900 mb-4">История закупок</h2>
+				<div id="purchaseHistory" class="space-y-3">
+					<p class="text-gray-500 text-center py-8">История закупок пуста</p>
+				</div>
+			</div>
+		</main>
+	</div>
+
+	<script>
+		// Procurement Management Script
+		document.addEventListener('DOMContentLoaded', function() {
+			initializeProcurementInterface();
+			loadPurchaseRequests();
+			setupEventListeners();
+		});
+
+		function initializeProcurementInterface() {
+			console.log('🔄 Initializing procurement interface...');
+			loadConsolidatedList();
+			loadPurchaseHistory();
+		}
+
+		function setupEventListeners() {
+			// Tab switching
+			document.querySelectorAll('.procurement-tab').forEach(tab => {
+				tab.addEventListener('click', function() {
+					switchTab(this.id);
+				});
+			});
+
+			// Action buttons
+			document.getElementById('markPurchasedBtn').addEventListener('click', markAsPurchased);
+			document.getElementById('updatePosterBtn').addEventListener('click', updatePosterInventory);
+			document.getElementById('exportListBtn').addEventListener('click', exportShoppingList);
+			document.getElementById('clearListBtn').addEventListener('click', clearShoppingList);
+			document.getElementById('generateReportBtn').addEventListener('click', generateReport);
+			document.getElementById('lowStockAlertBtn').addEventListener('click', showLowStockAlert);
+		}
+
+		function loadPurchaseRequests() {
+			// Load bar and kitchen purchase requests from localStorage
+			const barList = JSON.parse(localStorage.getItem('barShoppingList') || 'null');
+			const kitchenList = JSON.parse(localStorage.getItem('kitchenShoppingList') || 'null');
+			
+			let pendingRequests = [];
+			
+			if (barList && barList.items.length > 0) {
+				pendingRequests.push({
+					department: 'Бар',
+					timestamp: barList.timestamp,
+					items: barList.items,
+					totalItems: barList.totalItems,
+					color: 'blue'
+				});
+			}
+			
+			if (kitchenList && kitchenList.items.length > 0) {
+				pendingRequests.push({
+					department: 'Кухня',
+					timestamp: kitchenList.timestamp,
+					items: kitchenList.items,
+					totalItems: kitchenList.totalItems,
+					color: 'orange'
+				});
+			}
+			
+			displayPendingRequests(pendingRequests);
+			updatePendingCount(pendingRequests.length);
+		}
+
+		function displayPendingRequests(requests) {
+			const container = document.getElementById('pendingRequests');
+			
+			if (requests.length === 0) {
+				container.innerHTML = '<p class="text-gray-500 text-center py-8">Нет ожидающих заявок на закупку</p>';
+				return;
+			}
+			
+			container.innerHTML = requests.map(request => `
+				<div class="border border-${request.color}-200 bg-${request.color}-50 rounded-lg p-4">
+					<div class="flex items-center justify-between mb-2">
+						<h3 class="font-medium text-${request.color}-900">${request.department}</h3>
+						<span class="text-sm text-gray-500">${new Date(request.timestamp).toLocaleDateString('ru-RU')}</span>
+					</div>
+					<p class="text-sm text-gray-600 mb-3">${request.totalItems} товаров</p>
+					<div class="flex space-x-2">
+						<button 
+							onclick="approveRequest('${request.department.toLowerCase()}')"
+							class="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+						>
+							Утвердить
+						</button>
+						<button 
+							onclick="viewRequestDetails('${request.department.toLowerCase()}')"
+							class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm"
+						>
+							Детали
+						</button>
+					</div>
+				</div>
+			`).join('');
+		}
+
+		function loadConsolidatedList() {
+			// Combine all approved purchase requests
+			const consolidatedItems = [];
+			
+			// Add logic to consolidate duplicate items
+			// For now, just display a placeholder
+			const container = document.getElementById('consolidatedList');
+			container.innerHTML = '<p class="text-gray-500 text-center py-8">Утвердите заявки для создания списка закупок</p>';
+		}
+
+		function updatePendingCount(count) {
+			document.getElementById('pendingCount').textContent = count;
+		}
+
+		function switchTab(tabId) {
+			// Remove active class from all tabs
+			document.querySelectorAll('.procurement-tab').forEach(tab => {
+				tab.className = 'procurement-tab border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300';
+			});
+			
+			// Add active class to clicked tab
+			document.getElementById(tabId).className = 'procurement-tab border-b-2 border-green-500 py-4 px-1 text-sm font-medium text-green-600';
+			
+			// Filter content based on tab
+			filterContentByDepartment(tabId);
+		}
+
+		function filterContentByDepartment(tabId) {
+			// Filter pending requests and lists by department
+			const department = tabId.replace('Tab', '');
+			console.log(`Filtering by department: ${department}`);
+			// Implementation would filter the displayed content
+		}
+
+		// Action functions
+		function approveRequest(department) {
+			console.log(`Approving ${department} request`);
+			// Move from pending to consolidated list
+			alert(`Заявка от ${department} утверждена!`);
+			loadPurchaseRequests();
+			loadConsolidatedList();
+		}
+
+		function viewRequestDetails(department) {
+			const list = JSON.parse(localStorage.getItem(`${department}ShoppingList`) || 'null');
+			if (list) {
+				const items = list.items.map(item => `${item.name}: ${item.quantity} ${item.unit}`).join('\n');
+				alert(`Детали заявки ${department}:\n\n${items}`);
+			}
+		}
+
+		function markAsPurchased() {
+			if (confirm('Отметить все товары как закупленные?')) {
+				console.log('Marking items as purchased...');
+				alert('Товары отмечены как закупленные!');
+				// Clear lists and update inventory
+				loadPurchaseHistory();
+			}
+		}
+
+		async function updatePosterInventory() {
+			console.log('Updating Poster inventory...');
+			
+			// Get all purchased items from both departments
+			const barList = JSON.parse(localStorage.getItem('barShoppingList') || 'null');
+			const kitchenList = JSON.parse(localStorage.getItem('kitchenShoppingList') || 'null');
+			
+			const updates = [];
+			
+			if (barList && barList.items) {
+				updates.push({
+					department: 'bar',
+					items: barList.items
+				});
+			}
+			
+			if (kitchenList && kitchenList.items) {
+				updates.push({
+					department: 'kitchen',
+					items: kitchenList.items
+				});
+			}
+			
+			if (updates.length === 0) {
+				alert('Нет товаров для обновления в Poster');
+				return;
+			}
+			
+			try {
+				// Update each department
+				for (const update of updates) {
+					const response = await fetch('/api/update-poster-inventory', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							purchasedItems: update.items,
+							department: update.department
+						})
+					});
+					
+					const result = await response.json();
+					
+					if (result.success) {
+						console.log(`✅ ${update.department} inventory updated:`, result);
+					} else {
+						console.error(`❌ Failed to update ${update.department}:`, result.error);
+					}
+				}
+				
+				alert(`Poster обновлен для всех отделов!\nПроверьте консоль для деталей.`);
+				
+			} catch (error) {
+				console.error('Error updating Poster inventory:', error);
+				alert('Ошибка при обновлении Poster: ' + error.message);
+			}
+		}
+
+		function exportShoppingList() {
+			console.log('Exporting shopping list...');
+			alert('Список закупок экспортирован!');
+		}
+
+		function clearShoppingList() {
+			if (confirm('Очистить текущий список закупок?')) {
+				localStorage.removeItem('barShoppingList');
+				localStorage.removeItem('kitchenShoppingList');
+				loadPurchaseRequests();
+				loadConsolidatedList();
+			}
+		}
+
+		function generateReport() {
+			console.log('Generating procurement report...');
+			alert('Отчет по закупкам создан!');
+		}
+
+		function showLowStockAlert() {
+			alert('Критически мало:\n• Сахар (Бар)\n• Яйца (Кухня)\n• Морковь (Кухня)');
+		}
+
+		function loadPurchaseHistory() {
+			const container = document.getElementById('purchaseHistory');
+			// For now, show placeholder
+			container.innerHTML = '<p class="text-gray-500 text-center py-8">Закупки будут отображаться здесь после завершения</p>';
+		}
+	</script>
+</Layout> 

@@ -1,52 +1,56 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from '../../layouts/Layout.astro';
 
-// Get BAR-ONLY data using real Poster storage filtering (storage_id=1)
-let barProducts = [];
+// Get KITCHEN-ONLY data using real Poster storage filtering (storage_id=2)
+let kitchenProducts = [];
 try {
-	const response = await fetch(`${Astro.url.origin}/api/get-bar-inventory`);
+	const response = await fetch(`${Astro.url.origin}/api/get-kitchen-inventory`);
 	const result = await response.json();
 	
 	if (result.success && result.data.length > 0) {
-		// Use ONLY bar inventory from Poster storage ID 1
-		barProducts = result.data;
-		console.log(`✅ Loaded ${barProducts.length} bar products from Poster storage ID 1 (${result.storage.name})`);
+		// Use ONLY kitchen inventory from Poster storage ID 2
+		kitchenProducts = result.data;
+		console.log(`✅ Loaded ${kitchenProducts.length} kitchen products from Poster storage ID 2 (${result.storage.name})`);
 	} else {
-		throw new Error('No bar products from Poster storage ID 1');
+		throw new Error('No kitchen products from Poster storage ID 2');
 	}
 } catch (error) {
-	console.warn('⚠️ Failed to load Poster bar inventory, using fallback mock data:', error.message);
+	console.warn('⚠️ Failed to load Poster kitchen inventory, using fallback kitchen mock data:', error.message);
 	
-	// Fallback mock data if Poster API fails
-	barProducts = [
-		{ id: 1, name: "Сок Rich Апельсиновый", quantity: 24, unit: "л", minQuantity: 10, checked: false },
-		{ id: 2, name: "Сок Rich Яблочный", quantity: 18, unit: "л", minQuantity: 10, checked: false },
-		{ id: 3, name: "Кофе", quantity: 3, unit: "кг", minQuantity: 2, checked: false },
-		{ id: 4, name: "Молоко", quantity: 12, unit: "л", minQuantity: 8, checked: false },
-		{ id: 5, name: "Какао", quantity: 2.5, unit: "кг", minQuantity: 1, checked: false },
-		{ id: 6, name: "Чай чёрный", quantity: 0, unit: "кг", minQuantity: 1, checked: false },
-		{ id: 7, name: "Чай зелёный", quantity: 0, unit: "кг", minQuantity: 2, checked: false },
-		{ id: 8, name: "Лимон", quantity: 0, unit: "кг", minQuantity: 5, checked: false },
-		{ id: 9, name: "Сахар", quantity: 0, unit: "кг", minQuantity: 3, checked: false },
-		{ id: 10, name: "Сироп ванильный", quantity: 0, unit: "л", minQuantity: 2, checked: false },
-		{ id: 11, name: "Сироп карамельный", quantity: 0, unit: "л", minQuantity: 2, checked: false },
+	// Fallback kitchen mock data if Poster API fails
+	kitchenProducts = [
+		{ id: 101, name: "Мука пшеничная", quantity: 15, unit: "кг", minQuantity: 10, checked: false },
+		{ id: 102, name: "Рис", quantity: 8, unit: "кг", minQuantity: 5, checked: false },
+		{ id: 103, name: "Масло подсолнечное", quantity: 2.5, unit: "л", minQuantity: 2, checked: false },
+		{ id: 104, name: "Соль", quantity: 3, unit: "кг", minQuantity: 1, checked: false },
+		{ id: 105, name: "Сахар", quantity: 0, unit: "кг", minQuantity: 3, checked: false },
+		{ id: 106, name: "Яйца", quantity: 0, unit: "шт", minQuantity: 30, checked: false },
+		{ id: 107, name: "Картофель", quantity: 12, unit: "кг", minQuantity: 15, checked: false },
+		{ id: 108, name: "Лук", quantity: 4, unit: "кг", minQuantity: 3, checked: false },
+		{ id: 109, name: "Морковь", quantity: 0, unit: "кг", minQuantity: 2, checked: false },
+		{ id: 110, name: "Помидоры", quantity: 0, unit: "кг", minQuantity: 3, checked: false },
+		{ id: 111, name: "Огурцы", quantity: 1, unit: "кг", minQuantity: 2, checked: false },
+		{ id: 112, name: "Мясо говядина", quantity: 0, unit: "кг", minQuantity: 5, checked: false },
+		{ id: 113, name: "Куриное филе", quantity: 3, unit: "кг", minQuantity: 4, checked: false },
+		{ id: 114, name: "Рыба", quantity: 0, unit: "кг", minQuantity: 2, checked: false },
+		{ id: 115, name: "Сыр", quantity: 1.5, unit: "кг", minQuantity: 2, checked: false },
 	];
 }
 ---
 
-<Layout title="Бар - Инвентарь">
+<Layout title="Кухня - Инвентарь">
 	<div class="min-h-screen bg-white">
 		<!-- Header with Navigation -->
 		<header class="bg-white border-b border-gray-200 px-4 py-6">
 			<div class="max-w-md mx-auto">
 				<div class="flex items-center justify-between mb-4">
-					<a href="/restaurant/kitchen" class="text-orange-600 hover:text-orange-800">← Кухня</a>
-					<h1 class="text-3xl font-bold text-black">Бар</h1>
+					<a href="/" class="text-blue-600 hover:text-blue-800">← Бар</a>
+					<h1 class="text-3xl font-bold text-black">Кухня</h1>
 					<a href="/restaurant/procurement" class="text-green-600 hover:text-green-800 text-sm">Закупки →</a>
 				</div>
 				<div class="text-center">
 					<span class="text-sm text-gray-600">
-						{barProducts.length > 15 ? "📊 Реальные данные из Poster" : "🧪 Тестовые данные"}
+						{kitchenProducts.length > 15 ? "📊 Реальные данные из Poster" : "🧪 Тестовые данные"}
 					</span>
 				</div>
 			</div>
@@ -56,8 +60,8 @@ try {
 		<main class="max-w-md mx-auto px-4 py-6">
 			<!-- Inventory View (Default) -->
 			<div id="inventoryView" class="space-y-4">
-				{barProducts.map((product) => (
-					<div class="product-item flex items-center justify-between p-4 bg-white rounded-lg border-l-4 border-blue-400" data-product-id={product.id}>
+				{kitchenProducts.map((product) => (
+					<div class="product-item flex items-center justify-between p-4 bg-white rounded-lg border-l-4 border-orange-400" data-product-id={product.id}>
 						<div class="flex-1">
 							<h3 class="text-lg font-medium text-gray-900">{product.name}</h3>
 							{product.quantity <= product.minQuantity && (
@@ -79,7 +83,7 @@ try {
 			<!-- Shopping List View (Hidden by default) -->
 			<div id="shoppingListView" class="space-y-4 hidden">
 				<!-- Search Field -->
-				<div class="sticky top-0 z-10 bg-gray-50 p-4 rounded-lg border-2 border-blue-200 shadow-sm">
+				<div class="sticky top-0 z-10 bg-gray-50 p-4 rounded-lg border-2 border-orange-200 shadow-sm">
 					<div class="relative">
 						<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
 							<svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -89,8 +93,8 @@ try {
 						<input 
 							type="text" 
 							id="productSearchInput"
-							class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-							placeholder="🔍 Поиск товаров для бара..."
+							class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base"
+							placeholder="🔍 Поиск товаров для кухни..."
 							autocomplete="off"
 						/>
 						<div class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -112,7 +116,7 @@ try {
 				
 				<!-- Products List -->
 				<div id="productsList" class="space-y-4">
-				{barProducts.map((product) => (
+				{kitchenProducts.map((product) => (
 					<div class="product-item flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg" data-product-id={product.id}>
 						<div class="flex-1">
 							<h3 class="text-base font-medium text-gray-900">{product.name}</h3>
@@ -158,9 +162,9 @@ try {
 				<!-- Create Shopping List Button (Floating) -->
 				<button 
 					id="createShoppingListBtn" 
-					class="fixed bottom-6 right-6 bg-blue-900 hover:bg-blue-800 text-white font-medium py-4 px-6 rounded-full shadow-2xl z-50 transition-all duration-300 hover:scale-105 min-w-[160px]"
+					class="fixed bottom-6 right-6 bg-orange-600 hover:bg-orange-700 text-white font-medium py-4 px-6 rounded-full shadow-2xl z-50 transition-all duration-300 hover:scale-105 min-w-[180px]"
 				>
-					Написать закуп
+					Написать закуп для кухни
 				</button>
 
 				<!-- Shopping List Actions (Hidden by default) -->
@@ -189,5 +193,15 @@ try {
 		</main>
 	</div>
 
+	<script>
+		// Kitchen-specific script configuration
+		document.addEventListener('DOMContentLoaded', function() {
+			// Set department for localStorage
+			window.currentDepartment = 'kitchen';
+			
+			console.log('🍽️ Kitchen inventory initialized');
+			console.log('Department:', window.currentDepartment);
+		});
+	</script>
 	<script src="/scripts/checklist.js" is:inline></script>
-</Layout>
+</Layout> 
