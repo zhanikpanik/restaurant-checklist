@@ -457,7 +457,9 @@ async function initializePosterAPI() {
         console.log('🔄 Initializing Poster API connection via server routes...');
         
         // Test connection using server-side API route
-        const response = await fetch('/api/test-poster-connection');
+        const token = '305185:07928627ec76d09e589e1381710e55da';
+        const baseUrl = 'https://joinposter.com/api';
+        const response = await fetch(`${baseUrl}/storage.getInventoryIngredients?token=${token}&storage_id=2`);
         const connectionResult = await response.json();
         
         if (connectionResult.success) {
