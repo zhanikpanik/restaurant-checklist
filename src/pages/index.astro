@@ -186,6 +186,11 @@ let barProducts = [];
 			
 			// Store products globally for checklist.js
 			window.barProducts = products;
+			
+			// Update checklist.js product data if it's loaded
+			if (window.updateProductDataFromGlobal) {
+				window.updateProductDataFromGlobal();
+			}
 		}
 		
 		// Load data when page loads

@@ -8,37 +8,47 @@ let isShoppingListMode = false;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize product data from the DOM
-    initializeProductData();
+    // Set up event listeners immediately
     setupEventListeners();
     
-    // Initialize Poster API connection (via server-side routes)
-    initializePosterAPI();
+    // Product data will be initialized after API calls complete
+    // This is now handled by updateProductDataFromGlobal()
 });
 
 function initializeProductData() {
-    // Get all product items from the inventory view
-    const productItems = document.querySelectorAll('#inventoryView .product-item');
-    productData = Array.from(productItems).map(item => {
-        const productId = parseInt(item.dataset.productId);
-        const quantityText = item.querySelector('.text-lg.font-semibold').textContent.trim();
-        const [quantity, unit] = quantityText.split(' ');
-        
-        return {
-            id: productId,
-            name: item.querySelector('h3').textContent,
-            quantity: parseFloat(quantity) || 0,
-            unit: unit,
-            minQuantity: 0, // Will be set from Poster API
-            checked: false
-        };
-    });
+    // Legacy function - now replaced by updateProductDataFromGlobal()
+    console.warn('initializeProductData() is deprecated, use updateProductDataFromGlobal() instead');
+}
+
+function updateProductDataFromGlobal() {
+    // Use global product data set by the API calls
+    const globalProducts = window.barProducts || window.kitchenProducts || [];
+    
+    if (globalProducts.length === 0) {
+        console.warn('No global product data found. Products may not be loaded yet.');
+        return false;
+    }
+    
+    console.log(`📦 Updating product data from global: ${globalProducts.length} products`);
+    
+    // Update productData with the global data
+    productData = globalProducts.map(product => ({
+        id: product.id,
+        name: product.name,
+        quantity: product.quantity,
+        unit: product.unit,
+        minQuantity: product.minQuantity || 0,
+        checked: false
+    }));
 
     // Initialize shopping list data with zero quantities
     shoppingListData = productData.map(product => ({
         ...product,
         shoppingQuantity: 0
     }));
+    
+    console.log(`✅ Product data updated: ${productData.length} products ready for shopping list`);
+    return true;
 }
 
 function setupEventListeners() {
@@ -154,6 +164,15 @@ function setupEventListeners() {
 }
 
 function switchToShoppingListMode() {
+    // Update product data from global variables before switching modes
+    const dataUpdated = updateProductDataFromGlobal();
+    
+    if (!dataUpdated) {
+        console.error('❌ Cannot create shopping list: No product data available');
+        alert('Ошибка: Данные о товарах еще не загружены. Попробуйте еще раз через несколько секунд.');
+        return;
+    }
+    
     isShoppingListMode = true;
     
     // Hide inventory view, show shopping list view
@@ -575,5 +594,9 @@ window.BarInventory = {
     clearSearch,
     initializePosterAPI,
     fetchPosterProducts,
-    fetchPosterCategories
-}; 
+    fetchPosterCategories,
+    updateProductDataFromGlobal
+};
+
+// Also expose the update function globally for easier access from pages
+window.updateProductDataFromGlobal = updateProductDataFromGlobal; 
