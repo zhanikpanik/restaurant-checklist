@@ -1,24 +1,19 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
-import node from '@astrojs/node';
 
 // https://astro.build/config
 export default defineConfig({
-  output: 'hybrid',
-  adapter: node({
-    mode: 'standalone'
-  }),
+  output: 'static',
   server: {
     port: 3000,
     host: '0.0.0.0'
   },
   vite: {
     plugins: [tailwindcss()],
-    // Ensure environment variables are loaded
+    // Environment variables for client-side use
     define: {
-      'process.env.POSTER_ACCESS_TOKEN': JSON.stringify(process.env.POSTER_ACCESS_TOKEN),
-      'process.env.PUBLIC_POSTER_ACCESS_TOKEN': JSON.stringify(process.env.PUBLIC_POSTER_ACCESS_TOKEN)
+      'import.meta.env.PUBLIC_POSTER_TOKEN': JSON.stringify('305185:07928627ec76d09e589e1381710e55da')
     }
   }
 });
