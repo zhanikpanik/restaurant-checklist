@@ -14,16 +14,6 @@ export default defineConfig({
     // Environment variables for client-side use
     define: {
       'import.meta.env.PUBLIC_POSTER_TOKEN': JSON.stringify('305185:07928627ec76d09e589e1381710e55da')
-    },
-    preview: {
-      host: '0.0.0.0',
-      port: process.env.PORT || 3000,
-      allowedHosts: [
-        'tranquil-clover-production.up.railway.app',
-        'restaurant-checklist-production.up.railway.app',
-        '.railway.app',
-        'localhost'
-      ]
     }
   }
 });
