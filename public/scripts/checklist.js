@@ -87,7 +87,7 @@ function renderShoppingListProducts() {
                             min="0"
                             step="0.1"
                             data-product-id="${product.id}"
-                            onchange="updateShoppingQuantity(${product.id}, this.value)"
+                            onchange="setShoppingQuantity(${product.id}, this.value)"
                         />
                         <span class="text-sm text-gray-600 min-w-[30px]">${product.unit}</span>
                     </div>
@@ -296,10 +296,12 @@ function updateShoppingQuantity(productId, change) {
 }
 
 function setShoppingQuantity(productId, quantity) {
-    const shoppingItem = shoppingListData.find(p => p.id === productId);
+    console.log(`🛒 Setting quantity for product ${productId} to ${quantity}`);
+    const shoppingItem = shoppingListData.find(p => p.id == productId); // Use == instead of === for type flexibility
     if (shoppingItem) {
         const newQuantity = Math.max(0, parseFloat(quantity) || 0);
         shoppingItem.shoppingQuantity = newQuantity;
+        console.log(`✅ Updated ${shoppingItem.name}: ${newQuantity} ${shoppingItem.unit}`);
         
         // Update both the input field and any display elements
         const productItem = document.querySelector(`#shoppingListView [data-product-id="${productId}"]`);
@@ -319,15 +321,26 @@ function setShoppingQuantity(productId, quantity) {
         if (quantity > 0) {
             console.log(`${shoppingItem.name}: ${newQuantity} ${shoppingItem.unit}`);
         }
+    } else {
+        console.error(`❌ Product with ID ${productId} not found in shoppingListData`);
+        console.log('Available product IDs:', shoppingListData.map(item => item.id));
     }
 }
 
 function saveShoppingList() {
     // Get products that have quantities > 0
+    console.log('🛒 Checking shopping list data:', shoppingListData.map(item => ({
+        id: item.id,
+        name: item.name,
+        shoppingQuantity: item.shoppingQuantity
+    })));
+    
     const itemsToOrder = shoppingListData.filter(item => item.shoppingQuantity > 0);
+    console.log(`📊 Items to order: ${itemsToOrder.length}`);
     
     if (itemsToOrder.length === 0) {
-        console.log('Добавьте товары в закупку!');
+        console.log('❌ Добавьте товары в закупку!');
+        alert('Добавьте товары в закупку!');
         return;
     }
     
@@ -641,6 +654,7 @@ window.BarInventory = {
     switchToShoppingListMode,
     switchToInventoryMode,
     updateShoppingQuantity,
+    setShoppingQuantity,
     saveShoppingList,
     sendToWhatsApp,
     generateWhatsAppMessage,
@@ -653,5 +667,6 @@ window.BarInventory = {
     renderShoppingListProducts
 };
 
-// Also expose the update function globally for easier access from pages
-window.updateProductDataFromGlobal = updateProductDataFromGlobal; 
+// Also expose functions globally for easier access from pages
+window.updateProductDataFromGlobal = updateProductDataFromGlobal;
+window.setShoppingQuantity = setShoppingQuantity; 
