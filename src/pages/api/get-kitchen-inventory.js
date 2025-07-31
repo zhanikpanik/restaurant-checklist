@@ -1,3 +1,5 @@
+export const prerender = false;
+
 export async function GET() {
     const token = '305185:07928627ec76d09e589e1381710e55da';
     const baseUrl = 'https://joinposter.com/api';

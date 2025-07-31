@@ -1,5 +1,7 @@
 import { posterAPI } from '../../config/poster.js';
 
+export const prerender = false;
+
 export async function GET() {
     try {
         console.log('Testing Poster connection...');

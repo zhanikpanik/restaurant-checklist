@@ -1,5 +1,7 @@
 import { posterAPI } from '../../config/poster.js';
 
+export const prerender = false;
+
 export async function POST({ request }) {
     try {
         const { purchasedItems, department } = await request.json();
