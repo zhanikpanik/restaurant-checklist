@@ -7,7 +7,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "start": "npx serve dist -l $PORT",
+    "start": "node ./dist/server/entry.mjs",
     "astro": "astro"
   },
   "keywords": [

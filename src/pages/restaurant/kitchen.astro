@@ -116,37 +116,24 @@ let kitchenProducts = [];
 	</div>
 
 	<script is:inline>
-		// Load kitchen inventory data from Poster API
-		const POSTER_TOKEN = '305185:07928627ec76d09e589e1381710e55da';
-		const BASE_URL = 'https://joinposter.com/api';
-		
+		// Load kitchen inventory data via our API proxy (no CORS issues)
 		async function loadKitchenInventory() {
 			const loadingState = document.getElementById('loadingState');
 			const productsContainer = document.getElementById('productsContainer');
 			
 			try {
-				console.log('🍽️ Loading kitchen inventory from Poster API...');
+				console.log('🍽️ Loading kitchen inventory via API proxy...');
 				
-				// Call Poster API directly for Kitchen inventory (storage_id=1)
-				const response = await fetch(`${BASE_URL}/storage.getInventoryIngredients?token=${POSTER_TOKEN}&storage_id=1`);
-				const data = await response.json();
+				// Call our API proxy endpoint (no CORS issues)
+				const response = await fetch('/api/kitchen-inventory');
+				const result = await response.json();
 				
-				if (data.error) {
-					throw new Error(`Poster API error: ${data.error.message}`);
+				if (!result.success) {
+					throw new Error(result.error || 'Failed to load kitchen inventory');
 				}
 				
-				const ingredients = data.response?.ingredients || [];
-				console.log(`✅ Loaded ${ingredients.length} kitchen ingredients from Poster`);
-				
-				// Transform Poster data to our format
-				const kitchenProducts = ingredients.map(ingredient => ({
-					id: ingredient.item_id,
-					name: ingredient.item.replace(' (Ingr.)', ''),
-					quantity: parseFloat(ingredient.factrest) || 0,
-					unit: ingredient.unit || 'шт',
-					minQuantity: 1,
-					checked: false
-				}));
+				const kitchenProducts = result.data;
+				console.log(`✅ Loaded ${kitchenProducts.length} kitchen products from Poster`);
 				
 				// Hide loading and show products
 				loadingState.style.display = 'none';
