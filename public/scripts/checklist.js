@@ -51,6 +51,57 @@ function updateProductDataFromGlobal() {
     return true;
 }
 
+function renderShoppingListProducts() {
+    const container = document.getElementById('productsList');
+    
+    if (!container) {
+        console.error('❌ Shopping list container not found');
+        return;
+    }
+    
+    if (shoppingListData.length === 0) {
+        console.warn('⚠️ No shopping list data to render');
+        container.innerHTML = '<div class="text-center py-8 text-gray-500">Нет товаров для отображения</div>';
+        return;
+    }
+    
+    console.log(`🛒 Rendering ${shoppingListData.length} products in shopping list`);
+    
+    container.innerHTML = shoppingListData.map(product => `
+        <div class="product-item bg-white border border-gray-200 rounded-lg p-4 shadow-sm" data-product-id="${product.id}">
+            <div class="flex items-center justify-between">
+                <div class="flex-1">
+                    <h3 class="text-lg font-medium text-gray-900">${product.name}</h3>
+                    <div class="text-sm text-gray-500 mt-1">
+                        На складе: ${product.quantity} ${product.unit}
+                        ${product.quantity <= product.minQuantity ? '<span class="text-red-600 font-medium ml-2">⚠️ Мало</span>' : ''}
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-2">
+                        <label class="text-sm text-gray-600 min-w-[60px]">Заказать:</label>
+                        <input 
+                            type="number" 
+                            class="quantity-input w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
+                            value="0"
+                            min="0"
+                            step="0.1"
+                            data-product-id="${product.id}"
+                            onchange="updateShoppingQuantity(${product.id}, this.value)"
+                        />
+                        <span class="text-sm text-gray-600 min-w-[30px]">${product.unit}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    // Reset all quantities to 0
+    shoppingListData.forEach(item => {
+        item.shoppingQuantity = 0;
+    });
+}
+
 function setupEventListeners() {
     // Create shopping list button
     const createShoppingListBtn = document.getElementById('createShoppingListBtn');
@@ -212,6 +263,9 @@ function switchToShoppingListMode() {
             productSearchInput.focus();
         }, 100);
     }
+    
+    // Render products in shopping list view
+    renderShoppingListProducts();
     
     console.log('Режим создания закупки активирован');
 }
@@ -595,7 +649,8 @@ window.BarInventory = {
     initializePosterAPI,
     fetchPosterProducts,
     fetchPosterCategories,
-    updateProductDataFromGlobal
+    updateProductDataFromGlobal,
+    renderShoppingListProducts
 };
 
 // Also expose the update function globally for easier access from pages
