@@ -482,7 +482,9 @@ async function fetchPosterProducts() {
         console.log('🔄 Fetching real ingredients from Poster...');
         
         // Use the new ingredients endpoint that actually works
-        const response = await fetch('/api/get-poster-ingredients');
+        const token = '305185:07928627ec76d09e589e1381710e55da';
+        const baseUrl = 'https://joinposter.com/api';
+        const response = await fetch(`${baseUrl}/storage.getInventoryIngredients?token=${token}&storage_id=2`);
         const result = await response.json();
         
         if (result.success) {
