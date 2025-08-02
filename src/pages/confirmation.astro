@@ -1,0 +1,234 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Подтверждение заказа">
+	<div class="min-h-screen bg-white">
+		<!-- Header -->
+		<header class="bg-white border-b border-gray-200 px-4 py-6">
+			<div class="max-w-md mx-auto">
+				<div class="flex items-center justify-between mb-4">
+					<button id="backBtn" class="text-blue-600 hover:text-blue-800">← Назад</button>
+					<h1 class="text-2xl font-bold text-black">Подтверждение заказа</h1>
+					<div class="w-16"></div> <!-- Spacer -->
+				</div>
+			</div>
+		</header>
+
+		<!-- Main Content -->
+		<main class="max-w-md mx-auto px-4 py-6">
+			<!-- Order Summary -->
+			<div id="orderSummary" class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
+				<h2 class="text-lg font-semibold text-gray-900 mb-4">Детали заказа</h2>
+				<div id="orderDetails" class="space-y-2">
+					<!-- Order details will be populated by JavaScript -->
+				</div>
+			</div>
+
+			<!-- Order Text for Copying -->
+			<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+				<h3 class="text-md font-medium text-gray-900 mb-3">Текст заказа</h3>
+				<div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm font-mono">
+					<pre id="orderText" class="whitespace-pre-wrap text-gray-800"></pre>
+				</div>
+			</div>
+
+			<!-- Action Buttons -->
+			<div class="space-y-3">
+				<!-- Copy to Clipboard Button -->
+				<button 
+					id="copyBtn" 
+					class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+				>
+					<span>📋</span>
+					<span>Копировать</span>
+				</button>
+
+				<!-- Send to WhatsApp Button -->
+				<button 
+					id="sendWhatsAppBtn" 
+					class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+				>
+					<span>📱</span>
+					<span>Отправить в WhatsApp</span>
+				</button>
+
+				<!-- Cancel Button -->
+				<button 
+					id="cancelBtn" 
+					class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors duration-200"
+				>
+					Отменить
+				</button>
+			</div>
+
+			<!-- Success Message -->
+			<div id="successMessage" class="hidden mt-4 p-4 bg-green-100 border border-green-300 rounded-lg">
+				<div class="flex items-center">
+					<span class="text-green-600 mr-2">✅</span>
+					<span class="text-green-800 font-medium">Текст скопирован в буфер обмена!</span>
+				</div>
+			</div>
+		</main>
+	</div>
+
+	<script is:inline>
+		// Get order data from URL parameters or localStorage
+		function getOrderData() {
+			// Try to get from localStorage first (more reliable)
+			const orderData = localStorage.getItem('pendingOrder');
+			if (orderData) {
+				return JSON.parse(orderData);
+			}
+			
+			// Fallback: redirect back if no order data
+			console.error('No order data found');
+			window.history.back();
+			return null;
+		}
+
+		// Display order details
+		function displayOrderDetails() {
+			const orderData = getOrderData();
+			if (!orderData) return;
+
+			const orderDetails = document.getElementById('orderDetails');
+			const orderText = document.getElementById('orderText');
+
+			// Display order summary
+			let summaryHtml = `
+				<div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
+					<span class="font-medium">${orderData.departmentName}</span>
+					<span class="text-sm text-gray-600">${orderData.date}</span>
+				</div>
+			`;
+
+			orderData.items.forEach(item => {
+				const urgentMark = item.isUrgent ? '<span class="text-red-600 font-bold"> *СРОЧНО*</span>' : '';
+				summaryHtml += `
+					<div class="flex justify-between items-center">
+						<span>${item.name}${urgentMark}</span>
+						<span class="font-medium">${item.quantity} ${item.unit}</span>
+					</div>
+				`;
+			});
+
+			summaryHtml += `
+				<div class="border-t border-gray-200 pt-2 mt-2">
+					<div class="flex justify-between items-center font-semibold">
+						<span>Всего позиций:</span>
+						<span>${orderData.items.length}</span>
+					</div>
+				</div>
+			`;
+
+			orderDetails.innerHTML = summaryHtml;
+
+			// Display formatted text for copying
+			orderText.textContent = orderData.formattedText;
+		}
+
+		// Copy to clipboard functionality
+		async function copyToClipboard() {
+			const orderText = document.getElementById('orderText').textContent;
+			const successMessage = document.getElementById('successMessage');
+			const copyBtn = document.getElementById('copyBtn');
+
+			try {
+				await navigator.clipboard.writeText(orderText);
+				
+				// Show success message
+				successMessage.classList.remove('hidden');
+				
+				// Update button temporarily
+				const originalText = copyBtn.innerHTML;
+				copyBtn.innerHTML = '<span>✅</span><span>Скопировано!</span>';
+				copyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+				copyBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+
+				// Reset after 2 seconds
+				setTimeout(() => {
+					successMessage.classList.add('hidden');
+					copyBtn.innerHTML = originalText;
+					copyBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+					copyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+				}, 2000);
+
+			} catch (err) {
+				console.error('Failed to copy text: ', err);
+				// Fallback for older browsers
+				const textArea = document.createElement('textarea');
+				textArea.value = orderText;
+				document.body.appendChild(textArea);
+				textArea.select();
+				document.execCommand('copy');
+				document.body.removeChild(textArea);
+				
+				successMessage.classList.remove('hidden');
+				setTimeout(() => {
+					successMessage.classList.add('hidden');
+				}, 2000);
+			}
+		}
+
+		// Send to WhatsApp
+		function sendToWhatsApp() {
+			const orderData = getOrderData();
+			if (!orderData) return;
+
+			const buyerPhone = "996557957457";
+			const encodedMessage = encodeURIComponent(orderData.formattedText);
+			
+			// Detect if user is on mobile device
+			const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+			
+			let whatsappUrl;
+			if (isMobile) {
+				// For mobile devices - use WhatsApp app scheme
+				whatsappUrl = `whatsapp://send?phone=${buyerPhone}&text=${encodedMessage}`;
+			} else {
+				// For desktop - use WhatsApp Web
+				whatsappUrl = `https://web.whatsapp.com/send?phone=${buyerPhone}&text=${encodedMessage}`;
+			}
+			
+			// Try to open WhatsApp
+			const whatsappWindow = window.open(whatsappUrl, '_blank');
+			
+			// Fallback for mobile if WhatsApp app isn't installed
+			if (isMobile && !whatsappWindow) {
+				// Use wa.me as fallback
+				const fallbackUrl = `https://wa.me/${buyerPhone}?text=${encodedMessage}`;
+				window.open(fallbackUrl, '_blank');
+			}
+
+			// Clear the pending order from localStorage
+			localStorage.removeItem('pendingOrder');
+			
+			// Navigate back to main page
+			window.location.href = orderData.returnUrl || '/';
+		}
+
+		// Event listeners
+		document.addEventListener('DOMContentLoaded', function() {
+			displayOrderDetails();
+
+			// Copy button
+			document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+
+			// WhatsApp button
+			document.getElementById('sendWhatsAppBtn').addEventListener('click', sendToWhatsApp);
+
+			// Back button
+			document.getElementById('backBtn').addEventListener('click', function() {
+				window.history.back();
+			});
+
+			// Cancel button
+			document.getElementById('cancelBtn').addEventListener('click', function() {
+				// Clear pending order and go back
+				localStorage.removeItem('pendingOrder');
+				window.history.back();
+			});
+		});
+	</script>
+</Layout>

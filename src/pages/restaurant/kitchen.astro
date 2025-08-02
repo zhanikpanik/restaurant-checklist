@@ -25,22 +25,14 @@ let kitchenProducts = [];
 
 		<!-- Main Content -->
 		<main class="max-w-md mx-auto px-4 py-6">
-			<!-- Inventory View (Default) -->
-			<div id="inventoryView" class="space-y-4">
-				<!-- Loading State -->
-				<div id="loadingState" class="text-center py-8">
-					<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
-					<p class="text-gray-600">Загрузка инвентаря кухни...</p>
-				</div>
-				
-				<!-- Products Container (populated by JavaScript) -->
-				<div id="productsContainer" class="space-y-4 hidden">
-					<!-- Products will be loaded here dynamically -->
-				</div>
+			<!-- Loading State -->
+			<div id="loadingState" class="text-center py-8">
+				<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+				<p class="text-gray-600">Загрузка товаров для заказа...</p>
 			</div>
 
-			<!-- Shopping List View (Hidden by default) -->
-			<div id="shoppingListView" class="space-y-4 hidden">
+			<!-- Order View (Direct) -->
+			<div id="orderView" class="space-y-4 hidden">
 				<!-- Search Field -->
 				<div class="sticky top-0 z-10 bg-gray-50 p-4 rounded-lg border-2 border-orange-200 shadow-sm">
 					<div class="relative">
@@ -71,77 +63,69 @@ let kitchenProducts = [];
 					<div id="searchResultsCount" class="mt-2 text-sm text-gray-600 hidden">
 						<span id="searchResultsText"></span>
 					</div>
+					<!-- Added Products Summary Label -->
+					<div id="addedProductsLabel" class="mt-2 text-sm font-medium text-blue-700 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 hidden">
+						<span id="addedProductsText">Товары не добавлены</span>
+					</div>
 				</div>
 				
 				<!-- Products List -->
 				<div id="productsList" class="space-y-4">
-					<!-- Shopping list products will be populated by JavaScript -->
+					<!-- Order products will be populated by JavaScript -->
 				</div>
-			</div>
-
-			<!-- Action Buttons -->
-			<div class="mt-8 space-y-4">
-				<!-- Create Shopping List Button (Floating) -->
+				
+				<!-- Floating Action Button -->
 				<button 
-					id="createShoppingListBtn" 
-					class="fixed bottom-6 right-6 bg-orange-600 hover:bg-orange-700 text-white font-medium py-4 px-6 rounded-full shadow-2xl z-50 transition-all duration-300 hover:scale-105 min-w-[180px]"
+					id="sendWhatsAppBtn" 
+					class="fixed bottom-6 right-6 bg-gray-400 hover:bg-gray-500 text-white font-medium py-4 px-6 rounded-lg shadow-lg z-50 transition-all duration-200 flex items-center space-x-2 min-w-[180px] justify-center"
 				>
-					Написать закуп для кухни
+					<span>📱</span>
+					<span class="text-center">Создать заказ</span>
 				</button>
-
-				<!-- Shopping List Actions (Hidden by default) -->
-				<div id="shoppingListActions" class="hidden space-y-3">
-					<button 
-						id="sendWhatsAppBtn" 
-						class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-4 px-6 rounded-lg flex items-center justify-center space-x-2"
-					>
-						<span>📱</span>
-						<span>Отправить в WhatsApp</span>
-					</button>
-					<button 
-						id="saveShoppingListBtn" 
-						class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-6 rounded-lg"
-					>
-						Сохранить закуп
-					</button>
-					<button 
-						id="cancelShoppingListBtn" 
-						class="w-full bg-gray-500 hover:bg-gray-600 text-white font-medium py-4 px-6 rounded-lg"
-					>
-						Отмена
-					</button>
-				</div>
 			</div>
 		</main>
 	</div>
 
 	<script is:inline>
-		// Load kitchen inventory data via our API proxy (no CORS issues)
-		async function loadKitchenInventory() {
+		// Load kitchen products for ordering via our API proxy (no CORS issues)
+		async function loadKitchenProducts() {
 			const loadingState = document.getElementById('loadingState');
-			const productsContainer = document.getElementById('productsContainer');
+			const orderView = document.getElementById('orderView');
 			
 			try {
-				console.log('🍽️ Loading kitchen inventory via API proxy...');
+				console.log('🍽️ Loading kitchen products for ordering...');
 				
 				// Call our API proxy endpoint (no CORS issues)
 				const response = await fetch('/api/kitchen-inventory');
 				const result = await response.json();
 				
 				if (!result.success) {
-					throw new Error(result.error || 'Failed to load kitchen inventory');
+					throw new Error(result.error || 'Failed to load kitchen products');
 				}
 				
 				const kitchenProducts = result.data;
 				console.log(`✅ Loaded ${kitchenProducts.length} kitchen products from Poster`);
 				
-				// Hide loading and show products
+				// Hide loading and show order view
 				loadingState.style.display = 'none';
-				productsContainer.style.display = 'block';
-				productsContainer.classList.remove('hidden');
+				orderView.style.display = 'block';
+				orderView.classList.remove('hidden');
 				
-				// Render products
-				renderKitchenProducts(kitchenProducts);
+				// Store products globally for checklist.js
+				window.kitchenProducts = kitchenProducts;
+				
+				// Set department for localStorage
+				window.currentDepartment = 'kitchen';
+				
+				// Initialize order mode directly
+				if (window.initializeOrderMode) {
+					window.initializeOrderMode();
+				}
+				
+				// Update floating button label after initialization
+				if (window.updateFloatingButtonLabel) {
+					window.updateFloatingButtonLabel();
+				}
 				
 				// Update header indicator
 				const headerSpan = document.querySelector('header span.text-sm');
@@ -149,17 +133,14 @@ let kitchenProducts = [];
 					headerSpan.textContent = `📊 Реальные данные из Poster (${kitchenProducts.length} товаров)`;
 				}
 				
-				// Set department for localStorage
-				window.currentDepartment = 'kitchen';
-				
 			} catch (error) {
-				console.error('❌ Failed to load kitchen inventory:', error);
+				console.error('❌ Failed to load kitchen products:', error);
 				loadingState.innerHTML = `
 					<div class="text-center py-8">
 						<div class="text-red-500 mb-4">❌</div>
 						<p class="text-red-600">Ошибка загрузки данных</p>
 						<p class="text-sm text-gray-500">${error.message}</p>
-						<button onclick="loadKitchenInventory()" class="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg">
+						<button onclick="loadKitchenProducts()" class="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg">
 							Попробовать снова
 						</button>
 					</div>
@@ -167,38 +148,9 @@ let kitchenProducts = [];
 			}
 		}
 		
-		function renderKitchenProducts(products) {
-			const container = document.getElementById('productsContainer');
-			
-			container.innerHTML = products.map(product => `
-				<div class="product-item flex items-center justify-between p-4 bg-white rounded-lg border-l-4 border-orange-400" data-product-id="${product.id}">
-					<div class="flex-1">
-						<h3 class="text-lg font-medium text-gray-900">${product.name}</h3>
-						${product.quantity <= product.minQuantity ? '<span class="text-xs text-red-600 font-medium">⚠️ Мало на складе</span>' : ''}
-					</div>
-					<div class="text-right">
-						<div class="text-lg font-semibold text-gray-900">
-							${product.quantity} ${product.unit}
-						</div>
-						<div class="text-xs text-gray-500">
-							мин: ${product.minQuantity} ${product.unit}
-						</div>
-					</div>
-				</div>
-			`).join('');
-			
-			// Store products globally for checklist.js
-			window.kitchenProducts = products;
-			
-			// Update checklist.js product data if it's loaded
-			if (window.updateProductDataFromGlobal) {
-				window.updateProductDataFromGlobal();
-			}
-		}
-		
 		// Load data when page loads
 		document.addEventListener('DOMContentLoaded', function() {
-			loadKitchenInventory();
+			loadKitchenProducts();
 		});
 	</script>
 

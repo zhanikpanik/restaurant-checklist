@@ -67,34 +67,61 @@ function renderShoppingListProducts() {
     
     console.log(`🛒 Rendering ${shoppingListData.length} products in shopping list`);
     
-    container.innerHTML = shoppingListData.map(product => `
-        <div class="product-item bg-white border border-gray-200 rounded-lg p-4 shadow-sm" data-product-id="${product.id}">
-            <div class="flex items-center justify-between">
+    container.innerHTML = shoppingListData.map(product => {
+        const isLowStock = product.quantity <= product.minQuantity;
+        const quantityColor = isLowStock ? 'text-red-600' : 'text-gray-900';
+        
+        return `
+        <div class="product-item bg-white p-4" data-product-id="${product.id}">
+            <div class="flex items-center justify-between w-full">
                 <div class="flex-1">
                     <h3 class="text-lg font-medium text-gray-900">${product.name}</h3>
                     <div class="text-sm text-gray-500 mt-1">
-                        На складе: ${product.quantity} ${product.unit}
-                        ${product.quantity <= product.minQuantity ? '<span class="text-red-600 font-medium ml-2">⚠️ Мало</span>' : ''}
+                        На складе: <span class="${quantityColor} font-medium">${product.quantity}</span> ${product.unit}
                     </div>
                 </div>
-                <div class="flex items-center space-x-3">
-                    <div class="flex items-center space-x-2">
-                        <label class="text-sm text-gray-600 min-w-[60px]">Заказать:</label>
+                <div class="flex items-center justify-end space-x-3">
+                    <!-- Minus Button -->
+                    <button 
+                        class="minus-btn w-9 h-9 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 rounded-lg flex items-center justify-center text-lg font-normal transition-colors duration-200"
+                        data-product-id="${product.id}"
+                        onclick="updateShoppingQuantity(${product.id}, -1)"
+                        title="Убрать 0.5 ${product.unit}"
+                    >
+                        −
+                    </button>
+                    
+                    <!-- Quantity Input -->
+                    <div class="relative">
                         <input 
                             type="number" 
-                            class="quantity-input w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-center"
-                            value="0"
+                            class="quantity-input w-20 pr-7 pl-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-right bg-gray-50"
+                            value=""
                             min="0"
                             step="0.1"
+                            placeholder="0"
                             data-product-id="${product.id}"
                             onchange="setShoppingQuantity(${product.id}, this.value)"
                         />
-                        <span class="text-sm text-gray-600 min-w-[30px]">${product.unit}</span>
+                        <span class="absolute inset-y-0 right-0 flex items-center pr-2 text-xs text-gray-400 pointer-events-none">
+                            ${product.unit}
+                        </span>
                     </div>
+                    
+                    <!-- Plus Button -->
+                    <button 
+                        class="plus-btn w-9 h-9 bg-gray-800 hover:bg-gray-900 text-white rounded-lg flex items-center justify-center text-lg font-normal transition-colors duration-200"
+                        data-product-id="${product.id}"
+                        onclick="updateShoppingQuantity(${product.id}, 1)"
+                        title="Добавить 0.5 ${product.unit}"
+                    >
+                        +
+                    </button>
                 </div>
             </div>
         </div>
-    `).join('');
+        `;
+    }).join('');
     
     // Reset all quantities to 0
     shoppingListData.forEach(item => {
@@ -103,14 +130,6 @@ function renderShoppingListProducts() {
 }
 
 function setupEventListeners() {
-    // Create shopping list button
-    const createShoppingListBtn = document.getElementById('createShoppingListBtn');
-    if (createShoppingListBtn) {
-        createShoppingListBtn.addEventListener('click', function() {
-            switchToShoppingListMode();
-        });
-    }
-
     // WhatsApp button
     const sendWhatsAppBtn = document.getElementById('sendWhatsAppBtn');
     if (sendWhatsAppBtn) {
@@ -119,21 +138,8 @@ function setupEventListeners() {
         });
     }
 
-    // Save shopping list button
-    const saveShoppingListBtn = document.getElementById('saveShoppingListBtn');
-    if (saveShoppingListBtn) {
-        saveShoppingListBtn.addEventListener('click', function() {
-            saveShoppingList();
-        });
-    }
-
-    // Cancel shopping list button
-    const cancelShoppingListBtn = document.getElementById('cancelShoppingListBtn');
-    if (cancelShoppingListBtn) {
-        cancelShoppingListBtn.addEventListener('click', function() {
-            switchToInventoryMode();
-        });
-    }
+    // Auto-save is handled in setShoppingQuantity function
+    // No manual save button needed
 
     // Search functionality
     const productSearchInput = document.getElementById('productSearchInput');
@@ -158,21 +164,7 @@ function setupEventListeners() {
         });
     }
 
-    // Plus button event listeners (for shopping list mode)
-    document.querySelectorAll('.plus-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const productId = parseInt(this.dataset.productId);
-            updateShoppingQuantity(productId, 1);
-        });
-    });
-
-    // Minus button event listeners (for shopping list mode)
-    document.querySelectorAll('.minus-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const productId = parseInt(this.dataset.productId);
-            updateShoppingQuantity(productId, -1);
-        });
-    });
+    // +/- buttons use onclick attributes, no need for additional event listeners
 
     // Quantity input field event listeners (for direct input)
     document.querySelectorAll('.quantity-input').forEach(input => {
@@ -214,44 +206,31 @@ function setupEventListeners() {
     });
 }
 
-function switchToShoppingListMode() {
-    // Update product data from global variables before switching modes
+// Initialize order mode directly (no mode switching needed)
+function initializeOrderMode() {
+    console.log('🛒 Initializing order mode...');
+    
+    // Update product data from global variables
     const dataUpdated = updateProductDataFromGlobal();
     
     if (!dataUpdated) {
-        console.error('❌ Cannot create shopping list: No product data available');
-        alert('Ошибка: Данные о товарах еще не загружены. Попробуйте еще раз через несколько секунд.');
-        return;
+        console.error('❌ Cannot initialize order mode: No product data available');
+        return false;
     }
     
+    // Set shopping list mode flag
     isShoppingListMode = true;
-    
-    // Hide inventory view, show shopping list view
-    document.getElementById('inventoryView').classList.add('hidden');
-    document.getElementById('shoppingListView').classList.remove('hidden');
-    
-    // Hide create button, show shopping list actions
-    document.getElementById('createShoppingListBtn').classList.add('hidden');
-    document.getElementById('shoppingListActions').classList.remove('hidden');
     
     // Reset shopping quantities to 0
     shoppingListData.forEach(item => {
         item.shoppingQuantity = 0;
     });
     
-    // Update all quantity inputs to 0
-    document.querySelectorAll('#shoppingListView .quantity-input').forEach(input => {
-        input.value = '0';
-    });
+    // Render products in order view
+    renderShoppingListProducts();
     
-    // Also update any legacy quantity displays (if they exist)
-    document.querySelectorAll('#shoppingListView .quantity-display').forEach(display => {
-        const productId = parseInt(display.closest('.product-item').dataset.productId);
-        const product = shoppingListData.find(p => p.id === productId);
-        if (product) {
-            display.textContent = `0 ${product.unit}`;
-        }
-    });
+    // Update floating button label
+    updateFloatingButtonLabel();
     
     // Clear search and focus on search input
     const productSearchInput = document.getElementById('productSearchInput');
@@ -264,34 +243,28 @@ function switchToShoppingListMode() {
         }, 100);
     }
     
-    // Render products in shopping list view
-    renderShoppingListProducts();
-    
-    console.log('Режим создания закупки активирован');
-}
-
-function switchToInventoryMode() {
-    isShoppingListMode = false;
-    
-    // Show inventory view, hide shopping list view
-    document.getElementById('inventoryView').classList.remove('hidden');
-    document.getElementById('shoppingListView').classList.add('hidden');
-    
-    // Show create button, hide shopping list actions
-    document.getElementById('createShoppingListBtn').classList.remove('hidden');
-    document.getElementById('shoppingListActions').classList.add('hidden');
-    
-    console.log('Вернулись к просмотру инвентаря');
+    console.log('✅ Order mode initialized with', shoppingListData.length, 'products');
+    return true;
 }
 
 function updateShoppingQuantity(productId, change) {
-    const shoppingItem = shoppingListData.find(p => p.id === productId);
+    // Convert productId to number to handle type mismatches
+    const numericProductId = parseInt(productId);
+    
+    // Try both strict and loose equality
+    let shoppingItem = shoppingListData.find(p => p.id === numericProductId);
+    if (!shoppingItem) {
+        shoppingItem = shoppingListData.find(p => p.id == productId);
+    }
+    
     if (shoppingItem) {
         // Fixed 0.5 step increment for all products
         const increment = change * 0.5;
         
-        const newQuantity = Math.max(0, shoppingItem.shoppingQuantity + increment);
-        setShoppingQuantity(productId, newQuantity);
+        const newQuantity = Math.max(0, (shoppingItem.shoppingQuantity || 0) + increment);
+        setShoppingQuantity(shoppingItem.id, newQuantity);
+    } else {
+        console.error(`❌ Product with ID ${productId} not found in shoppingListData`);
     }
 }
 
@@ -304,11 +277,12 @@ function setShoppingQuantity(productId, quantity) {
         console.log(`✅ Updated ${shoppingItem.name}: ${newQuantity} ${shoppingItem.unit}`);
         
         // Update both the input field and any display elements
-        const productItem = document.querySelector(`#shoppingListView [data-product-id="${productId}"]`);
-        const quantityInput = productItem.querySelector('.quantity-input');
+        const productItem = document.querySelector(`#orderView [data-product-id="${productId}"]`) || 
+                           document.querySelector(`[data-product-id="${productId}"]`);
+        const quantityInput = productItem?.querySelector('.quantity-input');
         
         if (quantityInput) {
-            quantityInput.value = newQuantity > 0 ? newQuantity.toString() : '0';
+            quantityInput.value = newQuantity > 0 ? newQuantity.toString() : '';
         }
         
         // Also update any legacy quantity displays (if they exist)
@@ -321,64 +295,123 @@ function setShoppingQuantity(productId, quantity) {
         if (quantity > 0) {
             console.log(`${shoppingItem.name}: ${newQuantity} ${shoppingItem.unit}`);
         }
+        
+        // Auto-save to cache whenever quantity changes
+        autoSaveToCache();
+        
+        // Update floating button label
+        updateFloatingButtonLabel();
+        
     } else {
         console.error(`❌ Product with ID ${productId} not found in shoppingListData`);
         console.log('Available product IDs:', shoppingListData.map(item => item.id));
     }
 }
 
-function saveShoppingList() {
-    // Get products that have quantities > 0
-    console.log('🛒 Checking shopping list data:', shoppingListData.map(item => ({
-        id: item.id,
-        name: item.name,
-        shoppingQuantity: item.shoppingQuantity
-    })));
+// Auto-save current order to cache
+function autoSaveToCache() {
+    try {
+        // Get products that have quantities > 0
+        const itemsToOrder = shoppingListData.filter(item => item.shoppingQuantity > 0);
+        
+        // Determine department (default to 'bar' for backward compatibility)
+        const department = window.currentDepartment || 'bar';
+        const departmentName = department === 'kitchen' ? 'Кухня' : 'Бар';
+        
+        // Create shopping list data
+        const orderData = {
+            timestamp: new Date().toISOString(),
+            department: department,
+            departmentName: departmentName,
+            items: itemsToOrder.map(item => ({
+                id: item.id,
+                name: item.name,
+                quantity: item.shoppingQuantity,
+                unit: item.unit
+            })),
+            totalItems: itemsToOrder.length,
+            totalQuantity: itemsToOrder.reduce((sum, item) => sum + item.shoppingQuantity, 0),
+            status: 'draft'
+        };
+        
+        // Save to department-specific cache
+        const cacheKey = `${department}OrderDraft`;
+        localStorage.setItem(cacheKey, JSON.stringify(orderData));
+        
+        // Only log if there are items
+        if (itemsToOrder.length > 0) {
+            console.log(`💾 Auto-saved ${departmentName} order: ${itemsToOrder.length} товаров`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Auto-save failed:', error);
+    }
+}
+
+// Update floating button label with order count
+function updateFloatingButtonLabel() {
+    const sendBtn = document.getElementById('sendWhatsAppBtn');
+    if (!sendBtn) return;
     
-    const itemsToOrder = shoppingListData.filter(item => item.shoppingQuantity > 0);
-    console.log(`📊 Items to order: ${itemsToOrder.length}`);
+    // Count products with quantities > 0
+    const itemsInOrder = shoppingListData.filter(item => item.shoppingQuantity > 0);
+    const itemCount = itemsInOrder.length;
     
-    if (itemsToOrder.length === 0) {
-        console.log('❌ Добавьте товары в закупку!');
-        alert('Добавьте товары в закупку!');
-        return;
+    // Update WhatsApp button label
+    const textSpan = sendBtn.querySelector('span:last-child');
+    if (textSpan) {
+        if (itemCount === 0) {
+            textSpan.textContent = 'Создать заказ';
+            sendBtn.classList.remove('bg-gray-800', 'hover:bg-gray-900');
+            sendBtn.classList.add('bg-gray-400', 'hover:bg-gray-500');
+        } else {
+            const productText = getProductCountText(itemCount);
+            textSpan.textContent = `В корзине ${itemCount} ${productText}`;
+            sendBtn.classList.remove('bg-gray-400', 'hover:bg-gray-500');
+            sendBtn.classList.add('bg-gray-800', 'hover:bg-gray-900');
+        }
     }
     
-    // Determine department (default to 'bar' for backward compatibility)
-    const department = window.currentDepartment || 'bar';
-    const departmentName = department === 'kitchen' ? 'Кухня' : 'Бар';
-    
-    // Create shopping list data
-    const shoppingList = {
-        timestamp: new Date().toISOString(),
-        department: department,
-        departmentName: departmentName,
-        items: itemsToOrder.map(item => ({
-            id: item.id,
-            name: item.name,
-            quantity: item.shoppingQuantity,
-            unit: item.unit
-        })),
-        totalItems: itemsToOrder.length,
-        totalQuantity: itemsToOrder.reduce((sum, item) => sum + item.shoppingQuantity, 0),
-        status: 'pending'
-    };
-    
-    // TODO: Send to Poster API (if purchase order endpoints become available)
-    // createPosterPurchaseOrder(shoppingList);
-    
-    // Save to department-specific localStorage
-    const storageKey = `${department}ShoppingList`;
-    localStorage.setItem(storageKey, JSON.stringify(shoppingList));
-    
-    console.log(`Закупка для ${departmentName.toLowerCase()} сохранена: ${itemsToOrder.length} товаров`);
-    
-    // Log the shopping list for now
-    console.log(`${departmentName} Shopping List:`, shoppingList);
-    
-    // Switch back to inventory mode
-    switchToInventoryMode();
+    // Update added products summary label
+    updateAddedProductsLabel(itemCount, itemsInOrder);
 }
+
+// Get correct Russian plural form for "продукт"
+function getProductCountText(count) {
+    if (count % 10 === 1 && count % 100 !== 11) {
+        return 'продукт';
+    } else if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) {
+        return 'продукта';
+    } else {
+        return 'продуктов';
+    }
+}
+
+// Update added products summary label
+function updateAddedProductsLabel(itemCount, itemsInOrder) {
+    const addedProductsLabel = document.getElementById('addedProductsLabel');
+    const addedProductsText = document.getElementById('addedProductsText');
+    
+    if (!addedProductsLabel || !addedProductsText) return;
+    
+    if (itemCount === 0) {
+        // Hide the label when no products are added
+        addedProductsLabel.classList.add('hidden');
+        addedProductsText.textContent = 'Товары не добавлены';
+    } else {
+        // Show the label and update text
+        addedProductsLabel.classList.remove('hidden');
+        
+        // Calculate total quantity of all added products
+        const totalQuantity = itemsInOrder.reduce((sum, item) => sum + item.shoppingQuantity, 0);
+        const productText = getProductCountText(itemCount);
+        
+        // Create detailed summary text
+        addedProductsText.textContent = `В корзине: ${itemCount} ${productText} (общее кол-во: ${totalQuantity.toFixed(1)})`;
+    }
+}
+
+// saveShoppingList function removed - replaced by auto-save functionality
 
 // Search Functions
 function filterProducts(searchTerm) {
@@ -462,13 +495,13 @@ function getProductCountSuffix(count) {
     }
 }
 
-// WhatsApp Integration
+// WhatsApp Integration - Modified to show confirmation page first
 function sendToWhatsApp() {
     // Get products that have quantities > 0
     const itemsToOrder = shoppingListData.filter(item => item.shoppingQuantity > 0);
     
     if (itemsToOrder.length === 0) {
-        console.log('Добавьте товары в закупку!');
+        alert('Добавьте товары в закупку!');
         return;
     }
     
@@ -478,38 +511,93 @@ function sendToWhatsApp() {
     const departmentEmoji = department === 'kitchen' ? '🍳' : '🍷';
     
     // Generate WhatsApp message
-    const message = generateWhatsAppMessage(itemsToOrder, departmentName, departmentEmoji);
+    const formattedText = generateWhatsAppMessage(itemsToOrder, departmentName, departmentEmoji);
     
-    const buyerPhone = "996557957457";
-    const encodedMessage = encodeURIComponent(message);
+    // Prepare order data for confirmation page
+    const orderData = {
+        items: itemsToOrder.map(item => ({
+            id: item.id,
+            name: item.name,
+            quantity: item.shoppingQuantity,
+            unit: item.unit,
+            isUrgent: item.quantity <= 0
+        })),
+        departmentName: departmentName,
+        department: department,
+        date: new Date().toLocaleDateString('ru-RU'),
+        formattedText: formattedText,
+        returnUrl: window.location.pathname
+    };
     
-    // Detect if user is on mobile device
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    // Save order data to localStorage for confirmation page
+    localStorage.setItem('pendingOrder', JSON.stringify(orderData));
     
-    let whatsappUrl;
-    if (isMobile) {
-        // For mobile devices - use WhatsApp app scheme
-        whatsappUrl = `whatsapp://send?phone=${buyerPhone}&text=${encodedMessage}`;
-    } else {
-        // For desktop - use WhatsApp Web
-        whatsappUrl = `https://web.whatsapp.com/send?phone=${buyerPhone}&text=${encodedMessage}`;
+    // Navigate to confirmation page
+    window.location.href = '/confirmation';
+    
+    console.log(`Перенаправление на страницу подтверждения (${itemsToOrder.length} товаров)`);
+}
+
+// Save final order to cache with 'sent' status
+function saveFinalOrderToCache(itemsToOrder, department, departmentName) {
+    try {
+        const finalOrder = {
+            timestamp: new Date().toISOString(),
+            department: department,
+            departmentName: departmentName,
+            items: itemsToOrder.map(item => ({
+                id: item.id,
+                name: item.name,
+                quantity: item.shoppingQuantity,
+                unit: item.unit
+            })),
+            totalItems: itemsToOrder.length,
+            totalQuantity: itemsToOrder.reduce((sum, item) => sum + item.shoppingQuantity, 0),
+            status: 'sent'
+        };
+        
+        // Save to final orders history
+        const historyKey = `${department}OrderHistory`;
+        const existingHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        existingHistory.unshift(finalOrder); // Add to beginning
+        
+        // Keep only last 10 orders
+        if (existingHistory.length > 10) {
+            existingHistory.splice(10);
+        }
+        
+        localStorage.setItem(historyKey, JSON.stringify(existingHistory));
+        
+        // Clear the draft
+        const draftKey = `${department}OrderDraft`;
+        localStorage.removeItem(draftKey);
+        
+        console.log(`✅ Order saved to history: ${itemsToOrder.length} товаров`);
+        
+    } catch (error) {
+        console.error('❌ Failed to save final order:', error);
     }
+}
+
+// Clear all quantities and reset the form
+function clearAllQuantities() {
+    // Reset data
+    shoppingListData.forEach(item => {
+        item.shoppingQuantity = 0;
+    });
     
-    // Try to open WhatsApp
-    const whatsappWindow = window.open(whatsappUrl, '_blank');
+    // Clear all input fields
+    document.querySelectorAll('.quantity-input').forEach(input => {
+        input.value = '';
+    });
     
-    // Fallback for mobile if WhatsApp app isn't installed
-    if (isMobile && !whatsappWindow) {
-        // Use wa.me as fallback
-        const fallbackUrl = `https://wa.me/${buyerPhone}?text=${encodedMessage}`;
-        window.open(fallbackUrl, '_blank');
-    }
+    // Update floating button label
+    updateFloatingButtonLabel();
     
-    // Log success
-    console.log(`Список отправлен в WhatsApp (${itemsToOrder.length} товаров)`);
+    // Clear search
+    clearSearch();
     
-    // Auto-save the shopping list too
-    saveShoppingList();
+    console.log('🧹 All quantities cleared');
 }
 
 function generateWhatsAppMessage(items, departmentName, departmentEmoji) {
@@ -651,11 +739,14 @@ async function createPosterPurchaseOrder(shoppingList) {
 
 // Export functions for potential use in other modules
 window.BarInventory = {
-    switchToShoppingListMode,
-    switchToInventoryMode,
+    initializeOrderMode,
     updateShoppingQuantity,
     setShoppingQuantity,
-    saveShoppingList,
+    autoSaveToCache,
+    saveFinalOrderToCache,
+    clearAllQuantities,
+    updateFloatingButtonLabel,
+    getProductCountText,
     sendToWhatsApp,
     generateWhatsAppMessage,
     filterProducts,
@@ -669,4 +760,8 @@ window.BarInventory = {
 
 // Also expose functions globally for easier access from pages
 window.updateProductDataFromGlobal = updateProductDataFromGlobal;
-window.setShoppingQuantity = setShoppingQuantity; 
+window.setShoppingQuantity = setShoppingQuantity;
+window.updateShoppingQuantity = updateShoppingQuantity;
+window.initializeOrderMode = initializeOrderMode;
+window.updateFloatingButtonLabel = updateFloatingButtonLabel;
+window.updateAddedProductsLabel = updateAddedProductsLabel; 
