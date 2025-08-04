@@ -15,11 +15,7 @@ let kitchenProducts = [];
 					<h1 class="text-3xl font-bold text-black">Кухня</h1>
 					<a href="/restaurant/procurement" class="text-green-600 hover:text-green-800 text-sm">Закупки →</a>
 				</div>
-				<div class="text-center">
-					<span class="text-sm text-gray-600">
-						{kitchenProducts.length > 15 ? "📊 Реальные данные из Poster" : "🧪 Тестовые данные"}
-					</span>
-				</div>
+
 			</div>
 		</header>
 
@@ -125,12 +121,6 @@ let kitchenProducts = [];
 				// Update floating button label after initialization
 				if (window.updateFloatingButtonLabel) {
 					window.updateFloatingButtonLabel();
-				}
-				
-				// Update header indicator
-				const headerSpan = document.querySelector('header span.text-sm');
-				if (headerSpan) {
-					headerSpan.textContent = `📊 Реальные данные из Poster (${kitchenProducts.length} товаров)`;
 				}
 				
 			} catch (error) {

@@ -33,6 +33,18 @@ import Layout from '../layouts/Layout.astro';
 				</div>
 			</div>
 
+			<!-- Info Notice -->
+			<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+				<div class="flex items-start space-x-2">
+					<span class="text-blue-600 mt-0.5">ℹ️</span>
+					<div class="text-sm text-blue-800">
+						<p class="font-medium mb-1">После отправки заказа:</p>
+						<p>• Заказ будет добавлен в систему доставки</p>
+						<p>• Курьер увидит заказ и сможет отметить доставку</p>
+					</div>
+				</div>
+			</div>
+
 			<!-- Action Buttons -->
 			<div class="space-y-3">
 				<!-- Copy to Clipboard Button -->
@@ -128,6 +140,41 @@ import Layout from '../layouts/Layout.astro';
 			orderText.textContent = orderData.formattedText;
 		}
 
+		// Save order to delivery queue
+		function saveOrderToDeliveryQueue() {
+			const orderData = getOrderData();
+			if (!orderData) return;
+
+			// Create order record for delivery
+			const deliveryOrder = {
+				timestamp: new Date().toISOString(),
+				department: orderData.department,
+				departmentName: orderData.departmentName,
+				items: orderData.items.map(item => ({
+					id: item.id,
+					name: item.name,
+					quantity: item.quantity,
+					unit: item.unit
+				})),
+				totalItems: orderData.items.length,
+				totalQuantity: orderData.items.reduce((sum, item) => sum + item.quantity, 0),
+				status: 'sent' // Mark as sent to supplier
+			};
+
+			// Save to appropriate department history
+			const historyKey = `${orderData.department}OrderHistory`;
+			const existingHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
+			existingHistory.unshift(deliveryOrder); // Add to beginning
+
+			// Keep only last 20 orders
+			if (existingHistory.length > 20) {
+				existingHistory.splice(20);
+			}
+
+			localStorage.setItem(historyKey, JSON.stringify(existingHistory));
+			console.log(`✅ Order saved to ${historyKey} for delivery tracking`);
+		}
+
 		// Copy to clipboard functionality
 		async function copyToClipboard() {
 			const orderText = document.getElementById('orderText').textContent;
@@ -136,6 +183,9 @@ import Layout from '../layouts/Layout.astro';
 
 			try {
 				await navigator.clipboard.writeText(orderText);
+				
+				// Save order to delivery queue when copied
+				saveOrderToDeliveryQueue();
 				
 				// Show success message
 				successMessage.classList.remove('hidden');
@@ -164,6 +214,9 @@ import Layout from '../layouts/Layout.astro';
 				document.execCommand('copy');
 				document.body.removeChild(textArea);
 				
+				// Save order to delivery queue when copied
+				saveOrderToDeliveryQueue();
+				
 				successMessage.classList.remove('hidden');
 				setTimeout(() => {
 					successMessage.classList.add('hidden');
@@ -175,6 +228,9 @@ import Layout from '../layouts/Layout.astro';
 		function sendToWhatsApp() {
 			const orderData = getOrderData();
 			if (!orderData) return;
+
+			// Save order to delivery queue when sent via WhatsApp
+			saveOrderToDeliveryQueue();
 
 			const buyerPhone = "996557957457";
 			const encodedMessage = encodeURIComponent(orderData.formattedText);

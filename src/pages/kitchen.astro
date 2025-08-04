@@ -1,0 +1,239 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Кухня - Инвентарь">
+	<div class="min-h-screen bg-white">
+		<!-- Header with Role Info -->
+		<header class="bg-orange-600 text-white px-4 py-6">
+			<div class="max-w-md mx-auto">
+				<div class="flex items-center justify-between mb-4">
+					<div class="flex items-center space-x-2">
+						<span class="text-2xl">🍳</span>
+						<h1 class="text-2xl font-bold">Кухня</h1>
+					</div>
+					<div class="text-right text-sm">
+						<div class="font-medium">Персонал кухни</div>
+						<a href="/" class="text-orange-200 hover:text-white">← Главная</a>
+					</div>
+				</div>
+
+			</div>
+		</header>
+
+		<!-- Main Content -->
+		<main class="max-w-md mx-auto px-4 py-6">
+			<!-- Loading State -->
+			<div id="loadingState" class="text-center py-8">
+				<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600 mx-auto mb-4"></div>
+				<p class="text-gray-600">Загрузка товаров кухни...</p>
+			</div>
+
+			<!-- Order View -->
+			<div id="orderView" class="space-y-4 hidden">
+				<!-- Search Field -->
+				<div class="sticky top-0 z-10 bg-gray-50 p-4 rounded-lg border-2 border-orange-200 shadow-sm">
+					<div class="relative">
+						<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+							<svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+							</svg>
+						</div>
+						<input 
+							type="text" 
+							id="productSearchInput"
+							class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base"
+							placeholder="🔍 Поиск продуктов для кухни..."
+							autocomplete="off"
+						/>
+						<div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+							<button 
+								id="clearSearchBtn"
+								class="h-5 w-5 text-gray-400 hover:text-gray-600 focus:outline-none hidden"
+								title="Очистить поиск"
+							>
+								<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+								</svg>
+							</button>
+						</div>
+					</div>
+					<div id="searchResultsCount" class="mt-2 text-sm text-gray-600 hidden">
+						<span id="searchResultsText"></span>
+					</div>
+					<div id="addedProductsLabel" class="mt-2 text-sm font-medium text-orange-700 bg-orange-50 px-3 py-2 rounded-lg border border-orange-200 hidden">
+						<span id="addedProductsText">Товары не добавлены</span>
+					</div>
+				</div>
+				
+				<!-- Add Custom Item Button -->
+				<div class="mb-4">
+					<button 
+						id="addCustomItemBtn"
+						class="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors duration-200"
+					>
+						<span>➕</span>
+						<span>Добавить свой товар</span>
+					</button>
+				</div>
+
+				<!-- Products List -->
+				<div id="productsList">
+					<!-- Products will be populated by JavaScript -->
+				</div>
+				
+				<!-- Floating Action Button -->
+				<button 
+					id="sendWhatsAppBtn" 
+					class="fixed bottom-6 right-6 bg-gray-400 hover:bg-gray-500 text-white font-medium py-4 px-6 rounded-lg shadow-lg z-50 transition-all duration-200 flex items-center space-x-2 min-w-[180px] justify-center"
+				>
+					<span class="text-center">Создать заказ</span>
+				</button>
+			</div>
+		</main>
+
+		<!-- Custom Item Modal -->
+		<div id="customItemModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+			<div class="bg-white rounded-lg max-w-md w-full p-6">
+				<div class="flex justify-between items-center mb-4">
+					<h2 class="text-xl font-bold text-gray-900">Добавить товар</h2>
+					<button id="closeCustomItemModal" class="text-gray-500 hover:text-gray-700">
+						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+						</svg>
+					</button>
+				</div>
+				
+				<form id="customItemForm">
+					<div class="space-y-4">
+						<div>
+							<label for="customItemName" class="block text-sm font-medium text-gray-700 mb-1">
+								Название товара
+							</label>
+							<input 
+								type="text" 
+								id="customItemName" 
+								required
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+								placeholder="Например: Специи"
+							/>
+						</div>
+						
+						<div>
+							<label for="customItemQuantity" class="block text-sm font-medium text-gray-700 mb-1">
+								Количество
+							</label>
+							<input 
+								type="number" 
+								id="customItemQuantity" 
+								required
+								min="0.1"
+								step="0.1"
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+								placeholder="1.5"
+							/>
+						</div>
+						
+						<div>
+							<label for="customItemUnit" class="block text-sm font-medium text-gray-700 mb-1">
+								Единица измерения
+							</label>
+							<select 
+								id="customItemUnit" 
+								required
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+							>
+								<option value="">Выберите единицу</option>
+								<option value="кг">кг</option>
+								<option value="г">г</option>
+								<option value="л">л</option>
+								<option value="мл">мл</option>
+								<option value="шт">шт</option>
+								<option value="упак">упак</option>
+								<option value="банка">банка</option>
+							</select>
+						</div>
+						
+						<div class="flex space-x-3 pt-4">
+							<button 
+								type="button" 
+								id="cancelCustomItem"
+								class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+							>
+								Отмена
+							</button>
+							<button 
+								type="submit"
+								class="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors duration-200"
+							>
+								Добавить
+							</button>
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<script is:inline>
+		// Set role and department
+		window.userRole = 'kitchen';
+		window.currentDepartment = 'kitchen';
+		
+		// Load kitchen products
+		async function loadKitchenProducts() {
+			const loadingState = document.getElementById('loadingState');
+			const orderView = document.getElementById('orderView');
+			
+			try {
+				console.log('🍳 Loading kitchen products...');
+				
+				const response = await fetch('/api/kitchen-inventory');
+				const result = await response.json();
+				
+				if (!result.success) {
+					throw new Error(result.error || 'Failed to load kitchen products');
+				}
+				
+				const kitchenProducts = result.data;
+				console.log(`✅ Loaded ${kitchenProducts.length} kitchen products`);
+				
+				// Hide loading and show order view
+				loadingState.style.display = 'none';
+				orderView.style.display = 'block';
+				orderView.classList.remove('hidden');
+				
+				// Store products globally
+				window.kitchenProducts = kitchenProducts;
+				
+				// Initialize order mode
+				if (window.initializeOrderMode) {
+					window.initializeOrderMode();
+				}
+				
+				// Update floating button label
+				if (window.updateFloatingButtonLabel) {
+					window.updateFloatingButtonLabel();
+				}
+				
+			} catch (error) {
+				console.error('❌ Failed to load kitchen products:', error);
+				loadingState.innerHTML = `
+					<div class="text-center py-8">
+						<div class="text-red-500 mb-4">❌</div>
+						<p class="text-red-600">Ошибка загрузки данных кухни</p>
+						<p class="text-sm text-gray-500">${error.message}</p>
+						<button onclick="loadKitchenProducts()" class="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg">
+							Попробовать снова
+						</button>
+					</div>
+				`;
+			}
+		}
+		
+		// Load on page ready
+		document.addEventListener('DOMContentLoaded', loadKitchenProducts);
+	</script>
+
+	<script src="/scripts/checklist.js" is:inline></script>
+</Layout>

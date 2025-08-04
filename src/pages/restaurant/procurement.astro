@@ -96,7 +96,7 @@ import Layout from '../../layouts/Layout.astro';
 							id="updatePosterBtn"
 							class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg"
 						>
-							🔄 Обновить Poster
+							📦 Обновить склад Poster
 						</button>
 						<button 
 							id="generateReportBtn"
@@ -280,61 +280,154 @@ import Layout from '../../layouts/Layout.astro';
 		}
 
 		async function updatePosterInventory() {
-			console.log('Updating Poster inventory...');
+			console.log('📦 Updating Poster inventory with delivered orders...');
 			
-			// Get all purchased items from both departments
-			const barList = JSON.parse(localStorage.getItem('barShoppingList') || 'null');
-			const kitchenList = JSON.parse(localStorage.getItem('kitchenShoppingList') || 'null');
+			// Get delivered orders from both departments
+			const barOrders = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
+			const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
 			
-			const updates = [];
+			// Filter only delivered orders
+			const deliveredBarOrders = barOrders.filter(order => order.status === 'delivered');
+			const deliveredKitchenOrders = kitchenOrders.filter(order => order.status === 'delivered');
 			
-			if (barList && barList.items) {
-				updates.push({
-					department: 'bar',
-					items: barList.items
-				});
+			// Combine all delivered orders
+			const allDeliveredOrders = [...deliveredBarOrders, ...deliveredKitchenOrders];
+			
+			if (allDeliveredOrders.length === 0) {
+				alert('📦 Нет доставленных заказов для обновления в Poster\n\nСначала отметьте заказы как доставленные в разделе "Доставка"');
+				return;
 			}
 			
-			if (kitchenList && kitchenList.items) {
-				updates.push({
-					department: 'kitchen',
-					items: kitchenList.items
-				});
+			// Separate synced and unsynced orders
+			const unsyncedOrders = allDeliveredOrders.filter(order => !order.posterSynced);
+			const syncedOrders = allDeliveredOrders.filter(order => order.posterSynced);
+			
+			if (unsyncedOrders.length === 0) {
+				alert('📦 Все заказы уже синхронизированы с Poster!\n\nНовые заказы появятся здесь после доставки.');
+				return;
 			}
 			
-			if (updates.length === 0) {
-				alert('Нет товаров для обновления в Poster');
+			// Show selection dialog for individual orders
+			let orderList = `📦 Несинхронизированные заказы:\n\n`;
+			orderList += unsyncedOrders.map((order, index) => {
+				const date = new Date(order.deliveredAt || order.timestamp).toLocaleDateString('ru-RU');
+				const time = new Date(order.deliveredAt || order.timestamp).toLocaleTimeString('ru-RU', { 
+					hour: '2-digit', 
+					minute: '2-digit' 
+				});
+				const emoji = order.department === 'bar' ? '🍷' : '🍳';
+				return `${index + 1}. ${emoji} ${order.departmentName || order.department} - ${order.items.length} позиций (${date} ${time})`;
+			}).join('\n');
+			
+			if (syncedOrders.length > 0) {
+				orderList += `\n\n📋 Уже синхронизировано: ${syncedOrders.length} заказов`;
+			}
+			
+			const selection = prompt(`${orderList}\n\nВведите номер заказа (1-${unsyncedOrders.length}) или "все" для всех несинхронизированных заказов:`);
+			
+			if (!selection) return; // User cancelled
+			
+			let ordersToUpdate = [];
+			
+			if (selection.toLowerCase() === 'все' || selection.toLowerCase() === 'all') {
+				ordersToUpdate = unsyncedOrders;
+			} else {
+				const orderIndex = parseInt(selection) - 1;
+				if (orderIndex >= 0 && orderIndex < unsyncedOrders.length) {
+					ordersToUpdate = [unsyncedOrders[orderIndex]];
+				} else {
+					alert('❌ Неверный номер заказа');
+					return;
+				}
+			}
+			
+			// Confirm before updating
+			const totalItems = ordersToUpdate.reduce((sum, order) => sum + order.items.length, 0);
+			
+			if (!confirm(`📦 Обновить Poster?\n\n${totalItems} товаров из ${ordersToUpdate.length} заказов будут добавлены в склад.\n\nПродолжить?`)) {
 				return;
 			}
 			
 			try {
-				// Update each department
-				for (const update of updates) {
+				let totalSuccess = 0;
+				let totalErrors = 0;
+				const results = [];
+				
+				// Update each order individually
+				for (const order of ordersToUpdate) {
+					const date = new Date(order.deliveredAt || order.timestamp).toLocaleDateString('ru-RU');
+					const time = new Date(order.deliveredAt || order.timestamp).toLocaleTimeString('ru-RU', { 
+						hour: '2-digit', 
+						minute: '2-digit' 
+					});
+					
+					console.log(`📦 Updating individual order: ${order.departmentName} (${date} ${time}) with ${order.items.length} items...`);
+					
 					const response = await fetch('/api/update-poster-inventory', {
 						method: 'POST',
 						headers: {
 							'Content-Type': 'application/json'
 						},
 						body: JSON.stringify({
-							purchasedItems: update.items,
-							department: update.department
+							purchasedItems: order.items,
+							department: order.department
 						})
 					});
+					
+					if (!response.ok) {
+						throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+					}
 					
 					const result = await response.json();
 					
 					if (result.success) {
-						console.log(`✅ ${update.department} inventory updated:`, result);
+						console.log(`✅ Order updated successfully: ${order.departmentName} (${date} ${time})`, result);
+						totalSuccess += result.data?.successCount || 0;
+						totalErrors += result.data?.errorCount || 0;
+						results.push({
+							order: `${order.departmentName} (${date} ${time})`,
+							success: true,
+							data: result.data
+						});
+						
+						// Mark this specific order as synced to Poster
+						order.posterSynced = true;
+						order.posterSyncedAt = new Date().toISOString();
+						
 					} else {
-						console.error(`❌ Failed to update ${update.department}:`, result.error);
+						const errorMsg = result.error || 'Неизвестная ошибка API';
+						console.error(`❌ Failed to update order: ${order.departmentName} (${date} ${time}):`, errorMsg);
+						totalErrors += order.items.length;
+						results.push({
+							order: `${order.departmentName} (${date} ${time})`,
+							success: false,
+							error: errorMsg
+						});
 					}
 				}
 				
-				alert(`Poster обновлен для всех отделов!\nПроверьте консоль для деталей.`);
+				// Update localStorage with sync status
+				localStorage.setItem('barOrderHistory', JSON.stringify(barOrders));
+				localStorage.setItem('kitchenOrderHistory', JSON.stringify(kitchenOrders));
+				
+				// Show detailed results
+				const successOrders = results.filter(r => r.success).map(r => `✅ ${r.order}`).join('\n');
+				const errorOrders = results.filter(r => !r.success).map(r => `❌ ${r.order}: ${r.error}`).join('\n');
+				
+				let summary = `📦 Обновление Poster завершено!\n\n`;
+				if (successOrders) summary += `Успешно обновлено:\n${successOrders}\n\n`;
+				if (errorOrders) summary += `Ошибки:\n${errorOrders}\n\n`;
+				summary += `Итого: ✅ ${totalSuccess} товаров, ❌ ${totalErrors} ошибок`;
+				
+				alert(summary);
+				
+				// Refresh the display
+				loadPurchaseHistory();
 				
 			} catch (error) {
-				console.error('Error updating Poster inventory:', error);
-				alert('Ошибка при обновлении Poster: ' + error.message);
+				console.error('❌ Error updating Poster inventory:', error);
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				alert('❌ Ошибка при обновлении Poster: ' + errorMessage);
 			}
 		}
 
@@ -361,10 +454,261 @@ import Layout from '../../layouts/Layout.astro';
 			alert('Критически мало:\n• Сахар (Бар)\n• Яйца (Кухня)\n• Морковь (Кухня)');
 		}
 
+		async function updateSingleOrder(orderTimestamp, department) {
+			try {
+				console.log(`🔍 Starting updateSingleOrder: ${orderTimestamp}, ${department}`);
+				
+				// Get the specific order
+				const storageKey = `${department}OrderHistory`;
+				console.log(`🔍 Looking in ${storageKey}`);
+				
+				const orders = JSON.parse(localStorage.getItem(storageKey) || '[]');
+				console.log(`🔍 Found ${orders.length} orders in storage`);
+				
+				const order = orders.find(o => o.timestamp === orderTimestamp && o.status === 'delivered');
+				console.log(`🔍 Found order:`, order);
+				
+				if (!order) {
+					alert('❌ Заказ не найден');
+					return;
+				}
+				
+				const date = new Date(order.deliveredAt || order.timestamp).toLocaleDateString('ru-RU');
+				const time = new Date(order.deliveredAt || order.timestamp).toLocaleTimeString('ru-RU', { 
+					hour: '2-digit', 
+					minute: '2-digit' 
+				});
+				
+				if (!confirm(`📦 Обновить Poster для заказа:\n${order.departmentName || order.department} (${date} ${time})\n${order.items.length} позиций\n\nПродолжить?`)) {
+					return;
+				}
+				
+				console.log(`📦 Updating single order: ${order.departmentName} (${date} ${time}) with ${order.items.length} items...`);
+				console.log(`📦 Order items:`, order.items);
+				
+				const requestBody = {
+					purchasedItems: order.items,
+					department: order.department
+				};
+				console.log(`📤 Request body:`, requestBody);
+				
+				const response = await fetch('/api/update-poster-inventory', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(requestBody)
+				});
+				
+				console.log(`📥 Response status: ${response.status} ${response.statusText}`);
+				console.log(`📥 Response ok:`, response.ok);
+				
+				if (!response.ok) {
+					const errorText = await response.text();
+					console.error(`❌ HTTP Error Response:`, errorText);
+					throw new Error(`HTTP ${response.status}: ${errorText}`);
+				}
+				
+				const responseText = await response.text();
+				console.log(`📥 Raw response text:`, responseText);
+				
+				let result;
+				try {
+					result = JSON.parse(responseText);
+					console.log(`📥 Parsed result:`, result);
+				} catch (parseError) {
+					console.error(`❌ JSON Parse Error:`, parseError);
+					console.error(`❌ Raw response that failed to parse:`, responseText);
+					throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}...`);
+				}
+				
+				if (result.success) {
+					console.log(`✅ Single order updated successfully: ${order.departmentName} (${date} ${time})`, result);
+					
+					// Mark this order as synced
+					order.posterSynced = true;
+					order.posterSyncedAt = new Date().toISOString();
+					
+					// Update localStorage
+					localStorage.setItem(storageKey, JSON.stringify(orders));
+					
+					// Show success message
+					const successMsg = `✅ Заказ успешно обновлен в Poster!\n\n${order.departmentName} (${date} ${time})\n✅ ${result.data?.successCount || 0} товаров добавлено\n❌ ${result.data?.errorCount || 0} ошибок`;
+					alert(successMsg);
+					
+					// Refresh the display
+					loadPurchaseHistory();
+					
+				} else {
+					// Extract detailed error information
+					let errorMsg = result.error || result.message || 'Неизвестная ошибка API';
+					
+					// If we have detailed error results, show them
+					if (result.data?.results) {
+						const errorDetails = result.data.results
+							.filter(r => !r.success)
+							.map(r => `• ${r.item}: ${r.error}`)
+							.join('\n');
+						
+						if (errorDetails) {
+							errorMsg = `${errorMsg}\n\nДетали ошибок:\n${errorDetails}`;
+						}
+					}
+					
+					console.error(`❌ Failed to update single order: ${order.departmentName} (${date} ${time}):`, errorMsg);
+					console.error(`❌ Full result object:`, result);
+					alert(`❌ Ошибка при обновлении заказа:\n\n${errorMsg}`);
+				}
+				
+			} catch (error) {
+				console.error('❌ Error updating single order:', error);
+				console.error('❌ Error stack:', error.stack);
+				const errorMessage = error instanceof Error ? error.message : String(error);
+				alert('❌ Ошибка при обновлении заказа: ' + errorMessage);
+			}
+		}
+
+		// Make function globally available
+		window.updateSingleOrder = updateSingleOrder;
+
+		// Debug function to test Poster API manually
+		async function testPosterAPI() {
+			try {
+				console.log('🧪 Testing Poster API connection...');
+				
+				const response = await fetch('/api/update-poster-inventory', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						purchasedItems: [
+							{
+								id: "123", // Test with a simple ID
+								name: "Тест продукт",
+								quantity: 1,
+								unit: "шт"
+							}
+						],
+						department: "kitchen"
+					})
+				});
+				
+				const result = await response.json();
+				console.log('🧪 Test result:', result);
+				
+			} catch (error) {
+				console.error('🧪 Test failed:', error);
+			}
+		}
+		
+		// Make test function globally available
+		window.testPosterAPI = testPosterAPI;
+
 		function loadPurchaseHistory() {
 			const container = document.getElementById('purchaseHistory');
-			// For now, show placeholder
-			container.innerHTML = '<p class="text-gray-500 text-center py-8">Закупки будут отображаться здесь после завершения</p>';
+			if (!container) return;
+			
+			// Load delivered orders from both departments
+			const barOrders = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
+			const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
+			
+			// Filter only delivered orders
+			const deliveredBarOrders = barOrders.filter(order => order.status === 'delivered');
+			const deliveredKitchenOrders = kitchenOrders.filter(order => order.status === 'delivered');
+			
+			// Combine and sort by date (newest first)
+			const allDeliveredOrders = [...deliveredBarOrders, ...deliveredKitchenOrders]
+				.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+			
+			if (allDeliveredOrders.length === 0) {
+				container.innerHTML = `
+					<div class="text-center py-8">
+						<div class="text-6xl mb-4">📦</div>
+						<p class="text-gray-500 mb-2">Нет доставленных заказов</p>
+						<p class="text-sm text-gray-400">Заказы появятся здесь после отметки доставки</p>
+					</div>
+				`;
+				return;
+			}
+			
+			// Display delivered orders
+			container.innerHTML = allDeliveredOrders.map(order => {
+				const departmentColor = order.department === 'bar' ? 'blue' : 'orange';
+				const departmentEmoji = order.department === 'bar' ? '🍷' : '🍳';
+				const deliveredDate = new Date(order.deliveredAt || order.timestamp).toLocaleDateString('ru-RU');
+				const deliveredTime = new Date(order.deliveredAt || order.timestamp).toLocaleTimeString('ru-RU', { 
+					hour: '2-digit', 
+					minute: '2-digit' 
+				});
+				
+				// Check if order is already synced to Poster
+				const isSynced = order.posterSynced;
+				const syncDate = order.posterSyncedAt ? new Date(order.posterSyncedAt).toLocaleDateString('ru-RU') : '';
+				
+				return `
+					<div class="bg-white border border-gray-200 rounded-lg p-4 mb-4 ${isSynced ? 'border-purple-200 bg-purple-50' : ''}">
+						<div class="flex items-center justify-between mb-3">
+							<div class="flex items-center space-x-2">
+								<span class="text-lg">${departmentEmoji}</span>
+								<span class="font-medium text-${departmentColor}-600">${order.departmentName || order.department}</span>
+								<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+									✅ Доставлено
+								</span>
+								${isSynced ? `
+									<span class="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+										📦 В Poster
+									</span>
+								` : ''}
+							</div>
+							<div class="text-sm text-gray-500">
+								${deliveredDate} ${deliveredTime}
+								${isSynced ? `<br><span class="text-purple-600 text-xs">Синхронизировано: ${syncDate}</span>` : ''}
+							</div>
+						</div>
+						
+						<div class="space-y-2">
+							${order.items.map(item => {
+								const actualQty = item.actualQuantity || item.quantity;
+								const showDifference = item.actualQuantity && Math.abs(item.actualQuantity - item.quantity) > 0.01;
+								
+								return `
+									<div class="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
+										<span class="text-sm">${item.name}</span>
+										<div class="text-sm">
+											${showDifference ? 
+												`<span class="text-gray-400 line-through">${item.quantity}</span> → <span class="font-medium">${actualQty}</span>` :
+												`<span class="font-medium">${actualQty}</span>`
+											} ${item.unit}
+										</div>
+									</div>
+								`;
+							}).join('')}
+						</div>
+						
+						<div class="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center text-sm">
+							<span class="text-gray-600">
+								Общее количество: <span class="font-medium">${order.actualTotalQuantity || order.totalQuantity}</span>
+							</span>
+							<div class="flex items-center space-x-2">
+								<span class="text-${departmentColor}-600">
+									${order.items.length} позиций
+								</span>
+								${!isSynced ? `
+									<button 
+										onclick="updateSingleOrder('${order.timestamp}', '${order.department}')"
+										class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-lg transition-colors"
+									>
+										📦 Обновить в Poster
+									</button>
+								` : ''}
+							</div>
+						</div>
+					</div>
+				`;
+			}).join('');
+			
+			console.log(`📋 Loaded ${allDeliveredOrders.length} delivered orders for procurement page`);
 		}
 	</script>
 </Layout> 

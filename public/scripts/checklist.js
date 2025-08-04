@@ -4,6 +4,7 @@
 // Product data structure
 let productData = [];
 let shoppingListData = [];
+let customItems = []; // Store custom items that don't exist in Poster
 let isShoppingListMode = false;
 
 // Initialize the application
@@ -70,32 +71,25 @@ function renderShoppingListProducts() {
     container.innerHTML = shoppingListData.map(product => {
         const isLowStock = product.quantity <= product.minQuantity;
         const quantityColor = isLowStock ? 'text-red-600' : 'text-gray-900';
+        const isCustom = product.isCustom;
+        const borderColor = isCustom ? 'border-l-4 border-l-blue-500' : '';
+        const stockInfo = isCustom ? 
+            '<div class="text-sm text-blue-600 mt-1 font-medium">📝 Добавлен вручную</div>' :
+            `<div class="text-sm text-gray-500 mt-1">На складе: <span class="${quantityColor} font-medium">${product.quantity}</span> ${product.unit}</div>`;
         
         return `
-        <div class="product-item bg-white p-4" data-product-id="${product.id}">
+        <div class="product-item bg-white p-4 ${borderColor}" data-product-id="${product.id}">
             <div class="flex items-center justify-between w-full">
                 <div class="flex-1">
-                    <h3 class="text-lg font-medium text-gray-900">${product.name}</h3>
-                    <div class="text-sm text-gray-500 mt-1">
-                        На складе: <span class="${quantityColor} font-medium">${product.quantity}</span> ${product.unit}
-                    </div>
+                    <h3 class="text-base font-medium text-gray-900">${product.name}</h3>
+                    ${stockInfo}
                 </div>
-                <div class="flex items-center justify-end space-x-3">
-                    <!-- Minus Button -->
-                    <button 
-                        class="minus-btn w-9 h-9 bg-gray-100 hover:bg-gray-200 border border-gray-300 text-gray-700 rounded-lg flex items-center justify-center text-lg font-normal transition-colors duration-200"
-                        data-product-id="${product.id}"
-                        onclick="updateShoppingQuantity(${product.id}, -1)"
-                        title="Убрать 0.5 ${product.unit}"
-                    >
-                        −
-                    </button>
-                    
+                <div class="flex items-center justify-end">
                     <!-- Quantity Input -->
                     <div class="relative">
                         <input 
                             type="number" 
-                            class="quantity-input w-20 pr-7 pl-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-right bg-gray-50"
+                            class="quantity-input w-24 pr-7 pl-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 text-right bg-gray-50"
                             value=""
                             min="0"
                             step="0.1"
@@ -108,24 +102,28 @@ function renderShoppingListProducts() {
                         </span>
                     </div>
                     
-                    <!-- Plus Button -->
+                    ${isCustom ? `
+                    <!-- Delete Custom Item Button -->
                     <button 
-                        class="plus-btn w-9 h-9 bg-gray-800 hover:bg-gray-900 text-white rounded-lg flex items-center justify-center text-lg font-normal transition-colors duration-200"
+                        class="delete-btn w-9 h-10.5 bg-red-500 hover:bg-red-600 text-white ml-2 flex items-center justify-center text-lg font-normal transition-colors duration-200 rounded-lg"
                         data-product-id="${product.id}"
-                        onclick="updateShoppingQuantity(${product.id}, 1)"
-                        title="Добавить 0.5 ${product.unit}"
+                        onclick="deleteCustomItem(${product.id})"
+                        title="Удалить товар"
                     >
-                        +
+                        🗑
                     </button>
+                    ` : ''}
                 </div>
             </div>
         </div>
         `;
     }).join('');
     
-    // Reset all quantities to 0
+    // Reset quantities to 0 for Poster items, keep initial quantities for custom items
     shoppingListData.forEach(item => {
-        item.shoppingQuantity = 0;
+        if (!item.isCustom) {
+            item.shoppingQuantity = 0;
+        }
     });
 }
 
@@ -165,6 +163,9 @@ function setupEventListeners() {
     }
 
     // +/- buttons use onclick attributes, no need for additional event listeners
+
+    // Custom item functionality
+    setupCustomItemListeners();
 
     // Quantity input field event listeners (for direct input)
     document.querySelectorAll('.quantity-input').forEach(input => {
@@ -600,27 +601,140 @@ function clearAllQuantities() {
     console.log('🧹 All quantities cleared');
 }
 
-function generateWhatsAppMessage(items, departmentName, departmentEmoji) {
-    const today = new Date().toLocaleDateString('ru-RU');
-    let message = `SHOPPING LIST - ${today}\n\n`;
+// ===== CUSTOM ITEMS FUNCTIONALITY =====
+
+function setupCustomItemListeners() {
+    // Add custom item button
+    const addCustomItemBtn = document.getElementById('addCustomItemBtn');
+    if (addCustomItemBtn) {
+        addCustomItemBtn.addEventListener('click', showCustomItemModal);
+    }
+
+    // Close modal buttons
+    const closeModalBtn = document.getElementById('closeCustomItemModal');
+    const cancelBtn = document.getElementById('cancelCustomItem');
+    if (closeModalBtn) closeModalBtn.addEventListener('click', hideCustomItemModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', hideCustomItemModal);
+
+    // Form submission
+    const customItemForm = document.getElementById('customItemForm');
+    if (customItemForm) {
+        customItemForm.addEventListener('submit', handleCustomItemSubmit);
+    }
+
+    // Close modal when clicking outside
+    const modal = document.getElementById('customItemModal');
+    if (modal) {
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                hideCustomItemModal();
+            }
+        });
+    }
+}
+
+function showCustomItemModal() {
+    const modal = document.getElementById('customItemModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        // Focus on the first input
+        const nameInput = document.getElementById('customItemName');
+        if (nameInput) {
+            setTimeout(() => nameInput.focus(), 100);
+        }
+    }
+}
+
+function hideCustomItemModal() {
+    const modal = document.getElementById('customItemModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        // Reset form
+        const form = document.getElementById('customItemForm');
+        if (form) {
+            form.reset();
+        }
+    }
+}
+
+function handleCustomItemSubmit(e) {
+    e.preventDefault();
     
-    message += `${departmentName.toUpperCase()} NEEDS:\n`;
+    const name = document.getElementById('customItemName').value.trim();
+    const quantity = parseFloat(document.getElementById('customItemQuantity').value);
+    const unit = document.getElementById('customItemUnit').value;
     
-    // Add items with urgency marking (using simpler symbols)
-    items.forEach(item => {
-        const urgentMark = item.quantity <= 0 ? ' *URGENT*' : '';
-        message += `- ${item.name} - ${item.shoppingQuantity} ${item.unit}${urgentMark}\n`;
-    });
-    
-    message += `\nTOTAL ITEMS: ${items.length}\n`;
-    
-    // Add urgent items summary
-    const urgentItems = items.filter(item => item.quantity <= 0);
-    if (urgentItems.length > 0) {
-        message += `URGENT: ${urgentItems.map(item => item.name).join(', ')}\n`;
+    if (!name || !quantity || !unit) {
+        alert('Заполните все поля!');
+        return;
     }
     
-    message += `\nReply when ordered!`;
+    // Create custom item with unique ID (negative to distinguish from Poster items)
+    const customItem = {
+        id: -(Date.now()), // Negative ID for custom items
+        name: name,
+        quantity: 0, // Current stock (unknown for custom items)
+        unit: unit,
+        minQuantity: 0,
+        checked: false,
+        shoppingQuantity: quantity,
+        isCustom: true
+    };
+    
+    // Add to custom items array
+    customItems.push(customItem);
+    
+    // Add to shopping list data
+    shoppingListData.push(customItem);
+    
+    console.log(`✅ Added custom item: ${name} - ${quantity} ${unit}`);
+    
+    // Re-render the shopping list to include the new item
+    renderShoppingListProducts();
+    
+    // Update floating button label
+    updateFloatingButtonLabel();
+    
+    // Auto-save
+    autoSaveToCache();
+    
+    // Hide modal
+    hideCustomItemModal();
+    
+    // Show success message
+    alert(`Товар "${name}" добавлен в заказ!`);
+}
+
+function deleteCustomItem(productId) {
+    const itemName = shoppingListData.find(item => item.id === productId)?.name;
+    
+    if (confirm(`Удалить "${itemName}" из заказа?`)) {
+        // Remove from custom items array
+        customItems = customItems.filter(item => item.id !== productId);
+        
+        // Remove from shopping list data
+        shoppingListData = shoppingListData.filter(item => item.id !== productId);
+        
+        console.log(`🗑 Deleted custom item: ${itemName}`);
+        
+        // Re-render the shopping list
+        renderShoppingListProducts();
+        
+        // Update floating button label
+        updateFloatingButtonLabel();
+        
+        // Auto-save
+        autoSaveToCache();
+    }
+}
+
+function generateWhatsAppMessage(items, departmentName, departmentEmoji) {
+    let message = `${departmentEmoji} ${departmentName}:\n`;
+    
+    // Add items - simple format
+    items.forEach(item => {
+        message += `• ${item.name} - ${item.shoppingQuantity} ${item.unit}\n`;
+    });
     
     return message;
 }

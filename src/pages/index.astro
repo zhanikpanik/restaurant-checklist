@@ -1,155 +1,169 @@
 ---
 import Layout from '../layouts/Layout.astro';
-
-// Static mode - data will be loaded via client-side JavaScript
-let barProducts = [];
 ---
 
-<Layout title="Бар - Инвентарь">
-	<div class="min-h-screen bg-white">
-		<!-- Header with Navigation -->
-		<header class="bg-white border-b border-gray-200 px-4 py-6">
-			<div class="max-w-md mx-auto">
-				<div class="flex items-center justify-between mb-4">
-					<a href="/restaurant/kitchen" class="text-orange-600 hover:text-orange-800">← Кухня</a>
-					<h1 class="text-3xl font-bold text-black">Бар</h1>
-					<a href="/restaurant/procurement" class="text-green-600 hover:text-green-800 text-sm">Закупки →</a>
-				</div>
-				<div class="text-center">
-					<span class="text-sm text-gray-600">
-						{barProducts.length > 15 ? "📊 Реальные данные из Poster" : "🧪 Тестовые данные"}
-					</span>
-				</div>
+<Layout title="Система заказов ресторана">
+	<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+		<!-- Header -->
+		<header class="bg-white shadow-sm border-b border-gray-200 px-4 py-6">
+			<div class="max-w-md mx-auto text-center">
+				<h1 class="text-3xl font-bold text-gray-900">🏪 Ресторан</h1>
+				<p class="text-gray-600 mt-2">Система управления заказами</p>
 			</div>
 		</header>
 
 		<!-- Main Content -->
-		<main class="max-w-md mx-auto px-4 py-6">
-			<!-- Loading State -->
-			<div id="loadingState" class="text-center py-8">
-				<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-				<p class="text-gray-600">Загрузка товаров для заказа...</p>
-			</div>
+		<main class="max-w-md mx-auto px-4 py-8">
+			<div class="space-y-6">
+				<!-- Title -->
+				<div class="text-center mb-8">
+					<h2 class="text-2xl font-bold text-gray-900 mb-2">Выберите ваш отдел</h2>
+					<p class="text-gray-600">Для доступа к инвентарю и заказам</p>
+				</div>
 
-			<!-- Order View (Direct) -->
-			<div id="orderView" class="space-y-4 hidden">
-				<!-- Search Field -->
-				<div class="sticky top-0 z-10 bg-gray-50 p-4 rounded-lg border-2 border-blue-200 shadow-sm">
-					<div class="relative">
-						<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-							<svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-							</svg>
+				<!-- Role Selection Cards -->
+				<div class="space-y-4">
+					<!-- Bar Staff -->
+					<a href="/bar" class="block">
+						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-blue-300">
+							<div class="flex items-center space-x-4">
+								<div class="text-4xl">🍷</div>
+								<div class="flex-1">
+									<h3 class="text-xl font-bold text-gray-900">Бар</h3>
+									<p class="text-gray-600">Управление напитками и барным инвентарем</p>
+									<div class="mt-2 text-sm text-blue-600 font-medium">
+										Нажмите для входа →
+									</div>
+								</div>
+							</div>
 						</div>
-						<input 
-							type="text" 
-							id="productSearchInput"
-							class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
-							placeholder="🔍 Поиск товаров для бара..."
-							autocomplete="off"
-						/>
-						<div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-							<button 
-								id="clearSearchBtn"
-								class="h-5 w-5 text-gray-400 hover:text-gray-600 focus:outline-none hidden"
-								title="Очистить поиск"
-							>
-								<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-								</svg>
-							</button>
+					</a>
+
+					<!-- Kitchen Staff -->
+					<a href="/kitchen" class="block">
+						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-orange-300">
+							<div class="flex items-center space-x-4">
+								<div class="text-4xl">🍳</div>
+								<div class="flex-1">
+									<h3 class="text-xl font-bold text-gray-900">Кухня</h3>
+									<p class="text-gray-600">Управление продуктами и кухонным инвентарем</p>
+									<div class="mt-2 text-sm text-orange-600 font-medium">
+										Нажмите для входа →
+									</div>
+								</div>
+							</div>
 						</div>
-					</div>
-					<div id="searchResultsCount" class="mt-2 text-sm text-gray-600 hidden">
-						<span id="searchResultsText"></span>
-					</div>
-					<!-- Added Products Summary Label -->
-					<div id="addedProductsLabel" class="mt-2 text-sm font-medium text-blue-700 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 hidden">
-						<span id="addedProductsText">Товары не добавлены</span>
+					</a>
+
+					<!-- Delivery -->
+					<a href="/delivery" class="block">
+						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-green-300">
+							<div class="flex items-center space-x-4">
+								<div class="text-4xl">🚚</div>
+								<div class="flex-1">
+									<h3 class="text-xl font-bold text-gray-900">Доставка</h3>
+									<p class="text-gray-600">Просмотр и управление заказами</p>
+									<div class="mt-2 text-sm text-green-600 font-medium">
+										Нажмите для входа →
+									</div>
+								</div>
+							</div>
+						</div>
+					</a>
+				</div>
+
+				<!-- Admin Section -->
+				<div class="pt-6 border-t border-gray-200">
+					<h3 class="text-lg font-bold text-gray-900 mb-4 text-center">Управление</h3>
+					<div class="space-y-3">
+						<a href="/restaurant/procurement" class="block">
+							<div class="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300 p-4 border border-gray-200 hover:border-purple-300">
+								<div class="flex items-center space-x-3">
+									<div class="text-2xl">📋</div>
+									<div class="flex-1">
+										<h4 class="font-medium text-gray-900">Закупки</h4>
+										<p class="text-sm text-gray-600">История и управление заказами</p>
+									</div>
+									<div class="text-purple-600">→</div>
+								</div>
+							</div>
+						</a>
 					</div>
 				</div>
-				
-				<!-- Products List -->
-				<div id="productsList">
-					<!-- Order products will be populated by JavaScript -->
+
+				<!-- Instructions -->
+				<div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+					<h4 class="font-medium text-blue-900 mb-2">💡 Как пользоваться:</h4>
+					<ul class="text-sm text-blue-800 space-y-1">
+						<li>• <strong>Бар/Кухня:</strong> Создавайте заказы для поставщиков</li>
+						<li>• <strong>Доставка:</strong> Отмечайте доставленные заказы</li>
+						<li>• <strong>Закупки:</strong> Просматривайте историю всех заказов</li>
+					</ul>
 				</div>
-				
-				<!-- Floating Action Button -->
-				<button 
-					id="sendWhatsAppBtn" 
-					class="fixed bottom-6 right-6 bg-gray-400 hover:bg-gray-500 text-white font-medium py-4 px-6 rounded-lg shadow-lg z-50 transition-all duration-200 flex items-center space-x-2 min-w-[180px] justify-center"
-				>
-					<span>📱</span>
-					<span class="text-center">Создать заказ</span>
-				</button>
+
+				<!-- Quick Stats -->
+				<div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
+					<h4 class="font-medium text-gray-900 mb-3 text-center">📊 Статистика сегодня</h4>
+					<div class="grid grid-cols-3 gap-4 text-center">
+						<div>
+							<div class="text-lg font-bold text-blue-600" id="barOrdersCount">-</div>
+							<div class="text-xs text-gray-600">Бар</div>
+						</div>
+						<div>
+							<div class="text-lg font-bold text-orange-600" id="kitchenOrdersCount">-</div>
+							<div class="text-xs text-gray-600">Кухня</div>
+						</div>
+						<div>
+							<div class="text-lg font-bold text-green-600" id="deliveredCount">-</div>
+							<div class="text-xs text-gray-600">Доставлено</div>
+						</div>
+					</div>
+				</div>
 			</div>
 		</main>
 	</div>
 
 	<script is:inline>
-		// Load bar products for ordering via our API proxy (no CORS issues)
-		async function loadBarProducts() {
-			const loadingState = document.getElementById('loadingState');
-			const orderView = document.getElementById('orderView');
-			
+		// Load today's statistics
+		function loadTodayStats() {
 			try {
-				console.log('🍷 Loading bar products for ordering...');
+				const today = new Date().toDateString();
 				
-				// Call our API proxy endpoint (no CORS issues)
-				const response = await fetch('/api/bar-inventory');
-				const result = await response.json();
+				// Get orders from localStorage
+				const barOrders = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
+				const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
 				
-				if (!result.success) {
-					throw new Error(result.error || 'Failed to load bar products');
-				}
+				// Count today's orders
+				const barTodayCount = barOrders.filter(order => 
+					new Date(order.timestamp).toDateString() === today
+				).length;
 				
-				const barProducts = result.data;
-				console.log(`✅ Loaded ${barProducts.length} bar products from Poster`);
+				const kitchenTodayCount = kitchenOrders.filter(order => 
+					new Date(order.timestamp).toDateString() === today
+				).length;
 				
-				// Hide loading and show order view
-				loadingState.style.display = 'none';
-				orderView.style.display = 'block';
-				orderView.classList.remove('hidden');
+				// Count delivered orders today
+				const deliveredCount = [...barOrders, ...kitchenOrders].filter(order => 
+					order.status === 'delivered' && 
+					order.deliveredAt && 
+					new Date(order.deliveredAt).toDateString() === today
+				).length;
 				
-				// Store products globally for checklist.js
-				window.barProducts = barProducts;
-				
-				// Initialize order mode directly
-				if (window.initializeOrderMode) {
-					window.initializeOrderMode();
-				}
-				
-				// Update floating button label after initialization
-				if (window.updateFloatingButtonLabel) {
-					window.updateFloatingButtonLabel();
-				}
-				
-				// Update header indicator
-				const headerSpan = document.querySelector('header span.text-sm');
-				if (headerSpan) {
-					headerSpan.textContent = `📊 Реальные данные из Poster (${barProducts.length} товаров)`;
-				}
+				// Update display
+				document.getElementById('barOrdersCount').textContent = barTodayCount;
+				document.getElementById('kitchenOrdersCount').textContent = kitchenTodayCount;
+				document.getElementById('deliveredCount').textContent = deliveredCount;
 				
 			} catch (error) {
-				console.error('❌ Failed to load bar products:', error);
-				loadingState.innerHTML = `
-					<div class="text-center py-8">
-						<div class="text-red-500 mb-4">❌</div>
-						<p class="text-red-600">Ошибка загрузки данных</p>
-						<p class="text-sm text-gray-500">${error.message}</p>
-						<button onclick="loadBarProducts()" class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg">
-							Попробовать снова
-						</button>
-					</div>
-				`;
+				console.error('Failed to load stats:', error);
+				// Show dashes on error
+				document.getElementById('barOrdersCount').textContent = '-';
+				document.getElementById('kitchenOrdersCount').textContent = '-';
+				document.getElementById('deliveredCount').textContent = '-';
 			}
 		}
 		
-		// Load data when page loads
-		document.addEventListener('DOMContentLoaded', function() {
-			loadBarProducts();
-		});
+		// Load stats when page loads
+		document.addEventListener('DOMContentLoaded', loadTodayStats);
 	</script>
-
-	<script src="/scripts/checklist.js" is:inline></script>
 </Layout>
