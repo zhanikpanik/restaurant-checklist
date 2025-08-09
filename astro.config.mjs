@@ -18,6 +18,9 @@ export default defineConfig({
     // Environment variables for server and client
     define: {
       'import.meta.env.PUBLIC_POSTER_TOKEN': JSON.stringify('305185:07928627ec76d09e589e1381710e55da')
+    },
+    ssr: {
+      noExternal: ['xlsx']
     }
   }
 });
