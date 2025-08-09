@@ -1,0 +1,85 @@
+---
+// Poster OAuth authorization page
+---
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Poster API Authorization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .auth-container {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+        }
+        .auth-btn {
+            background: #28a745;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        .auth-btn:hover {
+            background: #218838;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-container">
+        <h1>🔐 Poster API Authorization</h1>
+        
+        <div class="info">
+            <p><strong>About this authorization:</strong></p>
+            <p>This will grant your application permission to:</p>
+            <ul style="text-align: left;">
+                <li>✅ Read inventory data</li>
+                <li>✅ Create supply entries (POST permissions)</li>
+                <li>✅ Update storage inventory</li>
+                <li>✅ Access all developer API features</li>
+            </ul>
+        </div>
+        
+        <p>Click the button below to authorize with Poster:</p>
+        
+        <a href="/api/auth/poster-oauth" class="auth-btn">
+            🚀 Authorize with Poster
+        </a>
+        
+        <div class="info">
+            <p><strong>What happens next:</strong></p>
+            <ol style="text-align: left;">
+                <li>You'll be redirected to Poster's authorization page</li>
+                <li>Log in to your Poster account and grant permissions</li>
+                <li>You'll be redirected back with an access token</li>
+                <li>Copy the token and update your application</li>
+            </ol>
+        </div>
+        
+        <p><em>Application ID: 4243</em></p>
+    </div>
+</body>
+</html>
