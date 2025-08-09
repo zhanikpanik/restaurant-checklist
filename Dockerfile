@@ -4,10 +4,6 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Add a non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S astro -u 1001
-
 # Copy package files
 COPY package*.json ./
 
@@ -17,12 +13,16 @@ RUN npm ci
 # Copy source code
 COPY . .
 
+# Build the application
+RUN npm run build
+
+# Add a non-root user for security
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S astro -u 1001
+
 # Change ownership to non-root user
 RUN chown -R astro:nodejs /app
 USER astro
-
-# Build the application
-RUN npm run build
 
 # Expose port
 EXPOSE 3000
