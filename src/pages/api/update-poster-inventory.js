@@ -32,10 +32,10 @@ export async function POST({ request }) {
             console.log(`📦 Preparing ingredient: ${item.name} (ID: ${item.id}) - ${quantityToAdd} ${item.unit}`);
             
             ingredientsArray.push({
-                id: item.id.toString(), // Ensure ID is string
-                type: 4, // Type 4 for supply
+                id: item.id.toString(),
+                type: "1",
                 num: quantityToAdd.toString(),
-                sum: "0.01" // Minimal cost for app-generated supplies
+                sum: "0.01"
             });
         }
         
@@ -48,13 +48,17 @@ export async function POST({ request }) {
                              String(now.getMinutes()).padStart(2, '0') + ':' + 
                              String(now.getSeconds()).padStart(2, '0');
         
-        // Use confirmed supplier ID "4" = "Закупка" (Purchase/Procurement)
-        const requestParams = {
+        // Compose params exactly per Poster docs: supply + ingredient
+        const supplyPayload = {
             date: formattedDate,
-            supplier_id: "4", // Confirmed supplier "Закупка"
+            supplier_id: "4",
             storage_id: storageId.toString(),
-            supply_comment: `Поставка из приложения: ${department}`,
-            ingredients: JSON.stringify(ingredientsArray) // Try 'ingredients' (plural)
+            packing: "1"
+        };
+
+        const requestParams = {
+            supply: JSON.stringify(supplyPayload),
+            ingredient: JSON.stringify(ingredientsArray)
         };
         
         console.log(`📤 Using supplier_id="4" (Закупка) for Poster storage.createSupply`);
@@ -88,16 +92,17 @@ export async function POST({ request }) {
         let addResponse;
         
         try {
-            console.log(`📤 Creating Poster supply with confirmed format...`);
+            console.log(`📤 Creating Poster supply via storage.createSupply`);
             console.log(`📤 URL: ${baseUrl}/storage.createSupply?token=${token}`);
-            console.log(`📤 Body: ${new URLSearchParams(requestParams).toString()}`);
+            console.log(`📤 Supply payload:`, supplyPayload);
+            console.log(`📤 Ingredients array:`, ingredientsArray);
             
             addResponse = await fetchWithTimeout(`${baseUrl}/storage.createSupply?token=${token}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: new URLSearchParams(requestParams)
+                 body: new URLSearchParams(requestParams)
             }, 10000);
             
             console.log(`📥 Poster response: ${addResponse.status} ${addResponse.statusText}`);
