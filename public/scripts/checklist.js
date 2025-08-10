@@ -540,7 +540,7 @@ function sendToWhatsApp() {
 }
 
 // Save final order to cache with 'sent' status
-function saveFinalOrderToCache(itemsToOrder, department, departmentName) {
+async function saveFinalOrderToCache(itemsToOrder, department, departmentName) {
     try {
         const finalOrder = {
             timestamp: new Date().toISOString(),
@@ -557,7 +557,7 @@ function saveFinalOrderToCache(itemsToOrder, department, departmentName) {
             status: 'sent'
         };
         
-        // Save to final orders history
+        // Save to localStorage (for backward compatibility)
         const historyKey = `${department}OrderHistory`;
         const existingHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
         existingHistory.unshift(finalOrder); // Add to beginning
@@ -568,6 +568,28 @@ function saveFinalOrderToCache(itemsToOrder, department, departmentName) {
         }
         
         localStorage.setItem(historyKey, JSON.stringify(existingHistory));
+        
+        // Also save to server storage (so it's visible on all devices)
+        try {
+            console.log('💾 Saving order to server storage...');
+            const response = await fetch('/api/save-internal-order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(finalOrder)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                console.log(`✅ Order saved to server: ${itemsToOrder.length} товаров`);
+            } else {
+                console.warn('⚠️ Failed to save to server:', result.error);
+            }
+        } catch (serverError) {
+            console.warn('⚠️ Server save failed:', serverError.message);
+        }
         
         // Clear the draft
         const draftKey = `${department}OrderDraft`;

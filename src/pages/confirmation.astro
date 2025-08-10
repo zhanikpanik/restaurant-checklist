@@ -141,7 +141,7 @@ import Layout from '../layouts/Layout.astro';
 		}
 
 		// Save order to delivery queue
-		function saveOrderToDeliveryQueue() {
+		async function saveOrderToDeliveryQueue() {
 			const orderData = getOrderData();
 			if (!orderData) return;
 
@@ -161,7 +161,7 @@ import Layout from '../layouts/Layout.astro';
 				status: 'sent' // Mark as sent to supplier
 			};
 
-			// Save to appropriate department history
+			// Save to localStorage (for backward compatibility)
 			const historyKey = `${orderData.department}OrderHistory`;
 			const existingHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
 			existingHistory.unshift(deliveryOrder); // Add to beginning
@@ -173,6 +173,28 @@ import Layout from '../layouts/Layout.astro';
 
 			localStorage.setItem(historyKey, JSON.stringify(existingHistory));
 			console.log(`✅ Order saved to ${historyKey} for delivery tracking`);
+
+			// Also save to server storage (so it's visible on all devices)
+			try {
+				console.log('💾 Saving internal order to server storage...');
+				const response = await fetch('/api/save-internal-order', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(deliveryOrder)
+				});
+				
+				const result = await response.json();
+				
+				if (result.success) {
+					console.log(`✅ Order saved to server storage for cross-device visibility`);
+				} else {
+					console.warn('⚠️ Failed to save to server:', result.error);
+				}
+			} catch (serverError) {
+				console.warn('⚠️ Server save failed:', serverError.message);
+			}
 		}
 
 		// Copy to clipboard functionality
@@ -185,7 +207,7 @@ import Layout from '../layouts/Layout.astro';
 				await navigator.clipboard.writeText(orderText);
 				
 				// Save order to delivery queue when copied
-				saveOrderToDeliveryQueue();
+				await saveOrderToDeliveryQueue();
 				
 				// Show success message
 				successMessage.classList.remove('hidden');
