@@ -90,23 +90,55 @@ import Layout from '../layouts/Layout.astro';
 		window.userRole = 'delivery';
 		window.currentFilter = 'all';
 		
-		// Load orders from localStorage (since orders are stored there)
-		function loadOrders() {
+		// Load orders from both localStorage and server storage
+		async function loadOrders() {
 			const loadingState = document.getElementById('loadingState');
 			const ordersView = document.getElementById('ordersView');
 			
 			try {
 				console.log('🚚 Loading delivery orders...');
 				
-				// Get orders from localStorage
+				// Get orders from localStorage (internal orders)
 				const barOrders = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
 				const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
+				const localOrders = [...barOrders, ...kitchenOrders];
 				
-				// Combine and sort by timestamp
-				const allOrders = [...barOrders, ...kitchenOrders]
+				console.log(`📱 Found ${localOrders.length} local orders`);
+				
+				// Get orders from server storage (external orders)
+				let serverOrders = [];
+				try {
+					const response = await fetch('/api/get-all-orders');
+					const result = await response.json();
+					
+					if (result.success) {
+						serverOrders = result.data || [];
+						console.log(`🌐 Found ${serverOrders.length} server orders`);
+					} else {
+						console.warn('⚠️ Failed to fetch server orders:', result.error);
+					}
+				} catch (serverError) {
+					console.warn('⚠️ Server orders unavailable:', serverError.message);
+				}
+				
+				// Combine all orders and remove duplicates (by timestamp)
+				const allOrdersMap = new Map();
+				
+				// Add local orders
+				localOrders.forEach(order => {
+					allOrdersMap.set(order.timestamp, { ...order, source: 'local' });
+				});
+				
+				// Add server orders (will override duplicates)
+				serverOrders.forEach(order => {
+					allOrdersMap.set(order.timestamp, { ...order, source: 'server' });
+				});
+				
+				// Convert back to array and sort by timestamp
+				const allOrders = Array.from(allOrdersMap.values())
 					.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 				
-				console.log(`✅ Found ${allOrders.length} orders`);
+				console.log(`✅ Total orders: ${allOrders.length} (${localOrders.length} local + ${serverOrders.length} server)`);
 				
 				// Hide loading and show orders view
 				loadingState.style.display = 'none';

@@ -1,3 +1,5 @@
+import { addOrder } from '../../lib/orderStorage.js';
+
 export const prerender = false;
 
 export async function POST({ request }) {
@@ -49,6 +51,15 @@ export async function POST({ request }) {
         };
         
         console.log(`✅ Formatted external order: ${formattedOrder.departmentName} with ${formattedOrder.items.length} items`);
+        
+        // Save order to server-side storage
+        const saveSuccess = await addOrder(orderData.department, formattedOrder);
+        
+        if (!saveSuccess) {
+            throw new Error('Failed to save order to storage');
+        }
+        
+        console.log(`💾 Order saved to server storage successfully`);
         
         // Return success response with formatted order and save script
         const saveScript = `
