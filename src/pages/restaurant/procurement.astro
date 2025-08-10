@@ -756,7 +756,14 @@ import Layout from '../../layouts/Layout.astro';
 								<span class="text-${departmentColor}-600">
 									${order.items.length} позиций
 								</span>
-								<!-- XLS supply management replaces Poster integration -->
+								${order.status === 'delivered' ? `
+									<button 
+										onclick="downloadOrderXLS('${order.timestamp}', '${order.department}')"
+										class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded-lg transition-colors"
+									>
+										📥 Скачать XLS
+									</button>
+								` : ''}
 							</div>
 						</div>
 					</div>
@@ -842,5 +849,55 @@ import Layout from '../../layouts/Layout.astro';
 				alert('❌ Ошибка при скачивании шаблона: ' + error.message);
 			}
 		}
+
+		// Download XLS for specific delivered order
+		async function downloadOrderXLS(orderTimestamp, department) {
+			try {
+				console.log(`📥 Downloading XLS for order: ${orderTimestamp} (${department})`);
+				
+				const response = await fetch('/api/download-order-xls', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						orderTimestamp: orderTimestamp,
+						department: department
+					})
+				});
+				
+				if (response.ok) {
+					const blob = await response.blob();
+					const url = window.URL.createObjectURL(blob);
+					const a = document.createElement('a');
+					a.href = url;
+					
+					// Format filename with date and department
+					const date = new Date(orderTimestamp).toLocaleDateString('ru-RU');
+					const time = new Date(orderTimestamp).toLocaleTimeString('ru-RU', { 
+						hour: '2-digit', 
+						minute: '2-digit' 
+					});
+					const deptName = department === 'kitchen' ? 'кухня' : 'бар';
+					a.download = `поставка-${deptName}-${date}-${time}.xlsx`;
+					
+					document.body.appendChild(a);
+					a.click();
+					window.URL.revokeObjectURL(url);
+					document.body.removeChild(a);
+					
+					console.log('✅ Order XLS downloaded successfully');
+				} else {
+					const errorData = await response.json();
+					alert(`❌ Ошибка скачивания: ${errorData.error || 'Неизвестная ошибка'}`);
+				}
+			} catch (error) {
+				console.error('❌ Failed to download order XLS:', error);
+				alert('❌ Ошибка при скачивании XLS: ' + error.message);
+			}
+		}
+
+		// Make function globally available
+		window.downloadOrderXLS = downloadOrderXLS;
 	</script>
 </Layout> 
