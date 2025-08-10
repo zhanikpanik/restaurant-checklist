@@ -8,27 +8,31 @@ export async function GET() {
         console.log('🍽️ Fetching KITCHEN inventory from Poster storage ID 1...');
         
         // Server-side call to Poster API (no CORS issues)
-        const response = await fetch(`${baseUrl}/storage.getInventoryIngredients?token=${token}&storage_id=1`);
+        const response = await fetch(`${baseUrl}/storage.getStorageLeftovers?token=${token}&storage_id=1`);
         const data = await response.json();
         
         if (data.error) {
-            throw new Error(`Poster API error: ${data.error.message}`);
+            throw new Error(`Poster API error (Code ${data.error.code}): ${data.error.message}`);
         }
         
-        const ingredients = data.response?.ingredients || [];
-        console.log(`✅ Loaded ${ingredients.length} KITCHEN ingredients from Poster storage ID 1`);
+        // Get leftovers directly from response array
+        const leftovers = Array.isArray(data.response) ? data.response : [];
+        console.log(`✅ Loaded ${leftovers.length} KITCHEN leftovers from Poster storage ID 1`);
         
-        // Transform data to our format
-        const kitchenProducts = ingredients.map(ingredient => ({
-            id: ingredient.item_id,
-            name: ingredient.item.replace(' (Ingr.)', ''),
-            quantity: parseFloat(ingredient.factrest) || 0,
-            unit: ingredient.unit || 'шт',
+        // Transform data to our format using the correct field names
+        const kitchenProducts = leftovers.map(leftover => ({
+            id: leftover.ingredient_id,
+            name: leftover.ingredient_name || '',
+            quantity: parseFloat(leftover.storage_ingredient_left) || 0,
+            unit: leftover.ingredient_unit || 'шт',
             minQuantity: 1,
             checked: false,
-            estimatedRest: parseFloat(ingredient.estimatedrest) || 0,
-            primeCost: parseFloat(ingredient.primecost) || 0,
-            difference: parseFloat(ingredient.difference) || 0
+            primeCost: parseFloat(leftover.prime_cost) || 0,
+            primeCostNetto: parseFloat(leftover.prime_cost_netto) || 0,
+            ingredientLeft: parseFloat(leftover.ingredient_left) || 0,
+            storageIngredientLeft: parseFloat(leftover.storage_ingredient_left) || 0,
+            storageSum: parseFloat(leftover.storage_ingredient_sum) || 0,
+            hidden: leftover.hidden === "1"
         }));
         
         return new Response(JSON.stringify({ 

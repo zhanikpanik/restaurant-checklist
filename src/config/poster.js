@@ -164,6 +164,11 @@ export class PosterAPI {
             response: settings.response
         };
     }
+    
+    // ✅ Get storage leftovers (leftover ingredients in storage)
+    async getStorageLeftovers(storageId) {
+        return this.request('/storage.getStorageLeftovers', { storage_id: storageId });
+    }
 }
 
 // Export default instance
