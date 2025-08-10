@@ -93,10 +93,10 @@ import Layout from '../../layouts/Layout.astro';
 							✅ Отметить как закуплено
 						</button>
 						<button 
-							id="updatePosterBtn"
+							id="uploadSupplyBtn"
 							class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg"
 						>
-							📦 Обновить склад Poster
+							📊 Загрузить поставку (XLS)
 						</button>
 						<button 
 							id="generateReportBtn"
@@ -119,6 +119,63 @@ import Layout from '../../layouts/Layout.astro';
 				<h2 class="text-xl font-semibold text-gray-900 mb-4">История закупок</h2>
 				<div id="purchaseHistory" class="space-y-3">
 					<p class="text-gray-500 text-center py-8">История закупок пуста</p>
+				</div>
+			</div>
+
+			<!-- XLS Upload Modal -->
+			<div id="xlsUploadModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+				<div class="flex items-center justify-center min-h-screen px-4">
+					<div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+						<div class="flex items-center justify-between mb-4">
+							<h3 class="text-lg font-medium text-gray-900">Загрузить поставку из XLS</h3>
+							<button id="closeUploadModal" class="text-gray-400 hover:text-gray-600">
+								<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+								</svg>
+							</button>
+						</div>
+						
+						<div class="mb-4">
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								Выберите отдел:
+							</label>
+							<select id="uploadDepartment" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+								<option value="kitchen">Кухня</option>
+								<option value="bar">Бар</option>
+							</select>
+						</div>
+						
+						<div class="mb-4">
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								Формат файла должен содержать колонки:
+							</label>
+							<div class="bg-gray-50 p-3 rounded text-sm">
+								<div class="font-mono">
+									<div>• Наименование</div>
+									<div>• Фасовка</div>
+									<div>• Количество</div>
+									<div>• Цена</div>
+								</div>
+							</div>
+						</div>
+						
+						<div class="mb-6">
+							<label class="block text-sm font-medium text-gray-700 mb-2">
+								Выберите XLS файл:
+							</label>
+							<input type="file" id="xlsFileInput" accept=".xls,.xlsx" 
+								class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+						</div>
+						
+						<div class="flex space-x-3">
+							<button id="uploadXlsBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-md">
+								📊 Загрузить
+							</button>
+							<button id="downloadTemplateBtn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-md">
+								📥 Скачать шаблон
+							</button>
+						</div>
+					</div>
 				</div>
 			</div>
 		</main>
@@ -148,11 +205,16 @@ import Layout from '../../layouts/Layout.astro';
 
 			// Action buttons
 			document.getElementById('markPurchasedBtn').addEventListener('click', markAsPurchased);
-			document.getElementById('updatePosterBtn').addEventListener('click', updatePosterInventory);
+			document.getElementById('uploadSupplyBtn').addEventListener('click', showUploadModal);
 			document.getElementById('exportListBtn').addEventListener('click', exportShoppingList);
 			document.getElementById('clearListBtn').addEventListener('click', clearShoppingList);
 			document.getElementById('generateReportBtn').addEventListener('click', generateReport);
 			document.getElementById('lowStockAlertBtn').addEventListener('click', showLowStockAlert);
+			
+			// XLS Upload Modal event listeners
+			document.getElementById('closeUploadModal').addEventListener('click', hideUploadModal);
+			document.getElementById('uploadXlsBtn').addEventListener('click', uploadXlsFile);
+			document.getElementById('downloadTemplateBtn').addEventListener('click', downloadTemplate);
 		}
 
 		function loadPurchaseRequests() {
@@ -694,14 +756,7 @@ import Layout from '../../layouts/Layout.astro';
 								<span class="text-${departmentColor}-600">
 									${order.items.length} позиций
 								</span>
-								${!isSynced ? `
-									<button 
-										onclick="updateSingleOrder('${order.timestamp}', '${order.department}')"
-										class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-lg transition-colors"
-									>
-										📦 Обновить в Poster
-									</button>
-								` : ''}
+								<!-- XLS supply management replaces Poster integration -->
 							</div>
 						</div>
 					</div>
@@ -709,6 +764,83 @@ import Layout from '../../layouts/Layout.astro';
 			}).join('');
 			
 			console.log(`📋 Loaded ${allDeliveredOrders.length} delivered orders for procurement page`);
+		}
+
+		// XLS Supply Management Functions
+		function showUploadModal() {
+			document.getElementById('xlsUploadModal').classList.remove('hidden');
+		}
+
+		function hideUploadModal() {
+			document.getElementById('xlsUploadModal').classList.add('hidden');
+			document.getElementById('xlsFileInput').value = '';
+		}
+
+		async function uploadXlsFile() {
+			const fileInput = document.getElementById('xlsFileInput');
+			const department = document.getElementById('uploadDepartment').value;
+			
+			if (!fileInput.files[0]) {
+				alert('Выберите XLS файл!');
+				return;
+			}
+			
+			const formData = new FormData();
+			formData.append('file', fileInput.files[0]);
+			formData.append('department', department);
+			
+			try {
+				console.log('📊 Uploading XLS supply file...');
+				
+				const response = await fetch('/api/upload-supply-xls', {
+					method: 'POST',
+					body: formData
+				});
+				
+				const result = await response.json();
+				
+				if (result.success) {
+					alert(`✅ Поставка успешно загружена!\n\n${result.itemCount} товаров добавлено в ${department === 'kitchen' ? 'кухню' : 'бар'}`);
+					hideUploadModal();
+					loadPurchaseHistory();
+				} else {
+					alert(`❌ Ошибка загрузки: ${result.error}`);
+				}
+			} catch (error) {
+				console.error('❌ Failed to upload XLS:', error);
+				alert('❌ Ошибка при загрузке файла: ' + error.message);
+			}
+		}
+
+		async function downloadTemplate() {
+			const department = document.getElementById('uploadDepartment').value;
+			
+			try {
+				console.log('📥 Downloading XLS template...');
+				
+				const response = await fetch(`/api/download-supply-template?department=${department}`, {
+					method: 'GET'
+				});
+				
+				if (response.ok) {
+					const blob = await response.blob();
+					const url = window.URL.createObjectURL(blob);
+					const a = document.createElement('a');
+					a.href = url;
+					a.download = `supply-template-${department}.xlsx`;
+					document.body.appendChild(a);
+					a.click();
+					window.URL.revokeObjectURL(url);
+					document.body.removeChild(a);
+					
+					console.log('✅ Template downloaded successfully');
+				} else {
+					alert('❌ Ошибка при скачивании шаблона');
+				}
+			} catch (error) {
+				console.error('❌ Failed to download template:', error);
+				alert('❌ Ошибка при скачивании шаблона: ' + error.message);
+			}
 		}
 	</script>
 </Layout> 
