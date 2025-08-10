@@ -21,7 +21,8 @@
     "@tailwindcss/vite": "^4.1.11",
     "astro": "^5.12.0",
     "express": "^5.1.0",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^4.1.11",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -45,7 +45,7 @@ export async function GET() {
         });
         
     } catch (error) {
-        console.error('❌ Failed to fetch KITCHEN inventory:', error);
+        console.error('❌ Failed to fetch KITCHEN leftovers:', error);
         return new Response(JSON.stringify({ 
             success: false, 
             error: error.message,
