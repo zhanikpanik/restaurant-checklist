@@ -1,0 +1,38 @@
+[
+  {
+    "timestamp": "2025-08-11T11:35:32.186Z",
+    "department": "kitchen",
+    "departmentName": "Кухня",
+    "items": [
+      {
+        "id": "439",
+        "name": "Aroy кисло сладкий соус",
+        "quantity": 1,
+        "unit": "l"
+      }
+    ],
+    "totalItems": 1,
+    "totalQuantity": 1,
+    "status": "sent",
+    "source": "internal",
+    "supplier": "Internal Order"
+  },
+  {
+    "timestamp": "2025-08-11T07:47:36.817Z",
+    "department": "kitchen",
+    "departmentName": "Кухня",
+    "items": [
+      {
+        "id": "424",
+        "name": "анчоус",
+        "quantity": 1,
+        "unit": "kg"
+      }
+    ],
+    "totalItems": 1,
+    "totalQuantity": 1,
+    "status": "sent",
+    "source": "internal",
+    "supplier": "Internal Order"
+  }
+]
