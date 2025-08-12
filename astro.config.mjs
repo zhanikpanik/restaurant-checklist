@@ -1,11 +1,12 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import tailwindcss from '@tailwindcss/vite';
+import tailwind from '@astrojs/tailwind';
 import node from '@astrojs/node';
 
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
+  integrations: [tailwind()],
   adapter: node({
     mode: 'standalone'
   }),
@@ -14,7 +15,6 @@ export default defineConfig({
     host: '0.0.0.0'
   },
   vite: {
-    plugins: [tailwindcss()],
     // Environment variables for server and client
     define: {
       'import.meta.env.PUBLIC_POSTER_TOKEN': JSON.stringify('305185:07928627ec76d09e589e1381710e55da')

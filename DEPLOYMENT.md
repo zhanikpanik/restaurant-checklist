@@ -112,7 +112,7 @@ const buyerPhone = "996557957457"; // Update with your buyer's phone
 
 ### For Restaurant Staff
 1. **View Inventory**: Open app → see current stock levels
-2. **Create Order**: Click floating "Написать закуп" button
+2. **Create Order**: Click floating "Создать заказ" button
 3. **Search Products**: Use search bar to find items quickly
 4. **Set Quantities**: Adjust quantities with +/- or direct input
 5. **Send to WhatsApp**: Click WhatsApp button → opens with pre-filled list
@@ -120,7 +120,7 @@ const buyerPhone = "996557957457"; // Update with your buyer's phone
 ### Department Access
 - **Bar Inventory**: `https://your-domain.com/`
 - **Kitchen Inventory**: `https://your-domain.com/restaurant/kitchen`
-- **Procurement Management**: `https://your-domain.com/restaurant/procurement`
+
 
 ## 🔍 Health Check
 Visit: `https://your-domain.com/api/test-poster-connection`

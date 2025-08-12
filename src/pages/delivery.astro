@@ -1,419 +1,347 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Доставка - Заказы">
-	<div class="min-h-screen bg-white">
-		<!-- Header with Role Info -->
-		<header class="bg-green-600 text-white px-4 py-6">
-			<div class="max-w-md mx-auto">
-				<div class="flex items-center justify-between mb-4">
-					<div class="flex items-center space-x-2">
-						<span class="text-2xl">🚚</span>
-						<h1 class="text-2xl font-bold">Доставка</h1>
-					</div>
-					<div class="text-right text-sm">
-						<div class="font-medium">Курьер</div>
-						<a href="/" class="text-green-200 hover:text-white">← Главная</a>
-					</div>
-				</div>
-				<div class="text-green-100 text-sm mb-2">
-					💡 Склад Poster обновляется вручную в разделе "Закупки"
-				</div>
+    <div class="min-h-screen bg-white">
+        <header class="bg-green-600 text-white px-4 py-6">
+            <div class="max-w-md mx-auto flex justify-between items-center">
+                <h1 class="text-2xl font-bold">🚚 Доставка</h1>
+                <a href="/" class="text-green-200 hover:text-white">← Главная</a
+                >
+            </div>
+        </header>
 
-			</div>
-		</header>
+        <main class="max-w-md mx-auto px-4 py-6">
+            <div id="loadingState" class="text-center py-8">
+                <div
+                    class="animate-spin h-12 w-12 border-b-2 border-green-600 rounded-full mx-auto"
+                >
+                </div>
+            </div>
 
-		<!-- Main Content -->
-		<main class="max-w-md mx-auto px-4 py-6">
-			<!-- Loading State -->
-			<div id="loadingState" class="text-center py-8">
-				<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-				<p class="text-gray-600">Загрузка заказов...</p>
-			</div>
+            <div id="ordersView" class="space-y-4 hidden">
+                <div class="flex space-x-2">
+                    <button
+                        id="filterAll"
+                        class="px-3 py-2 rounded-lg bg-green-600 text-white"
+                        >Все</button
+                    >
+                    <button
+                        id="filterPending"
+                        class="px-3 py-2 rounded-lg bg-gray-200">Ожидают</button
+                    >
+                    <button
+                        id="filterDelivered"
+                        class="px-3 py-2 rounded-lg bg-gray-200"
+                        >Доставлено</button
+                    >
+                </div>
+                <div id="ordersList"></div>
+            </div>
 
-			<!-- Orders View -->
-			<div id="ordersView" class="space-y-4 hidden">
-				<!-- Filters -->
-				<div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-					<div class="flex space-x-2">
-						<button 
-							id="filterAll" 
-							class="filter-btn px-3 py-2 rounded-lg text-sm font-medium bg-green-600 text-white"
-						>
-							Все
-						</button>
-						<button 
-							id="filterPending" 
-							class="filter-btn px-3 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300"
-						>
-							Ожидают
-						</button>
-						<button 
-							id="filterDelivered" 
-							class="filter-btn px-3 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300"
-						>
-							Доставлено
-						</button>
-					</div>
-				</div>
+            <button
+                id="refreshBtn"
+                class="fixed bottom-6 right-6 p-4 bg-green-600 text-white rounded-full"
+            >
+                🔄
+            </button>
+        </main>
+    </div>
 
-				<!-- Orders List -->
-				<div id="ordersList">
-					<!-- Orders will be populated by JavaScript -->
-				</div>
+    <script is:inline>
+        let currentFilter = "all";
 
-				<!-- No Orders Message -->
-				<div id="noOrdersMessage" class="text-center py-8 text-gray-500 hidden">
-					<div class="text-4xl mb-4">📭</div>
-					<p>Нет заказов для доставки</p>
-				</div>
-			</div>
+        async function loadOrders() {
+            const barOrders = JSON.parse(
+                localStorage.getItem("barOrderHistory") || "[]",
+            );
+            const kitchenOrders = JSON.parse(
+                localStorage.getItem("kitchenOrderHistory") || "[]",
+            );
+            const orders = [...barOrders, ...kitchenOrders].sort(
+                (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
+            );
 
-			<!-- Refresh Button -->
-			<div class="fixed bottom-6 right-6">
-				<button 
-					id="refreshBtn" 
-					class="bg-green-600 hover:bg-green-700 text-white p-4 rounded-full shadow-lg transition-colors duration-200"
-					title="Обновить заказы"
-				>
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-					</svg>
-				</button>
-			</div>
-		</main>
-	</div>
+            document.getElementById("loadingState").style.display = "none";
+            document.getElementById("ordersView").classList.remove("hidden");
+            renderOrders(orders);
+        }
 
-	<script is:inline>
-		// Set role
-		window.userRole = 'delivery';
-		window.currentFilter = 'all';
-		
-		// Load orders from both localStorage and server storage
-		async function loadOrders() {
-			const loadingState = document.getElementById('loadingState');
-			const ordersView = document.getElementById('ordersView');
-			
-			try {
-				console.log('🚚 Loading delivery orders...');
-				
-				// Get orders from localStorage (internal orders)
-				const barOrders = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
-				const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
-				const localOrders = [...barOrders, ...kitchenOrders];
-				
-				console.log(`📱 Found ${localOrders.length} local orders`);
-				
-				// Get orders from server storage (external orders)
-				let serverOrders = [];
-				try {
-					const response = await fetch('/api/get-all-orders');
-					const result = await response.json();
-					
-					if (result.success) {
-						serverOrders = result.data || [];
-						console.log(`🌐 Found ${serverOrders.length} server orders`);
-					} else {
-						console.warn('⚠️ Failed to fetch server orders:', result.error);
-					}
-				} catch (serverError) {
-					console.warn('⚠️ Server orders unavailable:', serverError.message);
-				}
-				
-				// Combine all orders and remove duplicates (by timestamp)
-				const allOrdersMap = new Map();
-				
-				// Add local orders
-				localOrders.forEach(order => {
-					allOrdersMap.set(order.timestamp, { ...order, source: 'local' });
-				});
-				
-				// Add server orders (will override duplicates)
-				serverOrders.forEach(order => {
-					allOrdersMap.set(order.timestamp, { ...order, source: 'server' });
-				});
-				
-				// Convert back to array and sort by timestamp
-				const allOrders = Array.from(allOrdersMap.values())
-					.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-				
-				console.log(`✅ Total orders: ${allOrders.length} (${localOrders.length} local + ${serverOrders.length} server)`);
-				
-				// Hide loading and show orders view
-				loadingState.style.display = 'none';
-				ordersView.style.display = 'block';
-				ordersView.classList.remove('hidden');
-				
-				// Store orders globally
-				window.allOrders = allOrders;
-				
-				// Render orders
-				renderOrders(allOrders);
-				
-			} catch (error) {
-				console.error('❌ Failed to load orders:', error);
-				loadingState.innerHTML = `
-					<div class="text-center py-8">
-						<div class="text-red-500 mb-4">❌</div>
-						<p class="text-red-600">Ошибка загрузки заказов</p>
-						<button onclick="loadOrders()" class="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg">
-							Попробовать снова
-						</button>
-					</div>
-				`;
-			}
-		}
-		
-		function renderOrders(orders) {
-			const container = document.getElementById('ordersList');
-			const noOrdersMessage = document.getElementById('noOrdersMessage');
-			
-			// Filter orders based on current filter
-			let filteredOrders = orders;
-			if (window.currentFilter === 'pending') {
-				filteredOrders = orders.filter(order => order.status !== 'delivered');
-			} else if (window.currentFilter === 'delivered') {
-				filteredOrders = orders.filter(order => order.status === 'delivered');
-			}
-			
-			if (filteredOrders.length === 0) {
-				container.innerHTML = '';
-				noOrdersMessage.classList.remove('hidden');
-				return;
-			}
-			
-			noOrdersMessage.classList.add('hidden');
-			
-			container.innerHTML = filteredOrders.map(order => {
-				const date = new Date(order.timestamp);
-				const isDelivered = order.status === 'delivered';
-				const deliveredAt = order.deliveredAt ? new Date(order.deliveredAt) : null;
-				
-				return `
-				<div class="bg-white border rounded-lg p-4 ${isDelivered ? 'border-green-200 bg-green-50' : 'border-gray-200'}" data-order-id="${order.timestamp}">
-					<div class="flex justify-between items-start mb-3">
-						<div>
-							<div class="flex items-center space-x-2">
-								<span class="text-lg">${order.department === 'kitchen' ? '🍳' : '🍷'}</span>
-								<h3 class="font-bold text-gray-900">${order.departmentName}</h3>
-								${isDelivered ? '<span class="text-xs bg-green-600 text-white px-2 py-1 rounded-full">Доставлено</span>' : '<span class="text-xs bg-orange-500 text-white px-2 py-1 rounded-full">Ожидает</span>'}
-							</div>
-							<p class="text-sm text-gray-500">
-								Заказано: ${date.toLocaleDateString('ru-RU')} в ${date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
-							</p>
-							${deliveredAt ? `<p class="text-sm text-green-600">Доставлено: ${deliveredAt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</p>` : ''}
-						</div>
-						<div class="text-right">
-							<div class="text-lg font-bold text-gray-900">${order.totalItems} поз.</div>
-							<div class="text-sm text-gray-500">${order.totalQuantity.toFixed(1)} ед.</div>
-						</div>
-					</div>
-					
-					<!-- Items List -->
-					<div class="bg-gray-50 rounded-lg p-3 mb-3">
-						<div class="text-sm space-y-2" id="items-${order.timestamp}">
-							${order.items.map((item, index) => 
-								`<div class="space-y-1">
-									<div class="flex justify-between items-center">
-										<span class="font-medium">${item.name}</span>
-										<span class="text-gray-600">Заказано: ${item.quantity} ${item.unit}</span>
-									</div>
-									${!isDelivered ? `
-									<div class="flex items-center space-x-2">
-										<span class="text-xs text-gray-500">Куплено:</span>
-										<input 
-											type="number" 
-											class="actual-quantity flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
-											placeholder="${item.quantity}"
-											value="${item.actualQuantity || item.quantity}"
-											step="0.1"
-											min="0"
-											data-order="${order.timestamp}"
-											data-item-index="${index}"
-										/>
-										<span class="text-xs text-gray-500">${item.unit}</span>
-									</div>
-									` : `
-									<div class="flex justify-between text-xs">
-										<span class="text-gray-500">Куплено:</span>
-										<span class="text-green-600 font-medium">${item.actualQuantity || item.quantity} ${item.unit}</span>
-									</div>
-									${item.actualQuantity && item.actualQuantity !== item.quantity ? `
-									<div class="text-xs text-orange-600">
-										Разница: ${(item.actualQuantity - item.quantity > 0 ? '+' : '')}${(item.actualQuantity - item.quantity).toFixed(1)} ${item.unit}
-									</div>
-									` : ''}
-									`}
-								</div>`
-							).join('')}
-						</div>
-					</div>
-					
-					<!-- Action Button -->
-					${!isDelivered ? `
-					<button 
-						onclick="handleDeliveryMark('${order.timestamp}', '${order.department}')"
-						class="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg font-medium transition-colors duration-200"
-					>
-						✅ Отметить как доставлено
-					</button>
-					` : `
-					<div class="text-center text-green-600 font-medium">
-						✅ Доставлено
-					</div>
-					`}
-				</div>
-				`;
-			}).join('');
-			
-			// Load saved actual quantities after rendering
-			setTimeout(loadSavedActuals, 50);
-		}
-		
-		async function markAsDeliveredWithActuals(orderTimestamp, department) {
-			// Collect actual quantities from input fields
-			const actualQuantities = [];
-			const inputs = document.querySelectorAll(`input[data-order="${orderTimestamp}"]`);
-			
-			inputs.forEach(input => {
-				const itemIndex = parseInt(input.dataset.itemIndex);
-				const actualQuantity = parseFloat(input.value) || 0;
-				actualQuantities[itemIndex] = actualQuantity;
-			});
-			
-			// Update order status in localStorage
-			const storageKey = `${department}OrderHistory`;
-			const orders = JSON.parse(localStorage.getItem(storageKey) || '[]');
-			
-			const orderIndex = orders.findIndex(order => order.timestamp === orderTimestamp);
-			if (orderIndex !== -1) {
-				// Update each item with actual quantity
-				orders[orderIndex].items.forEach((item, index) => {
-					if (actualQuantities[index] !== undefined) {
-						item.actualQuantity = actualQuantities[index];
-					}
-				});
-				
-				orders[orderIndex].status = 'delivered';
-				orders[orderIndex].deliveredAt = new Date().toISOString();
-				
-				// Calculate totals with actual quantities
-				orders[orderIndex].actualTotalQuantity = orders[orderIndex].items.reduce(
-					(sum, item) => sum + (item.actualQuantity || item.quantity), 0
-				);
-				
-				localStorage.setItem(storageKey, JSON.stringify(orders));
-				
-				// Clean up temporary actuals
-				const tempKey = `tempActuals_${orderTimestamp}`;
-				localStorage.removeItem(tempKey);
-				
-				console.log(`✅ Order marked as delivered with actual quantities: ${orderTimestamp}`);
-				
-				// Note: Poster inventory updates are done manually in procurement page
-				
-				// Show summary of differences
-				const differences = orders[orderIndex].items.filter(item => 
-					item.actualQuantity && Math.abs(item.actualQuantity - item.quantity) > 0.01
-				);
-				
-				if (differences.length > 0) {
-					const diffText = differences.map(item => 
-						`${item.name}: ${item.quantity} → ${item.actualQuantity} ${item.unit}`
-					).join('\n');
-					alert(`✅ Заказ доставлен!\n\nИзменения количества:\n${diffText}\n\n📦 Для обновления склада Poster:\nПерейдите в "Закупки" → "Обновить Poster"`);
-				} else {
-					alert('✅ Заказ доставлен без изменений!\n\n📦 Для обновления склада Poster:\nПерейдите в "Закупки" → "Обновить Poster"');
-				}
-				
-				// Reload orders
-				loadOrders();
-			}
-		}
-		
-		// Filter functionality
-		function setupFilters() {
-			document.getElementById('filterAll').addEventListener('click', () => setFilter('all'));
-			document.getElementById('filterPending').addEventListener('click', () => setFilter('pending'));
-			document.getElementById('filterDelivered').addEventListener('click', () => setFilter('delivered'));
-		}
-		
-		function setFilter(filter) {
-			window.currentFilter = filter;
-			
-			// Update button styles
-			document.querySelectorAll('.filter-btn').forEach(btn => {
-				btn.className = 'filter-btn px-3 py-2 rounded-lg text-sm font-medium bg-gray-200 text-gray-700 hover:bg-gray-300';
-			});
-			document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`).className = 'filter-btn px-3 py-2 rounded-lg text-sm font-medium bg-green-600 text-white';
-			
-			// Re-render with filter
-			if (window.allOrders) {
-				renderOrders(window.allOrders);
-			}
-		}
-		
-		// Refresh functionality
-		function setupRefresh() {
-			document.getElementById('refreshBtn').addEventListener('click', loadOrders);
-		}
-		
-		// Initialize on page load
-		document.addEventListener('DOMContentLoaded', function() {
-			loadOrders();
-			setupFilters();
-			setupRefresh();
-			setupActualQuantityListeners();
-			
-			// Load saved actuals after orders are rendered
-			setTimeout(loadSavedActuals, 100);
-		});
-		
+        function renderOrders(orders) {
+            const filtered =
+                currentFilter === "all"
+                    ? orders
+                    : currentFilter === "pending"
+                      ? orders.filter((o) => o.status !== "delivered")
+                      : orders.filter((o) => o.status === "delivered");
 
+            document.getElementById("ordersList").innerHTML = filtered
+                .map((order) => {
+                    // Get temporary quantities
+                    const tempQuantities = JSON.parse(
+                        localStorage.getItem(`temp_${order.timestamp}`) || "{}",
+                    );
 
-		// Auto-save actual quantities as user types
-		function setupActualQuantityListeners() {
-			document.addEventListener('input', function(e) {
-				if (e.target.classList.contains('actual-quantity')) {
-					const orderTimestamp = e.target.dataset.order;
-					const itemIndex = parseInt(e.target.dataset.itemIndex);
-					const actualQuantity = parseFloat(e.target.value) || 0;
-					
-					// Save to temporary storage
-					const tempKey = `tempActuals_${orderTimestamp}`;
-					const tempActuals = JSON.parse(localStorage.getItem(tempKey) || '{}');
-					tempActuals[itemIndex] = actualQuantity;
-					localStorage.setItem(tempKey, JSON.stringify(tempActuals));
-					
-					console.log(`💾 Saved actual quantity for item ${itemIndex}: ${actualQuantity}`);
-				}
-			});
-		}
-		
-		// Load saved actual quantities
-		function loadSavedActuals() {
-			document.querySelectorAll('.actual-quantity').forEach(input => {
-				const orderTimestamp = input.dataset.order;
-				const itemIndex = parseInt(input.dataset.itemIndex);
-				const tempKey = `tempActuals_${orderTimestamp}`;
-				const tempActuals = JSON.parse(localStorage.getItem(tempKey) || '{}');
-				
-				if (tempActuals[itemIndex] !== undefined) {
-					input.value = tempActuals[itemIndex];
-				}
-			});
-		}
+                    return `
+                        <div class="bg-white border rounded-lg p-4 mb-4 ${order.status === "delivered" ? "bg-green-50" : ""}">
+                            <div class="flex justify-between items-start mb-3">
+                                <div>
+                                    <h3 class="font-medium">${order.departmentName || order.department}</h3>
+                                    <p class="text-sm text-gray-500">${new Date(order.timestamp).toLocaleString()}</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="text-sm font-medium">${order.totalItems} товаров</div>
+                                    <div class="text-xs text-gray-500">${order.actualTotalQuantity || order.totalQuantity} шт.</div>
+                                </div>
+                            </div>
 
-		// Handle delivery marking (wrapper for async function)
-		function handleDeliveryMark(orderTimestamp, department) {
-			markAsDeliveredWithActuals(orderTimestamp, department).catch(error => {
-				console.error('Error marking order as delivered:', error);
-				alert('Ошибка при отметке доставки. Попробуйте снова.');
-			});
-		}
+                            <div class="space-y-2 my-3">
+                                ${order.items
+                                                                         .map(
+                                         (item, i) => `
+                                     <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                         <div class="flex justify-between items-start mb-2">
+                                             <span class="font-medium text-gray-900">${item.name}</span>
+                                             <span class="text-sm text-gray-600 bg-gray-200 px-2 py-1 rounded">Заказано: ${item.quantity} ${item.unit}</span>
+                                         </div>
+                                        ${
+                                                                                         order.status !== "delivered"
+                                                 ? `
+                                             <div class="flex items-center mt-2 space-x-2">
+                                                 <input
+                                                     type="number"
+                                                     class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                                     value="${tempQuantities[i] !== undefined ? tempQuantities[i] : item.quantity}"
+                                                     data-order="${order.timestamp}"
+                                                     data-index="${i}"
+                                                     oninput="saveQuantity(event)"
+                                                     placeholder="0"
+                                                     step="0.1"
+                                                     min="0"
+                                                 >
+                                                 <span class="text-sm text-gray-500 font-medium min-w-max">${item.unit}</span>
+                                             </div>
+                                            ${
+                                                                                                tempQuantities[i] !==
+                                                    undefined &&
+                                                tempQuantities[i] !==
+                                                    item.quantity
+                                                     ? `
+                                                 <div class="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700 font-medium">
+                                                     💡 Изменено: ${tempQuantities[i]} ${item.unit}
+                                                 </div>
+                                             `
+                                                     : ""
+                                            }
+                                        `
+                                                : `
+                                            <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700 font-medium">
+                                                ✅ Куплено: ${item.actualQuantity || item.quantity} ${item.unit}
+                                            </div>
+                                        `
+                                        }
+                                    </div>
+                                `,
+                                    )
+                                    .join("")}
+                            </div>
 
-		// Global functions for button onclick
-		window.handleDeliveryMark = handleDeliveryMark;
-	</script>
+                            ${
+                                                                 order.status !== "delivered"
+                                     ? `
+                                 <button
+                                     onclick="markDelivered('${order.timestamp}', '${order.department}')"
+                                     class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors duration-200"
+                                 >
+                                     ✅ Отметить как доставлено
+                                 </button>
+                             `
+                                     : `
+                                 <div class="space-y-2">
+                                     <div class="text-center text-green-600 font-medium">✅ Доставлено</div>
+                                     <button
+                                         onclick="downloadOrderXLS('${order.timestamp}', '${order.department}')"
+                                         class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+                                     >
+                                         <span>📄</span>
+                                         <span>Скачать Excel</span>
+                                     </button>
+                                 </div>
+                             `
+                            }
+                        </div>
+                    `;
+                })
+                .join("");
+        }
+
+        function saveQuantity(e) {
+            const order = e.target.dataset.order;
+            const index = e.target.dataset.index;
+            const quantity = parseFloat(e.target.value) || 0;
+
+            const tempKey = `temp_${order}`;
+            const temp = JSON.parse(localStorage.getItem(tempKey) || "{}");
+            temp[index] = quantity;
+            localStorage.setItem(tempKey, JSON.stringify(temp));
+
+            // Add this line to see changes immediately
+            loadOrders();
+        }
+
+        async function markDelivered(timestamp, department) {
+            const storageKey = `${department}OrderHistory`;
+            const orders = JSON.parse(localStorage.getItem(storageKey) || "[]");
+            const orderIndex = orders.findIndex(
+                (o) => o.timestamp === timestamp,
+            );
+
+            if (orderIndex !== -1) {
+                // Get saved quantities
+                const tempKey = `temp_${timestamp}`;
+                const tempQuantities = JSON.parse(
+                    localStorage.getItem(tempKey) || "{}",
+                );
+
+                // Update order with actual quantities
+                orders[orderIndex].items.forEach((item, i) => {
+                    const savedQuantity = tempQuantities[i];
+                    if (savedQuantity !== undefined) {
+                        item.actualQuantity = savedQuantity;
+                    }
+                });
+
+                // Update order status
+                orders[orderIndex].status = "delivered";
+                orders[orderIndex].deliveredAt = new Date().toISOString();
+
+                // Calculate new total quantity
+                orders[orderIndex].actualTotalQuantity = orders[
+                    orderIndex
+                ].items.reduce(
+                    (sum, item) => sum + (item.actualQuantity || item.quantity),
+                    0,
+                );
+
+                // Save changes to localStorage
+                localStorage.setItem(storageKey, JSON.stringify(orders));
+                localStorage.removeItem(tempKey);
+
+                // Also save to server storage for download functionality
+                try {
+                    const response = await fetch('/api/save-internal-order', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(orders[orderIndex])
+                    });
+
+                    if (response.ok) {
+                        console.log('✅ Order saved to server for download');
+                    } else {
+                        console.warn('⚠️ Failed to save to server storage');
+                    }
+                } catch (error) {
+                    console.warn('⚠️ Error saving to server:', error);
+                }
+
+                // Show confirmation
+                const differences = orders[orderIndex].items.filter(
+                    (item) =>
+                        item.actualQuantity &&
+                        item.actualQuantity !== item.quantity,
+                );
+                if (differences.length > 0) {
+                    const diffText = differences
+                        .map(
+                            (item) =>
+                                `${item.name}: ${item.quantity} -> ${item.actualQuantity}`,
+                        )
+                        .join("\\n");
+                    alert(`Заказ доставлен!\\nИзменения:\\n${diffText}\\n\\nТеперь вы можете скачать Excel файл.`);
+                } else {
+                    alert('Заказ доставлен!\\nТеперь вы можете скачать Excel файл.');
+                }
+
+                loadOrders();
+            }
+        }
+
+        // Event Listeners
+        document.getElementById("filterAll").onclick = () => {
+            currentFilter = "all";
+            loadOrders();
+        };
+        document.getElementById("filterPending").onclick = () => {
+            currentFilter = "pending";
+            loadOrders();
+        };
+        document.getElementById("filterDelivered").onclick = () => {
+            currentFilter = "delivered";
+            loadOrders();
+        };
+        document.getElementById("refreshBtn").onclick = loadOrders;
+
+        // Download XLS function
+        async function downloadOrderXLS(timestamp, department) {
+            try {
+                console.log(`📄 Downloading XLS for order: ${timestamp} (${department})`);
+                
+                const response = await fetch('/api/download-order-xls', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        orderTimestamp: timestamp,
+                        department: department
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to download file');
+                }
+                
+                // Get the filename from the response headers
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = `supply-${department}-${new Date().toISOString().split('T')[0]}.xlsx`;
+                
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                    if (filenameMatch) {
+                        filename = filenameMatch[1];
+                    }
+                }
+                
+                // Create blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                console.log(`✅ Downloaded: ${filename}`);
+                
+                // Show success message
+                alert(`Файл "${filename}" успешно скачан!`);
+                
+            } catch (error) {
+                console.error('❌ Download failed:', error);
+                alert(`Ошибка при скачивании: ${error.message}`);
+            }
+        }
+
+        // Initialize
+        window.saveQuantity = saveQuantity;
+        window.markDelivered = markDelivered;
+        window.downloadOrderXLS = downloadOrderXLS;
+        loadOrders();
+    </script>
 </Layout>

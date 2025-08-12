@@ -25,9 +25,7 @@ Simple role-based access without login system - just different URLs for differen
   - Filter by status (pending/delivered)
 
 ### **Management Access**
-- **`/restaurant/procurement`** - Order management (📋)
-  - View order history
-  - Export/manage purchases
+- Management features have been removed from this application
 
 ## 🎨 Visual Differences
 

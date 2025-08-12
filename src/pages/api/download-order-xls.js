@@ -35,19 +35,7 @@ export async function POST({ request }) {
       console.warn("⚠️ Server storage unavailable:", error.message);
     }
 
-    // If not found in server storage, try localStorage
-    if (!targetOrder) {
-      const localStorageKey = `${department}OrderHistory`;
-      const localOrders = JSON.parse(
-        localStorage.getItem(localStorageKey) || "[]",
-      );
-      targetOrder = localOrders.find(
-        (order) => order.timestamp === orderTimestamp,
-      );
-      console.log(
-        `💾 Local storage search: ${targetOrder ? "found" : "not found"}`,
-      );
-    }
+    // Note: localStorage is not available on server side, so we only check server storage
 
     if (!targetOrder) {
       throw new Error(`Order not found: ${orderTimestamp} in ${department}`);
