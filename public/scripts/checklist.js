@@ -428,7 +428,7 @@ function updateFloatingButtonLabel() {
       const productText = getProductCountText(itemCount);
       textSpan.textContent = `В корзине ${itemCount} ${productText}`;
       sendBtn.classList.remove("bg-gray-400", "hover:bg-gray-500");
-      sendBtn.classList.add("bg-gray-800", "hover:bg-gray-900");
+      sendBtn.classList.add("bg-green-500", "hover:bg-gray-900");
     }
   }
 
