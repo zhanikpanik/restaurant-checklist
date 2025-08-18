@@ -60,6 +60,71 @@ function updateProductDataFromGlobal() {
   return true;
 }
 
+// Generate quick-select buttons based on product unit
+function generateQuickSelectButtons(productId, unit) {
+  // Define quick-select quantities for different unit types
+  const quickSelectConfig = {
+    // Liquids - liters
+    'л': [0.5, 1, 2, 5],
+    // Liquids - milliliters  
+    'мл': [250, 500, 750, 1000],
+    // Weight - kilograms
+    'кг': [0.5, 1, 2, 5],
+    // Weight - grams
+    'г': [250, 500, 750, 1000],
+    // Pieces/units
+    'шт': [1, 2, 5, 10],
+    // Packages
+    'упак': [1, 2, 3, 5],
+    // Bottles
+    'бутылка': [1, 2, 3, 6],
+    // Cans (kitchen)
+    'банка': [1, 2, 3, 4],
+    // Default for unknown units
+    'default': [1, 2, 3, 5]
+  };
+
+  // Get quantities for this unit type, fallback to default
+  const quantities = quickSelectConfig[unit] || quickSelectConfig['default'];
+  
+  // Generate buttons HTML
+  return quantities.map(qty => `
+    <button 
+      class="quick-select-btn px-2 py-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded transition-colors duration-150 font-medium"
+      onclick="addQuickQuantity(${productId}, ${qty})"
+      title="Добавить ${qty} ${unit}"
+    >
+      +${qty}
+    </button>
+  `).join('');
+}
+
+// Add quantity from quick-select button
+function addQuickQuantity(productId, quantity) {
+  const shoppingItem = shoppingListData.find(p => p.id == productId);
+  if (shoppingItem) {
+    const currentQuantity = shoppingItem.shoppingQuantity || 0;
+    const newQuantity = currentQuantity + quantity;
+    
+    // Simply use the existing setShoppingQuantity function
+    // It should handle both data update and input field display
+    setShoppingQuantity(productId, newQuantity);
+    
+    // Show visual feedback on the button
+    const button = event.target;
+    const originalText = button.textContent;
+    button.textContent = '✓';
+    button.classList.add('bg-green-100', 'text-green-700', 'border-green-200');
+    button.classList.remove('bg-blue-50', 'text-blue-700', 'border-blue-200');
+    
+    setTimeout(() => {
+      button.textContent = originalText;
+      button.classList.remove('bg-green-100', 'text-green-700', 'border-green-200');
+      button.classList.add('bg-blue-50', 'text-blue-700', 'border-blue-200');
+    }, 300);
+  }
+}
+
 function renderShoppingListProducts() {
   const container = document.getElementById("productsList");
 
@@ -89,12 +154,20 @@ function renderShoppingListProducts() {
         ? '<div class="text-sm text-blue-600 mt-1 font-medium">📝 Добавлен вручную</div>'
         : `<div class="text-sm text-gray-500 mt-1">На складе: <span class="${quantityColor} font-medium">${product.quantity}</span> ${product.unit}</div>`;
 
+      // Get quick-select buttons for this product's unit
+      const quickSelectButtons = generateQuickSelectButtons(product.id, product.unit);
+      
       return `
         <div class="product-item bg-white p-4 ${borderColor}" data-product-id="${product.id}">
             <div class="flex items-center justify-between w-full">
                 <div class="flex-1">
                     <h3 class="text-base font-medium text-gray-900">${product.name}</h3>
                     ${stockInfo}
+                    
+                    <!-- Quick Select Buttons -->
+                    <div class="quick-select-buttons mt-2 flex flex-wrap gap-1">
+                        ${quickSelectButtons}
+                    </div>
                 </div>
                 <div class="flex items-center justify-end">
                     <!-- Quantity Input -->
@@ -242,9 +315,22 @@ function setupQuantityInputListeners() {
 
 // Update quantity input value programmatically (used by +/- buttons)
 function updateQuantityInputValue(productId, newValue) {
-  const input = document.querySelector(`[data-product-id="${productId}"]`);
-  if (input && input._mask) {
-    input._mask.value = newValue.toString();
+  const input = document.querySelector(`input.quantity-input[data-product-id="${productId}"]`);
+  if (input) {
+    if (input._mask) {
+      // For IMask inputs, set the unmasked value
+      try {
+        input._mask.unmaskedValue = newValue.toString();
+      } catch (error) {
+        // Fallback: set the raw value with unit
+        const unit = input.dataset.unit;
+        input.value = newValue + (newValue ? ' ' + unit : '');
+      }
+    } else {
+      // For regular inputs, set the formatted value
+      const unit = input.dataset.unit;
+      input.value = newValue + (newValue ? ' ' + unit : '');
+    }
   }
 }
 
@@ -987,6 +1073,8 @@ window.BarInventory = {
   fetchPosterCategories,
   updateProductDataFromGlobal,
   renderShoppingListProducts,
+  generateQuickSelectButtons,
+  addQuickQuantity,
 };
 
 // Also expose functions globally for easier access from pages
@@ -996,3 +1084,4 @@ window.updateShoppingQuantity = updateShoppingQuantity;
 window.initializeOrderMode = initializeOrderMode;
 window.updateFloatingButtonLabel = updateFloatingButtonLabel;
 window.updateAddedProductsLabel = updateAddedProductsLabel;
+window.addQuickQuantity = addQuickQuantity;
