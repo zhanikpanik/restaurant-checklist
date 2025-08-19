@@ -255,10 +255,27 @@ import Layout from "../layouts/Layout.astro";
 
         async function markDelivered(timestamp, department) {
             const storageKey = `${department}OrderHistory`;
-            const orders = JSON.parse(localStorage.getItem(storageKey) || "[]");
-            const orderIndex = orders.findIndex(
-                (o) => o.timestamp === timestamp,
-            );
+            let orders = JSON.parse(localStorage.getItem(storageKey) || "[]");
+            let orderIndex = orders.findIndex((o) => o.timestamp === timestamp);
+
+            // Fallback: if order not found locally (e.g., created on another device), fetch from server
+            if (orderIndex === -1) {
+                try {
+                    const resp = await fetch(`/api/get-all-orders?department=${encodeURIComponent(department)}`, { cache: 'no-store' });
+                    if (resp.ok) {
+                        const result = await resp.json();
+                        const serverOrder = (result.data || []).find((o) => o.timestamp === timestamp);
+                        if (serverOrder) {
+                            orders.unshift(serverOrder);
+                            orderIndex = 0;
+                            // Persist this order locally so subsequent ops work
+                            localStorage.setItem(storageKey, JSON.stringify(orders));
+                        }
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Could not fetch order from server for delivery update:', e);
+                }
+            }
 
             if (orderIndex !== -1) {
                 // Get saved quantities
@@ -329,6 +346,8 @@ import Layout from "../layouts/Layout.astro";
                 }
 
                 loadOrders();
+            } else {
+                alert('Не удалось найти заказ для обновления. Обновите страницу и попробуйте снова.');
             }
         }
 
