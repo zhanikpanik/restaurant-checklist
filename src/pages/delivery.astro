@@ -53,19 +53,53 @@ import Layout from "../layouts/Layout.astro";
         let currentFilter = "all";
 
         async function loadOrders() {
-            const barOrders = JSON.parse(
-                localStorage.getItem("barOrderHistory") || "[]",
-            );
-            const kitchenOrders = JSON.parse(
-                localStorage.getItem("kitchenOrderHistory") || "[]",
-            );
-            const orders = [...barOrders, ...kitchenOrders].sort(
-                (a, b) => new Date(b.timestamp) - new Date(a.timestamp),
-            );
+            try {
+                // Try to load from server storage for cross-device visibility
+                let serverOrders = [];
+                try {
+                    const response = await fetch('/api/get-all-orders', { cache: 'no-store' });
+                    if (response.ok) {
+                        const result = await response.json();
+                        serverOrders = Array.isArray(result.data) ? result.data : [];
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Failed to fetch server orders, falling back to localStorage');
+                }
 
-            document.getElementById("loadingState").style.display = "none";
-            document.getElementById("ordersView").classList.remove("hidden");
-            renderOrders(orders);
+                // Also load local orders (for unsynced/offline items)
+                const barOrders = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
+                const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
+                const localOrders = [...barOrders, ...kitchenOrders];
+
+                // Merge by unique key (timestamp + department); prefer server version
+                const mergedMap = new Map();
+                for (const o of localOrders) {
+                    mergedMap.set(`${o.timestamp}|${o.department}`, o);
+                }
+                for (const o of serverOrders) {
+                    mergedMap.set(`${o.timestamp}|${o.department}`, o);
+                }
+
+                const orders = Array.from(mergedMap.values()).sort(
+                    (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+                );
+
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('ordersView').classList.remove('hidden');
+                renderOrders(orders);
+            } catch (error) {
+                console.error('Failed to load orders:', error);
+                // Absolute fallback to localStorage-only
+                const fallbackBar = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
+                const fallbackKitchen = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
+                const fallbackOrders = [...fallbackBar, ...fallbackKitchen].sort(
+                    (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+                );
+
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('ordersView').classList.remove('hidden');
+                renderOrders(fallbackOrders);
+            }
         }
 
         function renderOrders(orders) {

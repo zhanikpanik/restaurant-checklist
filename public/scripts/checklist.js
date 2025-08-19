@@ -62,41 +62,27 @@ function updateProductDataFromGlobal() {
 
 // Generate quick-select buttons based on product unit
 function generateQuickSelectButtons(productId, unit) {
-  // Define quick-select quantities for different unit types
-  const quickSelectConfig = {
-    // Liquids - liters
-    'л': [0.5, 1, 2, 5],
-    // Liquids - milliliters  
-    'мл': [250, 500, 750, 1000],
-    // Weight - kilograms
-    'кг': [0.5, 1, 2, 5],
-    // Weight - grams
-    'г': [250, 500, 750, 1000],
-    // Pieces/units
-    'шт': [1, 2, 5, 10],
-    // Packages
-    'упак': [1, 2, 3, 5],
-    // Bottles
-    'бутылка': [1, 2, 3, 6],
-    // Cans (kitchen)
-    'банка': [1, 2, 3, 4],
-    // Default for unknown units
-    'default': [1, 2, 3, 5]
-  };
-
-  // Get quantities for this unit type, fallback to default
-  const quantities = quickSelectConfig[unit] || quickSelectConfig['default'];
-  
-  // Generate buttons HTML
-  return quantities.map(qty => `
-    <button 
-      class="quick-select-btn px-2 py-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded transition-colors duration-150 font-medium"
-      onclick="addQuickQuantity(${productId}, ${qty})"
-      title="Добавить ${qty} ${unit}"
+  // Replace multiple +N buttons with simple +/- step controls (0.5 step)
+  return `
+    <button
+      class="quick-select-btn px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-300 rounded transition-colors duration-150 font-medium"
+      onclick="updateShoppingQuantity(${productId}, -1)"
+      title="Уменьшить на 0.5 ${unit}"
+      aria-label="Уменьшить"
+      type="button"
     >
-      +${qty}
+      −
     </button>
-  `).join('');
+    <button
+      class="quick-select-btn px-3 py-1 text-sm bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded transition-colors duration-150 font-medium"
+      onclick="updateShoppingQuantity(${productId}, 1)"
+      title="Добавить 0.5 ${unit}"
+      aria-label="Добавить"
+      type="button"
+    >
+      +
+    </button>
+  `;
 }
 
 // Add quantity from quick-select button
@@ -154,32 +140,42 @@ function renderShoppingListProducts() {
         ? '<div class="text-sm text-blue-600 mt-1 font-medium">📝 Добавлен вручную</div>'
         : `<div class="text-sm text-gray-500 mt-1">На складе: <span class="${quantityColor} font-medium">${product.quantity}</span> ${product.unit}</div>`;
 
-      // Get quick-select buttons for this product's unit
-      const quickSelectButtons = generateQuickSelectButtons(product.id, product.unit);
-      
       return `
         <div class="product-item bg-white p-4 ${borderColor}" data-product-id="${product.id}">
             <div class="flex items-center justify-between w-full">
                 <div class="flex-1">
                     <h3 class="text-base font-medium text-gray-900">${product.name}</h3>
                     ${stockInfo}
-                    
-                    <!-- Quick Select Buttons -->
-                    <div class="quick-select-buttons mt-2 flex flex-wrap gap-1">
-                        ${quickSelectButtons}
-                    </div>
                 </div>
                 <div class="flex items-center justify-end">
-                    <!-- Quantity Input -->
-                    <div class="relative">
-                        <input
-                            type="text"
-                            class="quantity-input w-16 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-center bg-white text-sm font-medium"
-                            placeholder="0 ${product.unit}"
-                            data-product-id="${product.id}"
-                            data-unit="${product.unit}"
-                            data-imask-suffix=" ${product.unit}"
-                        />
+                    <!-- Inline quantity controls: - [input with unit] + -->
+                    <div class="flex items-center space-x-2">
+                        <button
+                          class="w-12 h-10.5 bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center text-2xl font-normal transition-colors duration-200 rounded-xl border-2 border-gray-300"
+                          onclick="updateShoppingQuantity(${product.id}, -1)"
+                          title="Уменьшить на 0.5 ${product.unit}"
+                          type="button"
+                        >
+                          −
+                        </button>
+                        <div class="relative">
+                            <input
+                                type="text"
+                                class="quantity-input w-16 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-center bg-white text-sm font-medium"
+                                placeholder="0 ${product.unit}"
+                                data-product-id="${product.id}"
+                                data-unit="${product.unit}"
+                                data-imask-suffix=" ${product.unit}"
+                            />
+                        </div>
+                        <button
+                          class="w-12 h-10.5 bg-blue-50 hover:bg-blue-100 text-blue-700 flex items-center justify-center text-2xl font-normal transition-colors duration-200 rounded-xl border-2 border-blue-200"
+                          onclick="updateShoppingQuantity(${product.id}, 1)"
+                          title="Добавить 0.5 ${product.unit}"
+                          type="button"
+                        >
+                          +
+                        </button>
                     </div>
 
                     ${
