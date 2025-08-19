@@ -99,7 +99,7 @@ Update in: `public/scripts/checklist.js`
 
 ```javascript
 // Line ~397
-const buyerPhone = "996557957457"; // Update with your buyer's phone
+const buyerPhone = "996708083303"; // Update with your buyer's phone
 ```
 
 ### 3. Storage IDs (Auto-configured)
