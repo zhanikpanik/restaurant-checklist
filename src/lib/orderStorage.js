@@ -60,11 +60,14 @@ export async function writeOrders(department, orders) {
 // Add a new order
 export async function addOrder(department, orderData) {
     try {
-        const existingOrders = await readOrders(department);
-        
-        // Add new order to beginning
+        let existingOrders = await readOrders(department);
+
+        // Replace any existing order with the same timestamp (idempotent update)
+        existingOrders = existingOrders.filter(o => !(o.timestamp === orderData.timestamp && o.department === department));
+
+        // Add new/updated order to beginning
         existingOrders.unshift(orderData);
-        
+
         // Save updated orders
         const success = await writeOrders(department, existingOrders);
         

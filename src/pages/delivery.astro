@@ -71,13 +71,42 @@ import Layout from "../layouts/Layout.astro";
                 const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
                 const localOrders = [...barOrders, ...kitchenOrders];
 
-                // Merge by unique key (timestamp + department); prefer server version
-                const mergedMap = new Map();
-                for (const o of localOrders) {
-                    mergedMap.set(`${o.timestamp}|${o.department}`, o);
+                // Merge by unique key (timestamp + department) with preference:
+                // - Prefer delivered over non-delivered
+                // - If both delivered, prefer one with later deliveredAt
+                // - Otherwise, prefer server version
+                function chooseBetter(existing, candidate) {
+                    if (!existing) return candidate;
+                    const isExistingDelivered = existing.status === 'delivered';
+                    const isCandidateDelivered = candidate.status === 'delivered';
+                    if (isExistingDelivered && !isCandidateDelivered) return existing;
+                    if (!isExistingDelivered && isCandidateDelivered) return candidate;
+                    if (isExistingDelivered && isCandidateDelivered) {
+                        const a = existing.deliveredAt ? new Date(existing.deliveredAt).getTime() : 0;
+                        const b = candidate.deliveredAt ? new Date(candidate.deliveredAt).getTime() : 0;
+                        if (a !== b) return b > a ? candidate : existing;
+                        // If same deliveredAt or missing, prefer one with actualTotalQuantity
+                        const hasExistingActuals = typeof existing.actualTotalQuantity === 'number';
+                        const hasCandidateActuals = typeof candidate.actualTotalQuantity === 'number';
+                        if (hasExistingActuals !== hasCandidateActuals) {
+                            return hasCandidateActuals ? candidate : existing;
+                        }
+                    }
+                    // Fallback preference: server over local (mark with a flag below)
+                    if (candidate.__source === 'server' && existing.__source !== 'server') return candidate;
+                    return existing;
                 }
+
+                const mergedMap = new Map();
                 for (const o of serverOrders) {
-                    mergedMap.set(`${o.timestamp}|${o.department}`, o);
+                    const key = `${o.timestamp}|${o.department}`;
+                    const candidate = { ...o, __source: 'server' };
+                    mergedMap.set(key, chooseBetter(mergedMap.get(key), candidate));
+                }
+                for (const o of localOrders) {
+                    const key = `${o.timestamp}|${o.department}`;
+                    const candidate = { ...o, __source: 'local' };
+                    mergedMap.set(key, chooseBetter(mergedMap.get(key), candidate));
                 }
 
                 const orders = Array.from(mergedMap.values()).sort(
