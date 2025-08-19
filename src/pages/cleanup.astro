@@ -1,0 +1,198 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Очистка заказов">
+	<div class="min-h-screen bg-white">
+		<header class="bg-gray-800 text-white px-4 py-6">
+			<div class="max-w-md mx-auto flex justify-between items-center">
+				<h1 class="text-xl font-bold">🧹 Очистка заказов</h1>
+				<a href="/delivery" class="text-gray-300 hover:text-white">← Доставка</a>
+			</div>
+		</header>
+
+		<main class="max-w-md mx-auto px-4 py-6">
+			<div class="mb-3 flex items-center justify-between">
+				<div class="space-x-2">
+					<button id="filterAll" class="px-3 py-2 rounded-lg bg-gray-800 text-white">Все</button>
+					<button id="filterBar" class="px-3 py-2 rounded-lg bg-gray-200">Бар</button>
+					<button id="filterKitchen" class="px-3 py-2 rounded-lg bg-gray-200">Кухня</button>
+				</div>
+				<div class="space-x-2">
+					<button id="selectAll" class="px-3 py-2 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">Выбрать все</button>
+					<button id="clearSelection" class="px-3 py-2 rounded-lg bg-gray-50 text-gray-700 border border-gray-200">Снять</button>
+				</div>
+			</div>
+
+			<div class="mb-4">
+				<button id="deleteSelected" class="w-full px-4 py-3 rounded-lg bg-red-600 text-white disabled:opacity-50" disabled>🗑 Удалить выбранные</button>
+			</div>
+
+			<div id="list"></div>
+
+			<div class="mt-6">
+				<button id="deleteAll" class="w-full px-4 py-3 rounded-lg bg-red-50 text-red-700 border border-red-200">Удалить все</button>
+			</div>
+		</main>
+	</div>
+
+	<script is:inline>
+		let allOrders = [];
+		let currentFilter = 'all'; // all | bar | kitchen
+		const selected = new Set(); // keys: `${timestamp}|${department}`
+
+		function keyOf(o) { return o.timestamp + '|' + o.department; }
+		function isSelected(o) { return selected.has(keyOf(o)); }
+		function byFilter(o) { return currentFilter === 'all' ? true : o.department === currentFilter; }
+
+		async function loadOrders() {
+			try {
+				const res = await fetch('/api/get-all-orders', { cache: 'no-store' });
+				const json = await res.json();
+				allOrders = (json.data || []).sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+				render();
+			} catch(e) {
+				console.error('Failed to load orders', e);
+				allOrders = [];
+				render();
+			}
+		}
+
+		function render() {
+			const list = document.getElementById('list');
+			const orders = allOrders.filter(byFilter);
+
+			if (orders.length === 0) {
+				list.innerHTML = '<div class="text-center text-gray-500 py-12">Нет заказов</div>';
+				updateButtons();
+				return;
+			}
+
+			list.innerHTML = orders.map(o => {
+				const checked = isSelected(o) ? 'checked' : '';
+				return `
+					<label class="block bg-white border rounded-lg p-4 mb-3 cursor-pointer">
+						<div class="flex items-start justify-between">
+							<div class="flex items-start space-x-3">
+								<input type="checkbox" data-key="${o.timestamp}|${o.department}" ${checked} class="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+								<div>
+									<div class="font-medium">${o.departmentName || (o.department === 'bar' ? 'Бар' : 'Кухня')}</div>
+									<div class="text-xs text-gray-500">${new Date(o.timestamp).toLocaleString()}</div>
+									<div class="text-xs ${o.status === 'delivered' ? 'text-green-700' : 'text-yellow-700'} mt-1">
+										Статус: ${o.status === 'delivered' ? 'Доставлено' : 'Ожидает'}
+									</div>
+								</div>
+							</div>
+							<div class="text-right text-xs text-gray-600">
+								<div>${o.totalItems} поз.</div>
+								<div>${o.actualTotalQuantity || o.totalQuantity} шт.</div>
+							</div>
+						</div>
+					</label>
+				`;
+			}).join('');
+
+			// Bind checkbox events
+			list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+				cb.addEventListener('change', (e) => {
+					const k = e.target.dataset.key;
+					if (e.target.checked) selected.add(k); else selected.delete(k);
+					updateButtons();
+				});
+			});
+
+			updateButtons();
+		}
+
+		function updateButtons() {
+			const canDelete = selected.size > 0;
+			document.getElementById('deleteSelected').disabled = !canDelete;
+		}
+
+		function setFilter(f) {
+			currentFilter = f;
+			document.getElementById('filterAll').className = 'px-3 py-2 rounded-lg ' + (f === 'all' ? 'bg-gray-800 text-white' : 'bg-gray-200');
+			document.getElementById('filterBar').className = 'px-3 py-2 rounded-lg ' + (f === 'bar' ? 'bg-gray-800 text-white' : 'bg-gray-200');
+			document.getElementById('filterKitchen').className = 'px-3 py-2 rounded-lg ' + (f === 'kitchen' ? 'bg-gray-800 text-white' : 'bg-gray-200');
+			render();
+		}
+
+		function selectAllVisible() {
+			allOrders.filter(byFilter).forEach(o => selected.add(keyOf(o)));
+			render();
+		}
+
+		function clearSelection() {
+			selected.clear();
+			render();
+		}
+
+		async function deleteSelected() {
+			if (selected.size === 0) return;
+			if (!confirm('Удалить выбранные заказы?')) return;
+
+			const bar = [];
+			const kitchen = [];
+			for (const k of selected) {
+				const [ts, dept] = k.split('|');
+				(dept === 'bar' ? bar : kitchen).push(ts);
+			}
+
+			await fetch('/api/delete-orders', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ bar, kitchen })
+			}).catch(() => {});
+
+			try {
+				if (bar.length) {
+					const arr = JSON.parse(localStorage.getItem('barOrderHistory') || '[]').filter(o => !bar.includes(o.timestamp));
+					localStorage.setItem('barOrderHistory', JSON.stringify(arr));
+				}
+				if (kitchen.length) {
+					const arr = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]').filter(o => !kitchen.includes(o.timestamp));
+					localStorage.setItem('kitchenOrderHistory', JSON.stringify(arr));
+				}
+				[...bar, ...kitchen].forEach(ts => localStorage.removeItem('temp_' + ts));
+			} catch {}
+
+			allOrders = allOrders.filter(o => !(o.department === 'bar' && bar.includes(o.timestamp)) && !(o.department === 'kitchen' && kitchen.includes(o.timestamp)));
+			selected.clear();
+			render();
+			alert('Выбранные заказы удалены');
+		}
+
+		async function deleteAll() {
+			if (!confirm('Удалить все заказы?')) return;
+
+			await fetch('/api/delete-orders', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ all: true })
+			}).catch(() => {});
+
+			try {
+				localStorage.removeItem('barOrderHistory');
+				localStorage.removeItem('kitchenOrderHistory');
+				Object.keys(localStorage).forEach(k => { if (k.startsWith('temp_')) localStorage.removeItem(k); });
+			} catch {}
+
+			allOrders = [];
+			selected.clear();
+			render();
+			alert('Все заказы удалены');
+		}
+
+		document.getElementById('filterAll').onclick = () => setFilter('all');
+		document.getElementById('filterBar').onclick = () => setFilter('bar');
+		document.getElementById('filterKitchen').onclick = () => setFilter('kitchen');
+		document.getElementById('selectAll').onclick = selectAllVisible;
+		document.getElementById('clearSelection').onclick = clearSelection;
+		document.getElementById('deleteSelected').onclick = deleteSelected;
+		document.getElementById('deleteAll').onclick = deleteAll;
+
+		loadOrders();
+	</script>
+</Layout>
+
+
