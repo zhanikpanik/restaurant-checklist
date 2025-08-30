@@ -141,17 +141,17 @@ function renderShoppingListProducts() {
         : `<div class="text-sm text-gray-500 mt-1">На складе: <span class="${quantityColor} font-medium">${product.quantity}</span> ${product.unit}</div>`;
 
       return `
-        <div class="product-item bg-white p-4 ${borderColor}" data-product-id="${product.id}">
+        <div class="product-item bg-white py-4 ${borderColor}" data-product-id="${product.id}">
             <div class="flex items-center justify-between w-full">
                 <div class="flex-1">
                     <h3 class="text-base font-medium text-gray-900">${product.name}</h3>
                     ${stockInfo}
                 </div>
-                <div class="flex items-center justify-end">
+                                    <div class="flex items-center justify-end">
                     <!-- Inline quantity controls: - [input with unit] + -->
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center bg-gray-100 rounded-lg border border-gray-300">
                         <button
-                          class="w-12 h-10.5 bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center text-2xl font-normal transition-colors duration-200 rounded-xl border-2 border-gray-300"
+                          class="px-2 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center text-2xl font-normal transition-colors duration-200 rounded-l-lg"
                           onclick="updateShoppingQuantity(${product.id}, -1)"
                           title="Уменьшить на 0.5 ${product.unit}"
                           type="button"
@@ -161,7 +161,7 @@ function renderShoppingListProducts() {
                         <div class="relative">
                             <input
                                 type="text"
-                                class="quantity-input w-16 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-gray-400 text-center bg-white text-sm font-medium"
+                                class="quantity-input w-16 px-3 py-2 border-0 focus:outline-none focus:ring-0 text-center bg-gray-100 text-sm font-medium"
                                 placeholder="0 ${product.unit}"
                                 data-product-id="${product.id}"
                                 data-unit="${product.unit}"
@@ -169,7 +169,7 @@ function renderShoppingListProducts() {
                             />
                         </div>
                         <button
-                          class="w-12 h-10.5 bg-blue-50 hover:bg-blue-100 text-blue-700 flex items-center justify-center text-2xl font-normal transition-colors duration-200 rounded-xl border-2 border-blue-200"
+                          class="px-2 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center text-2xl font-normal transition-colors duration-200 rounded-r-lg"
                           onclick="updateShoppingQuantity(${product.id}, 1)"
                           title="Добавить 0.5 ${product.unit}"
                           type="button"
@@ -788,68 +788,41 @@ function clearAllQuantities() {
 // ===== CUSTOM ITEMS FUNCTIONALITY =====
 
 function setupCustomItemListeners() {
-  // Add custom item button
+  // Add custom item button (now inline form)
   const addCustomItemBtn = document.getElementById("addCustomItemBtn");
   if (addCustomItemBtn) {
-    addCustomItemBtn.addEventListener("click", showCustomItemModal);
+    addCustomItemBtn.addEventListener("click", handleInlineCustomItemSubmit);
   }
 
-  // Close modal buttons
-  const closeModalBtn = document.getElementById("closeCustomItemModal");
-  const cancelBtn = document.getElementById("cancelCustomItem");
-  if (closeModalBtn)
-    closeModalBtn.addEventListener("click", hideCustomItemModal);
-  if (cancelBtn) cancelBtn.addEventListener("click", hideCustomItemModal);
-
-  // Form submission
-  const customItemForm = document.getElementById("customItemForm");
-  if (customItemForm) {
-    customItemForm.addEventListener("submit", handleCustomItemSubmit);
+  // Handle Enter key in name input
+  const customItemName = document.getElementById("customItemName");
+  if (customItemName) {
+    customItemName.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleInlineCustomItemSubmit();
+      }
+    });
   }
 
-  // Close modal when clicking outside
-  const modal = document.getElementById("customItemModal");
-  if (modal) {
-    modal.addEventListener("click", function (e) {
-      if (e.target === modal) {
-        hideCustomItemModal();
+  // Handle Enter key in quantity input
+  const customItemQuantity = document.getElementById("customItemQuantity");
+  if (customItemQuantity) {
+    customItemQuantity.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleInlineCustomItemSubmit();
       }
     });
   }
 }
 
-function showCustomItemModal() {
-  const modal = document.getElementById("customItemModal");
-  if (modal) {
-    modal.classList.remove("hidden");
-    // Focus on the first input
-    const nameInput = document.getElementById("customItemName");
-    if (nameInput) {
-      setTimeout(() => nameInput.focus(), 100);
-    }
-  }
-}
-
-function hideCustomItemModal() {
-  const modal = document.getElementById("customItemModal");
-  if (modal) {
-    modal.classList.add("hidden");
-    // Reset form
-    const form = document.getElementById("customItemForm");
-    if (form) {
-      form.reset();
-    }
-  }
-}
-
-function handleCustomItemSubmit(e) {
-  e.preventDefault();
-
-  const name = document.getElementById("customItemName").value.trim();
+function handleInlineCustomItemSubmit() {
+  const name = document.getElementById("customItemName")?.value.trim();
   const quantity = parseFloat(
-    document.getElementById("customItemQuantity").value,
+    document.getElementById("customItemQuantity")?.value,
   );
-  const unit = document.getElementById("customItemUnit").value;
+  const unit = document.getElementById("customItemUnit")?.value;
 
   if (!name || !quantity || !unit) {
     alert("Заполните все поля!");
@@ -885,8 +858,17 @@ function handleCustomItemSubmit(e) {
   // Auto-save
   autoSaveToCache();
 
-  // Hide modal
-  hideCustomItemModal();
+  // Clear form
+  const nameInput = document.getElementById("customItemName");
+  const quantityInput = document.getElementById("customItemQuantity");
+  const unitSelect = document.getElementById("customItemUnit");
+  
+  if (nameInput) nameInput.value = '';
+  if (quantityInput) quantityInput.value = '';
+  if (unitSelect) unitSelect.value = 'шт';
+
+  // Focus back to name input
+  if (nameInput) nameInput.focus();
 
   // Show success message
   alert(`Товар "${name}" добавлен в заказ!`);
@@ -1072,6 +1054,10 @@ window.BarInventory = {
   generateQuickSelectButtons,
   addQuickQuantity,
 };
+
+// Expose customItems array globally
+window.customItems = customItems;
+window.shoppingListData = shoppingListData;
 
 // Also expose functions globally for easier access from pages
 window.updateProductDataFromGlobal = updateProductDataFromGlobal;

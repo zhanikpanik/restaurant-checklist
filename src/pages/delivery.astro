@@ -2,6 +2,8 @@
 import Layout from "../layouts/Layout.astro";
 ---
 
+<script src="https://unpkg.com/imask@7.5.0/dist/imask.min.js"></script>
+
 <Layout title="Доставка - Заказы">
     <div class="min-h-screen bg-white">
         <header class="bg-green-600 text-white px-4 py-6">
@@ -141,9 +143,12 @@ import Layout from "../layouts/Layout.astro";
 
             document.getElementById("ordersList").innerHTML = filtered
                 .map((order) => {
-                    // Get temporary quantities
+                    // Get temporary quantities and prices
                     const tempQuantities = JSON.parse(
                         localStorage.getItem(`temp_${order.timestamp}`) || "{}",
+                    );
+                    const tempPrices = JSON.parse(
+                        localStorage.getItem(`temp_prices_${order.timestamp}`) || "{}",
                     );
 
                     return `
@@ -163,36 +168,47 @@ import Layout from "../layouts/Layout.astro";
                                 ${order.items
                                                                          .map(
                                          (item, i) => `
-                                     <div class="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                     <div class="">
                                          <div class="flex justify-between items-start mb-2">
                                              <span class="font-medium text-gray-900">${item.name}</span>
-                                             <span class="text-sm text-gray-600 bg-gray-200 px-2 py-1 rounded">Заказано: ${item.quantity} ${item.unit}</span>
+                                             
                                          </div>
                                         ${
                                                                                          order.status !== "delivered"
                                                  ? `
-                                             <div class="flex items-center mt-2 space-x-2">
+                                             <div class="flex items-center space-x-2">
+                                                 
                                                  <input
-                                                     type="number"
-                                                     class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                                     value="${tempQuantities[i] !== undefined ? tempQuantities[i] : item.quantity}"
+                                                     type="text"
+                                                     class="quantity-input w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
                                                      data-order="${order.timestamp}"
                                                      data-index="${i}"
-                                                     oninput="saveQuantity(event)"
-                                                     placeholder="0"
-                                                     step="0.1"
-                                                     min="0"
+                                                     data-type="quantity"
+                                                     data-unit="${item.unit}"
+                                                     placeholder="0 ${item.unit}"
+                                                     data-imask-suffix=" ${item.unit}"
+                                                     data-initial-value="${tempQuantities[i] !== undefined ? tempQuantities[i] : item.quantity}"
                                                  >
                                                  <span class="text-sm text-gray-500 font-medium min-w-max">${item.unit}</span>
+                                                 <label class="text-sm text-gray-600 min-w-max ml-4">за</label>
+                                                 <input
+                                                     type="text"
+                                                     class="price-input w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
+                                                     data-order="${order.timestamp}"
+                                                     data-index="${i}"
+                                                     data-type="price"
+                                                     placeholder="0 ₸"
+                                                     data-imask-suffix=" ₸"
+                                                     data-initial-value="${tempPrices[i] !== undefined ? tempPrices[i] : (item.price || 0)}"
+                                                 >
+                                                 <span class="text-sm text-gray-500 font-medium min-w-max"></span>
                                              </div>
                                             ${
-                                                                                                tempQuantities[i] !==
-                                                    undefined &&
-                                                tempQuantities[i] !==
-                                                    item.quantity
+                                                                                                (tempQuantities[i] !== undefined && tempQuantities[i] !== item.quantity) ||
+                                                                                                (tempPrices[i] !== undefined && tempPrices[i] !== (item.price || 0))
                                                      ? `
                                                  <div class="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700 font-medium">
-                                                     💡 Изменено: ${tempQuantities[i]} ${item.unit}
+                                                     💡 Изменено: ${tempQuantities[i] !== undefined ? tempQuantities[i] : item.quantity} ${item.unit}${tempPrices[i] !== undefined ? `, ${tempPrices[i]} ₸` : `, ${item.price || 0} ₸`}
                                                  </div>
                                              `
                                                      : ""
@@ -200,7 +216,7 @@ import Layout from "../layouts/Layout.astro";
                                         `
                                                 : `
                                             <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700 font-medium">
-                                                ✅ Куплено: ${item.actualQuantity || item.quantity} ${item.unit}
+                                                ✅ Куплено: ${item.actualQuantity || item.quantity} ${item.unit} за ${item.actualPrice || item.price || 0} ₸
                                             </div>
                                         `
                                         }
@@ -237,6 +253,9 @@ import Layout from "../layouts/Layout.astro";
                     `;
                 })
                 .join("");
+            
+            // Setup input masks after rendering
+            setupInputMasks();
         }
 
         function saveQuantity(e) {
@@ -251,6 +270,146 @@ import Layout from "../layouts/Layout.astro";
 
             // Add this line to see changes immediately
             loadOrders();
+        }
+
+        function savePrice(e) {
+            const order = e.target.dataset.order;
+            const index = e.target.dataset.index;
+            const price = parseFloat(e.target.value) || 0;
+
+            const tempKey = `temp_prices_${order}`;
+            const temp = JSON.parse(localStorage.getItem(tempKey) || "{}");
+            temp[index] = price;
+            localStorage.setItem(tempKey, JSON.stringify(temp));
+
+            // Add this line to see changes immediately
+            loadOrders();
+        }
+
+        // Setup input masks for quantity and price inputs
+        function setupInputMasks() {
+            // Setup quantity input masks
+            document.querySelectorAll(".quantity-input").forEach((input) => {
+                const unit = input.dataset.unit;
+                const order = input.dataset.order;
+                const index = input.dataset.index;
+                
+                // Create IMask instance for quantity input
+                const mask = IMask(input, {
+                    mask: Number,
+                    scale: 2,  // digits after point
+                    signed: false,  // disallow negative
+                    thousandsSeparator: '',  // don't use thousands separator
+                    padFractionalZeros: false,  // don't pad with zeros
+                    normalizeZeros: true,  // normalize zeros
+                    radix: '.',  // fractional delimiter
+                    min: 0,
+                    max: 999,
+                    lazy: false,  // always show mask
+                    
+                    // Custom format with unit suffix
+                    format: function (appended, masked) {
+                        return masked.value + (masked.value ? ' ' + unit : '');
+                    },
+                    
+                    parse: function (str) {
+                        return str.replace(' ' + unit, '');
+                    }
+                });
+                
+                // Handle value changes
+                mask.on('accept', function() {
+                    const value = parseFloat(mask.unmaskedValue) || 0;
+                    saveQuantity({
+                        target: {
+                            dataset: {
+                                order: order,
+                                index: index
+                            },
+                            value: value
+                        }
+                    });
+                });
+                
+                // Store mask instance for later use
+                input._mask = mask;
+                
+                // Set initial value
+                const initialValue = input.dataset.initialValue;
+                if (initialValue) {
+                    updateInputValue(input, parseFloat(initialValue) || 0);
+                }
+            });
+
+            // Setup price input masks
+            document.querySelectorAll(".price-input").forEach((input) => {
+                const order = input.dataset.order;
+                const index = input.dataset.index;
+                
+                // Create IMask instance for price input
+                const mask = IMask(input, {
+                    mask: Number,
+                    scale: 2,  // digits after point for prices
+                    signed: false,  // disallow negative
+                    thousandsSeparator: '',  // don't use thousands separator
+                    padFractionalZeros: false,  // don't pad with zeros
+                    normalizeZeros: true,  // normalize zeros
+                    radix: '.',  // fractional delimiter
+                    min: 0,
+                    max: 99999,
+                    lazy: false,  // always show mask
+                    
+                    // Custom format with currency suffix
+                    format: function (appended, masked) {
+                        return masked.value + (masked.value ? ' ₸' : '');
+                    },
+                    
+                    parse: function (str) {
+                        return str.replace(' ₸', '');
+                    }
+                });
+                
+                // Handle value changes
+                mask.on('accept', function() {
+                    const value = parseFloat(mask.unmaskedValue) || 0;
+                    savePrice({
+                        target: {
+                            dataset: {
+                                order: order,
+                                index: index
+                            },
+                            value: value
+                        }
+                    });
+                });
+                
+                // Store mask instance for later use
+                input._mask = mask;
+                
+                // Set initial value
+                const initialValue = input.dataset.initialValue;
+                if (initialValue) {
+                    updateInputValue(input, parseFloat(initialValue) || 0);
+                }
+            });
+        }
+
+        // Update input values programmatically
+        function updateInputValue(input, newValue) {
+            if (input._mask) {
+                // For IMask inputs, set the unmasked value
+                try {
+                    input._mask.unmaskedValue = newValue.toString();
+                } catch (error) {
+                    // Fallback: set the raw value
+                    const suffix = input.dataset.imaskSuffix || '';
+                    input.value = newValue + (newValue ? suffix : '');
+                }
+            } else {
+                // For regular inputs, set the raw value
+                const suffix = input.dataset.imaskSuffix || '';
+                input.value = newValue + (newValue ? suffix : '');
+            }
         }
 
         async function markDelivered(timestamp, department) {
@@ -278,17 +437,25 @@ import Layout from "../layouts/Layout.astro";
             }
 
             if (orderIndex !== -1) {
-                // Get saved quantities
+                // Get saved quantities and prices
                 const tempKey = `temp_${timestamp}`;
+                const tempPricesKey = `temp_prices_${timestamp}`;
                 const tempQuantities = JSON.parse(
                     localStorage.getItem(tempKey) || "{}",
                 );
+                const tempPrices = JSON.parse(
+                    localStorage.getItem(tempPricesKey) || "{}",
+                );
 
-                // Update order with actual quantities
+                // Update order with actual quantities and prices
                 orders[orderIndex].items.forEach((item, i) => {
                     const savedQuantity = tempQuantities[i];
+                    const savedPrice = tempPrices[i];
                     if (savedQuantity !== undefined) {
                         item.actualQuantity = savedQuantity;
+                    }
+                    if (savedPrice !== undefined) {
+                        item.actualPrice = savedPrice;
                     }
                 });
 
@@ -307,6 +474,7 @@ import Layout from "../layouts/Layout.astro";
                 // Save changes to localStorage
                 localStorage.setItem(storageKey, JSON.stringify(orders));
                 localStorage.removeItem(tempKey);
+                localStorage.removeItem(tempPricesKey);
 
                 // Also save to server storage for download functionality
                 try {
@@ -330,14 +498,22 @@ import Layout from "../layouts/Layout.astro";
                 // Show confirmation
                 const differences = orders[orderIndex].items.filter(
                     (item) =>
-                        item.actualQuantity &&
-                        item.actualQuantity !== item.quantity,
+                        (item.actualQuantity && item.actualQuantity !== item.quantity) ||
+                        (item.actualPrice !== undefined && item.actualPrice !== (item.price || 0)),
                 );
                 if (differences.length > 0) {
                     const diffText = differences
                         .map(
-                            (item) =>
-                                `${item.name}: ${item.quantity} -> ${item.actualQuantity}`,
+                            (item) => {
+                                let changes = [];
+                                if (item.actualQuantity && item.actualQuantity !== item.quantity) {
+                                    changes.push(`количество: ${item.quantity} -> ${item.actualQuantity}`);
+                                }
+                                if (item.actualPrice !== undefined && item.actualPrice !== (item.price || 0)) {
+                                    changes.push(`цена: ${item.price || 0} -> ${item.actualPrice} ₸`);
+                                }
+                                return `${item.name}: ${changes.join(', ')}`;
+                            }
                         )
                         .join("\\n");
                     alert(`Заказ доставлен!\\nИзменения:\\n${diffText}\\n\\nТеперь вы можете скачать Excel файл.`);
@@ -422,6 +598,7 @@ import Layout from "../layouts/Layout.astro";
 
         // Initialize
         window.saveQuantity = saveQuantity;
+        window.savePrice = savePrice;
         window.markDelivered = markDelivered;
         window.downloadOrderXLS = downloadOrderXLS;
         loadOrders();

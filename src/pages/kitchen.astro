@@ -66,15 +66,42 @@ import Layout from '../layouts/Layout.astro';
 					</div>
 				</div>
 				
-				<!-- Add Custom Item Button -->
-				<div class="mb-4">
-					<button 
-						id="addCustomItemBtn"
-						class="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-3 px-4 rounded-lg flex items-center justify-center space-x-2 transition-colors duration-200"
-					>
-						<span>➕</span>
-						<span>Добавить свой товар</span>
-					</button>
+				<!-- Inline Custom Item Form -->
+				<div class="mb-4 p-3 bg-orange-50 rounded-lg border border-orange-200">
+					<div class="flex items-center space-x-1">
+						<input 
+							type="text" 
+							id="customItemName" 
+							placeholder="Название"
+							class="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm min-w-0"
+						/>
+						<input 
+							type="number" 
+							id="customItemQuantity" 
+							placeholder="Кол-во"
+							min="0.1"
+							step="0.1"
+							class="w-16 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+						/>
+						<select 
+							id="customItemUnit" 
+							class="w-14 px-1 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm"
+						>
+							<option value="шт">шт</option>
+							<option value="кг">кг</option>
+							<option value="г">г</option>
+							<option value="л">л</option>
+							<option value="мл">мл</option>
+							<option value="упак">упак</option>
+							<option value="банка">банка</option>
+						</select>
+						<button 
+							id="addCustomItemBtn"
+							class="px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium flex-shrink-0"
+						>
+							➕
+						</button>
+					</div>
 				</div>
 
 				<!-- Products List -->
@@ -92,87 +119,7 @@ import Layout from '../layouts/Layout.astro';
 			</div>
 		</main>
 
-		<!-- Custom Item Modal -->
-		<div id="customItemModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-			<div class="bg-white rounded-lg max-w-md w-full p-6">
-				<div class="flex justify-between items-center mb-4">
-					<h2 class="text-xl font-bold text-gray-900">Добавить товар</h2>
-					<button id="closeCustomItemModal" class="text-gray-500 hover:text-gray-700">
-						<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-						</svg>
-					</button>
-				</div>
-				
-				<form id="customItemForm">
-					<div class="space-y-4">
-						<div>
-							<label for="customItemName" class="block text-sm font-medium text-gray-700 mb-1">
-								Название товара
-							</label>
-							<input 
-								type="text" 
-								id="customItemName" 
-								required
-								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-								placeholder="Например: Специи"
-							/>
-						</div>
-						
-						<div>
-							<label for="customItemQuantity" class="block text-sm font-medium text-gray-700 mb-1">
-								Количество
-							</label>
-							<input 
-								type="number" 
-								id="customItemQuantity" 
-								required
-								min="0.1"
-								step="0.1"
-								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-								placeholder="1.5"
-							/>
-						</div>
-						
-						<div>
-							<label for="customItemUnit" class="block text-sm font-medium text-gray-700 mb-1">
-								Единица измерения
-							</label>
-							<select 
-								id="customItemUnit" 
-								required
-								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-							>
-								<option value="">Выберите единицу</option>
-								<option value="кг">кг</option>
-								<option value="г">г</option>
-								<option value="л">л</option>
-								<option value="мл">мл</option>
-								<option value="шт">шт</option>
-								<option value="упак">упак</option>
-								<option value="банка">банка</option>
-							</select>
-						</div>
-						
-						<div class="flex space-x-3 pt-4">
-							<button 
-								type="button" 
-								id="cancelCustomItem"
-								class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors duration-200"
-							>
-								Отмена
-							</button>
-							<button 
-								type="submit"
-								class="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors duration-200"
-							>
-								Добавить
-							</button>
-						</div>
-					</div>
-				</form>
-			</div>
-		</div>
+
 	</div>
 
 	<script is:inline>
@@ -233,6 +180,102 @@ import Layout from '../layouts/Layout.astro';
 		
 		// Load on page ready
 		document.addEventListener('DOMContentLoaded', loadKitchenProducts);
+		
+		// Setup inline custom item form
+		document.addEventListener('DOMContentLoaded', function() {
+			const addCustomItemBtn = document.getElementById('addCustomItemBtn');
+			const customItemName = document.getElementById('customItemName');
+			const customItemQuantity = document.getElementById('customItemQuantity');
+			const customItemUnit = document.getElementById('customItemUnit');
+			
+			if (addCustomItemBtn) {
+				addCustomItemBtn.addEventListener('click', function() {
+					const name = customItemName.value.trim();
+					const quantity = parseFloat(customItemQuantity.value);
+					const unit = customItemUnit.value;
+					
+					if (!name || !quantity || !unit) {
+						alert('Заполните все поля!');
+						return;
+					}
+					
+					// Create custom item with unique ID (negative to distinguish from Poster items)
+					const customItem = {
+						id: -Date.now(), // Negative ID for custom items
+						name: name,
+						quantity: 0, // Current stock (unknown for custom items)
+						unit: unit,
+						minQuantity: 0,
+						checked: false,
+						shoppingQuantity: quantity,
+						isCustom: true,
+					};
+					
+					// Wait for checklist.js to be loaded and initialized
+					const waitForChecklist = setInterval(() => {
+						if (window.customItems && window.shoppingListData && window.renderShoppingListProducts) {
+							clearInterval(waitForChecklist);
+							
+							// Add to custom items array
+							window.customItems.push(customItem);
+							
+							// Add to shopping list data
+							window.shoppingListData.push(customItem);
+							
+							// Re-render the shopping list to include the new item
+							window.renderShoppingListProducts();
+							
+							// Update floating button label
+							if (window.updateFloatingButtonLabel) {
+								window.updateFloatingButtonLabel();
+							}
+							
+							// Auto-save
+							if (window.autoSaveToCache) {
+								window.autoSaveToCache();
+							}
+							
+							// Clear form
+							customItemName.value = '';
+							customItemQuantity.value = '';
+							customItemUnit.value = 'шт';
+							
+							// Focus back to name input
+							customItemName.focus();
+							
+							// Show success message
+							alert(`Товар "${name}" добавлен в заказ!`);
+						}
+					}, 100);
+					
+					// Timeout after 5 seconds if checklist.js doesn't load
+					setTimeout(() => {
+						clearInterval(waitForChecklist);
+						alert('Ошибка: не удалось добавить товар. Попробуйте обновить страницу.');
+					}, 5000);
+				});
+			}
+			
+			// Handle Enter key in name input
+			if (customItemName) {
+				customItemName.addEventListener('keydown', function(e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						addCustomItemBtn.click();
+					}
+				});
+			}
+			
+			// Handle Enter key in quantity input
+			if (customItemQuantity) {
+				customItemQuantity.addEventListener('keydown', function(e) {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						addCustomItemBtn.click();
+					}
+				});
+			}
+		});
 	</script>
 
 	<script src="/scripts/checklist.js" is:inline></script>
