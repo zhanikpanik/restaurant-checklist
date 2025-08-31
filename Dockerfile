@@ -1,20 +1,23 @@
 # Production Dockerfile for Restaurant Checklist
 FROM node:20-alpine
 
+# Install pnpm globally
+RUN npm install -g pnpm
+
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files (including pnpm-lock.yaml)
+COPY package*.json pnpm-lock.yaml ./
 
-# Install all dependencies for build
-RUN npm ci
+# Install dependencies using pnpm for consistency
+RUN pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build the application
-RUN npm run build
+RUN pnpm run build
 
 # Add a non-root user for security
 RUN addgroup -g 1001 -S nodejs
@@ -27,9 +30,9 @@ USER astro
 # Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node --version || exit 1
+# Health check for web server
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
 # Start the application
-CMD ["npm", "start"] 
+CMD ["pnpm", "start"]
