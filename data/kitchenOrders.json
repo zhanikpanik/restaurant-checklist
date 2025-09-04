@@ -1,29 +1,5 @@
 [
   {
-    "timestamp": "2025-08-25T21:22:56.563Z",
-    "department": "kitchen",
-    "departmentName": "Кухня",
-    "items": [
-      {
-        "id": "439",
-        "name": "Aroy кисло сладкий соус",
-        "quantity": 0.5,
-        "unit": "l"
-      },
-      {
-        "id": "280",
-        "name": "Pialati помидор",
-        "quantity": 0.5,
-        "unit": "kg"
-      }
-    ],
-    "totalItems": 2,
-    "totalQuantity": 1,
-    "status": "sent",
-    "source": "internal",
-    "supplier": "Internal Order"
-  },
-  {
     "timestamp": "2025-08-25T21:22:41.566Z",
     "department": "kitchen",
     "departmentName": "Кухня",
@@ -32,11 +8,37 @@
         "id": "439",
         "name": "Aroy кисло сладкий соус",
         "quantity": 0.5,
-        "unit": "l"
+        "unit": "л"
       }
     ],
     "totalItems": 1,
     "totalQuantity": 0.5,
+    "status": "delivered",
+    "deliveredAt": "2025-09-02T10:05:17.799Z",
+    "actualTotalQuantity": 0.5,
+    "source": "internal",
+    "supplier": "Internal Order"
+  },
+  {
+    "timestamp": "2025-08-25T21:22:56.563Z",
+    "department": "kitchen",
+    "departmentName": "Кухня",
+    "items": [
+      {
+        "id": "439",
+        "name": "Aroy кисло сладкий соус",
+        "quantity": 0.5,
+        "unit": "л"
+      },
+      {
+        "id": "280",
+        "name": "Pialati помидор",
+        "quantity": 0.5,
+        "unit": "кг"
+      }
+    ],
+    "totalItems": 2,
+    "totalQuantity": 1,
     "status": "sent",
     "source": "internal",
     "supplier": "Internal Order"

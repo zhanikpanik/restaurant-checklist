@@ -106,38 +106,83 @@ import Layout from '../layouts/Layout.astro';
 
 			const orderDetails = document.getElementById('orderDetails');
 			const orderText = document.getElementById('orderText');
+			let summaryHtml = '';
 
-			// Display order summary
-			let summaryHtml = `
-				<div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
-					<span class="font-medium">${orderData.departmentName}</span>
-					<span class="text-sm text-gray-600">${orderData.date}</span>
-				</div>
-			`;
-
-			orderData.items.forEach(item => {
-				const urgentMark = item.isUrgent ? '<span class="text-red-600 font-bold"> *СРОЧНО*</span>' : '';
-				summaryHtml += `
-					<div class="flex justify-between items-center">
-						<span>${item.name}${urgentMark}</span>
-						<span class="font-medium">${item.quantity} ${item.unit}</span>
+			// Check if this is a unified order
+			if (orderData.isUnified && orderData.departments) {
+				// Display unified order summary
+				summaryHtml = `
+					<div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
+						<span class="font-medium">📋 Объединенный заказ</span>
+						<span class="text-sm text-gray-600">${orderData.date}</span>
 					</div>
 				`;
-			});
 
-			summaryHtml += `
-				<div class="border-t border-gray-200 pt-2 mt-2">
-					<div class="flex justify-between items-center font-semibold">
-						<span>Всего позиций:</span>
-						<span>${orderData.items.length}</span>
+				// Group items by department
+				orderData.departments.forEach(dept => {
+					const deptItems = orderData.items.filter(item => item.departmentName === dept.name);
+					
+					summaryHtml += `
+						<div class="mb-3">
+							<div class="font-medium text-gray-700 mb-1">${dept.emoji} ${dept.name} (${deptItems.length})</div>
+					`;
+					
+					deptItems.forEach(item => {
+						summaryHtml += `
+							<div class="flex justify-between items-center ml-4 text-sm">
+								<span>${item.name}</span>
+								<span class="font-medium">${item.quantity || item.shoppingQuantity} ${item.unit}</span>
+							</div>
+						`;
+					});
+					
+					summaryHtml += `</div>`;
+				});
+
+				summaryHtml += `
+					<div class="border-t border-gray-200 pt-2 mt-2">
+						<div class="flex justify-between items-center font-semibold">
+							<span>Всего позиций:</span>
+							<span>${orderData.totalItems}</span>
+						</div>
+						<div class="flex justify-between items-center text-sm text-gray-600">
+							<span>Отделов:</span>
+							<span>${orderData.departments.length}</span>
+						</div>
 					</div>
-				</div>
-			`;
+				`;
+			} else {
+				// Display single department order summary (legacy)
+				summaryHtml = `
+					<div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
+						<span class="font-medium">${orderData.departmentName}</span>
+						<span class="text-sm text-gray-600">${orderData.date}</span>
+					</div>
+				`;
+
+				orderData.items.forEach(item => {
+					summaryHtml += `
+						<div class="flex justify-between items-center">
+							<span>${item.name}</span>
+							<span class="font-medium">${item.quantity} ${item.unit}</span>
+						</div>
+					`;
+				});
+
+				summaryHtml += `
+					<div class="border-t border-gray-200 pt-2 mt-2">
+						<div class="flex justify-between items-center font-semibold">
+							<span>Всего позиций:</span>
+							<span>${orderData.items.length}</span>
+						</div>
+					</div>
+				`;
+			}
 
 			orderDetails.innerHTML = summaryHtml;
 
 			// Display formatted text for copying
-			orderText.textContent = orderData.formattedText;
+			orderText.textContent = orderData.formattedText || 'Ошибка: текст заказа не найден';
 		}
 
 		// Save order to delivery queue
@@ -145,55 +190,118 @@ import Layout from '../layouts/Layout.astro';
 			const orderData = getOrderData();
 			if (!orderData) return;
 
-			// Create order record for delivery
-			const deliveryOrder = {
-				timestamp: new Date().toISOString(),
-				department: orderData.department,
-				departmentName: orderData.departmentName,
-				items: orderData.items.map(item => ({
-					id: item.id,
-					name: item.name,
-					quantity: item.quantity,
-					unit: item.unit
-				})),
-				totalItems: orderData.items.length,
-				totalQuantity: orderData.items.reduce((sum, item) => sum + item.quantity, 0),
-				status: 'sent' // Mark as sent to supplier
-			};
+			if (orderData.isUnified) {
+				// Handle unified orders - save to unified history
+				const deliveryOrder = {
+					timestamp: new Date().toISOString(),
+					isUnified: true,
+					departments: orderData.departments,
+					items: orderData.items.map(item => ({
+						id: item.id,
+						name: item.name,
+						quantity: item.quantity || item.shoppingQuantity,
+						unit: item.unit,
+						department: item.department,
+						departmentName: item.departmentName
+					})),
+					totalItems: orderData.totalItems,
+					totalQuantity: orderData.items.reduce((sum, item) => sum + (item.quantity || item.shoppingQuantity), 0),
+					status: 'sent'
+				};
 
-			// Save to localStorage (for backward compatibility)
-			const historyKey = `${orderData.department}OrderHistory`;
-			const existingHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
-			existingHistory.unshift(deliveryOrder); // Add to beginning
+				// Save unified order to general history
+				const unifiedHistoryKey = 'unifiedOrderHistory';
+				const existingUnifiedHistory = JSON.parse(localStorage.getItem(unifiedHistoryKey) || '[]');
+				existingUnifiedHistory.unshift(deliveryOrder);
 
-			// Keep only last 20 orders
-			if (existingHistory.length > 20) {
-				existingHistory.splice(20);
-			}
-
-			localStorage.setItem(historyKey, JSON.stringify(existingHistory));
-			console.log(`✅ Order saved to ${historyKey} for delivery tracking`);
-
-			// Also save to server storage (so it's visible on all devices)
-			try {
-				console.log('💾 Saving internal order to server storage...');
-				const response = await fetch('/api/save-internal-order', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify(deliveryOrder)
-				});
-				
-				const result = await response.json();
-				
-				if (result.success) {
-					console.log(`✅ Order saved to server storage for cross-device visibility`);
-				} else {
-					console.warn('⚠️ Failed to save to server:', result.error);
+				if (existingUnifiedHistory.length > 20) {
+					existingUnifiedHistory.splice(20);
 				}
-			} catch (serverError) {
-				console.warn('⚠️ Server save failed:', serverError.message);
+
+				localStorage.setItem(unifiedHistoryKey, JSON.stringify(existingUnifiedHistory));
+				console.log(`✅ Unified order saved to ${unifiedHistoryKey} for delivery tracking`);
+
+				// Also clear individual department shopping lists
+				orderData.departments.forEach(dept => {
+					if (dept.name === 'Бар') {
+						localStorage.removeItem('barShoppingList');
+					} else if (dept.name === 'Кухня') {
+						localStorage.removeItem('kitchenShoppingList');
+					} else if (dept.name === 'Горничная') {
+						localStorage.removeItem('customShoppingList');
+					}
+				});
+
+				// Save to server storage
+				try {
+					console.log('💾 Saving unified order to server storage...');
+					const response = await fetch('/api/save-internal-order', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(deliveryOrder)
+					});
+					
+					const result = await response.json();
+					
+					if (result.success) {
+						console.log(`✅ Unified order saved to server storage`);
+					} else {
+						console.warn('⚠️ Failed to save to server:', result.error);
+					}
+				} catch (serverError) {
+					console.warn('⚠️ Server save failed:', serverError.message);
+				}
+			} else {
+				// Handle single department orders (legacy)
+				const deliveryOrder = {
+					timestamp: new Date().toISOString(),
+					department: orderData.department,
+					departmentName: orderData.departmentName,
+					items: orderData.items.map(item => ({
+						id: item.id,
+						name: item.name,
+						quantity: item.quantity,
+						unit: item.unit
+					})),
+					totalItems: orderData.items.length,
+					totalQuantity: orderData.items.reduce((sum, item) => sum + item.quantity, 0),
+					status: 'sent'
+				};
+
+				const historyKey = `${orderData.department}OrderHistory`;
+				const existingHistory = JSON.parse(localStorage.getItem(historyKey) || '[]');
+				existingHistory.unshift(deliveryOrder);
+
+				if (existingHistory.length > 20) {
+					existingHistory.splice(20);
+				}
+
+				localStorage.setItem(historyKey, JSON.stringify(existingHistory));
+				console.log(`✅ Order saved to ${historyKey} for delivery tracking`);
+
+				// Save to server storage
+				try {
+					console.log('💾 Saving internal order to server storage...');
+					const response = await fetch('/api/save-internal-order', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify(deliveryOrder)
+					});
+					
+					const result = await response.json();
+					
+					if (result.success) {
+						console.log(`✅ Order saved to server storage for cross-device visibility`);
+					} else {
+						console.warn('⚠️ Failed to save to server:', result.error);
+					}
+				} catch (serverError) {
+					console.warn('⚠️ Server save failed:', serverError.message);
+				}
 			}
 		}
 

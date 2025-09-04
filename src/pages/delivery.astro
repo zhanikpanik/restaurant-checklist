@@ -226,28 +226,42 @@ import Layout from "../layouts/Layout.astro";
                                     .join("")}
                             </div>
 
-                            ${
-                                                                 order.status !== "delivered"
-                                     ? `
-                                 <button
-                                     onclick="markDelivered('${order.timestamp}', '${order.department}')"
-                                     class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-colors duration-200"
-                                 >
-                                     ✅ Отметить как доставлено
-                                 </button>
-                             `
-                                     : `
-                                 <div class="space-y-2">
-                                     <div class="text-center text-green-600 font-medium">✅ Доставлено</div>
-                                     <button
-                                         onclick="downloadOrderXLS('${order.timestamp}', '${order.department}')"
-                                         class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-                                     >
-                                         <span>📄</span>
-                                         <span>Скачать Excel</span>
-                                     </button>
-                                 </div>
-                             `
+                            ${order.status !== "delivered" 
+                                ? `
+                                <div class="mt-4 flex flex-col gap-2">
+                                    <button
+                                        onclick="markDelivered('${order.timestamp}', '${order.department}')"
+                                        class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
+                                    >
+                                        Отметить как доставлено
+                                    </button>
+                                    <button
+                                        onclick="deleteOrder('${order.timestamp}', '${order.department}')"
+                                        class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
+                                    >
+                                        🗑 Удалить заказ
+                                    </button>
+                                </div>
+                                `
+                                : `
+                                <div class="space-y-2">
+                                    <div class="text-center text-green-600 font-medium">✅ Доставлено</div>
+                                    <button
+                                        onclick="downloadOrderXLS('${order.timestamp}', '${order.department}')"
+                                        class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+                                    >
+                                        <span>📄</span>
+                                        <span>Скачать Excel</span>
+                                    </button>
+                                    <button
+                                        onclick="deleteOrder('${order.timestamp}', '${order.department}')"
+                                        class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 mt-2"
+                                    >
+                                        🗑 Удалить заказ
+                                    </button>
+                                </div>
+                                `
+                            
                             }
                         </div>
                     `;
@@ -527,6 +541,49 @@ import Layout from "../layouts/Layout.astro";
             }
         }
 
+        // Delete order function
+        async function deleteOrder(timestamp, department) {
+            if (!confirm('Удалить этот заказ? Это действие нельзя отменить.')) {
+                return;
+            }
+
+            try {
+                // Remove from localStorage
+                const storageKey = `${department}OrderHistory`;
+                let orders = JSON.parse(localStorage.getItem(storageKey) || "[]");
+                orders = orders.filter(o => o.timestamp !== timestamp);
+                localStorage.setItem(storageKey, JSON.stringify(orders));
+
+                // Also remove temporary data
+                localStorage.removeItem(`temp_${timestamp}`);
+                localStorage.removeItem(`temp_prices_${timestamp}`);
+
+                // Try to remove from server storage as well
+                try {
+                    await fetch('/api/delete-order', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            timestamp: timestamp,
+                            department: department
+                        })
+                    });
+                } catch (error) {
+                    console.warn('⚠️ Failed to delete from server:', error);
+                }
+
+                // Reload orders
+                loadOrders();
+                alert('Заказ удален!');
+
+            } catch (error) {
+                console.error('Failed to delete order:', error);
+                alert('Ошибка при удалении заказа!');
+            }
+        }
+
         // Event Listeners
         document.getElementById("filterAll").onclick = () => {
             currentFilter = "all";
@@ -601,6 +658,7 @@ import Layout from "../layouts/Layout.astro";
         window.savePrice = savePrice;
         window.markDelivered = markDelivered;
         window.downloadOrderXLS = downloadOrderXLS;
+        window.deleteOrder = deleteOrder;
         loadOrders();
     </script>
 </Layout>

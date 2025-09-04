@@ -51,6 +51,20 @@ import Layout from '../layouts/Layout.astro';
 						</div>
 					</a>
 
+					<!-- Custom Section -->
+					<a href="/custom" class="block">
+						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-purple-300">
+							<div class="flex items-center space-x-4">
+								<div class="text-4xl">🧹</div>
+								<div class="flex-1">
+									<h3 class="text-xl font-bold text-gray-900">Горничная</h3>
+									<p class="text-gray-600">Создание и управление товарами вручную</p>
+									
+								</div>
+							</div>
+						</div>
+					</a>
+
 					<!-- Delivery -->
 					<a href="/delivery" class="block">
 						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-green-300">
@@ -73,6 +87,7 @@ import Layout from '../layouts/Layout.astro';
 					<h4 class="font-medium text-blue-900 mb-2">💡 Как пользоваться:</h4>
 					<ul class="text-sm text-blue-800 space-y-1">
 						<li>• <strong>Бар/Кухня:</strong> Создавайте заказы для поставщиков</li>
+						<li>• <strong>Склад:</strong> Создавайте и управляйте товарами вручную</li>
 						<li>• <strong>Доставка:</strong> Отмечайте доставленные заказы и скачивайте Excel</li>
 					</ul>
 				</div>
@@ -80,7 +95,7 @@ import Layout from '../layouts/Layout.astro';
 				<!-- Quick Stats -->
 				<div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
 					<h4 class="font-medium text-gray-900 mb-3 text-center">📊 Статистика сегодня</h4>
-					<div class="grid grid-cols-3 gap-4 text-center">
+					<div class="grid grid-cols-4 gap-3 text-center">
 						<div>
 							<div class="text-lg font-bold text-blue-600" id="barOrdersCount">-</div>
 							<div class="text-xs text-gray-600">Бар</div>
@@ -88,6 +103,10 @@ import Layout from '../layouts/Layout.astro';
 						<div>
 							<div class="text-lg font-bold text-orange-600" id="kitchenOrdersCount">-</div>
 							<div class="text-xs text-gray-600">Кухня</div>
+						</div>
+						<div>
+							<div class="text-lg font-bold text-purple-600" id="customOrdersCount">-</div>
+							<div class="text-xs text-gray-600">Склад</div>
 						</div>
 						<div>
 							<div class="text-lg font-bold text-green-600" id="deliveredCount">-</div>
@@ -108,6 +127,7 @@ import Layout from '../layouts/Layout.astro';
 				// Get orders from localStorage
 				const barOrders = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
 				const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
+				const customOrders = JSON.parse(localStorage.getItem('customOrderHistory') || '[]');
 				
 				// Count today's orders
 				const barTodayCount = barOrders.filter(order => 
@@ -118,8 +138,12 @@ import Layout from '../layouts/Layout.astro';
 					new Date(order.timestamp).toDateString() === today
 				).length;
 				
+				const customTodayCount = customOrders.filter(order => 
+					new Date(order.timestamp).toDateString() === today
+				).length;
+				
 				// Count delivered orders today
-				const deliveredCount = [...barOrders, ...kitchenOrders].filter(order => 
+				const deliveredCount = [...barOrders, ...kitchenOrders, ...customOrders].filter(order => 
 					order.status === 'delivered' && 
 					order.deliveredAt && 
 					new Date(order.deliveredAt).toDateString() === today
@@ -128,6 +152,7 @@ import Layout from '../layouts/Layout.astro';
 				// Update display
 				document.getElementById('barOrdersCount').textContent = barTodayCount;
 				document.getElementById('kitchenOrdersCount').textContent = kitchenTodayCount;
+				document.getElementById('customOrdersCount').textContent = customTodayCount;
 				document.getElementById('deliveredCount').textContent = deliveredCount;
 				
 			} catch (error) {
@@ -135,6 +160,7 @@ import Layout from '../layouts/Layout.astro';
 				// Show dashes on error
 				document.getElementById('barOrdersCount').textContent = '-';
 				document.getElementById('kitchenOrdersCount').textContent = '-';
+				document.getElementById('customOrdersCount').textContent = '-';
 				document.getElementById('deliveredCount').textContent = '-';
 			}
 		}

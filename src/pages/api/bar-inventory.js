@@ -18,18 +18,44 @@ export async function GET() {
         const ingredients = data.response || [];
         console.log(`✅ Loaded ${ingredients.length} BAR leftovers from Poster storage ID 2`);
         
+        // Unit translation map from Poster to Russian abbreviated forms
+        const unitTranslation = {
+            'pcs': 'шт',
+            'pc': 'шт',
+            'штук': 'шт',
+            'kg': 'кг',
+            'килограмм': 'кг',
+            'g': 'г',
+            'грамм': 'г',
+            'l': 'л',
+            'литр': 'л',
+            'ml': 'мл',
+            'миллилитр': 'мл',
+            'bottle': 'бут',
+            'бутылка': 'бут',
+            'pack': 'упак',
+            'упаковка': 'упак',
+            'can': 'банка',
+            'box': 'коробка'
+        };
+
         // Transform data to our format
-        const barProducts = ingredients.map(ingredient => ({
-            id: parseInt(ingredient.ingredient_id),
-            name: ingredient.ingredient_name,
-            quantity: parseFloat(ingredient.ingredient_left) || 0,
-            unit: ingredient.ingredient_unit || 'шт',
-            minQuantity: 1,
-            checked: false,
-            estimatedRest: 0,
-            primeCost: 0,
-            difference: 0
-        }));
+        const barProducts = ingredients.map(ingredient => {
+            const originalUnit = ingredient.ingredient_unit || 'шт';
+            const translatedUnit = unitTranslation[originalUnit.toLowerCase()] || originalUnit;
+            
+            return {
+                id: parseInt(ingredient.ingredient_id),
+                name: ingredient.ingredient_name,
+                quantity: parseFloat(ingredient.ingredient_left) || 0,
+                unit: translatedUnit,
+                minQuantity: 1,
+                checked: false,
+                estimatedRest: 0,
+                primeCost: 0,
+                difference: 0
+            };
+        });
         
         return new Response(JSON.stringify({ 
             success: true, 

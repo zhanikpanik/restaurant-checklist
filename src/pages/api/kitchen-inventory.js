@@ -19,21 +19,47 @@ export async function GET() {
         const leftovers = Array.isArray(data.response) ? data.response : [];
         console.log(`✅ Loaded ${leftovers.length} KITCHEN leftovers from Poster storage ID 1`);
         
+        // Unit translation map from Poster to Russian abbreviated forms
+        const unitTranslation = {
+            'pcs': 'шт',
+            'pc': 'шт',
+            'штук': 'шт',
+            'kg': 'кг',
+            'килограмм': 'кг',
+            'g': 'г',
+            'грамм': 'г',
+            'l': 'л',
+            'литр': 'л',
+            'ml': 'мл',
+            'миллилитр': 'мл',
+            'bottle': 'бут',
+            'pack': 'упак',
+            'упаковка': 'упак',
+            'can': 'банка',
+            'банка': 'банка',
+            'box': 'коробка'
+        };
+
         // Transform data to our format using the correct field names
-        const kitchenProducts = leftovers.map(leftover => ({
-            id: leftover.ingredient_id,
-            name: leftover.ingredient_name || '',
-            quantity: parseFloat(leftover.storage_ingredient_left) || 0,
-            unit: leftover.ingredient_unit || 'шт',
-            minQuantity: 1,
-            checked: false,
-            primeCost: parseFloat(leftover.prime_cost) || 0,
-            primeCostNetto: parseFloat(leftover.prime_cost_netto) || 0,
-            ingredientLeft: parseFloat(leftover.ingredient_left) || 0,
-            storageIngredientLeft: parseFloat(leftover.storage_ingredient_left) || 0,
-            storageSum: parseFloat(leftover.storage_ingredient_sum) || 0,
-            hidden: leftover.hidden === "1"
-        }));
+        const kitchenProducts = leftovers.map(leftover => {
+            const originalUnit = leftover.ingredient_unit || 'шт';
+            const translatedUnit = unitTranslation[originalUnit.toLowerCase()] || originalUnit;
+            
+            return {
+                id: leftover.ingredient_id,
+                name: leftover.ingredient_name || '',
+                quantity: parseFloat(leftover.storage_ingredient_left) || 0,
+                unit: translatedUnit,
+                minQuantity: 1,
+                checked: false,
+                primeCost: parseFloat(leftover.prime_cost) || 0,
+                primeCostNetto: parseFloat(leftover.prime_cost_netto) || 0,
+                ingredientLeft: parseFloat(leftover.ingredient_left) || 0,
+                storageIngredientLeft: parseFloat(leftover.storage_ingredient_left) || 0,
+                storageSum: parseFloat(leftover.storage_ingredient_sum) || 0,
+                hidden: leftover.hidden === "1"
+            };
+        });
         
         return new Response(JSON.stringify({ 
             success: true, 

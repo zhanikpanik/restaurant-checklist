@@ -114,7 +114,7 @@ import Layout from '../layouts/Layout.astro';
 					id="sendWhatsAppBtn" 
 					class="fixed bottom-6 right-6 bg-gray-400 hover:bg-gray-500 text-white font-medium py-4 px-6 rounded-lg shadow-lg z-50 transition-all duration-200 flex items-center space-x-2 min-w-[180px] justify-center"
 				>
-					<span class="text-center">Создать заказ</span>
+					<span class="text-center">В корзину</span>
 				</button>
 			</div>
 		</main>
@@ -133,17 +133,17 @@ import Layout from '../layouts/Layout.astro';
 			const orderView = document.getElementById('orderView');
 			
 			try {
-				console.log('🍳 Loading kitchen products...');
+				console.log('🍳 Загрузка товаров кухни...');
 				
 				const response = await fetch('/api/kitchen-inventory');
 				const result = await response.json();
 				
 				if (!result.success) {
-					throw new Error(result.error || 'Failed to load kitchen products');
+					throw new Error(result.error || 'Не удалось загрузить товары кухни');
 				}
 				
 				const kitchenProducts = result.data;
-				console.log(`✅ Loaded ${kitchenProducts.length} kitchen products`);
+				console.log(`✅ Загружено ${kitchenProducts.length} товаров кухни`);
 				
 				// Hide loading and show order view
 				loadingState.style.display = 'none';
@@ -164,7 +164,7 @@ import Layout from '../layouts/Layout.astro';
 				}
 				
 			} catch (error) {
-				console.error('❌ Failed to load kitchen products:', error);
+				console.error('❌ Не удалось загрузить товары кухни:', error);
 				loadingState.innerHTML = `
 					<div class="text-center py-8">
 						<div class="text-red-500 mb-4">❌</div>

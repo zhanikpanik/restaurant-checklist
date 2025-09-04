@@ -473,9 +473,9 @@ function autoSaveToCache() {
       status: "draft",
     };
 
-    // Save to department-specific cache
-    const cacheKey = `${department}OrderDraft`;
-    localStorage.setItem(cacheKey, JSON.stringify(orderData));
+    // Save to department-specific cache (for cart compatibility)
+    const cacheKey = `${department}ShoppingList`;
+    localStorage.setItem(cacheKey, JSON.stringify(itemsToOrder));
 
     // Only log if there are items
     if (itemsToOrder.length > 0) {
@@ -488,34 +488,28 @@ function autoSaveToCache() {
   }
 }
 
-// Update floating button label with order count
+// Update floating button label with unified order count from all departments
 function updateFloatingButtonLabel() {
   const sendBtn = document.getElementById("sendWhatsAppBtn");
   if (!sendBtn) return;
 
-  // Count products with quantities > 0
-  const itemsInOrder = shoppingListData.filter(
-    (item) => item.shoppingQuantity > 0,
-  );
-  const itemCount = itemsInOrder.length;
+  // Get total items from all departments
+  const allOrders = getAllDepartmentOrders();
+  const totalItems = allOrders.totalItems;
 
-  // Update WhatsApp button label
-  const textSpan = sendBtn.querySelector("span:last-child");
-  if (textSpan) {
-    if (itemCount === 0) {
-      textSpan.textContent = "Создать заказ";
-      sendBtn.classList.remove("bg-gray-800", "hover:bg-gray-900");
-      sendBtn.classList.add("bg-gray-400", "hover:bg-gray-500");
-    } else {
-      const productText = getProductCountText(itemCount);
-      textSpan.textContent = `В корзине ${itemCount} ${productText}`;
-      sendBtn.classList.remove("bg-gray-400", "hover:bg-gray-500");
-      sendBtn.classList.add("bg-green-500", "hover:bg-gray-900");
+  if (totalItems > 0) {
+    let label = `В корзину (${totalItems})`;
+    if (allOrders.departments.length > 1) {
+      label += ` из ${allOrders.departments.length} отделов`;
     }
+    sendBtn.innerHTML = `<span class="text-center">${label}</span>`;
+    sendBtn.classList.remove("bg-gray-400", "hover:bg-gray-500");
+    sendBtn.classList.add("bg-blue-600", "hover:bg-blue-700");
+  } else {
+    sendBtn.innerHTML = `<span class="text-center">В корзину</span>`;
+    sendBtn.classList.remove("bg-blue-600", "hover:bg-blue-700");
+    sendBtn.classList.add("bg-gray-400", "hover:bg-gray-500");
   }
-
-  // Update added products summary label
-  updateAddedProductsLabel(itemCount, itemsInOrder);
 }
 
 // Get correct Russian plural form for "продукт"
@@ -648,53 +642,10 @@ function getProductCountSuffix(count) {
 
 // WhatsApp Integration - Modified to show confirmation page first
 function sendToWhatsApp() {
-  // Get products that have quantities > 0
-  const itemsToOrder = shoppingListData.filter(
-    (item) => item.shoppingQuantity > 0,
-  );
-
-  if (itemsToOrder.length === 0) {
-    alert("Добавьте товары в заказ!");
-    return;
-  }
-
-  // Determine department (default to 'bar' for backward compatibility)
-  const department = window.currentDepartment || "bar";
-  const departmentName = department === "kitchen" ? "Кухня" : "Бар";
-  const departmentEmoji = department === "kitchen" ? "🍳" : "🍷";
-
-  // Generate WhatsApp message
-  const formattedText = generateWhatsAppMessage(
-    itemsToOrder,
-    departmentName,
-    departmentEmoji,
-  );
-
-  // Prepare order data for confirmation page
-  const orderData = {
-    items: itemsToOrder.map((item) => ({
-      id: item.id,
-      name: item.name,
-      quantity: item.shoppingQuantity,
-      unit: item.unit,
-      isUrgent: item.quantity <= 0,
-    })),
-    departmentName: departmentName,
-    department: department,
-    date: new Date().toLocaleDateString("ru-RU"),
-    formattedText: formattedText,
-    returnUrl: window.location.pathname,
-  };
-
-  // Save order data to localStorage for confirmation page
-  localStorage.setItem("pendingOrder", JSON.stringify(orderData));
-
-  // Navigate to confirmation page
-  window.location.href = "/confirmation";
-
-  console.log(
-    `Перенаправление на страницу подтверждения (${itemsToOrder.length} товаров)`,
-  );
+  // Navigate to cart page for review
+  window.location.href = "/cart";
+  
+  console.log("Перенаправление в корзину для проверки заказа");
 }
 
 // Save final order to cache with 'sent' status
@@ -895,6 +846,95 @@ function deleteCustomItem(productId) {
     // Auto-save
     autoSaveToCache();
   }
+}
+
+// Get orders from all departments and combine them
+function getAllDepartmentOrders() {
+  const allItems = [];
+  const departments = [];
+  
+  // Get bar orders
+  const barOrders = JSON.parse(localStorage.getItem('barShoppingList') || '[]');
+  const barItems = barOrders.filter(item => item.shoppingQuantity > 0);
+  if (barItems.length > 0) {
+    barItems.forEach(item => {
+      allItems.push({
+        ...item,
+        department: 'bar',
+        departmentName: 'Бар',
+        departmentEmoji: '🍷'
+      });
+    });
+    departments.push({name: 'Бар', emoji: '🍷', count: barItems.length});
+  }
+  
+  // Get kitchen orders
+  const kitchenOrders = JSON.parse(localStorage.getItem('kitchenShoppingList') || '[]');
+  const kitchenItems = kitchenOrders.filter(item => item.shoppingQuantity > 0);
+  if (kitchenItems.length > 0) {
+    kitchenItems.forEach(item => {
+      allItems.push({
+        ...item,
+        department: 'kitchen',
+        departmentName: 'Кухня',
+        departmentEmoji: '🍳'
+      });
+    });
+    departments.push({name: 'Кухня', emoji: '🍳', count: kitchenItems.length});
+  }
+  
+  // Get custom/housekeeping orders
+  const customOrders = JSON.parse(localStorage.getItem('customShoppingList') || '[]');
+  const customItems = customOrders.filter(item => item.shoppingQuantity > 0);
+  if (customItems.length > 0) {
+    customItems.forEach(item => {
+      allItems.push({
+        ...item,
+        department: 'custom',
+        departmentName: 'Горничная',
+        departmentEmoji: '🧹'
+      });
+    });
+    departments.push({name: 'Горничная', emoji: '🧹', count: customItems.length});
+  }
+  
+  return {
+    allItems,
+    departments,
+    totalItems: allItems.length
+  };
+}
+
+// Generate unified WhatsApp message for all departments
+function generateUnifiedWhatsAppMessage(allOrders) {
+  if (allOrders.totalItems === 0) {
+    return "Нет товаров для заказа";
+  }
+  
+  let message = "📋 Заказ товаров:\n\n";
+  
+  // Group items by department
+  allOrders.departments.forEach(dept => {
+    const deptItems = allOrders.allItems.filter(item => item.departmentName === dept.name);
+    
+    message += `${dept.emoji} ${dept.name}:\n`;
+    deptItems.forEach(item => {
+      message += `• ${item.name} - ${item.shoppingQuantity} ${item.unit}\n`;
+    });
+    message += "\n";
+  });
+  
+  // Add summary
+  message += `📊 Итого: ${allOrders.totalItems} товар${getItemEnding(allOrders.totalItems)} из ${allOrders.departments.length} отдел${getDepartmentEnding(allOrders.departments.length)}`;
+  
+  return message;
+}
+
+// Helper function for department ending
+function getDepartmentEnding(count) {
+  if (count === 1) return "а";
+  if (count >= 2 && count <= 4) return "ов";
+  return "ов";
 }
 
 function generateWhatsAppMessage(items, departmentName, departmentEmoji) {

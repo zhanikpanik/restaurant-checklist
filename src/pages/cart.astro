@@ -1,0 +1,415 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Корзина - Проверка заказа">
+	<div class="min-h-screen bg-white">
+		<!-- Header -->
+		<header class="bg-blue-600 text-white px-4 py-6">
+			<div class="max-w-md mx-auto">
+				<div class="flex items-center justify-between mb-4">
+					<button id="backBtn" class="text-blue-200 hover:text-white">← Назад</button>
+					<div class="flex items-center space-x-2">
+						<span class="text-2xl">🛒</span>
+						<h1 class="text-2xl font-bold">Корзина</h1>
+					</div>
+					<div class="w-16"></div> <!-- Spacer -->
+				</div>
+			</div>
+		</header>
+
+		<!-- Main Content -->
+		<main class="max-w-md mx-auto px-4 py-6">
+			<!-- Loading State -->
+			<div id="loadingState" class="text-center py-8">
+				<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+				<p class="text-gray-600">Загрузка корзины...</p>
+			</div>
+
+			<!-- Empty Cart State -->
+			<div id="emptyCartState" class="hidden text-center py-8">
+				<div class="text-6xl mb-4">🛒</div>
+				<h2 class="text-xl font-semibold text-gray-800 mb-2">Корзина пуста</h2>
+				<p class="text-gray-600 mb-6">Добавьте товары из любого отдела</p>
+				<div class="space-y-3">
+					<a href="/bar" class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200">
+						🍷 Перейти в Бар
+					</a>
+					<a href="/kitchen" class="block w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200">
+						🍳 Перейти в Кухню
+					</a>
+					<a href="/custom" class="block w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200">
+						🧹 Перейти в Горничную
+					</a>
+				</div>
+			</div>
+
+			<!-- Cart Content -->
+			<div id="cartContent" class="hidden">
+				<!-- Cart Summary -->
+				<div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+					<div class="flex items-center justify-between mb-2">
+						<h2 class="text-lg font-semibold text-gray-900">Сводка заказа</h2>
+						<button id="clearAllBtn" class="text-red-600 hover:text-red-800 text-sm font-medium">
+							🗑 Очистить все
+						</button>
+					</div>
+					<div id="cartSummary" class="text-sm text-gray-600">
+						<!-- Summary will be populated by JavaScript -->
+					</div>
+				</div>
+
+				<!-- Cart Items by Department -->
+				<div id="cartItems" class="space-y-6">
+					<!-- Items will be populated by JavaScript -->
+				</div>
+
+				<!-- Action Buttons -->
+				<div class="sticky bottom-0 bg-white pt-4 mt-6 border-t border-gray-200">
+					<div class="space-y-3">
+						<!-- Continue Shopping -->
+						<div class="flex space-x-3">
+							<a href="/bar" class="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-800 font-medium py-3 px-4 rounded-lg transition-colors duration-200 text-center text-sm">
+								🍷 Бар
+							</a>
+							<a href="/kitchen" class="flex-1 bg-orange-100 hover:bg-orange-200 text-orange-800 font-medium py-3 px-4 rounded-lg transition-colors duration-200 text-center text-sm">
+								🍳 Кухня
+							</a>
+							<a href="/custom" class="flex-1 bg-green-100 hover:bg-green-200 text-green-800 font-medium py-3 px-4 rounded-lg transition-colors duration-200 text-center text-sm">
+								🧹 Горничная
+							</a>
+						</div>
+
+						<!-- Create Order Button -->
+						<button 
+							id="createOrderBtn" 
+							class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+						>
+							<span>📱</span>
+							<span id="createOrderBtnText">Создать заказ</span>
+						</button>
+					</div>
+				</div>
+			</div>
+		</main>
+	</div>
+
+	<script is:inline>
+		// Set current page context
+		window.currentPage = 'cart';
+
+		// Load cart data and display
+		function loadCartData() {
+			const loadingState = document.getElementById('loadingState');
+			const emptyCartState = document.getElementById('emptyCartState');
+			const cartContent = document.getElementById('cartContent');
+
+			// Get all orders from departments
+			const allOrders = getAllDepartmentOrders();
+
+			// Hide loading
+			loadingState.style.display = 'none';
+
+			if (allOrders.totalItems === 0) {
+				// Show empty cart state
+				emptyCartState.classList.remove('hidden');
+				return;
+			}
+
+			// Show cart content
+			cartContent.classList.remove('hidden');
+			
+			// Populate cart summary
+			populateCartSummary(allOrders);
+			
+			// Populate cart items
+			populateCartItems(allOrders);
+			
+			// Update create order button
+			updateCreateOrderButton(allOrders);
+		}
+
+		// Populate cart summary
+		function populateCartSummary(allOrders) {
+			const cartSummary = document.getElementById('cartSummary');
+			
+			let summaryHtml = `
+				<div class="flex justify-between items-center">
+					<span>Всего товаров:</span>
+					<span class="font-medium">${allOrders.totalItems}</span>
+				</div>
+				<div class="flex justify-between items-center">
+					<span>Отделов:</span>
+					<span class="font-medium">${allOrders.departments.length}</span>
+				</div>
+			`;
+			
+			// Add department breakdown
+			allOrders.departments.forEach(dept => {
+				summaryHtml += `
+					<div class="flex justify-between items-center text-xs">
+						<span>${dept.emoji} ${dept.name}:</span>
+						<span>${dept.count} товар${getItemEnding(dept.count)}</span>
+					</div>
+				`;
+			});
+			
+			cartSummary.innerHTML = summaryHtml;
+		}
+
+		// Populate cart items grouped by department
+		function populateCartItems(allOrders) {
+			const cartItems = document.getElementById('cartItems');
+			let itemsHtml = '';
+
+			allOrders.departments.forEach(dept => {
+				const deptItems = allOrders.allItems.filter(item => item.departmentName === dept.name);
+				
+				itemsHtml += `
+					<div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+						<div class="flex items-center justify-between mb-3">
+							<h3 class="font-semibold text-gray-900">${dept.emoji} ${dept.name}</h3>
+							<button class="text-red-600 hover:text-red-800 text-sm font-medium" onclick="clearDepartment('${dept.name}')">
+								🗑 Очистить
+							</button>
+						</div>
+						<div class="space-y-2">
+				`;
+				
+				deptItems.forEach(item => {
+					itemsHtml += `
+						<div class="flex items-center justify-between bg-white rounded p-3 border border-gray-200">
+							<div class="flex-1">
+								<div class="font-medium text-gray-900">${item.name}</div>
+								${item.department !== 'custom' ? `<div class="text-sm text-gray-600">В наличии: ${item.quantity} ${item.unit}</div>` : ''}
+							</div>
+							<div class="flex items-center space-x-3">
+								<div class="flex items-center space-x-2">
+									<button onclick="updateItemQuantity('${item.id}', '${item.department}', ${item.shoppingQuantity - 1})" class="w-8 h-8 bg-gray-200 hover:bg-gray-300 rounded-full flex items-center justify-center text-gray-600 font-bold">-</button>
+									<span class="w-12 text-center font-medium">${item.shoppingQuantity}</span>
+									<button onclick="updateItemQuantity('${item.id}', '${item.department}', ${item.shoppingQuantity + 1})" class="w-8 h-8 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center text-white font-bold">+</button>
+								</div>
+								<div class="text-sm text-gray-600">${item.unit}</div>
+								<button onclick="removeItem('${item.id}', '${item.department}')" class="text-red-600 hover:text-red-800 p-1">
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+									</svg>
+								</button>
+							</div>
+						</div>
+					`;
+				});
+				
+				itemsHtml += `
+						</div>
+					</div>
+				`;
+			});
+
+			cartItems.innerHTML = itemsHtml;
+		}
+
+		// Update create order button text
+		function updateCreateOrderButton(allOrders) {
+			const createOrderBtnText = document.getElementById('createOrderBtnText');
+			createOrderBtnText.textContent = `Создать заказ (${allOrders.totalItems})`;
+		}
+
+		// Update item quantity
+		function updateItemQuantity(itemId, department, newQuantity) {
+			if (newQuantity < 0) return;
+
+			const storageKey = `${department}ShoppingList`;
+			const items = JSON.parse(localStorage.getItem(storageKey) || '[]');
+			
+			const itemIndex = items.findIndex(item => item.id == itemId);
+			if (itemIndex !== -1) {
+				if (newQuantity === 0) {
+					items.splice(itemIndex, 1);
+				} else {
+					items[itemIndex].shoppingQuantity = newQuantity;
+				}
+				localStorage.setItem(storageKey, JSON.stringify(items));
+			}
+
+			// Reload cart
+			loadCartData();
+		}
+
+		// Remove item completely
+		function removeItem(itemId, department) {
+			if (confirm('Удалить товар из корзины?')) {
+				updateItemQuantity(itemId, department, 0);
+			}
+		}
+
+		// Clear entire department
+		function clearDepartment(departmentName) {
+			if (confirm(`Очистить все товары из отдела "${departmentName}"?`)) {
+				let storageKey;
+				if (departmentName === 'Бар') storageKey = 'barShoppingList';
+				else if (departmentName === 'Кухня') storageKey = 'kitchenShoppingList';
+				else if (departmentName === 'Горничная') storageKey = 'customShoppingList';
+				
+				if (storageKey) {
+					localStorage.removeItem(storageKey);
+					loadCartData();
+				}
+			}
+		}
+
+		// Clear all items
+		function clearAll() {
+			if (confirm('Очистить всю корзину?')) {
+				localStorage.removeItem('barShoppingList');
+				localStorage.removeItem('kitchenShoppingList');
+				localStorage.removeItem('customShoppingList');
+				loadCartData();
+			}
+		}
+
+		// Create order (same logic as before)
+		function createOrder() {
+			const allOrders = getAllDepartmentOrders();
+			
+			if (allOrders.totalItems === 0) {
+				alert("Добавьте товары в корзину!");
+				return;
+			}
+
+			// Generate unified WhatsApp message
+			const formattedText = generateUnifiedWhatsAppMessage(allOrders);
+
+			// Prepare unified order data for confirmation page
+			const orderData = {
+				items: allOrders.allItems,
+				departments: allOrders.departments,
+				date: new Date().toLocaleDateString("ru-RU"),
+				formattedText: formattedText,
+				returnUrl: '/cart',
+				isUnified: true,
+				totalItems: allOrders.totalItems
+			};
+
+			// Save order data to localStorage for confirmation page
+			localStorage.setItem("pendingOrder", JSON.stringify(orderData));
+
+			// Navigate to confirmation page
+			window.location.href = "/confirmation";
+		}
+
+		// Helper functions (same as in checklist.js)
+		function getAllDepartmentOrders() {
+			const allItems = [];
+			const departments = [];
+			
+			// Get bar orders
+			const barOrders = JSON.parse(localStorage.getItem('barShoppingList') || '[]');
+			const barItems = barOrders.filter(item => item.shoppingQuantity > 0);
+			if (barItems.length > 0) {
+				barItems.forEach(item => {
+					allItems.push({
+						...item,
+						department: 'bar',
+						departmentName: 'Бар',
+						departmentEmoji: '🍷'
+					});
+				});
+				departments.push({name: 'Бар', emoji: '🍷', count: barItems.length});
+			}
+			
+			// Get kitchen orders
+			const kitchenOrders = JSON.parse(localStorage.getItem('kitchenShoppingList') || '[]');
+			const kitchenItems = kitchenOrders.filter(item => item.shoppingQuantity > 0);
+			if (kitchenItems.length > 0) {
+				kitchenItems.forEach(item => {
+					allItems.push({
+						...item,
+						department: 'kitchen',
+						departmentName: 'Кухня',
+						departmentEmoji: '🍳'
+					});
+				});
+				departments.push({name: 'Кухня', emoji: '🍳', count: kitchenItems.length});
+			}
+			
+			// Get custom/housekeeping orders
+			const customOrders = JSON.parse(localStorage.getItem('customShoppingList') || '[]');
+			const customItems = customOrders.filter(item => item.shoppingQuantity > 0);
+			if (customItems.length > 0) {
+				customItems.forEach(item => {
+					allItems.push({
+						...item,
+						department: 'custom',
+						departmentName: 'Горничная',
+						departmentEmoji: '🧹'
+					});
+				});
+				departments.push({name: 'Горничная', emoji: '🧹', count: customItems.length});
+			}
+			
+			return {
+				allItems,
+				departments,
+				totalItems: allItems.length
+			};
+		}
+
+		function generateUnifiedWhatsAppMessage(allOrders) {
+			if (allOrders.totalItems === 0) {
+				return "Нет товаров для заказа";
+			}
+			
+			const currentDate = new Date().toLocaleDateString("ru-RU");
+			let message = `📋 Заказ товаров от ${currentDate}\n\n`;
+			
+			// Group items by department
+			allOrders.departments.forEach(dept => {
+				const deptItems = allOrders.allItems.filter(item => item.departmentName === dept.name);
+				
+				message += `${dept.emoji} ${dept.name}:\n`;
+				deptItems.forEach(item => {
+					message += `• ${item.name} - ${item.shoppingQuantity} ${item.unit}\n`;
+				});
+				message += "\n";
+			});
+			
+			return message;
+		}
+
+		function getItemEnding(count) {
+			if (count % 10 === 1 && count % 100 !== 11) {
+				return "";
+			} else if (
+				[2, 3, 4].includes(count % 10) &&
+				![12, 13, 14].includes(count % 100)
+			) {
+				return "а";
+			} else {
+				return "ов";
+			}
+		}
+
+		function getDepartmentEnding(count) {
+			if (count === 1) return "а";
+			if (count >= 2 && count <= 4) return "ов";
+			return "ов";
+		}
+
+		// Event listeners
+		document.addEventListener('DOMContentLoaded', function() {
+			loadCartData();
+
+			// Back button
+			document.getElementById('backBtn').addEventListener('click', function() {
+				window.history.back();
+			});
+
+			// Clear all button
+			document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+
+			// Create order button
+			document.getElementById('createOrderBtn').addEventListener('click', createOrder);
+		});
+	</script>
+</Layout>

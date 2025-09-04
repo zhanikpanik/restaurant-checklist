@@ -1,0 +1,589 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Горничная - Хозяйственные товары">
+	<div class="min-h-screen bg-white">
+		<!-- Header with Role Info -->
+		<header class="bg-purple-600 text-white px-4 py-6">
+			<div class="max-w-md mx-auto">
+				<div class="flex items-center justify-between mb-4">
+					<div class="flex items-center space-x-2">
+						<span class="text-2xl">🧹</span>
+						<h1 class="text-2xl font-bold">Горничная</h1>
+					</div>
+					<div class="text-right text-sm">
+						<div class="font-medium">Хозяйственные товары</div>
+						<a href="/" class="text-purple-200 hover:text-white">← Главная</a>
+					</div>
+				</div>
+			</div>
+		</header>
+
+		<!-- Main Content -->
+		<main class="max-w-md mx-auto px-4 py-6">
+			<!-- Search Field -->
+			<div class="sticky top-0 z-10 bg-gray-50 p-4 rounded-lg border-2 border-purple-200 shadow-sm mb-4">
+				<div class="relative">
+					<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+						<svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+						</svg>
+					</div>
+					<input 
+						type="text" 
+						id="searchInput"
+						class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
+						placeholder="🔍 Поиск товаров склада..."
+						autocomplete="off"
+					/>
+					<div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+						<button 
+							id="clearSearchBtn"
+							class="h-5 w-5 text-gray-400 hover:text-gray-600 focus:outline-none hidden"
+							title="Очистить поиск"
+						>
+							<svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+							</svg>
+						</button>
+					</div>
+				</div>
+			</div>
+			
+			<!-- Inline Custom Item Form -->
+			<div class="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
+				<div class="flex items-center space-x-1">
+					<input 
+						type="text" 
+						id="productName" 
+						placeholder="Название"
+						class="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm min-w-0"
+					/>
+					<input 
+						type="number" 
+						id="productQuantity" 
+						placeholder="Кол-во"
+						min="0.1"
+						step="0.1"
+						class="w-16 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+					/>
+					<select 
+						id="productUnit" 
+						class="w-14 px-1 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
+					>
+						<option value="шт">шт</option>
+						<option value="кг">кг</option>
+						<option value="г">г</option>
+						<option value="л">л</option>
+						<option value="мл">мл</option>
+						<option value="упак">упак</option>
+						<option value="бутылка">бутылка</option>
+						<option value="коробка">коробка</option>
+						<option value="мешок">мешок</option>
+					</select>
+					<button 
+						id="addProductBtn"
+						class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium flex-shrink-0"
+					>
+						➕
+					</button>
+				</div>
+			</div>
+
+			<!-- Products List -->
+			<div id="productsList" class="space-y-3">
+				<!-- Products will be populated by JavaScript -->
+			</div>
+
+			<!-- Empty State -->
+			<div id="emptyState" class="text-center py-12 text-gray-500">
+				<div class="text-4xl mb-4">📦</div>
+				<p class="text-lg font-medium mb-2">Товары не найдены</p>
+				<p class="text-sm">Добавьте первый товар используя форму выше</p>
+			</div>
+
+			<!-- Floating Action Button -->
+			<button 
+				id="createOrderBtn" 
+				class="fixed bottom-6 right-6 bg-gray-400 hover:bg-gray-500 text-white font-medium py-4 px-6 rounded-lg shadow-lg z-50 transition-all duration-200 flex items-center space-x-2 min-w-[180px] justify-center"
+			>
+				<span class="text-center">В корзину</span>
+			</button>
+		</main>
+	</div>
+
+
+	<script is:inline>
+		// Set role and department
+		window.userRole = 'custom';
+		window.currentDepartment = 'custom';
+		
+		// Custom products storage
+		let customProducts = [];
+		let filteredProducts = [];
+		let selectedProducts = [];
+
+		// Default products list
+		const defaultProducts = [
+			{ name: 'шампунь', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'лосьон для тела', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'кондиционер', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'гигиен набор', unit: 'шт', quantity: 0, minQuantity: 5, isDefault: true },
+			{ name: 'зубная щетка', unit: 'шт', quantity: 0, minQuantity: 10, isDefault: true },
+			{ name: 'тапочки', unit: 'шт', quantity: 0, minQuantity: 10, isDefault: true },
+			{ name: 'салфетки на стол', unit: 'упак', quantity: 0, minQuantity: 5, isDefault: true },
+			{ name: 'зубочистки', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
+			{ name: 'сахар стики', unit: 'упак', quantity: 0, minQuantity: 5, isDefault: true },
+			{ name: 'пакет чай черный', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
+			{ name: 'пакет чай зеленый', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
+			{ name: 'диспенсерные салфетки', unit: 'упак', quantity: 0, minQuantity: 5, isDefault: true },
+			{ name: 'туалет бумага', unit: 'упак', quantity: 0, minQuantity: 10, isDefault: true },
+			{ name: 'освежитель воздуха', unit: 'шт', quantity: 0, minQuantity: 3, isDefault: true },
+			{ name: 'вонючки', unit: 'шт', quantity: 0, minQuantity: 5, isDefault: true },
+			{ name: 'крем мыло', unit: 'шт', quantity: 0, minQuantity: 5, isDefault: true },
+			{ name: 'средство для посуды', unit: 'шт', quantity: 0, minQuantity: 3, isDefault: true },
+			{ name: 'комет', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'сиф', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'крот', unit: 'шт', quantity: 0, minQuantity: 1, isDefault: true },
+			{ name: 'азелит', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'мистер пропер', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'железная губка', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
+			{ name: 'мусор пакет большой', unit: 'упак', quantity: 0, minQuantity: 5, isDefault: true },
+			{ name: 'доместос', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'стеклоочиститель', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'белизна', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'ваниш', unit: 'шт', quantity: 0, minQuantity: 1, isDefault: true },
+			{ name: 'кондиционер для белья', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'постельное белье', unit: 'комплект', quantity: 0, minQuantity: 5, isDefault: true },
+			{ name: 'мусор пакет большие', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
+			{ name: 'мусор пакет маленькие', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
+			{ name: 'пледы', unit: 'шт', quantity: 0, minQuantity: 10, isDefault: true },
+			{ name: 'сушилки', unit: 'шт', quantity: 0, minQuantity: 3, isDefault: true },
+			{ name: 'доп двуспалки', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
+			{ name: 'доп односпалки', unit: 'шт', quantity: 0, minQuantity: 3, isDefault: true }
+		];
+
+		// Load custom products from localStorage
+		function loadCustomProducts() {
+			try {
+				const stored = localStorage.getItem('customProducts');
+				const isFirstTime = localStorage.getItem('customProductsInitialized') !== 'true';
+				
+				if (isFirstTime) {
+					// First time loading - create default products
+					customProducts = defaultProducts.map((product, index) => ({
+						id: Date.now() + index,
+						name: product.name,
+						quantity: product.quantity,
+						unit: product.unit,
+						minQuantity: product.minQuantity,
+						checked: false,
+						shoppingQuantity: 0,
+						isDefault: product.isDefault,
+						isCustom: !product.isDefault,
+						createdAt: new Date().toISOString()
+					}));
+					
+					// Save to localStorage
+					saveCustomProducts();
+					localStorage.setItem('customProductsInitialized', 'true');
+				} else {
+					// Load existing products
+					customProducts = stored ? JSON.parse(stored) : [];
+					
+					// Update existing products to ensure default products have isDefault flag
+					customProducts = customProducts.map(product => {
+						const defaultProduct = defaultProducts.find(dp => dp.name === product.name);
+						if (defaultProduct) {
+							// This is a default product, ensure it has the isDefault flag
+							return {
+								...product,
+								isDefault: true,
+								isCustom: false
+							};
+						} else {
+							// This is a custom product
+							return {
+								...product,
+								isDefault: false,
+								isCustom: true
+							};
+						}
+					});
+					
+					// Save the updated products back to localStorage
+					saveCustomProducts();
+				}
+				
+				filteredProducts = [...customProducts];
+				renderProducts();
+				updateCreateOrderButton();
+			} catch (error) {
+				console.error('Failed to load custom products:', error);
+				customProducts = [];
+				filteredProducts = [];
+				renderProducts();
+			}
+		}
+
+		// Save custom products to localStorage
+		function saveCustomProducts() {
+			try {
+				localStorage.setItem('customProducts', JSON.stringify(customProducts));
+				
+				// Also save selected products for cart compatibility
+				const itemsForCart = selectedProducts.filter(item => item.shoppingQuantity > 0);
+				localStorage.setItem('customShoppingList', JSON.stringify(itemsForCart));
+			} catch (error) {
+				console.error('Failed to save custom products:', error);
+			}
+		}
+
+		// Add new product
+		function addProduct() {
+			const name = document.getElementById('productName').value.trim();
+			const quantity = parseFloat(document.getElementById('productQuantity').value) || 0;
+			const unit = document.getElementById('productUnit').value;
+
+			if (!name || !quantity) {
+				alert('Заполните название и количество!');
+				return;
+			}
+
+			// Check if product already exists
+			const existingProduct = customProducts.find(p => p.name.toLowerCase() === name.toLowerCase());
+			if (existingProduct) {
+				alert('Товар с таким названием уже существует!');
+				return;
+			}
+
+			// Create new product
+			const newProduct = {
+				id: Date.now(),
+				name: name,
+				quantity: 0,
+				unit: unit,
+				minQuantity: 0,
+				checked: true,
+				shoppingQuantity: quantity,
+				isDefault: false,
+				isCustom: true,
+				createdAt: new Date().toISOString()
+			};
+
+			customProducts.push(newProduct);
+			selectedProducts.push(newProduct);
+			saveCustomProducts();
+			
+			// Clear form
+			document.getElementById('productName').value = '';
+			document.getElementById('productQuantity').value = '';
+			document.getElementById('productUnit').value = 'шт';
+
+			// Refresh display
+			applySearch();
+			updateCreateOrderButton();
+			
+			alert(`Товар "${name}" добавлен в заказ!`);
+		}
+
+		// Delete product
+		function deleteProduct(productId) {
+			const product = customProducts.find(p => p.id === productId);
+			if (product && product.isDefault) {
+				alert('Нельзя удалить товар по умолчанию!');
+				return;
+			}
+			
+			if (confirm('Удалить этот товар?')) {
+				customProducts = customProducts.filter(p => p.id !== productId);
+				selectedProducts = selectedProducts.filter(p => p.id !== productId);
+				saveCustomProducts();
+				applySearch();
+				updateCreateOrderButton();
+			}
+		}
+
+		// Toggle product selection for order
+		function toggleProduct(productId) {
+			const product = customProducts.find(p => p.id === productId);
+			if (!product) return;
+
+			const existingIndex = selectedProducts.findIndex(p => p.id === productId);
+			
+			if (existingIndex >= 0) {
+				// Remove from selection
+				selectedProducts.splice(existingIndex, 1);
+				product.checked = false;
+				product.shoppingQuantity = 0;
+			} else {
+				// Add to selection
+				const selectedProduct = { ...product };
+				selectedProduct.checked = true;
+				selectedProduct.shoppingQuantity = 1;
+				selectedProducts.push(selectedProduct);
+				product.checked = true;
+				product.shoppingQuantity = 1;
+			}
+
+			renderProducts();
+			updateCreateOrderButton();
+		}
+
+		// Update shopping quantity with +/- buttons
+		function updateShoppingQuantity(productId, change) {
+			const originalProduct = customProducts.find(p => p.id === productId);
+			if (!originalProduct) return;
+			
+			const currentQuantity = originalProduct.shoppingQuantity || 0;
+			const newQuantity = Math.max(0, currentQuantity + change);
+			
+			originalProduct.shoppingQuantity = newQuantity;
+			
+			// Update selected products array
+			const existingIndex = selectedProducts.findIndex(p => p.id === productId);
+			
+			if (newQuantity > 0) {
+				if (existingIndex >= 0) {
+					selectedProducts[existingIndex].shoppingQuantity = newQuantity;
+				} else {
+					const selectedProduct = { ...originalProduct };
+					selectedProduct.checked = true;
+					selectedProduct.shoppingQuantity = newQuantity;
+					selectedProducts.push(selectedProduct);
+					originalProduct.checked = true;
+				}
+			} else {
+				if (existingIndex >= 0) {
+					selectedProducts.splice(existingIndex, 1);
+				}
+				originalProduct.checked = false;
+			}
+			
+			renderProducts();
+			updateCreateOrderButton();
+		}
+
+		// Update shopping quantity
+		function updateShoppingQuantity(productId, newQuantity) {
+			const originalProduct = customProducts.find(p => p.id === productId);
+			if (!originalProduct) return;
+			
+			originalProduct.shoppingQuantity = newQuantity;
+			
+			// Update selected products array
+			const existingIndex = selectedProducts.findIndex(p => p.id === productId);
+			
+			if (newQuantity > 0) {
+				if (existingIndex >= 0) {
+					selectedProducts[existingIndex].shoppingQuantity = newQuantity;
+				} else {
+					const selectedProduct = { ...originalProduct };
+					selectedProduct.checked = true;
+					selectedProduct.shoppingQuantity = newQuantity;
+					selectedProducts.push(selectedProduct);
+					originalProduct.checked = true;
+				}
+			} else {
+				if (existingIndex >= 0) {
+					selectedProducts.splice(existingIndex, 1);
+				}
+				originalProduct.checked = false;
+			}
+			
+			renderProducts();
+			updateCreateOrderButton();
+			saveCustomProducts();
+		}
+
+		// Update shopping quantity from input field
+		function updateShoppingQuantityFromInput(productId, inputValue) {
+			const numericValue = parseFloat(inputValue.replace(/[^\d.]/g, '')) || 0;
+			const originalProduct = customProducts.find(p => p.id === productId);
+			if (!originalProduct) return;
+			
+			originalProduct.shoppingQuantity = numericValue;
+			
+			// Update selected products array
+			const existingIndex = selectedProducts.findIndex(p => p.id === productId);
+			
+			if (numericValue > 0) {
+				if (existingIndex >= 0) {
+					selectedProducts[existingIndex].shoppingQuantity = numericValue;
+				} else {
+					const selectedProduct = { ...originalProduct };
+					selectedProduct.checked = true;
+					selectedProduct.shoppingQuantity = numericValue;
+					selectedProducts.push(selectedProduct);
+					originalProduct.checked = true;
+				}
+			} else {
+				if (existingIndex >= 0) {
+					selectedProducts.splice(existingIndex, 1);
+				}
+				originalProduct.checked = false;
+			}
+			
+			renderProducts();
+			updateCreateOrderButton();
+			saveCustomProducts();
+		}
+
+		// Apply search filter
+		function applySearch() {
+			const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+			
+			if (searchTerm === '') {
+				filteredProducts = [...customProducts];
+			} else {
+				filteredProducts = customProducts.filter(product => 
+					product.name.toLowerCase().includes(searchTerm)
+				);
+			}
+			
+			renderProducts();
+		}
+
+		// Render products list
+		function renderProducts() {
+			const productsList = document.getElementById('productsList');
+			const emptyState = document.getElementById('emptyState');
+			
+			if (filteredProducts.length === 0) {
+				productsList.innerHTML = '';
+				emptyState.style.display = 'block';
+				return;
+			}
+			
+			emptyState.style.display = 'none';
+			
+			productsList.innerHTML = filteredProducts.map(product => {
+				const shoppingQuantity = product.shoppingQuantity || 0;
+				const isCustom = !product.isDefault;
+				const borderColor = isCustom ? "border-l-4 border-l-blue-500" : "";
+				const stockInfo = isCustom
+					? '<div class="text-sm text-blue-600 mt-1 font-medium">📝 Добавлен вручную</div>'
+					: '';
+				
+				return `
+					<div class="product-item bg-white py-4 ${borderColor}" data-product-id="${product.id}">
+						<div class="flex items-center justify-between w-full">
+							<div class="flex-1">
+								<h3 class="text-base font-medium text-gray-900">${product.name}</h3>
+								${stockInfo}
+							</div>
+							<div class="flex items-center justify-end">
+								<!-- Inline quantity controls: - [input with unit] + -->
+								<div class="flex items-center bg-gray-100 rounded-lg border border-gray-300">
+									<button
+										class="px-2 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center text-2xl font-normal transition-colors duration-200 rounded-l-lg"
+										onclick="updateShoppingQuantity(${product.id}, -0.5)"
+										title="Уменьшить на 0.5 ${product.unit}"
+										type="button"
+									>
+										−
+									</button>
+									<div class="relative">
+										<input
+											type="text"
+											class="quantity-input w-16 px-3 py-2 border-0 focus:outline-none focus:ring-0 text-center bg-gray-100 text-sm font-medium"
+											placeholder="0 ${product.unit}"
+											value="${shoppingQuantity > 0 ? shoppingQuantity + ' ' + product.unit : ''}"
+											data-product-id="${product.id}"
+											data-unit="${product.unit}"
+											onchange="updateShoppingQuantityFromInput(${product.id}, this.value)"
+										/>
+									</div>
+									<button
+										class="px-2 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center text-2xl font-normal transition-colors duration-200 rounded-r-lg"
+										onclick="updateShoppingQuantity(${product.id}, 0.5)"
+										title="Добавить 0.5 ${product.unit}"
+										type="button"
+									>
+										+
+									</button>
+								</div>
+
+								${isCustom ? `
+									<!-- Delete Custom Item Button -->
+									<button
+										class="delete-btn w-9 h-10.5 bg-red-500 hover:bg-red-600 text-white ml-2 flex items-center justify-center text-lg font-normal transition-colors duration-200 rounded-lg"
+										data-product-id="${product.id}"
+										onclick="deleteProduct(${product.id})"
+										title="Удалить товар"
+									>
+										🗑
+									</button>
+								` : ''}
+							</div>
+						</div>
+					</div>
+				`;
+			}).join('');
+		}
+
+		// Update create order button
+		function updateCreateOrderButton() {
+			const createOrderBtn = document.getElementById('createOrderBtn');
+			const selectedCount = selectedProducts.length;
+			
+			if (selectedCount > 0) {
+				createOrderBtn.textContent = `Создать заказ (${selectedCount})`;
+				createOrderBtn.classList.remove('bg-gray-400', 'hover:bg-gray-500');
+				createOrderBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+			} else {
+				createOrderBtn.textContent = 'Создать заказ';
+				createOrderBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+				createOrderBtn.classList.add('bg-gray-400', 'hover:bg-gray-500');
+			}
+		}
+
+		// Create order - navigate to cart
+		function createOrder() {
+			// Navigate to cart page for review
+			window.location.href = "/cart";
+		}
+
+		// Initialize page
+		document.addEventListener('DOMContentLoaded', function() {
+			// Load products
+			loadCustomProducts();
+
+			// Setup event listeners
+			document.getElementById('addProductBtn').addEventListener('click', addProduct);
+			document.getElementById('createOrderBtn').addEventListener('click', createOrder);
+			
+			// Search functionality
+			const searchInput = document.getElementById('searchInput');
+			const clearSearchBtn = document.getElementById('clearSearchBtn');
+			
+			searchInput.addEventListener('input', function() {
+				applySearch();
+				clearSearchBtn.style.display = this.value ? 'block' : 'none';
+			});
+			
+			clearSearchBtn.addEventListener('click', function() {
+				searchInput.value = '';
+				this.style.display = 'none';
+				applySearch();
+			});
+
+			// Enter key support for product name
+			document.getElementById('productName').addEventListener('keydown', function(e) {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					addProduct();
+				}
+			});
+
+			// Enter key support for quantity
+			document.getElementById('productQuantity').addEventListener('keydown', function(e) {
+				if (e.key === 'Enter') {
+					e.preventDefault();
+					addProduct();
+				}
+			});
+		});
+	</script>
+</Layout>
