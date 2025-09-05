@@ -40,6 +40,13 @@ import Layout from "../layouts/Layout.astro";
                     >
                 </div>
                 <div id="ordersList"></div>
+                
+                <!-- Empty State -->
+                <div id="emptyState" class="text-center py-12 text-gray-500 hidden">
+                    <div class="text-4xl mb-4">📦</div>
+                    <p class="text-lg font-medium mb-2">Нет заказов</p>
+                    <p class="text-sm">Создайте заказ в разделах Бар, Кухня или Горничная</p>
+                </div>
             </div>
 
             <button
@@ -56,6 +63,8 @@ import Layout from "../layouts/Layout.astro";
 
         async function loadOrders() {
             try {
+                console.log('🔄 Loading orders from all sources...');
+                
                 // Try to load from server storage for cross-device visibility
                 let serverOrders = [];
                 try {
@@ -63,6 +72,7 @@ import Layout from "../layouts/Layout.astro";
                     if (response.ok) {
                         const result = await response.json();
                         serverOrders = Array.isArray(result.data) ? result.data : [];
+                        console.log(`🌐 Server orders loaded: ${serverOrders.length}`);
                     }
                 } catch (e) {
                     console.warn('⚠️ Failed to fetch server orders, falling back to localStorage');
@@ -71,7 +81,9 @@ import Layout from "../layouts/Layout.astro";
                 // Also load local orders (for unsynced/offline items)
                 const barOrders = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
                 const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
-                const localOrders = [...barOrders, ...kitchenOrders];
+                const customOrders = JSON.parse(localStorage.getItem('customOrderHistory') || '[]');
+                console.log(`📱 Local orders - Bar: ${barOrders.length}, Kitchen: ${kitchenOrders.length}, Custom: ${customOrders.length}`);
+                const localOrders = [...barOrders, ...kitchenOrders, ...customOrders];
 
                 // Merge by unique key (timestamp + department) with preference:
                 // - Prefer delivered over non-delivered
@@ -123,7 +135,8 @@ import Layout from "../layouts/Layout.astro";
                 // Absolute fallback to localStorage-only
                 const fallbackBar = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
                 const fallbackKitchen = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
-                const fallbackOrders = [...fallbackBar, ...fallbackKitchen].sort(
+                const fallbackCustom = JSON.parse(localStorage.getItem('customOrderHistory') || '[]');
+                const fallbackOrders = [...fallbackBar, ...fallbackKitchen, ...fallbackCustom].sort(
                     (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
                 );
 
@@ -134,6 +147,9 @@ import Layout from "../layouts/Layout.astro";
         }
 
         function renderOrders(orders) {
+            console.log(`🔍 Rendering orders: ${orders.length} total orders found`);
+            console.log('Orders data:', orders);
+            
             const filtered =
                 currentFilter === "all"
                     ? orders
@@ -141,7 +157,22 @@ import Layout from "../layouts/Layout.astro";
                       ? orders.filter((o) => o.status !== "delivered")
                       : orders.filter((o) => o.status === "delivered");
 
-            document.getElementById("ordersList").innerHTML = filtered
+            console.log(`📋 Filtered orders: ${filtered.length} orders after filter "${currentFilter}"`);
+            
+            const emptyState = document.getElementById("emptyState");
+            const ordersList = document.getElementById("ordersList");
+            
+            if (filtered.length === 0) {
+                ordersList.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                console.log('💡 Showing empty state - no orders found');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            ordersList.innerHTML = filtered
+                .filter(order => order.items && Array.isArray(order.items))
                 .map((order) => {
                     // Get temporary quantities and prices
                     const tempQuantities = JSON.parse(
@@ -159,8 +190,8 @@ import Layout from "../layouts/Layout.astro";
                                     <p class="text-sm text-gray-500">${new Date(order.timestamp).toLocaleString()}</p>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-sm font-medium">${order.totalItems} товаров</div>
-                                    <div class="text-xs text-gray-500">${order.actualTotalQuantity || order.totalQuantity} шт.</div>
+                                    <div class="text-sm font-medium">${order.totalItems || order.items?.length || 0} товаров</div>
+                                    <div class="text-xs text-gray-500">${order.actualTotalQuantity || order.totalQuantity || 0} шт.</div>
                                 </div>
                             </div>
 
@@ -180,6 +211,8 @@ import Layout from "../layouts/Layout.astro";
                                                  
                                                  <input
                                                      type="text"
+                                                     inputmode="numeric"
+                                                     pattern="[0-9]*"
                                                      class="quantity-input w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
                                                      data-order="${order.timestamp}"
                                                      data-index="${i}"
@@ -193,6 +226,8 @@ import Layout from "../layouts/Layout.astro";
                                                  <label class="text-sm text-gray-600 min-w-max ml-4">за</label>
                                                  <input
                                                      type="text"
+                                                     inputmode="numeric"
+                                                     pattern="[0-9]*"
                                                      class="price-input w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
                                                      data-order="${order.timestamp}"
                                                      data-index="${i}"
