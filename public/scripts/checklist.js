@@ -1199,6 +1199,61 @@ async function createPosterPurchaseOrder(shoppingList) {
 
 // Notification system removed
 
+// Generate shareable cart URL
+function generateShareableCartURL() {
+  try {
+    // Get all department cart data
+    const allCartData = {};
+    
+    ['bar', 'kitchen', 'custom'].forEach(dept => {
+      const storageKey = `${dept}ShoppingList`;
+      const cartData = localStorage.getItem(storageKey);
+      if (cartData) {
+        const items = JSON.parse(cartData);
+        if (items.length > 0) {
+          allCartData[dept] = items;
+        }
+      }
+    });
+    
+    if (Object.keys(allCartData).length === 0) {
+      alert('❌ Корзина пуста');
+      return null;
+    }
+    
+    // Encode cart data in URL
+    const encodedData = encodeURIComponent(JSON.stringify(allCartData));
+    const shareUrl = `${window.location.origin}/share-cart?data=${encodedData}`;
+    
+    console.log('🔗 Generated share URL:', shareUrl);
+    return shareUrl;
+    
+  } catch (error) {
+    console.error('❌ Failed to generate share URL:', error);
+    return null;
+  }
+}
+
+// Copy share URL to clipboard
+async function shareCartViaURL() {
+  const shareUrl = generateShareableCartURL();
+  if (!shareUrl) return;
+  
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+    alert('🔗 Ссылка для синхронизации скопирована!\nОтправьте её на другое устройство.');
+  } catch (error) {
+    // Fallback for browsers that don't support clipboard API
+    const textArea = document.createElement('textarea');
+    textArea.value = shareUrl;
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textArea);
+    alert('🔗 Ссылка для синхронизации скопирована!\nОтправьте её на другое устройство.');
+  }
+}
+
 // Export functions for global access
 window.checklist = {
   initializeOrderMode,
@@ -1212,6 +1267,8 @@ window.checklist = {
   saveFinalOrderToCache,
   clearAllQuantities,
   updateFloatingButtonLabel,
+  generateShareableCartURL,
+  shareCartViaURL,
   getProductCountText,
   sendToWhatsApp,
   generateWhatsAppMessage,
