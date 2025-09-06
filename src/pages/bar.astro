@@ -208,12 +208,21 @@ import Layout from '../layouts/Layout.astro';
 			btn.disabled = true;
 
 			try {
+				console.log('🔄 goToCart() called');
+				console.log('🔍 Checking window.checklist:', window.checklist);
+				console.log('🔍 Checking saveCartToServer function:', window.checklist?.saveCartToServer);
+				
 				// Save current cart to server for multi-device sync
 				if (window.checklist && window.checklist.saveCartToServer) {
-					await window.checklist.saveCartToServer();
+					console.log('📤 Calling saveCartToServer...');
+					const syncResult = await window.checklist.saveCartToServer();
+					console.log('📤 Sync result:', syncResult);
+				} else {
+					console.error('❌ window.checklist.saveCartToServer not available');
 				}
 				
 				// Navigate to cart
+				console.log('🔄 Navigating to cart...');
 				window.location.href = '/cart';
 				
 			} catch (error) {

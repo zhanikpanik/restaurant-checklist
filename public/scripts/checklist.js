@@ -474,6 +474,8 @@ async function autoSaveToCache() {
 // Save current cart to server for multi-device sync
 async function saveCartToServer() {
   try {
+    const startTime = performance.now();
+    
     // Get products that have quantities > 0
     const itemsToOrder = shoppingListData.filter(
       (item) => item.shoppingQuantity > 0,
@@ -498,9 +500,13 @@ async function saveCartToServer() {
         })
       });
 
+      const endTime = performance.now();
+      const syncTime = Math.round(endTime - startTime);
+
       console.log(`📤 Save response status: ${response.status} ${response.statusText}`);
       const result = await response.json();
       console.log(`📤 Server save response for ${department}:`, result);
+      console.log(`⏱️ Sync completed in ${syncTime}ms`);
       
       if (result.success) {
         console.log(`🌐 Server sync: ${departmentName} cart saved (${itemsToOrder.length} items)`);
@@ -535,8 +541,7 @@ async function loadCartFromServer() {
     console.log(`📡 Response status: ${response.status} ${response.statusText}`);
     
     const result = await response.json();
-    console.log(`📦 Server response for ${department}:`, result);
-    
+
     if (result.success && result.data && result.data.items) {
       const serverItems = result.data.items;
       console.log(`📋 Found ${serverItems.length} items on server for ${department}:`, serverItems);
