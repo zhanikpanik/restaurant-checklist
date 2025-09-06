@@ -541,6 +541,7 @@ async function loadCartFromServer() {
     console.log(`📡 Response status: ${response.status} ${response.statusText}`);
     
     const result = await response.json();
+    console.log(`📦 Server response for ${department}:`, result);
 
     if (result.success && result.data && result.data.items) {
       const serverItems = result.data.items;
@@ -557,6 +558,12 @@ async function loadCartFromServer() {
             console.log(`⚠️ Server item not found in local data:`, serverItem);
           }
         });
+        
+        // IMPORTANT: Save updated data to localStorage so cart page can see it
+        const cacheKey = `${department}ShoppingList`;
+        const itemsToSave = shoppingListData.filter(item => item.shoppingQuantity > 0);
+        localStorage.setItem(cacheKey, JSON.stringify(itemsToSave));
+        console.log(`💾 Saved ${itemsToSave.length} synced items to localStorage for ${department}`);
         
         // Update UI to reflect loaded quantities
         updateAllQuantityInputs();
