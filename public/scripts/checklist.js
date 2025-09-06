@@ -463,6 +463,7 @@ async function autoSaveToCache() {
     // Save to server for multi-device sync
     try {
       console.log(`🔄 Saving ${itemsToOrder.length} items to server for ${department}:`, itemsToOrder);
+      console.log(`🌐 Current URL: ${window.location.href}`);
       
       const response = await fetch('/api/save-cart-items', {
         method: 'POST',
@@ -475,6 +476,7 @@ async function autoSaveToCache() {
         })
       });
 
+      console.log(`📤 Save response status: ${response.status} ${response.statusText}`);
       const result = await response.json();
       console.log(`📤 Server save response for ${department}:`, result);
       
@@ -503,11 +505,17 @@ async function loadCartFromServer() {
   try {
     const department = window.currentDepartment || "bar";
     console.log(`🔄 Loading cart from server for ${department}...`);
+    console.log(`🌐 Current URL: ${window.location.href}`);
+    console.log(`📱 User Agent: ${navigator.userAgent}`);
     
     // Load from server
-    const response = await fetch(`/api/get-cart-items?department=${department}`);
-    const result = await response.json();
+    const apiUrl = `/api/get-cart-items?department=${department}`;
+    console.log(`📡 Fetching from: ${apiUrl}`);
     
+    const response = await fetch(apiUrl);
+    console.log(`📡 Response status: ${response.status} ${response.statusText}`);
+    
+    const result = await response.json();
     console.log(`📦 Server response for ${department}:`, result);
     
     if (result.success && result.data && result.data.items) {

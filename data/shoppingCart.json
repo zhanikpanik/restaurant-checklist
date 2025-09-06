@@ -1,0 +1,13 @@
+{
+  "bar": {
+    "items": [
+      {
+        "id": 1,
+        "name": "Test Item",
+        "shoppingQuantity": 5,
+        "unit": "??"
+      }
+    ],
+    "lastUpdated": "2025-09-06T05:51:56.052Z"
+  }
+}
