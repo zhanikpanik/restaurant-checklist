@@ -365,37 +365,6 @@ import Layout from '../layouts/Layout.astro';
 			
 			renderProducts();
 			updateCreateOrderButton();
-		}
-
-		// Update shopping quantity
-		function updateShoppingQuantity(productId, newQuantity) {
-			const originalProduct = customProducts.find(p => p.id === productId);
-			if (!originalProduct) return;
-			
-			originalProduct.shoppingQuantity = newQuantity;
-			
-			// Update selected products array
-			const existingIndex = selectedProducts.findIndex(p => p.id === productId);
-			
-			if (newQuantity > 0) {
-				if (existingIndex >= 0) {
-					selectedProducts[existingIndex].shoppingQuantity = newQuantity;
-				} else {
-					const selectedProduct = { ...originalProduct };
-					selectedProduct.checked = true;
-					selectedProduct.shoppingQuantity = newQuantity;
-					selectedProducts.push(selectedProduct);
-					originalProduct.checked = true;
-				}
-			} else {
-				if (existingIndex >= 0) {
-					selectedProducts.splice(existingIndex, 1);
-				}
-				originalProduct.checked = false;
-			}
-			
-			renderProducts();
-			updateCreateOrderButton();
 			saveCustomProducts();
 		}
 
@@ -489,6 +458,8 @@ import Layout from '../layouts/Layout.astro';
 									<div class="relative">
 										<input
 											type="text"
+											inputmode="numeric"
+											pattern="[0-9]*"
 											class="quantity-input w-16 px-3 py-2 border-0 focus:outline-none focus:ring-0 text-center bg-gray-100 text-sm font-medium"
 											placeholder="0 ${product.unit}"
 											value="${shoppingQuantity > 0 ? shoppingQuantity + ' ' + product.unit : ''}"
@@ -548,9 +519,24 @@ import Layout from '../layouts/Layout.astro';
 		}
 
 		// Initialize page
-		document.addEventListener('DOMContentLoaded', function() {
+		document.addEventListener('DOMContentLoaded', async function() {
 			// Load products
 			loadCustomProducts();
+
+			// Initialize order mode for custom items
+			if (window.initializeOrderMode) {
+				window.initializeOrderMode();
+			}
+			
+			// Load cart from server for multi-device sync
+			if (window.checklist && window.checklist.loadCartFromServer) {
+				await window.checklist.loadCartFromServer();
+			}
+			
+			// Update floating button label
+			if (window.updateFloatingButtonLabel) {
+				window.updateFloatingButtonLabel();
+			}
 
 			// Setup event listeners
 			document.getElementById('addProductBtn').addEventListener('click', addProduct);

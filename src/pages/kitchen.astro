@@ -160,6 +160,11 @@ import Layout from '../layouts/Layout.astro';
 					window.initializeOrderMode();
 				}
 				
+				// Load cart from server for multi-device sync
+				if (window.checklist && window.checklist.loadCartFromServer) {
+					await window.checklist.loadCartFromServer();
+				}
+				
 				// Update floating button label
 				if (window.updateFloatingButtonLabel) {
 					window.updateFloatingButtonLabel();

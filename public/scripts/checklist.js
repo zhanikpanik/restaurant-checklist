@@ -161,6 +161,8 @@ function renderShoppingListProducts() {
                         <div class="relative">
                             <input
                                 type="text"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
                                 class="quantity-input w-16 px-3 py-2 border-0 focus:outline-none focus:ring-0 text-center bg-gray-100 text-sm font-medium"
                                 placeholder="0 ${product.unit}"
                                 data-product-id="${product.id}"
@@ -442,8 +444,8 @@ function setShoppingQuantity(productId, quantity) {
   }
 }
 
-// Auto-save current order to cache
-function autoSaveToCache() {
+// Auto-save current order to cache and server
+async function autoSaveToCache() {
   try {
     // Get products that have quantities > 0
     const itemsToOrder = shoppingListData.filter(
@@ -452,30 +454,34 @@ function autoSaveToCache() {
 
     // Determine department (default to 'bar' for backward compatibility)
     const department = window.currentDepartment || "bar";
-    const departmentName = department === "kitchen" ? "Кухня" : "Бар";
+    const departmentName = department === "kitchen" ? "Кухня" : department === "custom" ? "Горничная" : "Бар";
 
-    // Create shopping list data
-    const orderData = {
-      timestamp: new Date().toISOString(),
-      department: department,
-      departmentName: departmentName,
-      items: itemsToOrder.map((item) => ({
-        id: item.id,
-        name: item.name,
-        quantity: item.shoppingQuantity,
-        unit: item.unit,
-      })),
-      totalItems: itemsToOrder.length,
-      totalQuantity: itemsToOrder.reduce(
-        (sum, item) => sum + item.shoppingQuantity,
-        0,
-      ),
-      status: "draft",
-    };
-
-    // Save to department-specific cache (for cart compatibility)
+    // Save to localStorage (for offline compatibility)
     const cacheKey = `${department}ShoppingList`;
     localStorage.setItem(cacheKey, JSON.stringify(itemsToOrder));
+
+    // Save to server for multi-device sync
+    try {
+      const response = await fetch('/api/save-cart-items', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          department: department,
+          items: itemsToOrder
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        console.log(`🌐 Server sync: ${departmentName} cart saved (${itemsToOrder.length} items)`);
+      } else {
+        console.warn(`⚠️ Server sync failed for ${departmentName}:`, result.error);
+      }
+    } catch (serverError) {
+      console.warn(`⚠️ Server sync failed for ${departmentName}:`, serverError.message);
+    }
 
     // Only log if there are items
     if (itemsToOrder.length > 0) {
@@ -486,6 +492,80 @@ function autoSaveToCache() {
   } catch (error) {
     console.error("❌ Auto-save failed:", error);
   }
+}
+
+// Load cart items from server and merge with local data
+async function loadCartFromServer() {
+  try {
+    const department = window.currentDepartment || "bar";
+    
+    // Load from server
+    const response = await fetch(`/api/get-cart-items?department=${department}`);
+    const result = await response.json();
+    
+    if (result.success && result.data.items) {
+      const serverItems = result.data.items;
+      
+      // Merge server data with local shopping list
+      if (shoppingListData && serverItems.length > 0) {
+        serverItems.forEach(serverItem => {
+          const localItem = shoppingListData.find(item => item.id === serverItem.id);
+          if (localItem) {
+            localItem.shoppingQuantity = serverItem.shoppingQuantity || 0;
+          }
+        });
+        
+        // Update UI to reflect loaded quantities
+        updateAllQuantityInputs();
+        updateFloatingButtonLabel();
+        
+        console.log(`🌐 Loaded ${serverItems.length} items from server for ${department}`);
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to load cart from server:', error.message);
+    // Fallback to localStorage
+    loadCartFromLocalStorage();
+  }
+}
+
+// Fallback: Load cart items from localStorage
+function loadCartFromLocalStorage() {
+  try {
+    const department = window.currentDepartment || "bar";
+    const cacheKey = `${department}ShoppingList`;
+    const cachedData = localStorage.getItem(cacheKey);
+    
+    if (cachedData && shoppingListData) {
+      const cachedItems = JSON.parse(cachedData);
+      
+      cachedItems.forEach(cachedItem => {
+        const localItem = shoppingListData.find(item => item.id === cachedItem.id);
+        if (localItem) {
+          localItem.shoppingQuantity = cachedItem.shoppingQuantity || 0;
+        }
+      });
+      
+      updateAllQuantityInputs();
+      updateFloatingButtonLabel();
+      
+      console.log(`💾 Loaded ${cachedItems.length} items from localStorage for ${department}`);
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to load cart from localStorage:', error.message);
+  }
+}
+
+// Update all quantity inputs in the UI
+function updateAllQuantityInputs() {
+  if (!shoppingListData) return;
+  
+  shoppingListData.forEach(item => {
+    const input = document.getElementById(`quantity-${item.id}`);
+    if (input && item.shoppingQuantity > 0) {
+      input.value = item.shoppingQuantity;
+    }
+  });
 }
 
 // Update floating button label with unified order count from all departments
@@ -1072,12 +1152,15 @@ async function createPosterPurchaseOrder(shoppingList) {
 
 // Notification system removed
 
-// Export functions for potential use in other modules
-window.BarInventory = {
+// Export functions for global access
+window.checklist = {
   initializeOrderMode,
   updateShoppingQuantity,
   setShoppingQuantity,
   autoSaveToCache,
+  loadCartFromServer,
+  loadCartFromLocalStorage,
+  updateAllQuantityInputs,
   saveFinalOrderToCache,
   clearAllQuantities,
   updateFloatingButtonLabel,
