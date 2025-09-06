@@ -462,6 +462,8 @@ async function autoSaveToCache() {
 
     // Save to server for multi-device sync
     try {
+      console.log(`🔄 Saving ${itemsToOrder.length} items to server for ${department}:`, itemsToOrder);
+      
       const response = await fetch('/api/save-cart-items', {
         method: 'POST',
         headers: {
@@ -474,6 +476,8 @@ async function autoSaveToCache() {
       });
 
       const result = await response.json();
+      console.log(`📤 Server save response for ${department}:`, result);
+      
       if (result.success) {
         console.log(`🌐 Server sync: ${departmentName} cart saved (${itemsToOrder.length} items)`);
       } else {
@@ -498,20 +502,27 @@ async function autoSaveToCache() {
 async function loadCartFromServer() {
   try {
     const department = window.currentDepartment || "bar";
+    console.log(`🔄 Loading cart from server for ${department}...`);
     
     // Load from server
     const response = await fetch(`/api/get-cart-items?department=${department}`);
     const result = await response.json();
     
-    if (result.success && result.data.items) {
+    console.log(`📦 Server response for ${department}:`, result);
+    
+    if (result.success && result.data && result.data.items) {
       const serverItems = result.data.items;
+      console.log(`📋 Found ${serverItems.length} items on server for ${department}:`, serverItems);
       
       // Merge server data with local shopping list
       if (shoppingListData && serverItems.length > 0) {
         serverItems.forEach(serverItem => {
           const localItem = shoppingListData.find(item => item.id === serverItem.id);
           if (localItem) {
+            console.log(`🔄 Updating ${localItem.name}: ${localItem.shoppingQuantity} → ${serverItem.shoppingQuantity}`);
             localItem.shoppingQuantity = serverItem.shoppingQuantity || 0;
+          } else {
+            console.log(`⚠️ Server item not found in local data:`, serverItem);
           }
         });
         
@@ -520,7 +531,11 @@ async function loadCartFromServer() {
         updateFloatingButtonLabel();
         
         console.log(`🌐 Loaded ${serverItems.length} items from server for ${department}`);
+      } else {
+        console.log(`ℹ️ No shopping list data available yet for ${department}`);
       }
+    } else {
+      console.log(`ℹ️ No cart data found on server for ${department}`);
     }
   } catch (error) {
     console.warn('⚠️ Failed to load cart from server:', error.message);

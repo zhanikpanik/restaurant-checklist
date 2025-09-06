@@ -528,10 +528,12 @@ import Layout from '../layouts/Layout.astro';
 				window.initializeOrderMode();
 			}
 			
-			// Load cart from server for multi-device sync
-			if (window.checklist && window.checklist.loadCartFromServer) {
-				await window.checklist.loadCartFromServer();
-			}
+			// Wait a bit for shopping list data to be initialized, then load cart from server
+			setTimeout(async () => {
+				if (window.checklist && window.checklist.loadCartFromServer) {
+					await window.checklist.loadCartFromServer();
+				}
+			}, 500);
 			
 			// Update floating button label
 			if (window.updateFloatingButtonLabel) {
