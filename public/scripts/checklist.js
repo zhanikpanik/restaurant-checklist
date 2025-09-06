@@ -444,7 +444,7 @@ function setShoppingQuantity(productId, quantity) {
   }
 }
 
-// Auto-save current order to cache and server
+// Auto-save current order to cache only (no server sync)
 async function autoSaveToCache() {
   try {
     // Get products that have quantities > 0
@@ -456,14 +456,36 @@ async function autoSaveToCache() {
     const department = window.currentDepartment || "bar";
     const departmentName = department === "kitchen" ? "Кухня" : department === "custom" ? "Горничная" : "Бар";
 
-    // Save to localStorage (for offline compatibility)
+    // Save to localStorage only (for offline compatibility)
     const cacheKey = `${department}ShoppingList`;
     localStorage.setItem(cacheKey, JSON.stringify(itemsToOrder));
+
+    // Only log if there are items
+    if (itemsToOrder.length > 0) {
+      console.log(
+        `💾 Auto-saved ${departmentName} order: ${itemsToOrder.length} товаров (localStorage only)`,
+      );
+    }
+  } catch (error) {
+    console.error("❌ Auto-save failed:", error);
+  }
+}
+
+// Save current cart to server for multi-device sync
+async function saveCartToServer() {
+  try {
+    // Get products that have quantities > 0
+    const itemsToOrder = shoppingListData.filter(
+      (item) => item.shoppingQuantity > 0,
+    );
+
+    // Determine department (default to 'bar' for backward compatibility)
+    const department = window.currentDepartment || "bar";
+    const departmentName = department === "kitchen" ? "Кухня" : department === "custom" ? "Горничная" : "Бар";
 
     // Save to server for multi-device sync
     try {
       console.log(`🔄 Saving ${itemsToOrder.length} items to server for ${department}:`, itemsToOrder);
-      console.log(`🌐 Current URL: ${window.location.href}`);
       
       const response = await fetch('/api/save-cart-items', {
         method: 'POST',
@@ -482,21 +504,18 @@ async function autoSaveToCache() {
       
       if (result.success) {
         console.log(`🌐 Server sync: ${departmentName} cart saved (${itemsToOrder.length} items)`);
+        return true;
       } else {
         console.warn(`⚠️ Server sync failed for ${departmentName}:`, result.error);
+        return false;
       }
     } catch (serverError) {
       console.warn(`⚠️ Server sync failed for ${departmentName}:`, serverError.message);
-    }
-
-    // Only log if there are items
-    if (itemsToOrder.length > 0) {
-      console.log(
-        `💾 Auto-saved ${departmentName} order: ${itemsToOrder.length} товаров`,
-      );
+      return false;
     }
   } catch (error) {
-    console.error("❌ Auto-save failed:", error);
+    console.error("❌ Save to server failed:", error);
+    return false;
   }
 }
 
@@ -1181,6 +1200,7 @@ window.checklist = {
   updateShoppingQuantity,
   setShoppingQuantity,
   autoSaveToCache,
+  saveCartToServer,
   loadCartFromServer,
   loadCartFromLocalStorage,
   updateAllQuantityInputs,

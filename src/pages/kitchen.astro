@@ -115,6 +115,7 @@ import Layout from '../layouts/Layout.astro';
 				<button 
 					id="sendWhatsAppBtn" 
 					class="fixed bottom-6 right-6 bg-gray-400 hover:bg-gray-500 text-white font-medium py-4 px-6 rounded-lg shadow-lg z-50 transition-all duration-200 flex items-center space-x-2 min-w-[180px] justify-center"
+					onclick="goToCart()"
 				>
 					<span class="text-center">В корзину</span>
 				</button>
@@ -189,6 +190,32 @@ import Layout from '../layouts/Layout.astro';
 		
 		// Load on page ready
 		document.addEventListener('DOMContentLoaded', loadKitchenProducts);
+
+		// Go to cart function - saves to server then navigates
+		async function goToCart() {
+			const btn = document.getElementById('sendWhatsAppBtn');
+			const originalText = btn.innerHTML;
+			btn.innerHTML = '<span>⏳ Синхронизация...</span>';
+			btn.disabled = true;
+
+			try {
+				// Save current cart to server for multi-device sync
+				if (window.checklist && window.checklist.saveCartToServer) {
+					await window.checklist.saveCartToServer();
+				}
+				
+				// Navigate to cart
+				window.location.href = '/cart';
+				
+			} catch (error) {
+				console.error('❌ Failed to sync cart:', error);
+				btn.innerHTML = '<span>❌ Ошибка</span>';
+				setTimeout(() => {
+					btn.innerHTML = originalText;
+					btn.disabled = false;
+				}, 2000);
+			}
+		}
 		
 		// Setup inline custom item form
 		document.addEventListener('DOMContentLoaded', function() {
