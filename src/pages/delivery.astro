@@ -150,14 +150,60 @@ import Layout from "../layouts/Layout.astro";
             console.log(`🔍 Rendering orders: ${orders.length} total orders found`);
             console.log('Orders data:', orders);
             
+            // Group orders by timestamp to create unified orders
+            const groupedOrders = new Map();
+            orders.forEach(order => {
+                if (!order.items || !Array.isArray(order.items)) return;
+                
+                const key = order.timestamp;
+                if (!groupedOrders.has(key)) {
+                    groupedOrders.set(key, {
+                        timestamp: order.timestamp,
+                        departments: [],
+                        allItems: [],
+                        status: 'pending',
+                        deliveredAt: null,
+                        totalItems: 0,
+                        totalQuantity: 0
+                    });
+                }
+                
+                const group = groupedOrders.get(key);
+                group.departments.push({
+                    name: order.departmentName || order.department,
+                    department: order.department,
+                    items: order.items
+                });
+                group.allItems.push(...order.items.map(item => ({
+                    ...item,
+                    department: order.department,
+                    departmentName: order.departmentName || order.department
+                })));
+                
+                // Update status - if any department is delivered, mark as delivered
+                if (order.status === 'delivered') {
+                    group.status = 'delivered';
+                    if (order.deliveredAt) {
+                        group.deliveredAt = order.deliveredAt;
+                    }
+                }
+                
+                group.totalItems += order.items.length;
+                group.totalQuantity += order.actualTotalQuantity || order.totalQuantity || 0;
+            });
+            
+            const unifiedOrders = Array.from(groupedOrders.values()).sort(
+                (a, b) => new Date(b.timestamp) - new Date(a.timestamp)
+            );
+            
             const filtered =
                 currentFilter === "all"
-                    ? orders
+                    ? unifiedOrders
                     : currentFilter === "pending"
-                      ? orders.filter((o) => o.status !== "delivered")
-                      : orders.filter((o) => o.status === "delivered");
+                      ? unifiedOrders.filter((o) => o.status !== "delivered")
+                      : unifiedOrders.filter((o) => o.status === "delivered");
 
-            console.log(`📋 Filtered orders: ${filtered.length} orders after filter "${currentFilter}"`);
+            console.log(`📋 Filtered unified orders: ${filtered.length} orders after filter "${currentFilter}"`);
             
             const emptyState = document.getElementById("emptyState");
             const ordersList = document.getElementById("ordersList");
@@ -172,109 +218,116 @@ import Layout from "../layouts/Layout.astro";
             }
 
             ordersList.innerHTML = filtered
-                .filter(order => order.items && Array.isArray(order.items))
-                .map((order) => {
-                    // Get temporary quantities and prices
+                .map((unifiedOrder) => {
+                    // Get temporary quantities and prices for all items
                     const tempQuantities = JSON.parse(
-                        localStorage.getItem(`temp_${order.timestamp}`) || "{}",
+                        localStorage.getItem(`temp_${unifiedOrder.timestamp}`) || "{}",
                     );
                     const tempPrices = JSON.parse(
-                        localStorage.getItem(`temp_prices_${order.timestamp}`) || "{}",
+                        localStorage.getItem(`temp_prices_${unifiedOrder.timestamp}`) || "{}",
                     );
 
                     return `
-                        <div class="bg-white border rounded-lg p-4 mb-4 ${order.status === "delivered" ? "bg-green-50" : ""}">
+                        <div class="bg-white border rounded-lg p-4 mb-4 ${unifiedOrder.status === "delivered" ? "bg-green-50" : ""}">
                             <div class="flex justify-between items-start mb-3">
                                 <div>
-                                    <h3 class="font-medium">${order.departmentName || order.department}</h3>
-                                    <p class="text-sm text-gray-500">${new Date(order.timestamp).toLocaleString()}</p>
+                                    <p class="text-sm text-gray-500">${new Date(unifiedOrder.timestamp).toLocaleString()}</p>
                                 </div>
                                 <div class="text-right">
-                                    <div class="text-sm font-medium">${order.totalItems || order.items?.length || 0} товаров</div>
-                                    <div class="text-xs text-gray-500">${order.actualTotalQuantity || order.totalQuantity || 0} шт.</div>
+                                    <div class="text-sm font-medium">${unifiedOrder.totalItems} товаров</div>
+                                    <div class="text-xs text-gray-500">${unifiedOrder.totalQuantity} шт.</div>
                                 </div>
                             </div>
 
-                            <div class="space-y-2 my-3">
-                                ${order.items
-                                                                         .map(
-                                         (item, i) => `
-                                     <div class="">
-                                         <div class="flex justify-between items-start mb-2">
-                                             <span class="font-medium text-gray-900">${item.name}</span>
-                                             
-                                         </div>
-                                        ${
-                                                                                         order.status !== "delivered"
-                                                 ? `
-                                             <div class="flex items-center space-x-2">
-                                                 
-                                                 <input
-                                                     type="text"
-                                                     inputmode="numeric"
-                                                     pattern="[0-9]*"
-                                                     class="quantity-input w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
-                                                     data-order="${order.timestamp}"
-                                                     data-index="${i}"
-                                                     data-type="quantity"
-                                                     data-unit="${item.unit}"
-                                                     placeholder="0 ${item.unit}"
-                                                     data-imask-suffix=" ${item.unit}"
-                                                     data-initial-value="${tempQuantities[i] !== undefined ? tempQuantities[i] : item.quantity}"
-                                                 >
-                                                 <span class="text-sm text-gray-500 font-medium min-w-max">${item.unit}</span>
-                                                 <label class="text-sm text-gray-600 min-w-max ml-4">за</label>
-                                                 <input
-                                                     type="text"
-                                                     inputmode="numeric"
-                                                     pattern="[0-9]*"
-                                                     class="price-input w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
-                                                     data-order="${order.timestamp}"
-                                                     data-index="${i}"
-                                                     data-type="price"
-                                                     placeholder="0 ₸"
-                                                     data-imask-suffix=" ₸"
-                                                     data-initial-value="${tempPrices[i] !== undefined ? tempPrices[i] : (item.price || 0)}"
-                                                 >
-                                                 <span class="text-sm text-gray-500 font-medium min-w-max"></span>
-                                             </div>
-                                            ${
-                                                                                                (tempQuantities[i] !== undefined && tempQuantities[i] !== item.quantity) ||
-                                                                                                (tempPrices[i] !== undefined && tempPrices[i] !== (item.price || 0))
-                                                     ? `
-                                                 <div class="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700 font-medium">
-                                                     💡 Изменено: ${tempQuantities[i] !== undefined ? tempQuantities[i] : item.quantity} ${item.unit}${tempPrices[i] !== undefined ? `, ${tempPrices[i]} ₸` : `, ${item.price || 0} ₸`}
-                                                 </div>
-                                             `
-                                                     : ""
-                                            }
-                                        `
-                                                : `
-                                            <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700 font-medium">
-                                                ✅ Куплено: ${item.actualQuantity || item.quantity} ${item.unit} за ${item.actualPrice || item.price || 0} ₸
+                            <div class="space-y-4 my-3">
+                                ${unifiedOrder.departments.map(dept => `
+                                    <div class="space-y-2">
+                                        <h4 class="font-semibold text-gray-800 border-b border-gray-200 pb-1">${dept.name}</h4>
+                                        ${dept.items.map((item, i) => {
+                                            const globalIndex = unifiedOrder.allItems.findIndex(globalItem => 
+                                                globalItem.name === item.name && globalItem.department === dept.department
+                                            );
+                                            return `
+                                            <div class="ml-2">
+                                                <div class="flex justify-between items-start mb-2">
+                                                    <span class="font-medium text-gray-900">${item.name}</span>
+                                                </div>
+                                                ${unifiedOrder.status !== "delivered"
+                                                    ? `
+                                                    <div class="flex items-center space-x-2">
+                                                        <input
+                                                            type="text"
+                                                            inputmode="numeric"
+                                                            pattern="[0-9]*"
+                                                            class="quantity-input w-20 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
+                                                            data-order="${unifiedOrder.timestamp}"
+                                                            data-index="${globalIndex}"
+                                                            data-type="quantity"
+                                                            data-unit="${item.unit}"
+                                                            placeholder="0 ${item.unit}"
+                                                            data-imask-suffix=" ${item.unit}"
+                                                            data-initial-value="${tempQuantities[globalIndex] !== undefined ? tempQuantities[globalIndex] : item.quantity}"
+                                                        >
+                                                        <span class="text-sm text-gray-500 font-medium min-w-max">${item.unit}</span>
+                                                        <label class="text-sm text-gray-600 min-w-max ml-4">за</label>
+                                                        <input
+                                                            type="text"
+                                                            inputmode="numeric"
+                                                            pattern="[0-9]*"
+                                                            class="price-input w-24 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-center"
+                                                            data-order="${unifiedOrder.timestamp}"
+                                                            data-index="${globalIndex}"
+                                                            data-type="price"
+                                                            placeholder="0 ₸"
+                                                            data-imask-suffix=" ₸"
+                                                            data-initial-value="${tempPrices[globalIndex] !== undefined ? tempPrices[globalIndex] : (item.price || 0)}"
+                                                        >
+                                                        <span class="text-sm text-gray-500 font-medium min-w-max"></span>
+                                                    </div>
+                                                    ${(tempQuantities[globalIndex] !== undefined && tempQuantities[globalIndex] !== item.quantity) ||
+                                                      (tempPrices[globalIndex] !== undefined && tempPrices[globalIndex] !== (item.price || 0))
+                                                        ? `
+                                                        <div class="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700 font-medium">
+                                                            💡 Изменено: ${tempQuantities[globalIndex] !== undefined ? tempQuantities[globalIndex] : item.quantity} ${item.unit}${tempPrices[globalIndex] !== undefined ? `, ${tempPrices[globalIndex]} ₸` : `, ${item.price || 0} ₸`}
+                                                        </div>
+                                                        `
+                                                        : ""
+                                                    }
+                                                    `
+                                                    : `
+                                                    <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700 font-medium">
+                                                        ✅ Куплено: ${item.actualQuantity || item.quantity} ${item.unit} за ${item.actualPrice || item.price || 0} ₸
+                                                    </div>
+                                                    `
+                                                }
                                             </div>
-                                        `
-                                        }
+                                            `;
+                                        }).join("")}
                                     </div>
-                                `,
-                                    )
-                                    .join("")}
+                                `).join("")}
                             </div>
 
-                            ${order.status !== "delivered" 
+                            ${unifiedOrder.status !== "delivered" 
                                 ? `
                                 <div class="mt-4 flex flex-col gap-2">
                                     <button
-                                        onclick="markDelivered('${order.timestamp}', '${order.department}')"
-                                        class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
+                                        onclick="addMissingProducts('${unifiedOrder.timestamp}')"
+                                        class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center space-x-2"
                                     >
-                                        Отметить как доставлено
+                                        <span>➕</span>
+                                        <span>Добавить недостающие товары</span>
                                     </button>
                                     <button
-                                        onclick="deleteOrder('${order.timestamp}', '${order.department}')"
+                                        onclick="markUnifiedDelivered('${unifiedOrder.timestamp}')"
+                                        class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
+                                    >
+                                        Отметить весь заказ как доставлено
+                                    </button>
+                                    <button
+                                        onclick="deleteUnifiedOrder('${unifiedOrder.timestamp}')"
                                         class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
                                     >
-                                        🗑 Удалить заказ
+                                        🗑 Удалить весь заказ
                                     </button>
                                 </div>
                                 `
@@ -282,17 +335,17 @@ import Layout from "../layouts/Layout.astro";
                                 <div class="space-y-2">
                                     <div class="text-center text-green-600 font-medium">✅ Доставлено</div>
                                     <button
-                                        onclick="downloadOrderXLS('${order.timestamp}', '${order.department}')"
+                                        onclick="downloadUnifiedOrderXLS('${unifiedOrder.timestamp}')"
                                         class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
                                     >
                                         <span>📄</span>
-                                        <span>Скачать Excel</span>
+                                        <span>Скачать полный Excel заказ</span>
                                     </button>
                                     <button
-                                        onclick="deleteOrder('${order.timestamp}', '${order.department}')"
+                                        onclick="deleteUnifiedOrder('${unifiedOrder.timestamp}')"
                                         class="w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 mt-2"
                                     >
-                                        🗑 Удалить заказ
+                                        🗑 Удалить весь заказ
                                     </button>
                                 </div>
                                 `
@@ -458,6 +511,182 @@ import Layout from "../layouts/Layout.astro";
                 // For regular inputs, set the raw value
                 const suffix = input.dataset.imaskSuffix || '';
                 input.value = newValue + (newValue ? suffix : '');
+            }
+        }
+
+        // New function to mark unified order as delivered
+        async function markUnifiedDelivered(timestamp) {
+            const departments = ['bar', 'kitchen', 'custom'];
+            let updatedOrders = [];
+            
+            for (const department of departments) {
+                const storageKey = `${department}OrderHistory`;
+                let orders = JSON.parse(localStorage.getItem(storageKey) || "[]");
+                let orderIndex = orders.findIndex((o) => o.timestamp === timestamp);
+
+                // Fallback: if order not found locally, fetch from server
+                if (orderIndex === -1) {
+                    try {
+                        const resp = await fetch(`/api/get-all-orders?department=${encodeURIComponent(department)}`, { cache: 'no-store' });
+                        if (resp.ok) {
+                            const result = await resp.json();
+                            const serverOrder = (result.data || []).find((o) => o.timestamp === timestamp);
+                            if (serverOrder) {
+                                orders.unshift(serverOrder);
+                                orderIndex = 0;
+                                localStorage.setItem(storageKey, JSON.stringify(orders));
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('⚠️ Could not fetch order from server for delivery update:', e);
+                    }
+                }
+
+                if (orderIndex !== -1) {
+                    // Get saved quantities and prices
+                    const tempKey = `temp_${timestamp}`;
+                    const tempPricesKey = `temp_prices_${timestamp}`;
+                    const tempQuantities = JSON.parse(localStorage.getItem(tempKey) || "{}");
+                    const tempPrices = JSON.parse(localStorage.getItem(tempPricesKey) || "{}");
+
+                    // Update order with actual quantities and prices
+                    orders[orderIndex].items.forEach((item, i) => {
+                        const savedQuantity = tempQuantities[i];
+                        const savedPrice = tempPrices[i];
+                        if (savedQuantity !== undefined) {
+                            item.actualQuantity = savedQuantity;
+                        }
+                        if (savedPrice !== undefined) {
+                            item.actualPrice = savedPrice;
+                        }
+                    });
+
+                    // Update order status
+                    orders[orderIndex].status = "delivered";
+                    orders[orderIndex].deliveredAt = new Date().toISOString();
+
+                    // Calculate new total quantity
+                    orders[orderIndex].actualTotalQuantity = orders[orderIndex].items.reduce(
+                        (sum, item) => sum + (item.actualQuantity || item.quantity),
+                        0,
+                    );
+
+                    // Save changes to localStorage
+                    localStorage.setItem(storageKey, JSON.stringify(orders));
+                    updatedOrders.push(orders[orderIndex]);
+
+                    // Also save to server storage
+                    try {
+                        await fetch('/api/save-internal-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(orders[orderIndex])
+                        });
+                    } catch (error) {
+                        console.warn('⚠️ Error saving to server:', error);
+                    }
+                }
+            }
+
+            // Clear temporary data
+            localStorage.removeItem(`temp_${timestamp}`);
+            localStorage.removeItem(`temp_prices_${timestamp}`);
+
+            if (updatedOrders.length > 0) {
+                alert(`Весь заказ доставлен! Обновлено ${updatedOrders.length} отделов.\nТеперь вы можете скачать полный Excel файл.`);
+                loadOrders();
+            } else {
+                alert('Не удалось найти заказы для обновления. Обновите страницу и попробуйте снова.');
+            }
+        }
+
+        // New function to delete unified order
+        async function deleteUnifiedOrder(timestamp) {
+            if (!confirm('Удалить весь заказ из всех отделов? Это действие нельзя отменить.')) {
+                return;
+            }
+
+            const departments = ['bar', 'kitchen', 'custom'];
+            let deletedCount = 0;
+
+            for (const department of departments) {
+                try {
+                    const storageKey = `${department}OrderHistory`;
+                    let orders = JSON.parse(localStorage.getItem(storageKey) || "[]");
+                    const originalLength = orders.length;
+                    orders = orders.filter(o => o.timestamp !== timestamp);
+                    
+                    if (orders.length < originalLength) {
+                        localStorage.setItem(storageKey, JSON.stringify(orders));
+                        deletedCount++;
+                    }
+
+                    // Try to remove from server storage as well
+                    try {
+                        await fetch('/api/delete-order', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ timestamp: timestamp, department: department })
+                        });
+                    } catch (error) {
+                        console.warn('⚠️ Failed to delete from server:', error);
+                    }
+                } catch (error) {
+                    console.error(`Failed to delete order from ${department}:`, error);
+                }
+            }
+
+            // Also remove temporary data
+            localStorage.removeItem(`temp_${timestamp}`);
+            localStorage.removeItem(`temp_prices_${timestamp}`);
+
+            loadOrders();
+            alert(`Заказ удален из ${deletedCount} отделов!`);
+        }
+
+        // New function to download unified Excel
+        async function downloadUnifiedOrderXLS(timestamp) {
+            try {
+                console.log(`📄 Downloading unified XLS for order: ${timestamp}`);
+                
+                const response = await fetch('/api/download-unified-order-xls', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ orderTimestamp: timestamp })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to download file');
+                }
+                
+                // Get the filename from the response headers
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = `unified-order-${new Date().toISOString().split('T')[0]}.xlsx`;
+                
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                    if (filenameMatch) {
+                        filename = filenameMatch[1];
+                    }
+                }
+                
+                // Create blob and download
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                console.log('✅ Unified Excel file downloaded successfully');
+            } catch (error) {
+                console.error('❌ Error downloading unified Excel:', error);
+                alert('Ошибка при скачивании файла: ' + error.message);
             }
         }
 
@@ -688,8 +917,26 @@ import Layout from "../layouts/Layout.astro";
             }
         }
 
+        // Add missing products function
+        async function addMissingProducts(orderTimestamp) {
+            try {
+                console.log(`➕ Adding missing products to order: ${orderTimestamp}`);
+                
+                // Store the order timestamp in localStorage for the modification page
+                localStorage.setItem('modifyOrderTimestamp', orderTimestamp);
+                
+                // Navigate to order modification page
+                window.location.href = `/modify-order?timestamp=${encodeURIComponent(orderTimestamp)}`;
+                
+            } catch (error) {
+                console.error('❌ Failed to initiate order modification:', error);
+                alert(`Ошибка: ${error.message}`);
+            }
+        }
+
         // Initialize
         window.saveQuantity = saveQuantity;
+        window.addMissingProducts = addMissingProducts;
         window.savePrice = savePrice;
         window.markDelivered = markDelivered;
         window.downloadOrderXLS = downloadOrderXLS;

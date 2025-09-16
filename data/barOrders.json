@@ -1,0 +1,62 @@
+[
+  {
+    "timestamp": "2025-09-06T11:53:55.875Z",
+    "department": "bar",
+    "departmentName": "Бар",
+    "items": [
+      {
+        "id": 367,
+        "name": "Appassionate",
+        "quantity": 0.75,
+        "unit": "л",
+        "department": "bar",
+        "departmentName": "Бар"
+      },
+      {
+        "id": 370,
+        "name": "Coca Cola",
+        "quantity": 3,
+        "unit": "p",
+        "department": "bar",
+        "departmentName": "Бар"
+      },
+      {
+        "id": 371,
+        "name": "Corona Extra",
+        "quantity": 20,
+        "unit": "p",
+        "department": "bar",
+        "departmentName": "Бар"
+      }
+    ],
+    "totalItems": 3,
+    "totalQuantity": 23.75,
+    "status": "delivered",
+    "isPartOfUnified": true,
+    "source": "internal",
+    "supplier": "Internal Order",
+    "deliveredAt": "2025-09-06T11:54:50.590Z",
+    "actualTotalQuantity": 23.75
+  },
+  {
+    "timestamp": "2025-09-06T11:53:24.986Z",
+    "department": "bar",
+    "departmentName": "Бар",
+    "items": [
+      {
+        "id": 367,
+        "name": "Appassionate",
+        "quantity": 0.75,
+        "unit": "л",
+        "department": "bar",
+        "departmentName": "Бар"
+      }
+    ],
+    "totalItems": 1,
+    "totalQuantity": 0.75,
+    "status": "sent",
+    "isPartOfUnified": true,
+    "source": "internal",
+    "supplier": "Internal Order"
+  }
+]

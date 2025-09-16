@@ -529,37 +529,46 @@ async function saveCartToServer() {
 async function loadCartFromServer() {
   try {
     const department = window.currentDepartment || "bar";
-    console.log(`🔄 Loading cart from server for ${department}...`);
-    console.log(`🌐 Current URL: ${window.location.href}`);
-    console.log(`📱 User Agent: ${navigator.userAgent}`);
+    console.log(`🔄 Loading cart from database for all departments...`);
     
-    // Load from server
-    const apiUrl = `/api/get-cart-items?department=${department}`;
+    // Load all items from the server (no department filter needed)
+    const apiUrl = `/api/get-cart-items`;
     console.log(`📡 Fetching from: ${apiUrl}`);
     
     const response = await fetch(apiUrl);
     console.log(`📡 Response status: ${response.status} ${response.statusText}`);
     
     const result = await response.json();
-    console.log(`📦 Server response for ${department}:`, result);
 
-    if (result.success && result.data && result.data.items) {
-      const serverItems = result.data.items;
-      console.log(`📋 Found ${serverItems.length} items on server for ${department}:`, serverItems);
+    // The new API returns a flat array in result.data
+    if (result.success && Array.isArray(result.data)) {
+      const allServerItems = result.data;
+      console.log(`📋 Found ${allServerItems.length} total items in the database.`);
+
+      // Reset all local quantities to 0 before applying server state
+      if (shoppingListData) {
+        shoppingListData.forEach(item => {
+          item.shoppingQuantity = 0;
+        });
+      }
       
       // Merge server data with local shopping list
-      if (shoppingListData && serverItems.length > 0) {
-        serverItems.forEach(serverItem => {
-          const localItem = shoppingListData.find(item => item.id === serverItem.id);
+      if (shoppingListData && allServerItems.length > 0) {
+        allServerItems.forEach(serverItem => {
+          // Find the corresponding local item. Note: DB stores 'product_id'
+          const localItem = shoppingListData.find(item => item.id == serverItem.product_id);
           if (localItem) {
-            console.log(`🔄 Updating ${localItem.name}: ${localItem.shoppingQuantity} → ${serverItem.shoppingQuantity}`);
-            localItem.shoppingQuantity = serverItem.shoppingQuantity || 0;
+            // Update the quantity for the local item
+            localItem.shoppingQuantity = serverItem.quantity || 0;
           } else {
-            console.log(`⚠️ Server item not found in local data:`, serverItem);
+            // This can happen if a custom item was added on another device
+            // We will handle this case later if needed.
+            console.log(`⚠️ Server item with product_id ${serverItem.product_id} not found in local data.`);
           }
         });
         
-        // IMPORTANT: Save updated data to localStorage so cart page can see it
+        // IMPORTANT: Save the updated state for the current department to localStorage
+        // This ensures the cart page, which reads from localStorage, is up to date.
         const cacheKey = `${department}ShoppingList`;
         const itemsToSave = shoppingListData.filter(item => item.shoppingQuantity > 0);
         localStorage.setItem(cacheKey, JSON.stringify(itemsToSave));
@@ -569,16 +578,14 @@ async function loadCartFromServer() {
         updateAllQuantityInputs();
         updateFloatingButtonLabel();
         
-        console.log(`🌐 Loaded ${serverItems.length} items from server for ${department}`);
-      } else {
-        console.log(`ℹ️ No shopping list data available yet for ${department}`);
+        console.log(`🌐 Synced state from database. Current page (${department}) has ${itemsToSave.length} items.`);
       }
     } else {
-      console.log(`ℹ️ No cart data found on server for ${department}`);
+      console.log(`ℹ️ No cart data found in the database or API error.`);
     }
   } catch (error) {
     console.warn('⚠️ Failed to load cart from server:', error.message);
-    // Fallback to localStorage
+    // Fallback to localStorage on network error
     loadCartFromLocalStorage();
   }
 }
@@ -612,12 +619,52 @@ function loadCartFromLocalStorage() {
 
 // Update all quantity inputs in the UI
 function updateAllQuantityInputs() {
-  if (!shoppingListData) return;
+  if (!shoppingListData) {
+    console.log('⚠️ updateAllQuantityInputs: shoppingListData not available');
+    return;
+  }
+  
+  console.log(`🔄 Updating ${shoppingListData.length} quantity inputs...`);
   
   shoppingListData.forEach(item => {
-    const input = document.getElementById(`quantity-${item.id}`);
-    if (input && item.shoppingQuantity > 0) {
-      input.value = item.shoppingQuantity;
+    // Try multiple selectors to find the input
+    let input = document.getElementById(`quantity-${item.id}`);
+    
+    if (!input) {
+      // Try finding by data attribute or class
+      input = document.querySelector(`input[data-product-id="${item.id}"]`);
+    }
+    
+    if (!input) {
+      // Try finding by name attribute
+      input = document.querySelector(`input[name="quantity-${item.id}"]`);
+    }
+    
+    if (!input) {
+      // Try finding by class and matching product ID in parent
+      const productCard = document.querySelector(`[data-product-id="${item.id}"]`);
+      if (productCard) {
+        input = productCard.querySelector('.quantity-input');
+      }
+    }
+    
+    if (input) {
+      if (item.shoppingQuantity > 0) {
+        input.value = item.shoppingQuantity;
+        console.log(`✅ Set ${item.name} quantity to ${item.shoppingQuantity}`);
+      } else {
+        input.value = '';
+        console.log(`🧹 Cleared ${item.name} quantity input`);
+      }
+    } else {
+      console.log(`⚠️ Input not found for item: ${item.name} (ID: ${item.id})`);
+      // Debug: show what inputs are actually available
+      const allInputs = document.querySelectorAll('.quantity-input');
+      console.log(`🔍 Available quantity inputs: ${allInputs.length}`);
+      if (allInputs.length > 0) {
+        console.log('🔍 First input ID:', allInputs[0].id);
+        console.log('🔍 First input data attributes:', allInputs[0].dataset);
+      }
     }
   });
 }

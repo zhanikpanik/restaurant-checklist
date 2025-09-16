@@ -2,12 +2,65 @@
   "bar": {
     "items": [
       {
-        "id": 1,
-        "name": "Test Item",
-        "shoppingQuantity": 5,
-        "unit": "??"
+        "id": 367,
+        "name": "Appassionate",
+        "quantity": 0.75,
+        "unit": "л",
+        "minQuantity": 1,
+        "checked": false,
+        "shoppingQuantity": 2
+      },
+      {
+        "id": 370,
+        "name": "Coca Cola",
+        "quantity": 3,
+        "unit": "p",
+        "minQuantity": 1,
+        "checked": false,
+        "shoppingQuantity": 1.5
+      },
+      {
+        "id": 371,
+        "name": "Corona Extra",
+        "quantity": 20,
+        "unit": "p",
+        "minQuantity": 1,
+        "checked": false,
+        "shoppingQuantity": 1.5
       }
     ],
-    "lastUpdated": "2025-09-06T05:51:56.052Z"
+    "lastUpdated": "2025-09-06T12:41:30.337Z"
+  },
+  "kitchen": {
+    "items": [
+      {
+        "id": "439",
+        "name": "Aroy кисло сладкий соус",
+        "quantity": 6.53,
+        "unit": "л",
+        "minQuantity": 1,
+        "checked": false,
+        "shoppingQuantity": 1.5
+      },
+      {
+        "id": "280",
+        "name": "Pialati помидор",
+        "quantity": 0.48551,
+        "unit": "кг",
+        "minQuantity": 1,
+        "checked": false,
+        "shoppingQuantity": 1.5
+      },
+      {
+        "id": "419",
+        "name": "Айсберг",
+        "quantity": 0.72,
+        "unit": "кг",
+        "minQuantity": 1,
+        "checked": false,
+        "shoppingQuantity": 1.5
+      }
+    ],
+    "lastUpdated": "2025-09-06T11:53:42.506Z"
   }
 }

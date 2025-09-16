@@ -31,15 +31,20 @@ import Layout from '../layouts/Layout.astro';
 				<div class="text-6xl mb-4">🛒</div>
 				<h2 class="text-xl font-semibold text-gray-800 mb-2">Корзина пуста</h2>
 				<p class="text-gray-600 mb-6">Добавьте товары из любого отдела</p>
-				<div class="space-y-3">
-					<a href="/bar" class="block w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200">
-						🍷 Перейти в Бар
+				<div class="flex flex-wrap gap-2 justify-center mb-4">
+					<a href="/bar" class="inline-flex items-center px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors duration-200">
+						🍷 Бар
 					</a>
-					<a href="/kitchen" class="block w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200">
-						🍳 Перейти в Кухню
+					<a href="/kitchen" class="inline-flex items-center px-3 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-lg transition-colors duration-200">
+						🍳 Кухня
 					</a>
-					<a href="/custom" class="block w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200">
-						🧹 Перейти в Горничную
+					<a href="/custom" class="inline-flex items-center px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200">
+						🧹 Горничная
+					</a>
+				</div>
+				<div class="text-center">
+					<a href="/" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200">
+						🏠 Главное меню
 					</a>
 				</div>
 			</div>
@@ -225,14 +230,25 @@ import Layout from '../layouts/Layout.astro';
 			const itemIndex = items.findIndex(item => item.id == itemId);
 			if (itemIndex !== -1) {
 				if (newQuantity === 0) {
+					// Remove item completely from array
 					items.splice(itemIndex, 1);
+					console.log(`🗑️ Removed item ${itemId} from ${department}`);
 				} else {
 					items[itemIndex].shoppingQuantity = newQuantity;
+					console.log(`🔄 Updated item ${itemId} quantity to ${newQuantity}`);
 				}
-				localStorage.setItem(storageKey, JSON.stringify(items));
+				
+				// Save updated array back to localStorage
+				if (items.length > 0) {
+					localStorage.setItem(storageKey, JSON.stringify(items));
+				} else {
+					// If no items left, remove the key entirely
+					localStorage.removeItem(storageKey);
+					console.log(`🧹 Cleared empty ${department} cart from localStorage`);
+				}
 			}
 
-			// Reload cart
+			// Reload cart to reflect changes
 			loadCartData();
 		}
 
@@ -264,7 +280,16 @@ import Layout from '../layouts/Layout.astro';
 				localStorage.removeItem('barShoppingList');
 				localStorage.removeItem('kitchenShoppingList');
 				localStorage.removeItem('customShoppingList');
-				loadCartData();
+				console.log('🧹 Cleared all localStorage cart data');
+				
+				// Hide cart content and show empty state
+				const cartContent = document.getElementById('cartContent');
+				const emptyCartState = document.getElementById('emptyCartState');
+				
+				if (cartContent) cartContent.classList.add('hidden');
+				if (emptyCartState) emptyCartState.classList.remove('hidden');
+				
+				console.log('🔄 Updated UI to show empty cart state');
 			}
 		}
 

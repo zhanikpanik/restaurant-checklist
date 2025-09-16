@@ -1,0 +1,379 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Подтверждение изменения заказа">
+	<div class="min-h-screen bg-white">
+		<!-- Header -->
+		<header class="bg-orange-600 text-white px-4 py-6">
+			<div class="max-w-md mx-auto">
+				<div class="flex items-center justify-between mb-4">
+					<button id="backBtn" class="text-orange-200 hover:text-white">← Назад</button>
+					<h1 class="text-xl font-bold">Подтверждение изменения</h1>
+					<div class="w-16"></div> <!-- Spacer -->
+				</div>
+			</div>
+		</header>
+
+		<!-- Main Content -->
+		<main class="max-w-md mx-auto px-4 py-6">
+			<!-- Original Order Info -->
+			<div id="originalOrderInfo" class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+				<h2 class="text-lg font-semibold text-gray-900 mb-3">📋 Исходный заказ</h2>
+				<div id="originalOrderDetails" class="space-y-2">
+					<!-- Original order details will be populated by JavaScript -->
+				</div>
+			</div>
+
+			<!-- Added Items -->
+			<div id="addedItemsInfo" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+				<h2 class="text-lg font-semibold text-blue-900 mb-3">➕ Добавляемые товары</h2>
+				<div id="addedItemsDetails" class="space-y-2">
+					<!-- Added items will be populated by JavaScript -->
+				</div>
+			</div>
+
+			<!-- Modification Note -->
+			<div id="modificationNoteSection" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+				<h3 class="text-md font-medium text-yellow-900 mb-2">📝 Примечание</h3>
+				<p id="modificationNoteText" class="text-sm text-yellow-800"></p>
+			</div>
+
+			<!-- WhatsApp Message Preview -->
+			<div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
+				<h3 class="text-md font-medium text-gray-900 mb-3">Сообщение для WhatsApp</h3>
+				<div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm font-mono">
+					<pre id="whatsappMessage" class="whitespace-pre-wrap text-gray-800"></pre>
+				</div>
+			</div>
+
+			<!-- Info Notice -->
+			<div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+				<div class="flex items-start space-x-2">
+					<span class="text-blue-600 mt-0.5">ℹ️</span>
+					<div class="text-sm text-blue-800">
+						<p class="font-medium mb-1">После отправки дополнения:</p>
+						<p>• Дополнительные товары будут добавлены как новый заказ</p>
+						<p>• Исходный заказ останется без изменений</p>
+						<p>• Курьер увидит оба заказа в системе доставки</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Action Buttons -->
+			<div class="space-y-3">
+				<!-- Copy to Clipboard Button -->
+				<button 
+					id="copyBtn" 
+					class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+				>
+					<span>📋</span>
+					<span>Копировать</span>
+				</button>
+
+				<!-- Send to WhatsApp Button -->
+				<button 
+					id="sendWhatsAppBtn" 
+					class="w-full bg-green-500 hover:bg-green-700 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+				>
+					<span>📱</span>
+					<span>Отправить в WhatsApp</span>
+				</button>
+
+				<!-- Go to Delivery Page Button -->
+				<button 
+					id="deliveryPageBtn" 
+					class="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
+				>
+					<span>🚚</span>
+					<span>Перейти к доставке</span>
+				</button>
+
+				<!-- Cancel Button -->
+				<button 
+					id="cancelBtn" 
+					class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors duration-200"
+				>
+					Отменить
+				</button>
+			</div>
+
+			<!-- Success Message -->
+			<div id="successMessage" class="hidden mt-4 p-4 bg-green-100 border border-green-300 rounded-lg">
+				<div class="flex items-center">
+					<span class="text-green-600 mr-2">✅</span>
+					<span class="text-green-800 font-medium">Сообщение скопировано в буфер обмена!</span>
+				</div>
+			</div>
+		</main>
+	</div>
+
+	<script is:inline>
+		let modificationData = null;
+
+		// Initialize the page
+		document.addEventListener('DOMContentLoaded', function() {
+			loadModificationData();
+			setupEventListeners();
+		});
+
+		function loadModificationData() {
+			try {
+				// Get modification data from localStorage
+				const storedData = localStorage.getItem('pendingModification');
+				if (!storedData) {
+					throw new Error('Данные об изменении не найдены');
+				}
+
+				modificationData = JSON.parse(storedData);
+				console.log('📋 Loaded modification data:', modificationData);
+
+				displayModificationDetails();
+			} catch (error) {
+				console.error('❌ Failed to load modification data:', error);
+				alert(`Ошибка: ${error.message}`);
+				window.history.back();
+			}
+		}
+
+		function displayModificationDetails() {
+			if (!modificationData) return;
+
+			// Display original order info
+			displayOriginalOrder();
+			
+			// Display added items
+			displayAddedItems();
+			
+			// Display modification note
+			displayModificationNote();
+			
+			// Generate and display WhatsApp message
+			generateWhatsAppMessage();
+		}
+
+		function displayOriginalOrder() {
+			const container = document.getElementById('originalOrderDetails');
+			const originalOrder = modificationData.originalOrder;
+			
+			if (!originalOrder) {
+				container.innerHTML = '<p class="text-gray-600">Информация об исходном заказе недоступна</p>';
+				return;
+			}
+
+			const orderDate = new Date(originalOrder.timestamp).toLocaleString('ru-RU');
+			
+			let html = `
+				<div class="flex justify-between items-center border-b border-gray-200 pb-2 mb-2">
+					<span class="font-medium">${originalOrder.departmentName}</span>
+					<span class="text-sm text-gray-600">${orderDate}</span>
+				</div>
+			`;
+
+			if (originalOrder.items && originalOrder.items.length > 0) {
+				originalOrder.items.forEach(item => {
+					html += `
+						<div class="flex justify-between items-center text-sm">
+							<span>${item.name}</span>
+							<span class="font-medium">${item.quantity} ${item.unit}</span>
+						</div>
+					`;
+				});
+			}
+
+			html += `
+				<div class="border-t border-gray-200 pt-2 mt-2">
+					<div class="flex justify-between items-center text-sm font-medium">
+						<span>Всего позиций:</span>
+						<span>${originalOrder.totalItems || originalOrder.items?.length || 0}</span>
+					</div>
+				</div>
+			`;
+
+			container.innerHTML = html;
+		}
+
+		function displayAddedItems() {
+			const container = document.getElementById('addedItemsDetails');
+			const addedItems = modificationData.modificationOrder?.items || [];
+			
+			if (addedItems.length === 0) {
+				container.innerHTML = '<p class="text-gray-600">Нет добавляемых товаров</p>';
+				return;
+			}
+
+			let html = `
+				<div class="flex justify-between items-center border-b border-blue-200 pb-2 mb-2">
+					<span class="font-medium text-blue-900">${modificationData.modificationOrder.departmentName}</span>
+					<span class="text-sm text-blue-700">Дополнение</span>
+				</div>
+			`;
+
+			addedItems.forEach(item => {
+				html += `
+					<div class="flex justify-between items-center text-sm">
+						<span>${item.name}</span>
+						<span class="font-medium text-blue-700">${item.quantity} ${item.unit}</span>
+					</div>
+				`;
+			});
+
+			html += `
+				<div class="border-t border-blue-200 pt-2 mt-2">
+					<div class="flex justify-between items-center text-sm font-medium text-blue-900">
+						<span>Добавляется позиций:</span>
+						<span>${addedItems.length}</span>
+					</div>
+				</div>
+			`;
+
+			container.innerHTML = html;
+		}
+
+		function displayModificationNote() {
+			const noteText = document.getElementById('modificationNoteText');
+			const note = modificationData.modificationOrder?.modificationNote || 'Добавлены недостающие товары';
+			noteText.textContent = note;
+		}
+
+		function generateWhatsAppMessage() {
+			const messageContainer = document.getElementById('whatsappMessage');
+			
+			if (!modificationData.modificationOrder) {
+				messageContainer.textContent = 'Ошибка: данные о дополнении не найдены';
+				return;
+			}
+
+			const modOrder = modificationData.modificationOrder;
+			const originalOrder = modificationData.originalOrder;
+			const currentDate = new Date().toLocaleDateString("ru-RU");
+			
+			let message = `📋 ДОПОЛНЕНИЕ К ЗАКАЗУ от ${currentDate}\n\n`;
+			
+			// Reference to original order
+			if (originalOrder) {
+				const originalDate = new Date(originalOrder.timestamp).toLocaleDateString("ru-RU");
+				message += `🔗 К заказу от ${originalDate} (${originalOrder.departmentName})\n\n`;
+			}
+			
+			// Added items
+			message += `➕ Добавляемые товары:\n`;
+			message += `${modOrder.departmentName === 'Кухня' ? '🍳' : modOrder.departmentName === 'Бар' ? '🍷' : '🧹'} ${modOrder.departmentName}:\n`;
+			
+			if (modOrder.items && modOrder.items.length > 0) {
+				modOrder.items.forEach(item => {
+					message += `• ${item.name} - ${item.quantity} ${item.unit}\n`;
+				});
+			}
+			
+			message += `\n📝 ${modOrder.modificationNote}\n`;
+			message += `\n📊 Итого добавлено: ${modOrder.totalItems} товаров`;
+
+			messageContainer.textContent = message;
+		}
+
+		// Copy to clipboard functionality
+		async function copyToClipboard() {
+			const messageText = document.getElementById('whatsappMessage').textContent;
+			const successMessage = document.getElementById('successMessage');
+			const copyBtn = document.getElementById('copyBtn');
+
+			try {
+				await navigator.clipboard.writeText(messageText);
+				
+				// Show success message
+				successMessage.classList.remove('hidden');
+				
+				// Update button temporarily
+				const originalText = copyBtn.innerHTML;
+				copyBtn.innerHTML = '<span>✅</span><span>Скопировано!</span>';
+				copyBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+				copyBtn.classList.add('bg-green-600', 'hover:bg-green-700');
+
+				// Reset after 2 seconds
+				setTimeout(() => {
+					successMessage.classList.add('hidden');
+					copyBtn.innerHTML = originalText;
+					copyBtn.classList.remove('bg-green-600', 'hover:bg-green-700');
+					copyBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+				}, 2000);
+
+			} catch (err) {
+				console.error('Failed to copy text: ', err);
+				// Fallback for older browsers
+				const textArea = document.createElement('textarea');
+				textArea.value = messageText;
+				document.body.appendChild(textArea);
+				textArea.select();
+				document.execCommand('copy');
+				document.body.removeChild(textArea);
+				
+				successMessage.classList.remove('hidden');
+				setTimeout(() => {
+					successMessage.classList.add('hidden');
+				}, 2000);
+			}
+		}
+
+		// Send to WhatsApp
+		function sendToWhatsApp() {
+			const messageText = document.getElementById('whatsappMessage').textContent;
+			const encodedMessage = encodeURIComponent(messageText);
+			
+			// Detect if user is on mobile device
+			const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+			
+			// WhatsApp configuration (same as main confirmation page)
+			const buyerPhone = "996708083303";
+			let whatsappUrl;
+			
+			if (isMobile) {
+				whatsappUrl = `whatsapp://send?phone=${buyerPhone}&text=${encodedMessage}`;
+			} else {
+				whatsappUrl = `https://web.whatsapp.com/send?phone=${buyerPhone}&text=${encodedMessage}`;
+			}
+			
+			// Try to open WhatsApp
+			const whatsappWindow = window.open(whatsappUrl, '_blank');
+			
+			// Fallback for mobile if WhatsApp app isn't installed
+			if (isMobile && !whatsappWindow) {
+				const fallbackUrl = `https://wa.me/${buyerPhone}?text=${encodedMessage}`;
+				window.open(fallbackUrl, '_blank');
+			}
+
+			// Clear the pending modification from localStorage
+			localStorage.removeItem('pendingModification');
+			
+			// Navigate to delivery page
+			window.location.href = '/delivery';
+		}
+
+		function setupEventListeners() {
+			// Back button
+			document.getElementById('backBtn').addEventListener('click', () => {
+				window.history.back();
+			});
+
+			// Copy button
+			document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+
+			// Send to WhatsApp button
+			document.getElementById('sendWhatsAppBtn').addEventListener('click', sendToWhatsApp);
+
+			// Go to delivery page button
+			document.getElementById('deliveryPageBtn').addEventListener('click', () => {
+				localStorage.removeItem('pendingModification');
+				window.location.href = '/delivery';
+			});
+
+			// Cancel button
+			document.getElementById('cancelBtn').addEventListener('click', () => {
+				if (confirm('Отменить отправку дополнения? Изменения будут потеряны.')) {
+					localStorage.removeItem('pendingModification');
+					window.history.back();
+				}
+			});
+		}
+	</script>
+</Layout>

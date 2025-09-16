@@ -1,75 +1,45 @@
+import pool from '../../../lib/db.js';
+
 export const prerender = false;
 
 export async function POST({ request }) {
+    const client = await pool.connect();
     try {
-        console.log('🗑️ Clearing cart items from server storage...');
+        console.log('🗑️ Clearing cart items from the database...');
         
         const { department } = await request.json();
-        
-        // Read existing cart data
-        let cartData = {};
-        try {
-            const fs = await import('fs/promises');
-            const path = await import('path');
-            const dataDir = path.join(process.cwd(), 'data');
-            const cartFile = path.join(dataDir, 'shoppingCart.json');
-            
-            try {
-                const existingData = await fs.readFile(cartFile, 'utf-8');
-                cartData = JSON.parse(existingData);
-            } catch (readError) {
-                // File doesn't exist yet, nothing to clear
-                cartData = {};
-            }
-        } catch (fsError) {
-            console.warn('⚠️ File system not available, using memory storage');
-            cartData = global.shoppingCart || {};
-        }
-        
+        let result;
+
         if (department) {
-            // Clear specific department
-            if (cartData[department]) {
-                delete cartData[department];
-                console.log(`✅ Cleared cart items for ${department} department`);
-            }
+            // Clear a specific department
+            result = await client.query('DELETE FROM cart_items WHERE department = $1', [department]);
+            console.log(`✅ Cleared ${result.rowCount} items for department: ${department}`);
         } else {
             // Clear all departments
-            cartData = {};
-            console.log('✅ Cleared all cart items');
+            result = await client.query('DELETE FROM cart_items');
+            console.log(`✅ Cleared all ${result.rowCount} items from the cart.`);
         }
-        
-        // Save updated cart data
-        try {
-            const fs = await import('fs/promises');
-            const path = await import('path');
-            const dataDir = path.join(process.cwd(), 'data');
-            const cartFile = path.join(dataDir, 'shoppingCart.json');
-            
-            await fs.writeFile(cartFile, JSON.stringify(cartData, null, 2));
-        } catch (fsError) {
-            // Use memory storage as fallback
-            global.shoppingCart = cartData;
-        }
-        
+
         return new Response(JSON.stringify({
             success: true,
-            message: department ? `Cart cleared for ${department}` : 'All cart items cleared'
+            message: department ? `Cart cleared for ${department}` : 'All cart items cleared',
+            clearedCount: result.rowCount
         }), {
             status: 200,
-            headers: { 
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache'
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
-        
+
     } catch (error) {
         console.error('❌ Failed to clear cart items:', error);
         return new Response(JSON.stringify({ 
             success: false, 
-            error: error.message
+            error: 'Failed to clear cart items.',
+            details: error.message
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
+    } finally {
+        client.release();
     }
 }

@@ -198,7 +198,24 @@ import Layout from '../layouts/Layout.astro';
 		}
 		
 		// Load on page ready
-		document.addEventListener('DOMContentLoaded', loadBarProducts);
+		document.addEventListener('DOMContentLoaded', function() {
+			loadBarProducts();
+			
+			// Load saved quantities from localStorage after products are loaded
+			setTimeout(() => {
+				console.log('🔄 Attempting to restore cart from localStorage...');
+				console.log('🔍 window.checklist available:', !!window.checklist);
+				console.log('🔍 loadCartFromLocalStorage available:', !!window.checklist?.loadCartFromLocalStorage);
+				console.log('🔍 shoppingListData available:', !!window.shoppingListData);
+				
+				if (window.checklist && window.checklist.loadCartFromLocalStorage) {
+					window.checklist.loadCartFromLocalStorage();
+					console.log('📥 Called loadCartFromLocalStorage');
+				} else {
+					console.error('❌ loadCartFromLocalStorage not available');
+				}
+			}, 1000); // Increased timeout
+		});
 
 		// Go to cart function - saves to server then navigates
 		async function goToCart() {

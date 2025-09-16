@@ -1,5 +1,63 @@
 [
   {
+    "timestamp": "2025-09-06T11:53:55.875Z",
+    "department": "kitchen",
+    "departmentName": "Кухня",
+    "items": [
+      {
+        "id": "439",
+        "name": "Aroy кисло сладкий соус",
+        "quantity": 6.53,
+        "unit": "л",
+        "department": "kitchen",
+        "departmentName": "Кухня"
+      },
+      {
+        "id": "280",
+        "name": "Pialati помидор",
+        "quantity": 0.48551,
+        "unit": "кг",
+        "department": "kitchen",
+        "departmentName": "Кухня"
+      },
+      {
+        "id": "419",
+        "name": "Айсберг",
+        "quantity": 0.72,
+        "unit": "кг",
+        "department": "kitchen",
+        "departmentName": "Кухня"
+      }
+    ],
+    "totalItems": 3,
+    "totalQuantity": 7.73551,
+    "status": "sent",
+    "isPartOfUnified": true,
+    "source": "internal",
+    "supplier": "Internal Order"
+  },
+  {
+    "timestamp": "2025-09-06T11:53:24.986Z",
+    "department": "kitchen",
+    "departmentName": "Кухня",
+    "items": [
+      {
+        "id": "419",
+        "name": "Айсберг",
+        "quantity": 0.72,
+        "unit": "кг",
+        "department": "kitchen",
+        "departmentName": "Кухня"
+      }
+    ],
+    "totalItems": 1,
+    "totalQuantity": 0.72,
+    "status": "sent",
+    "isPartOfUnified": true,
+    "source": "internal",
+    "supplier": "Internal Order"
+  },
+  {
     "timestamp": "2025-09-05T12:08:07.730Z",
     "department": "kitchen",
     "departmentName": "Кухня",

@@ -189,7 +189,17 @@ import Layout from '../layouts/Layout.astro';
 		}
 		
 		// Load on page ready
-		document.addEventListener('DOMContentLoaded', loadKitchenProducts);
+		document.addEventListener('DOMContentLoaded', function() {
+			loadKitchenProducts();
+			
+			// Load saved quantities from localStorage after products are loaded
+			setTimeout(() => {
+				if (window.checklist && window.checklist.loadCartFromLocalStorage) {
+					window.checklist.loadCartFromLocalStorage();
+					console.log('📥 Restored cart quantities from localStorage');
+				}
+			}, 100);
+		});
 
 		// Go to cart function - saves to server then navigates
 		async function goToCart() {
