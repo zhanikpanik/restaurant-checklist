@@ -31,7 +31,24 @@ export async function GET() {
         `);
         console.log('✅ `product_categories` table is ready.');
 
-        // 3. Update cart_items table - add category_id column if it doesn't exist
+        // 3. Create cart_items table if it doesn't exist
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS cart_items (
+                id SERIAL PRIMARY KEY,
+                product_id VARCHAR(255) NOT NULL,
+                name TEXT NOT NULL,
+                quantity INTEGER NOT NULL,
+                unit VARCHAR(50),
+                department VARCHAR(100) NOT NULL,
+                restaurant_id VARCHAR(100) DEFAULT 'default_restaurant' NOT NULL,
+                category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
+                supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+        `);
+        console.log('✅ `cart_items` table is ready.');
+
+        // 4. Add category_id column if it doesn't exist (for existing installations)
         const hasCategoryId = await client.query(`
             SELECT 1 FROM information_schema.columns
             WHERE table_name='cart_items' AND column_name='category_id';
@@ -41,7 +58,7 @@ export async function GET() {
             console.log('✅ Added `category_id` to `cart_items` table.');
         }
 
-        // 4. Update cart_items table - add supplier_id column if it doesn't exist
+        // 5. Add supplier_id column if it doesn't exist (for existing installations)
         const hasSupplierId = await client.query(`
             SELECT 1 FROM information_schema.columns
             WHERE table_name='cart_items' AND column_name='supplier_id';
@@ -51,7 +68,7 @@ export async function GET() {
             console.log('✅ Added `supplier_id` to `cart_items` table.');
         }
 
-        // 5. Create products table
+        // 6. Create products table
         await client.query(`
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY,
