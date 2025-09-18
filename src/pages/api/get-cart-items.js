@@ -1,9 +1,6 @@
-import pool, { initializeDb } from '../../lib/db.js';
+import pool from '../../lib/db.js';
 
 export const prerender = false;
-
-// Ensure the database is initialized on startup
-initializeDb().catch(console.error);
 
 export async function GET({ url }) {
     try {
