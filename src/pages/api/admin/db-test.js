@@ -6,6 +6,20 @@ export async function GET() {
     try {
         console.log('ADMIN: Testing database connection...');
         
+        // Show more details about the connection string (without exposing sensitive data)
+        const dbUrl = process.env.DATABASE_URL;
+        let connectionInfo = 'Not set';
+        if (dbUrl) {
+            try {
+                const url = new URL(dbUrl);
+                connectionInfo = `${url.protocol}//${url.hostname}:${url.port}/${url.pathname.substring(1)}`;
+            } catch (e) {
+                connectionInfo = 'Set but invalid format';
+            }
+        }
+        
+        console.log('Connection info:', connectionInfo);
+        
         // Test 1: Can we get a client from the pool?
         const client = await pool.connect();
         console.log('✅ Database client connected successfully');
@@ -31,7 +45,7 @@ export async function GET() {
                 message: 'Database connection test successful',
                 currentTime: result.rows[0].current_time,
                 existingTables: existingTables,
-                databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set'
+                connectionInfo: connectionInfo
             }), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' }
@@ -43,12 +57,26 @@ export async function GET() {
         
     } catch (error) {
         console.error('ADMIN: Database test failed:', error);
+        
+        // Parse the DATABASE_URL to show connection details (without password)
+        const dbUrl = process.env.DATABASE_URL;
+        let connectionInfo = 'Not set';
+        if (dbUrl) {
+            try {
+                const url = new URL(dbUrl);
+                connectionInfo = `${url.protocol}//${url.hostname}:${url.port}/${url.pathname.substring(1)}`;
+            } catch (e) {
+                connectionInfo = 'Set but invalid format';
+            }
+        }
+        
         return new Response(JSON.stringify({ 
             success: false, 
             error: 'Database connection test failed',
             details: error.message,
-            stack: error.stack,
-            databaseUrl: process.env.DATABASE_URL ? 'Set' : 'Not set'
+            errorCode: error.code,
+            connectionInfo: connectionInfo,
+            stack: error.stack
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
