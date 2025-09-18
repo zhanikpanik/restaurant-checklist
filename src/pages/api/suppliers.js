@@ -1,12 +1,17 @@
 import pool from '../../lib/db.js';
+import { getTenantFilter } from '../../lib/tenant.js';
 
 export const prerender = false;
 
 // GET: Fetch all suppliers
-async function getSuppliers() {
+async function getSuppliers(tenantId) {
+    const tenantFilter = getTenantFilter(tenantId);
     const client = await pool.connect();
     try {
-        const result = await client.query('SELECT id, name, contact_info, phone, created_at FROM suppliers ORDER BY name ASC');
+        const result = await client.query(
+            'SELECT id, name, contact_info, phone, created_at FROM suppliers WHERE restaurant_id = $1 ORDER BY name ASC',
+            [tenantFilter.restaurant_id]
+        );
         return {
             status: 200,
             body: { success: true, data: result.rows }
@@ -17,7 +22,7 @@ async function getSuppliers() {
 }
 
 // POST: Create a new supplier
-async function createSupplier(request) {
+async function createSupplier(request, tenantId) {
     const { name, contact_info, phone } = await request.json();
 
     if (!name || name.trim() === '') {
@@ -27,8 +32,8 @@ async function createSupplier(request) {
     const client = await pool.connect();
     try {
         const result = await client.query(
-            'INSERT INTO suppliers (name, contact_info, phone) VALUES ($1, $2, $3) RETURNING *',
-            [name.trim(), contact_info || null, phone || null]
+            'INSERT INTO suppliers (restaurant_id, name, contact_info, phone) VALUES ($1, $2, $3, $4) RETURNING *',
+            [tenantId, name.trim(), contact_info || null, phone || null]
         );
         return {
             status: 201,
@@ -45,9 +50,10 @@ async function createSupplier(request) {
 }
 
 // Main handler for GET and POST requests
-export async function GET() {
+export async function GET({ locals }) {
     try {
-        const { status, body } = await getSuppliers();
+        const tenantId = locals.tenantId || 'default';
+        const { status, body } = await getSuppliers(tenantId);
         return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
     } catch (error) {
         console.error('Failed to fetch suppliers:', error);
@@ -55,9 +61,10 @@ export async function GET() {
     }
 }
 
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
     try {
-        const { status, body } = await createSupplier(request);
+        const tenantId = locals.tenantId || 'default';
+        const { status, body } = await createSupplier(request, tenantId);
         return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
     } catch (error) {
         console.error('Failed to create supplier:', error);

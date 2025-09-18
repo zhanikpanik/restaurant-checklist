@@ -1,5 +1,10 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import { getTenantConfig } from '../lib/tenant.js';
+
+// Get tenant info
+const tenantId = Astro.locals.tenantId || 'default';
+const tenantConfig = getTenantConfig(tenantId);
 ---
 
 <Layout title="Restaurant Checklist - Inventory Management">
@@ -8,7 +13,7 @@ import Layout from '../layouts/Layout.astro';
 		<header class="bg-white shadow-sm border-b border-gray-200">
 			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 				<div class="flex justify-between items-center py-4">
-					<h1 class="text-2xl font-bold text-gray-900">🍽️ Restaurant System</h1>
+					<h1 class="text-2xl font-bold text-gray-900">{tenantConfig.logo} {tenantConfig.name}</h1>
 					<div id="userInfo" class="flex items-center space-x-4">
 						<!-- Will be populated by JavaScript -->
 					</div>
@@ -38,7 +43,7 @@ import Layout from '../layouts/Layout.astro';
 					</div>
 					<div class="p-6">
 						<p class="text-gray-600 mb-4">Управление запасами кухни и создание заказов продуктов</p>
-						<a href="/kitchen-inventory" class="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+						<a href="/kitchen" class="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
 							<span class="mr-2">📋</span>
 							Открыть кухню
 						</a>
