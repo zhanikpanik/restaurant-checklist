@@ -403,53 +403,23 @@ import Layout from '../layouts/Layout.astro';
 			}
 		}
 
-		// Send to WhatsApp
-		function sendToWhatsApp() {
-			const orderData = getOrderData();
-			if (!orderData) return;
+		// Send to WhatsApp with Smart Supplier Routing
+		async function sendToWhatsApp() {
+			console.log('📱 Sending orders to suppliers via WhatsApp...');
+			
+			const orderData = JSON.parse(localStorage.getItem('pendingOrder') || '{}');
+			if (!orderData.items || orderData.items.length === 0) {
+				alert('Нет товаров для отправки');
+				return;
+			}
 
 			// Save order to delivery queue when sent via WhatsApp
 			saveOrderToDeliveryQueue();
 
-			// WhatsApp Group Configuration
-			// Option 1: Use group invite link (recommended)
-			// Replace with your actual WhatsApp group invite link
-			const groupInviteLink = "https://chat.whatsapp.com/YOUR_GROUP_INVITE_CODE";
-			
-			// Option 2: Use group chat ID (alternative method)
-			// const groupChatId = "120363XXXXXXXXXX@g.us"; // Your group chat ID
-			
-			const encodedMessage = encodeURIComponent(orderData.formattedText);
-			
 			// Detect if user is on mobile device
 			const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-			
-			let whatsappUrl;
-			
-			// Method 1: Using group invite link (works on both mobile and desktop)
-			if (groupInviteLink !== "https://chat.whatsapp.com/YOUR_GROUP_INVITE_CODE") {
-				// If you have a real group invite link, open it first, then user can send message manually
-				window.open(groupInviteLink, '_blank');
-				
-				// Copy message to clipboard for easy pasting
-				navigator.clipboard.writeText(orderData.formattedText).then(() => {
-					alert('Группа WhatsApp открыта в новой вкладке.\nСообщение скопировано в буфер обмена - вставьте его в чат группы.');
-				}).catch(() => {
-					alert('Группа WhatsApp открыта в новой вкладке.\nСкопируйте сообщение из поля выше и вставьте в чат группы.');
-				});
-			}
-			
-			// New sendToWhatsApp function
-			async function sendToWhatsApp() {
-				console.log('📱 Sending orders to suppliers via WhatsApp...');
-				
-				const orderData = JSON.parse(localStorage.getItem('pendingOrder') || '{}');
-				if (!orderData.items || orderData.items.length === 0) {
-					alert('Нет товаров для отправки');
-					return;
-				}
 
-				try {
+			try {
 					// Group items by supplier using the new API
 					const response = await fetch('/api/orders-by-supplier', {
 						method: 'POST',
