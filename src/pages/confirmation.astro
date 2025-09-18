@@ -45,40 +45,33 @@ import Layout from '../layouts/Layout.astro';
 				</div>
 			</div>
 
-			<!-- Action Buttons -->
-			<div class="space-y-3">
-				<!-- Copy to Clipboard Button -->
-				<button 
-					id="copyBtn" 
-					class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-				>
-					<span>📋</span>
-					<span>Копировать</span>
-				</button>
+			<!-- Manager Actions: Send to Suppliers -->
+			<div id="supplierActions" class="mt-6">
+				<h3 class="text-lg font-semibold text-gray-800 mb-4">👨‍💼 Отправить поставщикам:</h3>
+				<div id="supplierButtons" class="space-y-3">
+					<!-- Supplier-specific buttons will be generated here -->
+				</div>
+			</div>
 
-				<!-- Send to WhatsApp Button -->
-				<button 
-					id="sendWhatsAppBtn" 
-					class="w-full bg-green-500 hover:bg-green-700 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-				>
-					<span>📱</span>
-					<span>Отправить в WhatsApp</span>
+			<!-- Additional Actions -->
+			<div class="flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t border-gray-200">
+				<button id="copyBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
+					<span class="mr-2">📋</span>
+					Скопировать текст
 				</button>
-
-				<!-- Go to Main Menu Button -->
-				<button 
-					id="mainMenuBtn" 
-					class="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-2"
-				>
-					<span>🏠</span>
-					<span>Главное меню</span>
+				<button id="saveOrderBtn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
+					<span class="mr-2">💾</span>
+					Сохранить заказ
 				</button>
+			</div>
 
-				<!-- Cancel Button -->
-				<button 
-					id="cancelBtn" 
-					class="w-full bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors duration-200"
-				>
+			<!-- Navigation Buttons -->
+			<div class="flex flex-col sm:flex-row gap-3 mt-4">
+				<button id="mainMenuBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
+					<span class="mr-2">🏠</span>
+					Главное меню
+				</button>
+				<button id="cancelBtn" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium py-3 px-6 rounded-lg transition-colors duration-200">
 					Отменить
 				</button>
 			</div>
@@ -404,24 +397,16 @@ import Layout from '../layouts/Layout.astro';
 			}
 		}
 
-		// Send to WhatsApp with Smart Supplier Routing
-		async function sendToWhatsApp() {
-			console.log('📱 Sending orders to suppliers via WhatsApp...');
-			
+		// Load supplier-specific buttons for manager approval
+		async function loadSupplierButtons() {
 			const orderData = JSON.parse(localStorage.getItem('pendingOrder') || '{}');
 			if (!orderData.items || orderData.items.length === 0) {
-				alert('Нет товаров для отправки');
+				document.getElementById('supplierActions').style.display = 'none';
 				return;
 			}
 
-			// Save order to delivery queue when sent via WhatsApp
-			saveOrderToDeliveryQueue();
-
-			// Detect if user is on mobile device
-			const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
 			try {
-				// Group items by supplier using the new API
+				// Group items by supplier using the API
 				const response = await fetch('/api/orders-by-supplier', {
 					method: 'POST',
 					headers: {
@@ -439,62 +424,139 @@ import Layout from '../layouts/Layout.astro';
 				}
 
 				const { ordersBySupplier, unassignedItems } = result.data;
+				const supplierButtonsContainer = document.getElementById('supplierButtons');
 				
-				// Send WhatsApp message to each supplier
-				let messagesSent = 0;
-				
-				for (const supplierOrder of ordersBySupplier) {
-					if (supplierOrder.supplier.phone) {
-						const supplierMessage = generateSupplierMessage(supplierOrder);
-						const encodedMessage = encodeURIComponent(supplierMessage);
-						
-						let whatsappUrl;
-						if (isMobile) {
-							whatsappUrl = `whatsapp://send?phone=${supplierOrder.supplier.phone}&text=${encodedMessage}`;
-						} else {
-							whatsappUrl = `https://web.whatsapp.com/send?phone=${supplierOrder.supplier.phone}&text=${encodedMessage}`;
-						}
-						
-						// Open WhatsApp for this supplier
-						window.open(whatsappUrl, '_blank');
-						messagesSent++;
-						
-						// Small delay between messages to avoid overwhelming
-						await new Promise(resolve => setTimeout(resolve, 500));
-					}
-				}
+				let buttonsHtml = '';
 
-				// Handle unassigned items (send to default number)
+				// Create button for each supplier
+				ordersBySupplier.forEach((supplierOrder, index) => {
+					const itemCount = supplierOrder.items.length;
+					const supplierName = supplierOrder.supplier.name || 'Неизвестный поставщик';
+					const hasPhone = supplierOrder.supplier.phone;
+					
+					buttonsHtml += `
+						<div class="bg-gray-50 p-4 rounded-lg border">
+							<div class="flex justify-between items-start mb-3">
+								<div>
+									<h4 class="font-medium text-gray-800">${supplierName}</h4>
+									<p class="text-sm text-gray-600">${itemCount} товаров</p>
+									${hasPhone ? `<p class="text-xs text-gray-500">📱 ${supplierOrder.supplier.phone}</p>` : '<p class="text-xs text-red-500">⚠️ Нет номера телефона</p>'}
+								</div>
+								<button 
+									onclick="sendToSupplier(${index})" 
+									${!hasPhone ? 'disabled' : ''}
+									class="px-4 py-2 rounded-lg font-medium transition-colors ${hasPhone ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
+								>
+									📱 Отправить ${supplierName}
+								</button>
+							</div>
+							<div class="text-sm text-gray-700">
+								${supplierOrder.items.map(item => `• ${item.name} - ${item.quantity} ${item.unit}`).join('<br>')}
+							</div>
+						</div>
+					`;
+				});
+
+				// Add button for unassigned items if any
 				if (unassignedItems.length > 0) {
-					const unassignedMessage = generateUnassignedMessage(unassignedItems);
-					const encodedMessage = encodeURIComponent(unassignedMessage);
-					const defaultPhone = "996708083303";
-					
-					let whatsappUrl;
-					if (isMobile) {
-						whatsappUrl = `whatsapp://send?phone=${defaultPhone}&text=${encodedMessage}`;
-					} else {
-						whatsappUrl = `https://web.whatsapp.com/send?phone=${defaultPhone}&text=${encodedMessage}`;
-					}
-					
-					window.open(whatsappUrl, '_blank');
-					messagesSent++;
+					buttonsHtml += `
+						<div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+							<div class="flex justify-between items-start mb-3">
+								<div>
+									<h4 class="font-medium text-gray-800">⚠️ Без поставщика</h4>
+									<p class="text-sm text-gray-600">${unassignedItems.length} товаров</p>
+									<p class="text-xs text-gray-500">📱 Отправить на основной номер</p>
+								</div>
+								<button 
+									onclick="sendUnassignedItems()" 
+									class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
+								>
+									📱 Отправить основному
+								</button>
+							</div>
+							<div class="text-sm text-gray-700">
+								${unassignedItems.map(item => `• ${item.name} - ${item.quantity} ${item.unit}`).join('<br>')}
+							</div>
+						</div>
+					`;
 				}
 
-				// Show success message
-				alert(`✅ Отправлено ${messagesSent} сообщений поставщикам!`);
+				supplierButtonsContainer.innerHTML = buttonsHtml;
 
-				// Clear the pending order from localStorage
-				localStorage.removeItem('pendingOrder');
-				
-				// Navigate back to main page
-				window.location.href = orderData.returnUrl || '/';
+				// Store the data globally for the button handlers
+				window.supplierOrdersData = { ordersBySupplier, unassignedItems };
 
 			} catch (error) {
-				console.error('❌ Failed to send orders to suppliers:', error);
-				alert('Ошибка при отправке заказов поставщикам. Попробуйте снова.');
+				console.error('❌ Failed to load supplier buttons:', error);
+				document.getElementById('supplierButtons').innerHTML = '<p class="text-red-500">Ошибка загрузки поставщиков</p>';
 			}
 		}
+
+		// Send order to specific supplier
+		async function sendToSupplier(supplierIndex) {
+			if (!window.supplierOrdersData) return;
+			
+			const supplierOrder = window.supplierOrdersData.ordersBySupplier[supplierIndex];
+			if (!supplierOrder || !supplierOrder.supplier.phone) {
+				alert('Ошибка: нет данных поставщика или номера телефона');
+				return;
+			}
+
+			const supplierMessage = generateSupplierMessage(supplierOrder);
+			const encodedMessage = encodeURIComponent(supplierMessage);
+			const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+			
+			let whatsappUrl;
+			if (isMobile) {
+				whatsappUrl = `whatsapp://send?phone=${supplierOrder.supplier.phone}&text=${encodedMessage}`;
+			} else {
+				whatsappUrl = `https://web.whatsapp.com/send?phone=${supplierOrder.supplier.phone}&text=${encodedMessage}`;
+			}
+			
+			window.open(whatsappUrl, '_blank');
+			alert(`✅ Заказ отправлен поставщику: ${supplierOrder.supplier.name}`);
+		}
+
+		// Send unassigned items to default number
+		async function sendUnassignedItems() {
+			if (!window.supplierOrdersData || !window.supplierOrdersData.unassignedItems.length) return;
+			
+			const unassignedMessage = generateUnassignedMessage(window.supplierOrdersData.unassignedItems);
+			const encodedMessage = encodeURIComponent(unassignedMessage);
+			const defaultPhone = "996708083303";
+			const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+			
+			let whatsappUrl;
+			if (isMobile) {
+				whatsappUrl = `whatsapp://send?phone=${defaultPhone}&text=${encodedMessage}`;
+			} else {
+				whatsappUrl = `https://web.whatsapp.com/send?phone=${defaultPhone}&text=${encodedMessage}`;
+			}
+			
+			window.open(whatsappUrl, '_blank');
+			alert('✅ Неназначенные товары отправлены на основной номер');
+		}
+
+		// Save order without sending (for staff)
+		async function saveOrderOnly() {
+			const orderData = getOrderData();
+			if (!orderData) return;
+
+			// Save order to delivery queue
+			await saveOrderToDeliveryQueue();
+			
+			alert('✅ Заказ сохранен! Менеджер сможет отправить его поставщикам.');
+			
+			// Clear the pending order
+			localStorage.removeItem('pendingOrder');
+			
+			// Navigate back to main page
+			window.location.href = orderData.returnUrl || '/';
+		}
+
+		// Make functions globally accessible for onclick handlers
+		window.sendToSupplier = sendToSupplier;
+		window.sendUnassignedItems = sendUnassignedItems;
 
 		function generateSupplierMessage(supplierOrder) {
 			const today = new Date().toLocaleDateString('ru-RU');
@@ -524,10 +586,11 @@ import Layout from '../layouts/Layout.astro';
 
 			// Initialize the page
 			displayOrderDetails();
+			loadSupplierButtons();
 
 			// Event listeners
 			document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
-			document.getElementById('sendWhatsAppBtn').addEventListener('click', sendToWhatsApp);
+			document.getElementById('saveOrderBtn').addEventListener('click', saveOrderOnly);
 			document.getElementById('mainMenuBtn').addEventListener('click', () => {
 				window.location.href = '/';
 			});
