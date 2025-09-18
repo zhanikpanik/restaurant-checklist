@@ -11,14 +11,18 @@ import Layout from '../layouts/Layout.astro';
       <h2 class="text-2xl font-semibold text-gray-700 mb-4">Manage Suppliers</h2>
       
       <!-- Form to add a new supplier -->
-      <form id="add-supplier-form" class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+      <form id="add-supplier-form" class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
         <div class="md:col-span-1">
           <label for="supplier-name" class="block text-sm font-medium text-gray-600">Supplier Name</label>
           <input type="text" id="supplier-name" name="name" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., Metro Cash & Carry">
         </div>
         <div class="md:col-span-1">
+          <label for="supplier-phone" class="block text-sm font-medium text-gray-600">WhatsApp Phone</label>
+          <input type="tel" id="supplier-phone" name="phone" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="996708083303">
+        </div>
+        <div class="md:col-span-1">
           <label for="supplier-contact" class="block text-sm font-medium text-gray-600">Contact Info (Optional)</label>
-          <input type="text" id="supplier-contact" name="contact_info" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Phone or email">
+          <input type="text" id="supplier-contact" name="contact_info" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Email or address">
         </div>
         <button type="submit" class="w-full md:w-auto justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 h-10">Add Supplier</button>
       </form>
@@ -87,8 +91,15 @@ import Layout from '../layouts/Layout.astro';
           return;
         }
         supplierList.innerHTML = suppliers.map(s => `
-          <li class="flex justify-between items-center p-2 bg-gray-50 rounded-md">
-            <span>${s.name} <span class="text-sm text-gray-500">${s.contact_info || ''}</span></span>
+          <li class="flex justify-between items-center p-3 bg-gray-50 rounded-md">
+            <div>
+              <div class="font-medium">${s.name}</div>
+              <div class="text-sm text-gray-500">
+                ${s.phone ? `📱 ${s.phone}` : ''}
+                ${s.phone && s.contact_info ? ' • ' : ''}
+                ${s.contact_info || ''}
+              </div>
+            </div>
             <!-- Delete/Edit buttons can be added here -->
           </li>
         `).join('');
@@ -121,13 +132,14 @@ import Layout from '../layouts/Layout.astro';
         e.preventDefault();
         const formData = new FormData(supplierForm);
         const name = formData.get('name');
+        const phone = formData.get('phone');
         const contact_info = formData.get('contact_info');
 
         try {
           const response = await fetch('/api/suppliers', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, contact_info })
+            body: JSON.stringify({ name, phone, contact_info })
           });
           const result = await response.json();
           if (result.success) {

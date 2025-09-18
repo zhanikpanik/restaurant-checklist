@@ -437,39 +437,119 @@ import Layout from '../layouts/Layout.astro';
 				}).catch(() => {
 					alert('Группа WhatsApp открыта в новой вкладке.\nСкопируйте сообщение из поля выше и вставьте в чат группы.');
 				});
-				return;
 			}
 			
-			// Method 2: Fallback to individual contact (current behavior)
-			const buyerPhone = "996708083303";
-			if (isMobile) {
-				// For mobile devices - use WhatsApp app scheme
-				whatsappUrl = `whatsapp://send?phone=${buyerPhone}&text=${encodedMessage}`;
-			} else {
-				// For desktop - use WhatsApp Web
-				whatsappUrl = `https://web.whatsapp.com/send?phone=${buyerPhone}&text=${encodedMessage}`;
-			}
-			
-			// Try to open WhatsApp
-			const whatsappWindow = window.open(whatsappUrl, '_blank');
-			
-			// Fallback for mobile if WhatsApp app isn't installed
-			if (isMobile && !whatsappWindow) {
-				// Use wa.me as fallback
-				const fallbackUrl = `https://wa.me/${buyerPhone}?text=${encodedMessage}`;
-				window.open(fallbackUrl, '_blank');
+			// New sendToWhatsApp function
+			async function sendToWhatsApp() {
+				console.log('📱 Sending orders to suppliers via WhatsApp...');
+				
+				const orderData = JSON.parse(localStorage.getItem('pendingOrder') || '{}');
+				if (!orderData.items || orderData.items.length === 0) {
+					alert('Нет товаров для отправки');
+					return;
+				}
+
+				try {
+					// Group items by supplier using the new API
+					const response = await fetch('/api/orders-by-supplier', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify({
+							cartItems: orderData.items
+						})
+					});
+
+					const result = await response.json();
+					
+					if (!result.success) {
+						throw new Error(result.error || 'Failed to group orders by supplier');
+					}
+
+					const { ordersBySupplier, unassignedItems } = result.data;
+					
+					// Send WhatsApp message to each supplier
+					let messagesSent = 0;
+					
+					for (const supplierOrder of ordersBySupplier) {
+						if (supplierOrder.supplier.phone) {
+							const supplierMessage = generateSupplierMessage(supplierOrder);
+							const encodedMessage = encodeURIComponent(supplierMessage);
+							
+							let whatsappUrl;
+							if (isMobile) {
+								whatsappUrl = `whatsapp://send?phone=${supplierOrder.supplier.phone}&text=${encodedMessage}`;
+							} else {
+								whatsappUrl = `https://web.whatsapp.com/send?phone=${supplierOrder.supplier.phone}&text=${encodedMessage}`;
+							}
+							
+							// Open WhatsApp for this supplier
+							window.open(whatsappUrl, '_blank');
+							messagesSent++;
+							
+							// Small delay between messages to avoid overwhelming
+							await new Promise(resolve => setTimeout(resolve, 500));
+						}
+					}
+
+					// Handle unassigned items (send to default number)
+					if (unassignedItems.length > 0) {
+						const unassignedMessage = generateUnassignedMessage(unassignedItems);
+						const encodedMessage = encodeURIComponent(unassignedMessage);
+						const defaultPhone = "996708083303";
+						
+						let whatsappUrl;
+						if (isMobile) {
+							whatsappUrl = `whatsapp://send?phone=${defaultPhone}&text=${encodedMessage}`;
+						} else {
+							whatsappUrl = `https://web.whatsapp.com/send?phone=${defaultPhone}&text=${encodedMessage}`;
+						}
+						
+						window.open(whatsappUrl, '_blank');
+						messagesSent++;
+					}
+
+					// Show success message
+					alert(`✅ Отправлено ${messagesSent} сообщений поставщикам!`);
+
+					// Clear the pending order from localStorage
+					localStorage.removeItem('pendingOrder');
+					
+					// Navigate back to main page
+					window.location.href = orderData.returnUrl || '/';
+
+				} catch (error) {
+					console.error('❌ Failed to send orders to suppliers:', error);
+					alert('Ошибка при отправке заказов поставщикам. Попробуйте снова.');
+				}
 			}
 
-			// Clear the pending order from localStorage
-			localStorage.removeItem('pendingOrder');
-			
-			// Navigate back to main page
-			window.location.href = orderData.returnUrl || '/';
-		}
+			function generateSupplierMessage(supplierOrder) {
+				const today = new Date().toLocaleDateString('ru-RU');
+				let message = `📋 Заказ товаров - ${today}\n\n`;
+				message += `🏪 Поставщик: ${supplierOrder.supplier.name}\n\n`;
+				
+				supplierOrder.items.forEach(item => {
+					message += `• ${item.name} - ${item.quantity} ${item.unit}\n`;
+				});
+				
+				message += `\n📊 Итого: ${supplierOrder.items.length} товаров`;
+				return message;
+			}
 
-		// Event listeners
-		document.addEventListener('DOMContentLoaded', function() {
-			displayOrderDetails();
+			function generateUnassignedMessage(unassignedItems) {
+				const today = new Date().toLocaleDateString('ru-RU');
+				let message = `📋 Заказ товаров - ${today}\n\n`;
+				message += `⚠️ Товары без назначенного поставщика:\n\n`;
+				
+				unassignedItems.forEach(item => {
+					message += `• ${item.name} - ${item.quantity} ${item.unit}\n`;
+				});
+				
+				message += `\n📊 Итого: ${unassignedItems.length} товаров`;
+				return message;
+			}
 
 			// Event listeners
 			document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
