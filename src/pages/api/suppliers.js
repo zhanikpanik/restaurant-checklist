@@ -6,7 +6,7 @@ export const prerender = false;
 async function getSuppliers() {
     const client = await pool.connect();
     try {
-        const result = await client.query('SELECT * FROM suppliers ORDER BY name ASC');
+        const result = await client.query('SELECT id, name, contact_info, phone, created_at FROM suppliers ORDER BY name ASC');
         return {
             status: 200,
             body: { success: true, data: result.rows }
@@ -18,24 +18,25 @@ async function getSuppliers() {
 
 // POST: Create a new supplier
 async function createSupplier(request) {
-    const { name, contact_info } = await request.json();
-    if (!name) {
+    const { name, contact_info, phone } = await request.json();
+
+    if (!name || name.trim() === '') {
         return { status: 400, body: { success: false, error: 'Supplier name is required' } };
     }
 
     const client = await pool.connect();
     try {
         const result = await client.query(
-            'INSERT INTO suppliers(name, contact_info) VALUES($1, $2) RETURNING *',
-            [name, contact_info]
+            'INSERT INTO suppliers (name, contact_info, phone) VALUES ($1, $2, $3) RETURNING *',
+            [name.trim(), contact_info || null, phone || null]
         );
         return {
             status: 201,
             body: { success: true, data: result.rows[0] }
         };
     } catch (error) {
-        if (error.code === '23505') { // Unique violation
-            return { status: 409, body: { success: false, error: 'A supplier with this name already exists.' } };
+        if (error.code === '23505') { // Unique constraint violation
+            return { status: 409, body: { success: false, error: 'Supplier name already exists' } };
         }
         throw error;
     } finally {
