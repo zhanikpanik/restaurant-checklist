@@ -50,6 +50,18 @@ export async function setupDatabaseSchema() {
             console.log('✅ Added `supplier_id` to `cart_items` table.');
         }
 
+        // 4. Create a master products table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS products (
+                id INTEGER PRIMARY KEY, -- Using the Poster ingredient_id as the primary key
+                name TEXT NOT NULL,
+                unit VARCHAR(50),
+                category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
+                last_synced_at TIMESTAMPTZ DEFAULT NOW()
+            );
+        `);
+        console.log('✅ `products` table is ready.');
+
         await client.query('COMMIT');
         console.log('🎉 Database schema is up to date.');
 
