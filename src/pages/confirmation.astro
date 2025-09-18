@@ -88,6 +88,9 @@ import Layout from '../layouts/Layout.astro';
 
 	<script is:inline>
 		document.addEventListener('DOMContentLoaded', () => {
+			// Check user role and adjust UI accordingly
+			checkRoleAndAdjustUI();
+			
 			// Get order data from URL parameters or localStorage
 			function getOrderData() {
 				// Try to get from localStorage first (more reliable)
@@ -582,6 +585,18 @@ import Layout from '../layouts/Layout.astro';
 			
 			message += `\n📊 Итого: ${unassignedItems.length} товаров`;
 			return message;
+		}
+
+		// Check user role and adjust UI accordingly
+		function checkRoleAndAdjustUI() {
+			const userRole = localStorage.getItem('userRole');
+			if (userRole === 'manager') {
+				// Show manager-specific UI elements
+				document.getElementById('supplierActions').style.display = 'block';
+			} else {
+				// Hide manager-specific UI elements
+				document.getElementById('supplierActions').style.display = 'none';
+			}
 		}
 
 			// Initialize the page

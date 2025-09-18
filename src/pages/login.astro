@@ -1,0 +1,136 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Вход в систему - Restaurant Checklist">
+	<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+		<div class="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
+			<div class="text-center mb-8">
+				<h1 class="text-3xl font-bold text-gray-800 mb-2">🍽️ Restaurant System</h1>
+				<p class="text-gray-600">Выберите вашу роль для входа в систему</p>
+			</div>
+
+			<div class="space-y-4">
+				<!-- Chef Role -->
+				<button onclick="selectRole('chef')" class="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
+					<span class="text-2xl mr-3">👨‍🍳</span>
+					<div class="text-left">
+						<div class="font-semibold">Повар</div>
+						<div class="text-sm opacity-90">Заказы для кухни</div>
+					</div>
+				</button>
+
+				<!-- Barman Role -->
+				<button onclick="selectRole('barman')" class="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
+					<span class="text-2xl mr-3">🍷</span>
+					<div class="text-left">
+						<div class="font-semibold">Бармен</div>
+						<div class="text-sm opacity-90">Заказы для бара</div>
+					</div>
+				</button>
+
+				<!-- Manager Role -->
+				<button onclick="selectRole('manager')" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
+					<span class="text-2xl mr-3">👨‍💼</span>
+					<div class="text-left">
+						<div class="font-semibold">Менеджер</div>
+						<div class="text-sm opacity-90">Управление заказами</div>
+					</div>
+				</button>
+
+				<!-- Admin Role -->
+				<button onclick="selectRole('admin')" class="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
+					<span class="text-2xl mr-3">⚙️</span>
+					<div class="text-left">
+						<div class="font-semibold">Администратор</div>
+						<div class="text-sm opacity-90">Полный доступ</div>
+					</div>
+				</button>
+			</div>
+
+			<div class="mt-8 text-center">
+				<p class="text-sm text-gray-500">Роль сохраняется до выхода из системы</p>
+				<button onclick="clearRole()" class="mt-2 text-sm text-blue-600 hover:text-blue-800 underline">
+					Сбросить роль
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<script is:inline>
+		function selectRole(role) {
+			// Save role to localStorage
+			localStorage.setItem('userRole', role);
+			localStorage.setItem('userRoleTimestamp', Date.now().toString());
+			
+			// Show confirmation
+			const roleNames = {
+				chef: 'Повар 👨‍🍳',
+				barman: 'Бармен 🍷',
+				manager: 'Менеджер 👨‍💼',
+				admin: 'Администратор ⚙️'
+			};
+			
+			alert(`✅ Вы вошли как: ${roleNames[role]}`);
+			
+			// Redirect to appropriate page
+			if (role === 'admin') {
+				window.location.href = '/settings';
+			} else if (role === 'manager') {
+				window.location.href = '/manager-dashboard';
+			} else if (role === 'chef') {
+				window.location.href = '/kitchen-inventory';
+			} else if (role === 'barman') {
+				window.location.href = '/bar-inventory';
+			} else {
+				window.location.href = '/';
+			}
+		}
+
+		function clearRole() {
+			localStorage.removeItem('userRole');
+			localStorage.removeItem('userRoleTimestamp');
+			alert('🔄 Роль сброшена');
+			location.reload();
+		}
+
+		// Check if user already has a role
+		document.addEventListener('DOMContentLoaded', () => {
+			const currentRole = localStorage.getItem('userRole');
+			const roleTimestamp = localStorage.getItem('userRoleTimestamp');
+			
+			// Auto-expire role after 8 hours
+			if (currentRole && roleTimestamp) {
+				const eightHours = 8 * 60 * 60 * 1000;
+				if (Date.now() - parseInt(roleTimestamp) > eightHours) {
+					clearRole();
+					return;
+				}
+				
+				// If role is still valid, show current role
+				const roleNames = {
+					chef: 'Повар 👨‍🍳',
+					barman: 'Бармен 🍷',
+					manager: 'Менеджер 👨‍💼',
+					admin: 'Администратор ⚙️'
+				};
+				
+				const currentRoleDiv = document.createElement('div');
+				currentRoleDiv.className = 'mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center';
+				currentRoleDiv.innerHTML = `
+					<p class="text-blue-800 font-medium">Текущая роль: ${roleNames[currentRole]}</p>
+					<button onclick="continueAsCurrentRole()" class="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+						Продолжить
+					</button>
+				`;
+				
+				document.querySelector('.space-y-4').parentNode.insertBefore(currentRoleDiv, document.querySelector('.space-y-4'));
+			}
+		});
+
+		function continueAsCurrentRole() {
+			const role = localStorage.getItem('userRole');
+			selectRole(role);
+		}
+	</script>
+</Layout>

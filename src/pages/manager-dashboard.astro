@@ -1,0 +1,274 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Панель менеджера - Restaurant Checklist">
+	<div class="min-h-screen bg-gray-50">
+		<!-- Header -->
+		<header class="bg-white shadow-sm border-b border-gray-200">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="flex justify-between items-center py-4">
+					<div class="flex items-center">
+						<h1 class="text-2xl font-bold text-gray-900">👨‍💼 Панель менеджера</h1>
+					</div>
+					<div class="flex items-center space-x-4">
+						<span id="currentUser" class="text-sm text-gray-600"></span>
+						<button onclick="logout()" class="text-sm text-red-600 hover:text-red-800">Выйти</button>
+					</div>
+				</div>
+			</div>
+		</header>
+
+		<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+			<!-- Quick Actions -->
+			<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+				<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+					<div class="flex items-center">
+						<div class="flex-shrink-0">
+							<span class="text-3xl">📋</span>
+						</div>
+						<div class="ml-4">
+							<h3 class="text-lg font-medium text-gray-900">Pending Orders</h3>
+							<p id="pendingCount" class="text-2xl font-bold text-orange-600">0</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+					<div class="flex items-center">
+						<div class="flex-shrink-0">
+							<span class="text-3xl">✅</span>
+						</div>
+						<div class="ml-4">
+							<h3 class="text-lg font-medium text-gray-900">Sent Today</h3>
+							<p id="sentCount" class="text-2xl font-bold text-green-600">0</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+					<div class="flex items-center">
+						<div class="flex-shrink-0">
+							<span class="text-3xl">🏪</span>
+						</div>
+						<div class="ml-4">
+							<h3 class="text-lg font-medium text-gray-900">Suppliers</h3>
+							<p id="supplierCount" class="text-2xl font-bold text-blue-600">0</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+					<div class="flex items-center">
+						<div class="flex-shrink-0">
+							<span class="text-3xl">⚙️</span>
+						</div>
+						<div class="ml-4">
+							<h3 class="text-lg font-medium text-gray-900">Settings</h3>
+							<a href="/settings" class="text-sm text-blue-600 hover:text-blue-800">Manage</a>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- Pending Orders Section -->
+			<div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-8">
+				<div class="px-6 py-4 border-b border-gray-200">
+					<h2 class="text-xl font-semibold text-gray-900">📋 Pending Orders</h2>
+					<p class="text-sm text-gray-600">Orders waiting for approval and sending to suppliers</p>
+				</div>
+				<div id="pendingOrdersList" class="p-6">
+					<div class="text-center text-gray-500 py-8">
+						<span class="text-4xl mb-4 block">📭</span>
+						<p>No pending orders</p>
+						<p class="text-sm">Orders from kitchen and bar staff will appear here</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Quick Actions -->
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+				<a href="/kitchen-inventory" class="bg-orange-500 hover:bg-orange-600 text-white p-6 rounded-lg transition-colors">
+					<div class="flex items-center">
+						<span class="text-3xl mr-4">🍳</span>
+						<div>
+							<h3 class="text-lg font-semibold">Kitchen Orders</h3>
+							<p class="text-sm opacity-90">Create kitchen order</p>
+						</div>
+					</div>
+				</a>
+
+				<a href="/bar-inventory" class="bg-purple-500 hover:bg-purple-600 text-white p-6 rounded-lg transition-colors">
+					<div class="flex items-center">
+						<span class="text-3xl mr-4">🍷</span>
+						<div>
+							<h3 class="text-lg font-semibold">Bar Orders</h3>
+							<p class="text-sm opacity-90">Create bar order</p>
+						</div>
+					</div>
+				</a>
+
+				<a href="/settings" class="bg-gray-600 hover:bg-gray-700 text-white p-6 rounded-lg transition-colors">
+					<div class="flex items-center">
+						<span class="text-3xl mr-4">⚙️</span>
+						<div>
+							<h3 class="text-lg font-semibold">Settings</h3>
+							<p class="text-sm opacity-90">Manage suppliers</p>
+						</div>
+					</div>
+				</a>
+			</div>
+		</main>
+	</div>
+
+	<script is:inline>
+		// Check role access
+		function checkManagerAccess() {
+			const userRole = localStorage.getItem('userRole');
+			if (userRole !== 'manager' && userRole !== 'admin') {
+				alert('❌ Access denied. Manager role required.');
+				window.location.href = '/login';
+				return false;
+			}
+			return true;
+		}
+
+		function logout() {
+			localStorage.removeItem('userRole');
+			localStorage.removeItem('userRoleTimestamp');
+			window.location.href = '/login';
+		}
+
+		function loadDashboardData() {
+			// Update current user display
+			const userRole = localStorage.getItem('userRole');
+			const roleNames = {
+				manager: 'Менеджер 👨‍💼',
+				admin: 'Администратор ⚙️'
+			};
+			document.getElementById('currentUser').textContent = roleNames[userRole] || 'Unknown';
+
+			// Load pending orders count
+			loadPendingOrders();
+			
+			// Load other stats
+			loadStats();
+		}
+
+		function loadPendingOrders() {
+			// Get pending orders from localStorage (unified orders)
+			const unifiedHistory = JSON.parse(localStorage.getItem('unifiedOrderHistory') || '[]');
+			const pendingOrders = unifiedHistory.filter(order => order.status === 'sent'); // 'sent' means pending manager approval
+			
+			document.getElementById('pendingCount').textContent = pendingOrders.length;
+
+			if (pendingOrders.length > 0) {
+				const pendingOrdersList = document.getElementById('pendingOrdersList');
+				let ordersHtml = '';
+
+				pendingOrders.forEach((order, index) => {
+					const orderDate = new Date(order.timestamp).toLocaleString('ru-RU');
+					const departmentNames = order.departments.map(d => d.name).join(', ');
+					
+					ordersHtml += `
+						<div class="border border-gray-200 rounded-lg p-4 mb-4">
+							<div class="flex justify-between items-start mb-3">
+								<div>
+									<h4 class="font-medium text-gray-900">Order #${index + 1}</h4>
+									<p class="text-sm text-gray-600">${orderDate}</p>
+									<p class="text-sm text-gray-600">Departments: ${departmentNames}</p>
+									<p class="text-sm text-gray-600">${order.totalItems} items, ${order.totalQuantity} total quantity</p>
+								</div>
+								<button onclick="reviewOrder(${index})" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">
+									📋 Review & Send
+								</button>
+							</div>
+							<div class="text-sm text-gray-700">
+								${order.items.slice(0, 3).map(item => `• ${item.name} - ${item.quantity} ${item.unit}`).join('<br>')}
+								${order.items.length > 3 ? `<br>... and ${order.items.length - 3} more items` : ''}
+							</div>
+						</div>
+					`;
+				});
+
+				pendingOrdersList.innerHTML = ordersHtml;
+			}
+		}
+
+		function reviewOrder(orderIndex) {
+			// Get the order and put it in pendingOrder for confirmation page
+			const unifiedHistory = JSON.parse(localStorage.getItem('unifiedOrderHistory') || '[]');
+			const pendingOrders = unifiedHistory.filter(order => order.status === 'sent');
+			const selectedOrder = pendingOrders[orderIndex];
+
+			if (selectedOrder) {
+				// Convert to confirmation page format
+				const confirmationOrder = {
+					items: selectedOrder.items,
+					departments: selectedOrder.departments,
+					totalItems: selectedOrder.totalItems,
+					formattedText: generateFormattedText(selectedOrder),
+					returnUrl: '/manager-dashboard'
+				};
+
+				localStorage.setItem('pendingOrder', JSON.stringify(confirmationOrder));
+				window.location.href = '/confirmation';
+			}
+		}
+
+		function generateFormattedText(order) {
+			const today = new Date().toLocaleDateString('ru-RU');
+			let message = `📋 Заказ товаров - ${today}\n\n`;
+			
+			order.departments.forEach(dept => {
+				const deptItems = order.items.filter(item => item.department === dept.name.toLowerCase());
+				if (deptItems.length > 0) {
+					const deptEmoji = dept.name === 'Бар' ? '🍷' : dept.name === 'Кухня' ? '🍳' : '🧹';
+					message += `${deptEmoji} ${dept.name}:\n`;
+					deptItems.forEach(item => {
+						message += `• ${item.name} - ${item.quantity} ${item.unit}\n`;
+					});
+					message += '\n';
+				}
+			});
+			
+			message += `📊 Итого: ${order.totalItems} товаров из ${order.departments.length} отделов`;
+			return message;
+		}
+
+		function loadStats() {
+			// Load supplier count
+			fetch('/api/suppliers')
+				.then(response => response.json())
+				.then(data => {
+					if (data.success) {
+						document.getElementById('supplierCount').textContent = data.data.length;
+					}
+				})
+				.catch(error => console.error('Error loading suppliers:', error));
+
+			// Count sent orders today
+			const today = new Date().toDateString();
+			const unifiedHistory = JSON.parse(localStorage.getItem('unifiedOrderHistory') || '[]');
+			const sentToday = unifiedHistory.filter(order => {
+				const orderDate = new Date(order.timestamp).toDateString();
+				return orderDate === today && order.status === 'approved';
+			});
+			document.getElementById('sentCount').textContent = sentToday.length;
+		}
+
+		// Initialize dashboard
+		document.addEventListener('DOMContentLoaded', () => {
+			if (checkManagerAccess()) {
+				loadDashboardData();
+				
+				// Refresh data every 30 seconds
+				setInterval(loadDashboardData, 30000);
+			}
+		});
+
+		// Make functions globally accessible
+		window.reviewOrder = reviewOrder;
+		window.logout = logout;
+	</script>
+</Layout>

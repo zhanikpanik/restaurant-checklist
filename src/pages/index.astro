@@ -2,191 +2,217 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
-<Layout title="Система заказов ресторана">
+<Layout title="Restaurant Checklist - Inventory Management">
 	<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-		<!-- Header -->
-		<header class="bg-white shadow-sm border-b border-gray-200 px-4 py-6">
-			<div class="max-w-md mx-auto text-center">
-				<h1 class="text-3xl font-bold text-gray-900">🏪 Ресторан</h1>
-				<p class="text-gray-600 mt-2">Система управления заказами</p>
-			</div>
-		</header>
-
-		<!-- Main Content -->
-		<main class="max-w-md mx-auto px-4 py-8">
-			<div class="space-y-6">
-				<!-- Title -->
-				<div class="text-center mb-8">
-					<h2 class="text-2xl font-bold text-gray-900 mb-2">Выберите ваш отдел</h2>
-					<p class="text-gray-600">Для доступа к инвентарю и заказам</p>
-				</div>
-
-				<!-- Role Selection Cards -->
-				<div class="space-y-4">
-					<!-- Bar Staff -->
-					<a href="/bar" class="block">
-						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-blue-300">
-							<div class="flex items-center space-x-4">
-								<div class="text-4xl">🍷</div>
-								<div class="flex-1">
-									<h3 class="text-xl font-bold text-gray-900">Бар</h3>
-									<p class="text-gray-600">Управление напитками и барным инвентарем</p>
-									
-								</div>
-							</div>
-						</div>
-					</a>
-
-					<!-- Kitchen Staff -->
-					<a href="/kitchen" class="block">
-						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-orange-300">
-							<div class="flex items-center space-x-4">
-								<div class="text-4xl">🍳</div>
-								<div class="flex-1">
-									<h3 class="text-xl font-bold text-gray-900">Кухня</h3>
-									<p class="text-gray-600">Управление продуктами и кухонным инвентарем</p>
-									
-								</div>
-							</div>
-						</div>
-					</a>
-
-					<!-- Custom Section -->
-					<a href="/custom" class="block">
-						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-purple-300">
-							<div class="flex items-center space-x-4">
-								<div class="text-4xl">🧹</div>
-								<div class="flex-1">
-									<h3 class="text-xl font-bold text-gray-900">Горничная</h3>
-									<p class="text-gray-600">Создание и управление товарами вручную</p>
-									
-								</div>
-							</div>
-						</div>
-					</a>
-
-
-					<!-- Delivery -->
-					<a href="/delivery" class="block">
-						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-green-300">
-							<div class="flex items-center space-x-4">
-								<div class="text-4xl">🚚</div>
-								<div class="flex-1">
-									<h3 class="text-xl font-bold text-gray-900">Доставка</h3>
-									<p class="text-gray-600">Просмотр и управление заказами</p>
-									
-								</div>
-							</div>
-						</div>
-					</a>
-
-					<!-- Settings -->
-					<a href="/settings" class="block">
-						<div class="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300 p-6 border border-gray-200 hover:border-gray-400">
-							<div class="flex items-center space-x-4">
-								<div class="text-4xl">⚙️</div>
-								<div class="flex-1">
-									<h3 class="text-xl font-bold text-gray-900">Настройки</h3>
-									<p class="text-gray-600">Управление поставщиками и категориями</p>
-								</div>
-							</div>
-						</div>
-					</a>
-				</div>
-
-				<!-- Procurement section removed -->
-
-				<!-- Instructions -->
-				<div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-					<h4 class="font-medium text-blue-900 mb-2">💡 Как пользоваться:</h4>
-					<ul class="text-sm text-blue-800 space-y-1">
-						<li>• <strong>Бар/Кухня:</strong> Создавайте заказы для поставщиков</li>
-						<li>• <strong>Склад:</strong> Создавайте и управляйте товарами вручную</li>
-						<li>• <strong>Доставка:</strong> Отмечайте доставленные заказы и скачивайте Excel</li>
-					</ul>
-				</div>
-
-				<!-- Quick Stats -->
-				<div class="bg-white rounded-lg shadow-sm p-4 border border-gray-200">
-					<h4 class="font-medium text-gray-900 mb-3 text-center">📊 Статистика сегодня</h4>
-					<div class="grid grid-cols-4 gap-3 text-center">
-						<div>
-							<div class="text-lg font-bold text-blue-600" id="barOrdersCount">-</div>
-							<div class="text-xs text-gray-600">Бар</div>
-						</div>
-						<div>
-							<div class="text-lg font-bold text-orange-600" id="kitchenOrdersCount">-</div>
-							<div class="text-xs text-gray-600">Кухня</div>
-						</div>
-						<div>
-							<div class="text-lg font-bold text-purple-600" id="customOrdersCount">-</div>
-							<div class="text-xs text-gray-600">Склад</div>
-						</div>
-						<div>
-							<div class="text-lg font-bold text-green-600" id="deliveredCount">-</div>
-							<div class="text-xs text-gray-600">Доставлено</div>
-						</div>
+		<!-- Header with Role Info -->
+		<header class="bg-white shadow-sm border-b border-gray-200">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="flex justify-between items-center py-4">
+					<h1 class="text-2xl font-bold text-gray-900">🍽️ Restaurant System</h1>
+					<div id="userInfo" class="flex items-center space-x-4">
+						<!-- Will be populated by JavaScript -->
 					</div>
 				</div>
 			</div>
-		</main>
+		</header>
 
-		<!-- Floating Cart Button -->
-		<a href="/cart" class="fixed bottom-6 right-6 z-50">
-			<div class="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-110">
-				<div class="text-2xl">🛒</div>
+		<main class="max-w-4xl mx-auto p-6">
+			<!-- Role-based Welcome Message -->
+			<div id="welcomeSection" class="text-center mb-8">
+				<h2 id="welcomeTitle" class="text-3xl font-bold text-gray-800 mb-4">Welcome!</h2>
+				<p id="welcomeMessage" class="text-lg text-gray-600">Please select your role to continue</p>
 			</div>
-		</a>
+
+			<!-- Department Selection (Role-based visibility) -->
+			<div id="departmentGrid" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+				<!-- Kitchen Department -->
+				<div id="kitchenCard" class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+					<div class="bg-gradient-to-r from-orange-400 to-red-500 p-6">
+						<div class="flex items-center justify-between">
+							<div>
+								<h3 class="text-xl font-bold text-white">Кухня</h3>
+								<p class="text-orange-100">Kitchen Inventory</p>
+							</div>
+							<span class="text-4xl">🍳</span>
+						</div>
+					</div>
+					<div class="p-6">
+						<p class="text-gray-600 mb-4">Управление запасами кухни и создание заказов продуктов</p>
+						<a href="/kitchen-inventory" class="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
+							<span class="mr-2">📋</span>
+							Открыть кухню
+						</a>
+					</div>
+				</div>
+
+				<!-- Bar Department -->
+				<div id="barCard" class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+					<div class="bg-gradient-to-r from-purple-400 to-pink-500 p-6">
+						<div class="flex items-center justify-between">
+							<div>
+								<h3 class="text-xl font-bold text-white">Бар</h3>
+								<p class="text-purple-100">Bar Inventory</p>
+							</div>
+							<span class="text-4xl">🍷</span>
+						</div>
+					</div>
+					<div class="p-6">
+						<p class="text-gray-600 mb-4">Управление запасами бара и алкогольными напитками</p>
+						<a href="/bar-inventory" class="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+							<span class="mr-2">🍸</span>
+							Открыть бар
+						</a>
+					</div>
+				</div>
+
+				<!-- Housekeeping Department -->
+				<div id="housekeepingCard" class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow duration-300">
+					<div class="bg-gradient-to-r from-green-400 to-blue-500 p-6">
+						<div class="flex items-center justify-between">
+							<div>
+								<h3 class="text-xl font-bold text-white">Горничная</h3>
+								<p class="text-green-100">Housekeeping</p>
+							</div>
+							<span class="text-4xl">🧹</span>
+						</div>
+					</div>
+					<div class="p-6">
+						<p class="text-gray-600 mb-4">Управление хозяйственными товарами и принадлежностями</p>
+						<a href="/housekeeping" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+							<span class="mr-2">🧽</span>
+							Открыть хозяйство
+						</a>
+					</div>
+				</div>
+			</div>
+
+			<!-- Manager/Admin Section -->
+			<div id="managerSection" class="bg-white rounded-xl shadow-lg p-6 mb-8" style="display: none;">
+				<h3 class="text-xl font-bold text-gray-800 mb-4">👨‍💼 Manager Tools</h3>
+				<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+					<a href="/manager-dashboard" class="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg transition-colors">
+						<div class="flex items-center">
+							<span class="text-2xl mr-3">📊</span>
+							<div>
+								<h4 class="font-semibold">Dashboard</h4>
+								<p class="text-sm opacity-90">Pending orders</p>
+							</div>
+						</div>
+					</a>
+					<a href="/settings" class="bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-lg transition-colors">
+						<div class="flex items-center">
+							<span class="text-2xl mr-3">⚙️</span>
+							<div>
+								<h4 class="font-semibold">Settings</h4>
+								<p class="text-sm opacity-90">Suppliers</p>
+							</div>
+						</div>
+					</a>
+					<a href="/cart" class="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg transition-colors">
+						<div class="flex items-center">
+							<span class="text-2xl mr-3">🛒</span>
+							<div>
+								<h4 class="font-semibold">Cart</h4>
+								<p class="text-sm opacity-90">Review orders</p>
+							</div>
+						</div>
+					</a>
+				</div>
+			</div>
+
+			<!-- Quick Actions -->
+			<div class="text-center">
+				<div class="flex flex-col sm:flex-row gap-4 justify-center">
+					<a href="/cart" class="inline-flex items-center px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">
+						<span class="mr-2">🛒</span>
+						Корзина заказов
+					</a>
+					<a href="/delivery" class="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+						<span class="mr-2">🚚</span>
+						Статус доставки
+					</a>
+				</div>
+			</div>
+		</main>
 	</div>
 
 	<script is:inline>
-		// Load today's statistics
-		function loadTodayStats() {
-			try {
-				const today = new Date().toDateString();
-				
-				// Get orders from localStorage
-				const barOrders = JSON.parse(localStorage.getItem('barOrderHistory') || '[]');
-				const kitchenOrders = JSON.parse(localStorage.getItem('kitchenOrderHistory') || '[]');
-				const customOrders = JSON.parse(localStorage.getItem('customOrderHistory') || '[]');
-				
-				// Count today's orders
-				const barTodayCount = barOrders.filter(order => 
-					new Date(order.timestamp).toDateString() === today
-				).length;
-				
-				const kitchenTodayCount = kitchenOrders.filter(order => 
-					new Date(order.timestamp).toDateString() === today
-				).length;
-				
-				const customTodayCount = customOrders.filter(order => 
-					new Date(order.timestamp).toDateString() === today
-				).length;
-				
-				// Count delivered orders today
-				const deliveredCount = [...barOrders, ...kitchenOrders, ...customOrders].filter(order => 
-					order.status === 'delivered' && 
-					order.deliveredAt && 
-					new Date(order.deliveredAt).toDateString() === today
-				).length;
-				
-				// Update display
-				document.getElementById('barOrdersCount').textContent = barTodayCount;
-				document.getElementById('kitchenOrdersCount').textContent = kitchenTodayCount;
-				document.getElementById('customOrdersCount').textContent = customTodayCount;
-				document.getElementById('deliveredCount').textContent = deliveredCount;
-				
-			} catch (error) {
-				console.error('Failed to load stats:', error);
-				// Show dashes on error
-				document.getElementById('barOrdersCount').textContent = '-';
-				document.getElementById('kitchenOrdersCount').textContent = '-';
-				document.getElementById('customOrdersCount').textContent = '-';
-				document.getElementById('deliveredCount').textContent = '-';
+		document.addEventListener('DOMContentLoaded', () => {
+			checkUserRoleAndAdjustUI();
+		});
+
+		function checkUserRoleAndAdjustUI() {
+			const userRole = localStorage.getItem('userRole');
+			const userRoleTimestamp = localStorage.getItem('userRoleTimestamp');
+
+			// Check if role has expired (8 hours)
+			if (userRole && userRoleTimestamp) {
+				const eightHours = 8 * 60 * 60 * 1000;
+				if (Date.now() - parseInt(userRoleTimestamp) > eightHours) {
+					localStorage.removeItem('userRole');
+					localStorage.removeItem('userRoleTimestamp');
+					window.location.href = '/login';
+					return;
+				}
+			}
+
+			if (!userRole) {
+				// No role selected, redirect to login
+				window.location.href = '/login';
+				return;
+			}
+
+			// Update UI based on role
+			updateUIForRole(userRole);
+		}
+
+		function updateUIForRole(role) {
+			const roleNames = {
+				chef: 'Повар 👨‍🍳',
+				barman: 'Бармен 🍷',
+				manager: 'Менеджер 👨‍💼',
+				admin: 'Администратор ⚙️'
+			};
+
+			const welcomeMessages = {
+				chef: 'Добро пожаловать в систему управления кухней',
+				barman: 'Добро пожаловать в систему управления баром',
+				manager: 'Добро пожаловать в панель менеджера',
+				admin: 'Добро пожаловать в административную панель'
+			};
+
+			// Update welcome section
+			document.getElementById('welcomeTitle').textContent = `Добро пожаловать, ${roleNames[role]}!`;
+			document.getElementById('welcomeMessage').textContent = welcomeMessages[role];
+
+			// Update user info in header
+			document.getElementById('userInfo').innerHTML = `
+				<span class="text-sm text-gray-600">${roleNames[role]}</span>
+				<button onclick="logout()" class="text-sm text-red-600 hover:text-red-800">Выйти</button>
+			`;
+
+			// Show/hide sections based on role
+			if (role === 'chef') {
+				// Chef can only see kitchen
+				document.getElementById('barCard').style.display = 'none';
+				document.getElementById('housekeepingCard').style.display = 'none';
+			} else if (role === 'barman') {
+				// Barman can only see bar
+				document.getElementById('kitchenCard').style.display = 'none';
+				document.getElementById('housekeepingCard').style.display = 'none';
+			} else if (role === 'manager' || role === 'admin') {
+				// Manager/Admin can see everything + manager tools
+				document.getElementById('managerSection').style.display = 'block';
 			}
 		}
-		
-		// Load stats when page loads
-		document.addEventListener('DOMContentLoaded', loadTodayStats);
+
+		function logout() {
+			localStorage.removeItem('userRole');
+			localStorage.removeItem('userRoleTimestamp');
+			window.location.href = '/login';
+		}
+
+		// Make logout globally accessible
+		window.logout = logout;
 	</script>
 </Layout>
