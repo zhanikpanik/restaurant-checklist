@@ -1,4 +1,4 @@
-import pool, { initializeDb } from '../../../lib/db.js';
+import pool, { initializeDb } from '../../lib/db.js';
 
 export const prerender = false;
 
