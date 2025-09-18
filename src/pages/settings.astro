@@ -1,0 +1,171 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Settings - Supplier Management">
+  <main class="max-w-4xl mx-auto p-4 md:p-6">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Settings</h1>
+
+    <!-- Supplier Management Section -->
+    <section id="supplier-section" class="bg-white p-6 rounded-lg shadow-md mb-8">
+      <h2 class="text-2xl font-semibold text-gray-700 mb-4">Manage Suppliers</h2>
+      
+      <!-- Form to add a new supplier -->
+      <form id="add-supplier-form" class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+        <div class="md:col-span-1">
+          <label for="supplier-name" class="block text-sm font-medium text-gray-600">Supplier Name</label>
+          <input type="text" id="supplier-name" name="name" required class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="e.g., Metro Cash & Carry">
+        </div>
+        <div class="md:col-span-1">
+          <label for="supplier-contact" class="block text-sm font-medium text-gray-600">Contact Info (Optional)</label>
+          <input type="text" id="supplier-contact" name="contact_info" class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Phone or email">
+        </div>
+        <button type="submit" class="w-full md:w-auto justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 h-10">Add Supplier</button>
+      </form>
+
+      <!-- List of existing suppliers -->
+      <div id="supplier-list-container">
+        <h3 class="text-lg font-medium text-gray-600 mb-2">Existing Suppliers</h3>
+        <ul id="supplier-list" class="space-y-2">
+          <!-- Suppliers will be dynamically loaded here -->
+          <li class="text-gray-500">Loading suppliers...</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Category to Supplier Assignment Section -->
+    <section id="category-section" class="bg-white p-6 rounded-lg shadow-md">
+      <h2 class="text-2xl font-semibold text-gray-700 mb-4">Assign Suppliers to Categories</h2>
+      <div id="category-list-container" class="space-y-4">
+        <!-- Categories will be dynamically loaded here -->
+        <p class="text-gray-500">Loading categories...</p>
+      </div>
+    </section>
+
+  </main>
+
+  <script is:inline>
+    // All the client-side logic will go here.
+    document.addEventListener('DOMContentLoaded', () => {
+      const supplierForm = document.getElementById('add-supplier-form');
+      const supplierList = document.getElementById('supplier-list');
+      const categoryListContainer = document.getElementById('category-list-container');
+
+      let suppliers = [];
+      let categories = [];
+
+      // Fetch both suppliers and categories on page load
+      async function fetchData() {
+        try {
+          const [suppliersRes, categoriesRes] = await Promise.all([
+            fetch('/api/suppliers'),
+            fetch('/api/categories')
+          ]);
+          const suppliersData = await suppliersRes.json();
+          const categoriesData = await categoriesRes.json();
+
+          if (suppliersData.success) {
+            suppliers = suppliersData.data;
+            renderSuppliers();
+          }
+
+          if (categoriesData.success) {
+            categories = categoriesData.data;
+            renderCategories();
+          }
+        } catch (error) {
+          console.error('Failed to fetch initial data:', error);
+          supplierList.innerHTML = '<li class="text-red-500">Failed to load suppliers.</li>';
+          categoryListContainer.innerHTML = '<p class="text-red-500">Failed to load categories.</p>';
+        }
+      }
+
+      // Render the list of suppliers
+      function renderSuppliers() {
+        if (suppliers.length === 0) {
+          supplierList.innerHTML = '<li class="text-gray-500">No suppliers added yet.</li>';
+          return;
+        }
+        supplierList.innerHTML = suppliers.map(s => `
+          <li class="flex justify-between items-center p-2 bg-gray-50 rounded-md">
+            <span>${s.name} <span class="text-sm text-gray-500">${s.contact_info || ''}</span></span>
+            <!-- Delete/Edit buttons can be added here -->
+          </li>
+        `).join('');
+      }
+
+      // Render the list of categories with supplier dropdowns
+      function renderCategories() {
+        if (categories.length === 0) {
+          categoryListContainer.innerHTML = '<p class="text-gray-500">No product categories found. Please sync your products first.</p>';
+          return;
+        }
+        categoryListContainer.innerHTML = categories.map(cat => `
+          <div class="flex justify-between items-center p-3 bg-gray-50 rounded-md border border-gray-200">
+            <span class="font-medium text-gray-800">${cat.name}</span>
+            <select data-category-id="${cat.id}" class="category-supplier-select block w-1/2 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+              <option value="">-- No Default Supplier --</option>
+              ${suppliers.map(sup => `<option value="${sup.id}" ${cat.default_supplier_id === sup.id ? 'selected' : ''}>${sup.name}</option>`).join('')}
+            </select>
+          </div>
+        `).join('');
+
+        // Add event listeners to the new dropdowns
+        document.querySelectorAll('.category-supplier-select').forEach(select => {
+          select.addEventListener('change', handleSupplierAssignment);
+        });
+      }
+
+      // Handle form submission for adding a new supplier
+      supplierForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(supplierForm);
+        const name = formData.get('name');
+        const contact_info = formData.get('contact_info');
+
+        try {
+          const response = await fetch('/api/suppliers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, contact_info })
+          });
+          const result = await response.json();
+          if (result.success) {
+            supplierForm.reset();
+            fetchData(); // Refresh both lists
+          } else {
+            alert(`Error: ${result.error}`);
+          }
+        } catch (error) {
+          console.error('Failed to add supplier:', error);
+          alert('An error occurred while adding the supplier.');
+        }
+      });
+
+      // Handle changing a supplier for a category
+      async function handleSupplierAssignment(e) {
+        const categoryId = e.target.dataset.categoryId;
+        const supplierId = e.target.value ? parseInt(e.target.value, 10) : null;
+
+        try {
+          const response = await fetch('/api/categories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category_id: categoryId, supplier_id: supplierId })
+          });
+          const result = await response.json();
+          if (!result.success) {
+            alert(`Error: ${result.error}`);
+            fetchData(); // Re-render to revert optimistic update
+          }
+        } catch (error) {
+          console.error('Failed to assign supplier:', error);
+          alert('An error occurred while assigning the supplier.');
+        }
+      }
+
+      // Initial data load
+      fetchData();
+    });
+  </script>
+</Layout>

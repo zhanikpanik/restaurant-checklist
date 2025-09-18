@@ -9,29 +9,24 @@ const pool = new pg.Pool({
     }
 });
 
-// Function to create the cart_items table if it doesn't exist
-export async function initializeDb() {
-    const client = await pool.connect();
+import { setupDatabaseSchema } from './db-schema.js';
+
+// Initialize the database schema on application startup.
+// This will create or update tables as needed.
+async function initializeDb() {
     try {
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS cart_items (
-                id SERIAL PRIMARY KEY,
-                product_id VARCHAR(255) NOT NULL,
-                name TEXT NOT NULL,
-                quantity INTEGER NOT NULL,
-                unit VARCHAR(50),
-                department VARCHAR(100) NOT NULL,
-                restaurant_id VARCHAR(100) DEFAULT 'default_restaurant' NOT NULL, -- For future multi-tenancy
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );
-        `);
-        console.log('Database initialized and cart_items table is ready.');
-    } catch (err) {
-        console.error('Error initializing database:', err);
-    } finally {
-        client.release();
+        console.log('Initializing database connection and schema...');
+        await setupDatabaseSchema();
+        console.log('Database initialization complete.');
+    } catch (error) {
+        console.error('🔴🔴🔴 CRITICAL: Failed to initialize the database. The app may not function correctly. 🔴🔴🔴');
+        console.error(error);
     }
 }
+
+// We'll export the initialization function to be called from an entry point,
+// but also call it here to ensure it runs when the module is loaded.
+initializeDb();
 
 // Export the pool for querying the database from other parts of the application
 export default pool;
