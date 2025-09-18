@@ -94,19 +94,20 @@ import Layout from '../layouts/Layout.astro';
 	</div>
 
 	<script is:inline>
-		// Get order data from URL parameters or localStorage
-		function getOrderData() {
-			// Try to get from localStorage first (more reliable)
-			const orderData = localStorage.getItem('pendingOrder');
-			if (orderData) {
-				return JSON.parse(orderData);
+		document.addEventListener('DOMContentLoaded', () => {
+			// Get order data from URL parameters or localStorage
+			function getOrderData() {
+				// Try to get from localStorage first (more reliable)
+				const orderData = localStorage.getItem('pendingOrder');
+				if (orderData) {
+					return JSON.parse(orderData);
+				}
+				
+				// Fallback: redirect back if no order data
+				console.error('No order data found');
+				window.history.back();
+				return null;
 			}
-			
-			// Fallback: redirect back if no order data
-			console.error('No order data found');
-			window.history.back();
-			return null;
-		}
 
 		// Display order details
 		function displayOrderDetails() {
@@ -521,18 +522,21 @@ import Layout from '../layouts/Layout.astro';
 			return message;
 		}
 
-		// Event listeners
-		document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
-		document.getElementById('sendWhatsAppBtn').addEventListener('click', sendToWhatsApp);
-		document.getElementById('mainMenuBtn').addEventListener('click', () => {
-			window.location.href = '/';
+			// Initialize the page
+			displayOrderDetails();
+
+			// Event listeners
+			document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+			document.getElementById('sendWhatsAppBtn').addEventListener('click', sendToWhatsApp);
+			document.getElementById('mainMenuBtn').addEventListener('click', () => {
+				window.location.href = '/';
+			});
+			document.getElementById('cancelBtn').addEventListener('click', () => {
+				window.history.back();
+			});
+			document.getElementById('backBtn').addEventListener('click', () => {
+				window.history.back();
+			});
 		});
-		document.getElementById('cancelBtn').addEventListener('click', () => {
-			window.history.back();
-		});
-		document.getElementById('backBtn').addEventListener('click', () => {
-			window.history.back();
-		});
-	});
 	</script>
 </Layout>

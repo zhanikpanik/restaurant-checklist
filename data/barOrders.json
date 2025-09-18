@@ -1,5 +1,26 @@
 [
   {
+    "timestamp": "2025-09-18T20:55:24.880Z",
+    "department": "bar",
+    "departmentName": "Бар",
+    "items": [
+      {
+        "id": 367,
+        "name": "Appassionate",
+        "quantity": 0.75,
+        "unit": "л",
+        "department": "bar",
+        "departmentName": "Бар"
+      }
+    ],
+    "totalItems": 1,
+    "totalQuantity": 0.75,
+    "status": "sent",
+    "isPartOfUnified": true,
+    "source": "internal",
+    "supplier": "Internal Order"
+  },
+  {
     "timestamp": "2025-09-06T11:53:55.875Z",
     "department": "bar",
     "departmentName": "Бар",
