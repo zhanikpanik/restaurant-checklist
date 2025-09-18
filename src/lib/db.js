@@ -3,10 +3,13 @@ import pg from 'pg';
 // Create a new pool instance. The pool will read the DATABASE_URL environment variable
 // to connect to your PostgreSQL database.
 const pool = new pg.Pool({
-    connectionString: import.meta.env.DATABASE_URL,
-    ssl: {
+    connectionString: import.meta.env.DATABASE_URL || process.env.DATABASE_URL,
+    ssl: import.meta.env.DATABASE_URL?.includes('railway.internal') ? false : {
         rejectUnauthorized: false // Required for some cloud database providers
-    }
+    },
+    max: 10, // Maximum number of clients in the pool
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
 });
 
 import { setupDatabaseSchema } from './db-schema.js';
