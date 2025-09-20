@@ -5,42 +5,52 @@ export const prerender = false;
 
 // GET: Fetch all suppliers
 async function getSuppliers(tenantId) {
-    const tenantFilter = getTenantFilter(tenantId);
     const client = await pool.connect();
     try {
-        console.log('🔍 Loading suppliers for tenant:', tenantId, 'restaurant_id:', tenantFilter.restaurant_id);
+        console.log('🔍 Loading suppliers for tenant:', tenantId);
         
-        // First try to get suppliers for this specific tenant
-        const result = await client.query(
-            'SELECT id, name, contact_info, phone, created_at FROM suppliers WHERE restaurant_id = $1 ORDER BY name ASC',
-            [tenantFilter.restaurant_id]
-        );
+        // Check if restaurant_id column exists
+        const columnCheck = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'suppliers' AND column_name = 'restaurant_id'
+        `);
         
-        console.log('📊 Found', result.rows.length, 'suppliers for tenant', tenantId);
+        const hasRestaurantId = columnCheck.rows.length > 0;
+        console.log('🏢 Suppliers table has restaurant_id column:', hasRestaurantId);
         
-        // If no suppliers found for this tenant, try to get all suppliers as fallback
-        if (result.rows.length === 0) {
-            console.log('⚠️ No tenant-specific suppliers found, checking all suppliers...');
-            const allSuppliersResult = await client.query('SELECT id, name, contact_info, phone, created_at FROM suppliers ORDER BY name ASC');
-            console.log('📊 Found', allSuppliersResult.rows.length, 'total suppliers in database');
+        let result;
+        if (hasRestaurantId) {
+            // Use tenant filtering if column exists
+            const tenantFilter = getTenantFilter(tenantId);
+            result = await client.query(
+                'SELECT id, name, contact_info, phone, created_at FROM suppliers WHERE restaurant_id = $1 ORDER BY name ASC',
+                [tenantFilter.restaurant_id]
+            );
             
-            if (allSuppliersResult.rows.length > 0) {
-                console.log('✅ Using all suppliers as fallback for tenant', tenantId);
-                return {
-                    status: 200,
-                    body: { 
-                        success: true, 
-                        data: allSuppliersResult.rows,
-                        usingFallback: true,
-                        message: `Showing all suppliers (no tenant-specific suppliers found for ${tenantId})`
-                    }
-                };
+            console.log('📊 Found', result.rows.length, 'suppliers for tenant', tenantId);
+            
+            // If no tenant-specific suppliers, get all suppliers
+            if (result.rows.length === 0) {
+                console.log('⚠️ No tenant-specific suppliers found, getting all suppliers...');
+                result = await client.query('SELECT id, name, contact_info, phone, created_at FROM suppliers ORDER BY name ASC');
             }
+        } else {
+            // No restaurant_id column, get all suppliers
+            console.log('📋 Getting all suppliers (no tenant filtering available)');
+            result = await client.query('SELECT id, name, contact_info, phone, created_at FROM suppliers ORDER BY name ASC');
         }
+        
+        console.log('📊 Total suppliers loaded:', result.rows.length);
         
         return {
             status: 200,
-            body: { success: true, data: result.rows }
+            body: { 
+                success: true, 
+                data: result.rows,
+                hasRestaurantId: hasRestaurantId,
+                message: hasRestaurantId ? 'Loaded with tenant filtering' : 'Loaded all suppliers (no tenant column)'
+            }
         };
     } finally {
         client.release();
@@ -57,10 +67,31 @@ async function createSupplier(request, tenantId) {
 
     const client = await pool.connect();
     try {
-        const result = await client.query(
-            'INSERT INTO suppliers (restaurant_id, name, contact_info, phone) VALUES ($1, $2, $3, $4) RETURNING *',
-            [tenantId, name.trim(), contact_info || null, phone || null]
-        );
+        // Check if restaurant_id column exists
+        const columnCheck = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'suppliers' AND column_name = 'restaurant_id'
+        `);
+        
+        const hasRestaurantId = columnCheck.rows.length > 0;
+        console.log('🏢 Creating supplier, restaurant_id column exists:', hasRestaurantId);
+        
+        let result;
+        if (hasRestaurantId) {
+            // Include restaurant_id if column exists
+            result = await client.query(
+                'INSERT INTO suppliers (restaurant_id, name, contact_info, phone) VALUES ($1, $2, $3, $4) RETURNING *',
+                [tenantId, name.trim(), contact_info || null, phone || null]
+            );
+        } else {
+            // Create without restaurant_id if column doesn't exist
+            result = await client.query(
+                'INSERT INTO suppliers (name, contact_info, phone) VALUES ($1, $2, $3) RETURNING *',
+                [name.trim(), contact_info || null, phone || null]
+            );
+        }
+        
         return {
             status: 201,
             body: { success: true, data: result.rows[0] }
