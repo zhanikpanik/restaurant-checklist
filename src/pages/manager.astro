@@ -1,0 +1,722 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Менеджер - Панель управления">
+	<div class="min-h-screen bg-gray-50 flex flex-col">
+		<!-- App Header -->
+		<header class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
+			<div class="px-4 py-3">
+				<div class="flex items-center justify-between">
+					<!-- Left: Spacer -->
+					<div class="w-10"></div>
+					
+					<!-- Center: Title -->
+					<div class="flex items-center space-x-2">
+						<span class="text-2xl">👔</span>
+						<h1 class="text-lg font-bold text-gray-900">Менеджер</h1>
+					</div>
+					
+					<!-- Right: Role Switch Dropdown -->
+					<div class="relative">
+						<button 
+							id="roleDropdownBtn"
+							onclick="toggleRoleDropdown()"
+							class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center"
+							title="Переключить роль"
+						>
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m0-4l-4-4"/>
+							</svg>
+							<svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+							</svg>
+						</button>
+						
+						<!-- Dropdown Menu -->
+						<div 
+							id="roleDropdown" 
+							class="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden"
+						>
+							<div class="py-1">
+								<button 
+									onclick="switchToRole('bar')" 
+									class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+								>
+									<span class="text-lg mr-2">🍷</span>
+									Бар
+								</button>
+								<button 
+									onclick="switchToRole('kitchen')" 
+									class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+								>
+									<span class="text-lg mr-2">🍳</span>
+									Кухня
+								</button>
+								<button 
+									onclick="switchToRole('manager')" 
+									class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+								>
+									<span class="text-lg mr-2">👔</span>
+									Менеджер
+									<span class="ml-auto text-xs text-green-600">●</span>
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</header>
+
+		<!-- Main Content Area -->
+		<main class="flex-1 p-4">
+			<div class="max-w-6xl mx-auto">
+				<!-- Debug Info -->
+				<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+					<h3 class="text-sm font-semibold text-yellow-800 mb-2">🔍 Debug Info (remove in production)</h3>
+					<div class="text-xs text-yellow-700">
+						<div>Bar Orders: <span id="debugBarOrders">Loading...</span></div>
+						<div>Kitchen Orders: <span id="debugKitchenOrders">Loading...</span></div>
+						<div>Total Orders: <span id="debugTotalOrders">Loading...</span></div>
+					</div>
+				</div>
+
+				<!-- Admin Tools Section -->
+				<div class="bg-white rounded-lg border border-gray-200 mb-8">
+					<div class="px-6 py-4 border-b border-gray-200">
+						<h3 class="text-lg font-semibold text-gray-900">🔧 Административные инструменты</h3>
+					</div>
+					<div class="p-6">
+						<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+							<button 
+								onclick="runDatabaseMigration()" 
+								class="p-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-left transition-colors"
+							>
+								<div class="text-lg mb-2">🗄️</div>
+								<div class="font-medium text-gray-900">Миграция БД</div>
+								<div class="text-sm text-gray-600">Обновить схему базы данных</div>
+							</button>
+							
+							<button 
+								onclick="categorizeProducts()" 
+								class="p-4 bg-green-50 hover:bg-green-100 border border-green-200 rounded-lg text-left transition-colors"
+							>
+								<div class="text-lg mb-2">🤖</div>
+								<div class="font-medium text-gray-900">Категоризация AI</div>
+								<div class="text-sm text-gray-600">Автоматическая категоризация товаров</div>
+							</button>
+							
+							<button 
+								onclick="checkCategories()" 
+								class="p-4 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg text-left transition-colors"
+							>
+								<div class="text-lg mb-2">📊</div>
+								<div class="font-medium text-gray-900">Проверить категории</div>
+								<div class="text-sm text-gray-600">Просмотр категорий в БД</div>
+							</button>
+							
+							<button 
+								onclick="loadAllOrders()" 
+								class="p-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg text-left transition-colors"
+							>
+								<div class="text-lg mb-2">📋</div>
+								<div class="font-medium text-gray-900">Все заказы</div>
+								<div class="text-sm text-gray-600">Загрузить заказы с сервера</div>
+							</button>
+							
+							<button 
+								onclick="manageSuppliers()" 
+								class="p-4 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg text-left transition-colors"
+							>
+								<div class="text-lg mb-2">🏢</div>
+								<div class="font-medium text-gray-900">Поставщики</div>
+								<div class="text-sm text-gray-600">Управление поставщиками</div>
+							</button>
+							
+							<button 
+								onclick="addSupplierPhone()" 
+								class="p-4 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg text-left transition-colors"
+							>
+								<div class="text-lg mb-2">📞</div>
+								<div class="font-medium text-gray-900">Обновить телефоны</div>
+								<div class="text-sm text-gray-600">Добавить поле телефон</div>
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<!-- Dashboard Cards -->
+				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+					<!-- Bar Overview -->
+					<div class="bg-white rounded-lg border border-gray-200 p-6">
+						<div class="flex items-center justify-between mb-4">
+							<h3 class="text-lg font-semibold text-gray-900">🍷 Бар</h3>
+							<a href="/bar" class="text-sm text-blue-600 hover:text-blue-800">Перейти →</a>
+						</div>
+						<div class="space-y-2">
+							<div class="flex justify-between">
+								<span class="text-sm text-gray-600">Активные заказы:</span>
+								<span class="text-sm font-medium" id="barActiveOrders">-</span>
+							</div>
+							<div class="flex justify-between">
+								<span class="text-sm text-gray-600">Товаров в наличии:</span>
+								<span class="text-sm font-medium" id="barProductCount">-</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Kitchen Overview -->
+					<div class="bg-white rounded-lg border border-gray-200 p-6">
+						<div class="flex items-center justify-between mb-4">
+							<h3 class="text-lg font-semibold text-gray-900">🍳 Кухня</h3>
+							<a href="/kitchen" class="text-sm text-blue-600 hover:text-blue-800">Перейти →</a>
+						</div>
+						<div class="space-y-2">
+							<div class="flex justify-between">
+								<span class="text-sm text-gray-600">Активные заказы:</span>
+								<span class="text-sm font-medium" id="kitchenActiveOrders">-</span>
+							</div>
+							<div class="flex justify-between">
+								<span class="text-sm text-gray-600">Товаров в наличии:</span>
+								<span class="text-sm font-medium" id="kitchenProductCount">-</span>
+							</div>
+						</div>
+					</div>
+
+					<!-- Overall Stats -->
+					<div class="bg-white rounded-lg border border-gray-200 p-6">
+						<div class="flex items-center justify-between mb-4">
+							<h3 class="text-lg font-semibold text-gray-900">📊 Общая статистика</h3>
+						</div>
+						<div class="space-y-2">
+							<div class="flex justify-between">
+								<span class="text-sm text-gray-600">Всего заказов:</span>
+								<span class="text-sm font-medium" id="totalOrders">-</span>
+							</div>
+							<div class="flex justify-between">
+								<span class="text-sm text-gray-600">Всего товаров:</span>
+								<span class="text-sm font-medium" id="totalProducts">-</span>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Orders Management -->
+				<div class="bg-white rounded-lg border border-gray-200 mb-8">
+					<div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+						<h3 class="text-lg font-semibold text-gray-900">📋 Управление заказами</h3>
+						<div class="flex space-x-2">
+							<button 
+								onclick="loadServerOrders()" 
+								class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+							>
+								🔄 Загрузить с сервера
+							</button>
+							<button 
+								onclick="sendAllOrdersToSuppliers()" 
+								class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
+							>
+								📤 Отправить все поставщикам
+							</button>
+						</div>
+					</div>
+					<div class="p-6">
+						<div id="ordersManagement" class="space-y-4">
+							<div class="text-center text-gray-500 py-8">
+								<span class="text-4xl mb-4 block">📋</span>
+								<p class="text-lg mb-2">Загрузка заказов...</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Suppliers Management -->
+				<div class="bg-white rounded-lg border border-gray-200 mb-8">
+					<div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+						<h3 class="text-lg font-semibold text-gray-900">🏢 Поставщики</h3>
+						<button 
+							onclick="addNewSupplier()" 
+							class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg"
+						>
+							➕ Добавить поставщика
+						</button>
+					</div>
+					<div class="p-6">
+						<div id="suppliersManagement" class="space-y-4">
+							<div class="text-center text-gray-500 py-8">
+								<span class="text-4xl mb-4 block">🏢</span>
+								<p class="text-lg mb-2">Загрузка поставщиков...</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Add Missing Products Modal -->
+				<div id="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+					<div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+						<div class="flex justify-between items-center mb-4">
+							<h3 class="text-lg font-semibold">➕ Добавить товар в заказ</h3>
+							<button onclick="closeAddProductModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+						</div>
+						<div class="space-y-4">
+							<div>
+								<label class="block text-sm font-medium text-gray-700 mb-1">Название товара</label>
+								<input 
+									type="text" 
+									id="newProductName" 
+									class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+									placeholder="Введите название товара"
+								>
+							</div>
+							<div>
+								<label class="block text-sm font-medium text-gray-700 mb-1">Количество</label>
+								<input 
+									type="number" 
+									id="newProductQuantity" 
+									class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+									placeholder="0"
+									min="0"
+									step="0.1"
+								>
+							</div>
+							<div>
+								<label class="block text-sm font-medium text-gray-700 mb-1">Единица измерения</label>
+								<select 
+									id="newProductUnit" 
+									class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+								>
+									<option value="шт">шт</option>
+									<option value="кг">кг</option>
+									<option value="л">л</option>
+									<option value="упак">упак</option>
+									<option value="м">м</option>
+								</select>
+							</div>
+							<div class="flex space-x-3 pt-4">
+								<button 
+									onclick="addProductToOrder()" 
+									class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
+								>
+									➕ Добавить
+								</button>
+								<button 
+									onclick="closeAddProductModal()" 
+									class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg"
+								>
+									Отмена
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Add Supplier Modal -->
+				<div id="addSupplierModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+					<div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+						<div class="flex justify-between items-center mb-4">
+							<h3 class="text-lg font-semibold">🏢 Добавить поставщика</h3>
+							<button onclick="closeAddSupplierModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+						</div>
+						<div class="space-y-4">
+							<div>
+								<label class="block text-sm font-medium text-gray-700 mb-1">Название компании</label>
+								<input 
+									type="text" 
+									id="newSupplierName" 
+									class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+									placeholder="Введите название поставщика"
+								>
+							</div>
+							<div>
+								<label class="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
+								<input 
+									type="tel" 
+									id="newSupplierPhone" 
+									class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+									placeholder="+7 (xxx) xxx-xx-xx"
+								>
+							</div>
+							<div>
+								<label class="block text-sm font-medium text-gray-700 mb-1">Контактная информация</label>
+								<textarea 
+									id="newSupplierContact" 
+									class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+									placeholder="Email, адрес, дополнительная информация"
+									rows="3"
+								></textarea>
+							</div>
+							<div class="flex space-x-3 pt-4">
+								<button 
+									onclick="createSupplier()" 
+									class="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg"
+								>
+									➕ Создать
+								</button>
+								<button 
+									onclick="closeAddSupplierModal()" 
+									class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg"
+								>
+									Отмена
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</main>
+
+		<script is:inline>
+			// Toggle role dropdown
+			function toggleRoleDropdown() {
+				const dropdown = document.getElementById('roleDropdown');
+				dropdown.classList.toggle('hidden');
+			}
+			
+			// Switch to specific role
+			function switchToRole(role) {
+				const dropdown = document.getElementById('roleDropdown');
+				dropdown.classList.add('hidden');
+				
+				if (role === 'manager') {
+					// Already on manager page
+					return;
+				} else if (role === 'bar') {
+					window.location.href = '/bar';
+				} else if (role === 'kitchen') {
+					window.location.href = '/kitchen';
+				}
+			}
+			
+			// Close dropdown when clicking outside
+			document.addEventListener('click', function(event) {
+				const dropdown = document.getElementById('roleDropdown');
+				const button = document.getElementById('roleDropdownBtn');
+				
+				if (dropdown && button && !button.contains(event.target) && !dropdown.contains(event.target)) {
+					dropdown.classList.add('hidden');
+				}
+			});
+
+			// Global variables
+			let currentEditingOrder = null;
+			let currentEditingDepartment = null;
+
+			// Load dashboard data
+			async function loadDashboardData() {
+				try {
+					// Load bar orders
+					const barOrders = JSON.parse(localStorage.getItem('barDeliveryOrders') || '[]');
+					console.log('📊 Manager: Loaded bar orders:', barOrders.length, barOrders);
+					document.getElementById('barActiveOrders').textContent = barOrders.filter(o => o.status === 'pending').length;
+					document.getElementById('debugBarOrders').textContent = barOrders.length + ' orders';
+
+					// Load kitchen orders  
+					const kitchenOrders = JSON.parse(localStorage.getItem('kitchenDeliveryOrders') || '[]');
+					console.log('📊 Manager: Loaded kitchen orders:', kitchenOrders.length, kitchenOrders);
+					document.getElementById('kitchenActiveOrders').textContent = kitchenOrders.filter(o => o.status === 'pending').length;
+					document.getElementById('debugKitchenOrders').textContent = kitchenOrders.length + ' orders';
+
+					// Load product counts
+					try {
+						const barResponse = await fetch('/api/bar-inventory');
+						const barData = await barResponse.json();
+						document.getElementById('barProductCount').textContent = barData.data?.length || 0;
+					} catch (e) {
+						document.getElementById('barProductCount').textContent = '10'; // Mock data count
+					}
+
+					try {
+						const kitchenResponse = await fetch('/api/kitchen-inventory');
+						const kitchenData = await kitchenResponse.json();
+						document.getElementById('kitchenProductCount').textContent = kitchenData.data?.length || 0;
+					} catch (e) {
+						document.getElementById('kitchenProductCount').textContent = '15'; // Mock data count
+					}
+
+					// Calculate totals
+					const totalOrders = barOrders.length + kitchenOrders.length;
+					document.getElementById('totalOrders').textContent = totalOrders;
+					document.getElementById('debugTotalOrders').textContent = totalOrders + ' total';
+
+					const totalProducts = parseInt(document.getElementById('barProductCount').textContent) + 
+										 parseInt(document.getElementById('kitchenProductCount').textContent);
+					document.getElementById('totalProducts').textContent = totalProducts;
+
+					// Load orders management
+					loadOrdersManagement(barOrders, kitchenOrders);
+
+				} catch (error) {
+					console.error('Failed to load dashboard data:', error);
+				}
+			}
+
+			// Load orders management
+			function loadOrdersManagement(barOrders, kitchenOrders) {
+				console.log('📋 Manager: Loading orders management with:', {
+					barOrders: barOrders.length,
+					kitchenOrders: kitchenOrders.length
+				});
+
+				const allOrders = [
+					...barOrders.map((o, i) => ({...o, department: 'bar', departmentName: 'Бар', departmentEmoji: '🍷', originalIndex: i})),
+					...kitchenOrders.map((o, i) => ({...o, department: 'kitchen', departmentName: 'Кухня', departmentEmoji: '🍳', originalIndex: i}))
+				];
+
+				console.log('📋 Manager: All orders combined:', allOrders.length, allOrders);
+
+				// Sort by timestamp (newest first)
+				allOrders.sort((a, b) => b.timestamp - a.timestamp);
+
+				const ordersContainer = document.getElementById('ordersManagement');
+				
+				if (allOrders.length === 0) {
+					ordersContainer.innerHTML = `
+						<div class="text-center text-gray-500 py-8">
+							<span class="text-4xl mb-4 block">📋</span>
+							<p class="text-lg mb-2">Нет заказов</p>
+							<p class="text-sm">Заказы будут отображаться здесь</p>
+						</div>
+					`;
+					return;
+				}
+
+				let ordersHtml = '';
+				allOrders.forEach((order, globalIndex) => {
+					const date = new Date(order.timestamp).toLocaleString('ru-RU');
+					const statusColor = order.status === 'pending' ? 'yellow' : order.status === 'sent' ? 'blue' : 'green';
+					const statusText = order.status === 'pending' ? 'Ожидает' : order.status === 'sent' ? 'Отправлен' : 'Доставлен';
+					
+					const itemsList = order.items.map(item => `
+						<div class="flex justify-between items-center py-1">
+							<span class="text-sm">${item.name}</span>
+							<span class="text-sm text-gray-600">${item.quantity} ${item.unit}</span>
+						</div>
+					`).join('');
+					
+					ordersHtml += `
+						<div class="border border-gray-200 rounded-lg p-4">
+							<div class="flex justify-between items-start mb-3">
+								<div class="flex items-center space-x-2">
+									<span class="text-lg">${order.departmentEmoji}</span>
+									<div>
+										<span class="font-medium">${order.departmentName}</span>
+										<div class="text-xs text-gray-500">${date}</div>
+									</div>
+								</div>
+								<div class="flex items-center space-x-2">
+									<span class="inline-block px-2 py-1 text-xs rounded-full bg-${statusColor}-100 text-${statusColor}-700">
+										${statusText}
+									</span>
+								</div>
+							</div>
+							
+							<div class="mb-3 max-h-32 overflow-y-auto">
+								${itemsList}
+							</div>
+							
+							<div class="flex space-x-2">
+								<button 
+									onclick="openAddProductModal('${order.department}', ${order.originalIndex})" 
+									class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
+								>
+									➕ Добавить товар
+								</button>
+								${order.status === 'pending' ? `
+									<button 
+										onclick="sendOrderToSupplier('${order.department}', ${order.originalIndex})" 
+										class="px-3 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded"
+									>
+										📤 Отправить поставщику
+									</button>
+								` : ''}
+								<button 
+									onclick="viewOrderDetails('${order.department}', ${order.originalIndex})" 
+									class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded"
+								>
+									👁️ Подробнее
+								</button>
+							</div>
+						</div>
+					`;
+				});
+
+				ordersContainer.innerHTML = ordersHtml;
+			}
+
+			// Open add product modal
+			function openAddProductModal(department, orderIndex) {
+				currentEditingDepartment = department;
+				currentEditingOrder = orderIndex;
+				document.getElementById('addProductModal').classList.remove('hidden');
+				document.getElementById('newProductName').focus();
+			}
+
+			// Close add product modal
+			function closeAddProductModal() {
+				document.getElementById('addProductModal').classList.add('hidden');
+				document.getElementById('newProductName').value = '';
+				document.getElementById('newProductQuantity').value = '';
+				document.getElementById('newProductUnit').value = 'шт';
+				currentEditingDepartment = null;
+				currentEditingOrder = null;
+			}
+
+			// Add product to order
+			function addProductToOrder() {
+				const name = document.getElementById('newProductName').value.trim();
+				const quantity = parseFloat(document.getElementById('newProductQuantity').value);
+				const unit = document.getElementById('newProductUnit').value;
+
+				if (!name || !quantity || quantity <= 0) {
+					alert('Пожалуйста, заполните все поля корректно');
+					return;
+				}
+
+				// Get the orders from localStorage
+				const storageKey = currentEditingDepartment === 'bar' ? 'barDeliveryOrders' : 'kitchenDeliveryOrders';
+				const orders = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+				if (orders[currentEditingOrder]) {
+					// Add new item to the order
+					const newItem = {
+						id: -Date.now(), // Negative ID for custom items
+						name: name,
+						quantity: quantity,
+						unit: unit
+					};
+
+					orders[currentEditingOrder].items.push(newItem);
+
+					// Save back to localStorage
+					localStorage.setItem(storageKey, JSON.stringify(orders));
+
+					// Close modal and refresh
+					closeAddProductModal();
+					loadDashboardData();
+
+					alert('Товар "' + name + '" добавлен в заказ!');
+				}
+			}
+
+			// Send single order to supplier
+			function sendOrderToSupplier(department, orderIndex) {
+				const storageKey = department === 'bar' ? 'barDeliveryOrders' : 'kitchenDeliveryOrders';
+				const orders = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+				if (orders[orderIndex]) {
+					orders[orderIndex].status = 'sent';
+					orders[orderIndex].sentAt = Date.now();
+					localStorage.setItem(storageKey, JSON.stringify(orders));
+
+					loadDashboardData();
+					alert('Заказ отправлен поставщику!');
+				}
+			}
+
+			// Send all pending orders to suppliers
+			function sendAllOrdersToSuppliers() {
+				if (!confirm('Отправить все ожидающие заказы поставщикам?')) {
+					return;
+				}
+
+				let sentCount = 0;
+
+				// Process bar orders
+				const barOrders = JSON.parse(localStorage.getItem('barDeliveryOrders') || '[]');
+				barOrders.forEach(order => {
+					if (order.status === 'pending') {
+						order.status = 'sent';
+						order.sentAt = Date.now();
+						sentCount++;
+					}
+				});
+				localStorage.setItem('barDeliveryOrders', JSON.stringify(barOrders));
+
+				// Process kitchen orders
+				const kitchenOrders = JSON.parse(localStorage.getItem('kitchenDeliveryOrders') || '[]');
+				kitchenOrders.forEach(order => {
+					if (order.status === 'pending') {
+						order.status = 'sent';
+						order.sentAt = Date.now();
+						sentCount++;
+					}
+				});
+				localStorage.setItem('kitchenDeliveryOrders', JSON.stringify(kitchenOrders));
+
+				loadDashboardData();
+				alert('Отправлено заказов поставщикам: ' + sentCount);
+			}
+
+			// View order details
+			function viewOrderDetails(department, orderIndex) {
+				const storageKey = department === 'bar' ? 'barDeliveryOrders' : 'kitchenDeliveryOrders';
+				const orders = JSON.parse(localStorage.getItem(storageKey) || '[]');
+				const order = orders[orderIndex];
+
+				if (!order) return;
+
+				const itemsList = order.items.map(item => '• ' + item.name + ' - ' + item.quantity + ' ' + item.unit).join('\n');
+				const departmentName = department === 'bar' ? 'Бар' : 'Кухня';
+				const statusText = order.status === 'pending' ? 'Ожидает' : order.status === 'sent' ? 'Отправлен' : 'Доставлен';
+				const date = new Date(order.timestamp).toLocaleString('ru-RU');
+
+				alert('Заказ из отдела: ' + departmentName + '\n\nДата создания: ' + date + '\nСтатус: ' + statusText + '\n\nТовары:\n' + itemsList + '\n\nПоставщик: ' + (order.supplier || 'Основной поставщик'));
+			}
+
+			// Create test orders for debugging (remove in production)
+			function createTestOrders() {
+				console.log('🧪 Creating test orders...');
+				
+				// Create test bar order
+				const testBarOrder = {
+					timestamp: Date.now() - 60000, // 1 minute ago
+					items: [
+						{ id: 1, name: 'Водка', quantity: 2, unit: 'л' },
+						{ id: 2, name: 'Пиво', quantity: 10, unit: 'шт' }
+					],
+					status: 'pending',
+					supplier: 'Основной поставщик'
+				};
+				
+				// Create test kitchen order
+				const testKitchenOrder = {
+					timestamp: Date.now() - 120000, // 2 minutes ago
+					items: [
+						{ id: 3, name: 'Мясо говядина', quantity: 5, unit: 'кг' },
+						{ id: 4, name: 'Картофель', quantity: 10, unit: 'кг' }
+					],
+					status: 'pending',
+					supplier: 'Основной поставщик'
+				};
+				
+				// Save test orders
+				const barOrders = [testBarOrder];
+				const kitchenOrders = [testKitchenOrder];
+				
+				localStorage.setItem('barDeliveryOrders', JSON.stringify(barOrders));
+				localStorage.setItem('kitchenDeliveryOrders', JSON.stringify(kitchenOrders));
+				
+				console.log('🧪 Test orders created!');
+				loadDashboardData();
+			}
+
+			// Load data when page loads
+			document.addEventListener('DOMContentLoaded', function() {
+				// Immediate debugging
+				console.log('🔍 Manager page loaded, checking localStorage...');
+				console.log('🔍 barDeliveryOrders:', localStorage.getItem('barDeliveryOrders'));
+				console.log('🔍 kitchenDeliveryOrders:', localStorage.getItem('kitchenDeliveryOrders'));
+				
+				// Create test orders immediately for debugging
+				createTestOrders();
+				
+				loadDashboardData();
+				
+				// Refresh data every 30 seconds
+				setInterval(loadDashboardData, 30000);
+				
+				// Add test orders button for debugging (remove in production)
+				console.log('🧪 To create test orders, run: createTestOrders()');
+			});
+		</script>
+	</Layout>
