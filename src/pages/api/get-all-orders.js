@@ -1,23 +1,24 @@
-import { getAllOrders, readOrders } from '../../lib/orderStorage.js';
+import { getAllOrders, readOrders } from '../../lib/orderStorage-postgres.js';
 
 export const prerender = false;
 
-export async function GET({ url }) {
+export async function GET({ url, locals }) {
     try {
         console.log('📋 Fetching all orders from server storage...');
         
         const searchParams = new URL(url).searchParams;
         const department = searchParams.get('department');
         
+        const tenantId = locals.tenantId || 'default';
         let orders;
         
         if (department && ['bar', 'kitchen'].includes(department)) {
             // Get orders for specific department
-            orders = await readOrders(department);
+            orders = await readOrders(department, tenantId);
             console.log(`✅ Retrieved ${orders.length} orders for ${department}`);
         } else {
             // Get all orders from both departments
-            orders = await getAllOrders();
+            orders = await getAllOrders(tenantId);
             console.log(`✅ Retrieved ${orders.length} total orders`);
         }
         

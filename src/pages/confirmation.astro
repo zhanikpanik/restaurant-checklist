@@ -335,9 +335,8 @@ import Layout from '../layouts/Layout.astro';
 				localStorage.setItem(historyKey, JSON.stringify(existingHistory));
 				console.log(`✅ Order saved to ${historyKey} for delivery tracking`);
 
-				// Save to server storage
+				// Save to PostgreSQL database
 				try {
-					console.log('💾 Saving internal order to server storage...');
 					const response = await fetch('/api/save-internal-order', {
 						method: 'POST',
 						headers: {
@@ -345,16 +344,15 @@ import Layout from '../layouts/Layout.astro';
 						},
 						body: JSON.stringify(deliveryOrder)
 					});
-					
+
 					const result = await response.json();
-					
 					if (result.success) {
-						console.log(`✅ Order saved to server storage for cross-device visibility`);
+						console.log('✅ Order saved to PostgreSQL database successfully');
 					} else {
-						console.warn('⚠️ Failed to save to server:', result.error);
+						console.error('❌ Failed to save order to PostgreSQL database:', result.error);
 					}
-				} catch (serverError) {
-					console.warn('⚠️ Server save failed:', serverError.message);
+				} catch (error) {
+					console.error('❌ Error saving order to PostgreSQL database:', error);
 				}
 			}
 		}

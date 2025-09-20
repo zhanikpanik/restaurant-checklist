@@ -1,8 +1,8 @@
-import { addOrder } from '../../lib/orderStorage.js';
+import { addOrder } from '../../lib/orderStorage-postgres.js';
 
 export const prerender = false;
 
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
     try {
         console.log('📥 Receiving external order...');
         
@@ -52,8 +52,9 @@ export async function POST({ request }) {
         
         console.log(`✅ Formatted external order: ${formattedOrder.departmentName} with ${formattedOrder.items.length} items`);
         
-        // Save order to server-side storage
-        const saveSuccess = await addOrder(orderData.department, formattedOrder);
+        // Save order to PostgreSQL database
+        const tenantId = locals.tenantId || 'default';
+        const saveSuccess = await addOrder(orderData.department, formattedOrder, tenantId);
         
         if (!saveSuccess) {
             throw new Error('Failed to save order to storage');

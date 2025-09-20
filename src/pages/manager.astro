@@ -400,21 +400,170 @@ import Layout from '../layouts/Layout.astro';
 			// Global variables
 			let currentEditingOrder = null;
 			let currentEditingDepartment = null;
+			
+			// Migrate localStorage orders to PostgreSQL
+			async function migrateLocalStorageOrders() {
+				try {
+					const barOrders = JSON.parse(localStorage.getItem('barDeliveryOrders') || '[]');
+					const kitchenOrders = JSON.parse(localStorage.getItem('kitchenDeliveryOrders') || '[]');
+					
+					if (barOrders.length > 0 || kitchenOrders.length > 0) {
+						console.log('🔄 Migrating localStorage orders to PostgreSQL...', {
+							bar: barOrders.length,
+							kitchen: kitchenOrders.length
+						});
+						
+						const response = await fetch('/api/migrate-orders', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ barOrders, kitchenOrders })
+						});
+						
+						const result = await response.json();
+						if (result.success) {
+							console.log('✅ Migration successful:', result.migrated);
+							// Clear localStorage after successful migration
+							localStorage.removeItem('barDeliveryOrders');
+							localStorage.removeItem('kitchenDeliveryOrders');
+						} else {
+							console.error('❌ Migration failed:', result.error);
+						}
+					}
+				} catch (error) {
+					console.error('💥 Error during migration:', error);
+				}
+			}
+			
+			// Fallback: Load dashboard data from localStorage (if database fails)
+			async function loadDashboardDataFromLocalStorage() {
+				console.log('⚠️ Falling back to localStorage data...');
+				
+				const barOrders = JSON.parse(localStorage.getItem('barDeliveryOrders') || '[]');
+				const kitchenOrders = JSON.parse(localStorage.getItem('kitchenDeliveryOrders') || '[]');
+				
+				console.log('📊 Manager: Loaded from localStorage - Bar:', barOrders.length, 'Kitchen:', kitchenOrders.length);
+				
+				document.getElementById('barActiveOrders').textContent = barOrders.filter(o => o.status === 'pending').length;
+				document.getElementById('debugBarOrders').textContent = barOrders.length + ' orders (localStorage)';
+
+				document.getElementById('kitchenActiveOrders').textContent = kitchenOrders.filter(o => o.status === 'pending').length;
+				document.getElementById('debugKitchenOrders').textContent = kitchenOrders.length + ' orders (localStorage)';
+				
+				// Load orders management
+				loadOrdersManagement(barOrders, kitchenOrders);
+			}
+			
+			// Load orders management section
+			function loadOrdersManagement(barOrders, kitchenOrders) {
+				// Update orders management UI
+				const ordersContainer = document.getElementById('ordersManagement');
+				if (!ordersContainer) return;
+				
+				let ordersHtml = '';
+				
+				// Bar orders section
+				if (barOrders.length > 0) {
+					ordersHtml += '<h4 class="font-medium text-gray-900 mb-3">🍷 Заказы бара</h4>';
+					barOrders.forEach((order, index) => {
+						const status = order.db_status || order.status;
+						const statusColor = status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+										   status === 'sent' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+						const statusText = status === 'pending' ? 'Ожидает' : status === 'sent' ? 'Отправлен' : 'Доставлен';
+						const date = new Date(order.db_created_at || order.timestamp).toLocaleDateString('ru-RU');
+						
+						ordersHtml += `
+							<div class="border border-gray-200 rounded-lg p-4 mb-3">
+								<div class="flex justify-between items-start mb-2">
+									<div>
+										<span class="px-2 py-1 text-xs rounded-full ${statusColor}">${statusText}</span>
+										<span class="text-sm text-gray-600 ml-2">${date}</span>
+									</div>
+									<div class="flex space-x-2">
+										${status === 'pending' ? `<button onclick="sendOrderToSupplier('bar', ${index})" class="px-3 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded">📤 Отправить</button>` : ''}
+										<button onclick="viewOrderDetails('bar', ${index})" class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded">👁️ Просмотр</button>
+									</div>
+								</div>
+								<div class="text-sm text-gray-600">
+									Товаров: ${order.items?.length || 0} | Поставщик: ${order.supplier || 'Основной'}
+								</div>
+							</div>
+						`;
+					});
+				}
+				
+				// Kitchen orders section
+				if (kitchenOrders.length > 0) {
+					ordersHtml += '<h4 class="font-medium text-gray-900 mb-3 mt-6">🍳 Заказы кухни</h4>';
+					kitchenOrders.forEach((order, index) => {
+						const status = order.db_status || order.status;
+						const statusColor = status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
+										   status === 'sent' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+						const statusText = status === 'pending' ? 'Ожидает' : status === 'sent' ? 'Отправлен' : 'Доставлен';
+						const date = new Date(order.db_created_at || order.timestamp).toLocaleDateString('ru-RU');
+						
+						ordersHtml += `
+							<div class="border border-gray-200 rounded-lg p-4 mb-3">
+								<div class="flex justify-between items-start mb-2">
+									<div>
+										<span class="px-2 py-1 text-xs rounded-full ${statusColor}">${statusText}</span>
+										<span class="text-sm text-gray-600 ml-2">${date}</span>
+									</div>
+									<div class="flex space-x-2">
+										${status === 'pending' ? `<button onclick="sendOrderToSupplier('kitchen', ${index})" class="px-3 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded">📤 Отправить</button>` : ''}
+										<button onclick="viewOrderDetails('kitchen', ${index})" class="px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded">👁️ Просмотр</button>
+									</div>
+								</div>
+								<div class="text-sm text-gray-600">
+									Товаров: ${order.items?.length || 0} | Поставщик: ${order.supplier || 'Основной'}
+								</div>
+							</div>
+						`;
+					});
+				}
+				
+				if (ordersHtml === '') {
+					ordersHtml = `
+						<div class="text-center text-gray-500 py-8">
+							<span class="text-4xl mb-4 block">📋</span>
+							<p class="text-lg mb-2">Нет заказов</p>
+							<p class="text-sm">Заказы появятся здесь после создания</p>
+						</div>
+					`;
+				}
+				
+				ordersContainer.innerHTML = ordersHtml;
+			}
 
 			// Load dashboard data
 			async function loadDashboardData() {
 				try {
-					// Load bar orders
-					const barOrders = JSON.parse(localStorage.getItem('barDeliveryOrders') || '[]');
-					console.log('📊 Manager: Loaded bar orders:', barOrders.length, barOrders);
-					document.getElementById('barActiveOrders').textContent = barOrders.filter(o => o.status === 'pending').length;
-					document.getElementById('debugBarOrders').textContent = barOrders.length + ' orders';
+					// First, try to migrate any localStorage orders to PostgreSQL
+					await migrateLocalStorageOrders();
+					
+					// Load orders from PostgreSQL database
+					const response = await fetch('/api/get-all-orders');
+					const result = await response.json();
+					
+					if (result.success) {
+						const allOrders = result.data;
+						const barOrders = allOrders.filter(o => o.department === 'bar');
+						const kitchenOrders = allOrders.filter(o => o.department === 'kitchen');
+						
+						console.log('📊 Manager: Loaded from PostgreSQL - Bar:', barOrders.length, 'Kitchen:', kitchenOrders.length);
+						
+						document.getElementById('barActiveOrders').textContent = barOrders.filter(o => (o.db_status || o.status) === 'pending').length;
+						document.getElementById('debugBarOrders').textContent = barOrders.length + ' orders';
 
-					// Load kitchen orders  
-					const kitchenOrders = JSON.parse(localStorage.getItem('kitchenDeliveryOrders') || '[]');
-					console.log('📊 Manager: Loaded kitchen orders:', kitchenOrders.length, kitchenOrders);
-					document.getElementById('kitchenActiveOrders').textContent = kitchenOrders.filter(o => o.status === 'pending').length;
-					document.getElementById('debugKitchenOrders').textContent = kitchenOrders.length + ' orders';
+						document.getElementById('kitchenActiveOrders').textContent = kitchenOrders.filter(o => (o.db_status || o.status) === 'pending').length;
+						document.getElementById('debugKitchenOrders').textContent = kitchenOrders.length + ' orders';
+						
+						// Load orders management with database data
+						loadOrdersManagement(barOrders, kitchenOrders);
+					} else {
+						console.error('❌ Failed to load orders from database:', result.error);
+						// Fallback to localStorage
+						await loadDashboardDataFromLocalStorage();
+					}
 
 					// Load product counts
 					try {
@@ -599,68 +748,125 @@ import Layout from '../layouts/Layout.astro';
 			}
 
 			// Send single order to supplier
-			function sendOrderToSupplier(department, orderIndex) {
-				const storageKey = department === 'bar' ? 'barDeliveryOrders' : 'kitchenDeliveryOrders';
-				const orders = JSON.parse(localStorage.getItem(storageKey) || '[]');
-
-				if (orders[orderIndex]) {
-					orders[orderIndex].status = 'sent';
-					orders[orderIndex].sentAt = Date.now();
-					localStorage.setItem(storageKey, JSON.stringify(orders));
-
-					loadDashboardData();
-					alert('Заказ отправлен поставщику!');
+			async function sendOrderToSupplier(department, orderIndex) {
+				try {
+					// Get current orders to find the order ID
+					const response = await fetch('/api/get-all-orders');
+					const result = await response.json();
+					
+					if (result.success) {
+						const orders = result.data.filter(o => o.department === department);
+						const order = orders[orderIndex];
+						
+						if (order && order.db_id) {
+							// Update status in database
+							const updateResponse = await fetch('/api/update-order-status', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({
+									orderId: order.db_id,
+									status: 'sent'
+								})
+							});
+							
+							const updateResult = await updateResponse.json();
+							if (updateResult.success) {
+								loadDashboardData();
+								alert('Заказ отправлен поставщику!');
+							} else {
+								throw new Error(updateResult.error);
+							}
+						} else {
+							throw new Error('Order not found or missing database ID');
+						}
+					} else {
+						throw new Error('Failed to load orders');
+					}
+				} catch (error) {
+					console.error('❌ Failed to send order:', error);
+					alert('Ошибка при отправке заказа: ' + error.message);
 				}
 			}
 
 			// Send all pending orders to suppliers
-			function sendAllOrdersToSuppliers() {
+			async function sendAllOrdersToSuppliers() {
 				if (!confirm('Отправить все ожидающие заказы поставщикам?')) {
 					return;
 				}
 
-				let sentCount = 0;
-
-				// Process bar orders
-				const barOrders = JSON.parse(localStorage.getItem('barDeliveryOrders') || '[]');
-				barOrders.forEach(order => {
-					if (order.status === 'pending') {
-						order.status = 'sent';
-						order.sentAt = Date.now();
-						sentCount++;
+				try {
+					// Get all orders from database
+					const response = await fetch('/api/get-all-orders');
+					const result = await response.json();
+					
+					if (result.success) {
+						const pendingOrders = result.data.filter(o => (o.db_status || o.status) === 'pending');
+						let sentCount = 0;
+						
+						// Update each pending order to 'sent' status
+						for (const order of pendingOrders) {
+							if (order.db_id) {
+								try {
+									const updateResponse = await fetch('/api/update-order-status', {
+										method: 'POST',
+										headers: { 'Content-Type': 'application/json' },
+										body: JSON.stringify({
+											orderId: order.db_id,
+											status: 'sent'
+										})
+									});
+									
+									const updateResult = await updateResponse.json();
+									if (updateResult.success) {
+										sentCount++;
+									}
+								} catch (error) {
+									console.error('❌ Failed to update order:', order.db_id, error);
+								}
+							}
+						}
+						
+						loadDashboardData();
+						alert('Отправлено заказов поставщикам: ' + sentCount);
+					} else {
+						throw new Error('Failed to load orders');
 					}
-				});
-				localStorage.setItem('barDeliveryOrders', JSON.stringify(barOrders));
-
-				// Process kitchen orders
-				const kitchenOrders = JSON.parse(localStorage.getItem('kitchenDeliveryOrders') || '[]');
-				kitchenOrders.forEach(order => {
-					if (order.status === 'pending') {
-						order.status = 'sent';
-						order.sentAt = Date.now();
-						sentCount++;
-					}
-				});
-				localStorage.setItem('kitchenDeliveryOrders', JSON.stringify(kitchenOrders));
-
-				loadDashboardData();
-				alert('Отправлено заказов поставщикам: ' + sentCount);
+				} catch (error) {
+					console.error('❌ Failed to send all orders:', error);
+					alert('Ошибка при отправке заказов: ' + error.message);
+				}
 			}
 
 			// View order details
-			function viewOrderDetails(department, orderIndex) {
-				const storageKey = department === 'bar' ? 'barDeliveryOrders' : 'kitchenDeliveryOrders';
-				const orders = JSON.parse(localStorage.getItem(storageKey) || '[]');
-				const order = orders[orderIndex];
+			async function viewOrderDetails(department, orderIndex) {
+				try {
+					// Get current orders from database
+					const response = await fetch('/api/get-all-orders');
+					const result = await response.json();
+					
+					if (result.success) {
+						const orders = result.data.filter(o => o.department === department);
+						const order = orders[orderIndex];
 
-				if (!order) return;
+						if (!order) {
+							alert('Заказ не найден');
+							return;
+						}
 
-				const itemsList = order.items.map(item => '• ' + item.name + ' - ' + item.quantity + ' ' + item.unit).join('\n');
-				const departmentName = department === 'bar' ? 'Бар' : 'Кухня';
-				const statusText = order.status === 'pending' ? 'Ожидает' : order.status === 'sent' ? 'Отправлен' : 'Доставлен';
-				const date = new Date(order.timestamp).toLocaleString('ru-RU');
+						const itemsList = order.items.map(item => '• ' + item.name + ' - ' + item.quantity + ' ' + item.unit).join('\n');
+						const departmentName = department === 'bar' ? 'Бар' : 'Кухня';
+						const status = order.db_status || order.status;
+						const statusText = status === 'pending' ? 'Ожидает' : status === 'sent' ? 'Отправлен' : 'Доставлен';
+						const date = new Date(order.db_created_at || order.timestamp).toLocaleString('ru-RU');
 
-				alert('Заказ из отдела: ' + departmentName + '\n\nДата создания: ' + date + '\nСтатус: ' + statusText + '\n\nТовары:\n' + itemsList + '\n\nПоставщик: ' + (order.supplier || 'Основной поставщик'));
+						alert('Заказ из отдела: ' + departmentName + '\n\nДата создания: ' + date + '\nСтатус: ' + statusText + '\n\nТовары:\n' + itemsList + '\n\nПоставщик: ' + (order.supplier || 'Основной поставщик'));
+					} else {
+						alert('Ошибка при загрузке данных заказа');
+					}
+				} catch (error) {
+					console.error('❌ Failed to view order details:', error);
+					alert('Ошибка при просмотре деталей заказа');
+				}
 			}
 
 			// SUPPLIER MANAGEMENT FUNCTIONS
@@ -810,62 +1016,14 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 
-			// Create test orders for debugging (remove in production)
-			function createTestOrders() {
-				console.log('🧪 Creating test orders...');
-				
-				// Create test bar order
-				const testBarOrder = {
-					timestamp: Date.now() - 60000, // 1 minute ago
-					items: [
-						{ id: 1, name: 'Водка', quantity: 2, unit: 'л' },
-						{ id: 2, name: 'Пиво', quantity: 10, unit: 'шт' }
-					],
-					status: 'pending',
-					supplier: 'Основной поставщик'
-				};
-				
-				// Create test kitchen order
-				const testKitchenOrder = {
-					timestamp: Date.now() - 120000, // 2 minutes ago
-					items: [
-						{ id: 3, name: 'Мясо говядина', quantity: 5, unit: 'кг' },
-						{ id: 4, name: 'Картофель', quantity: 10, unit: 'кг' }
-					],
-					status: 'pending',
-					supplier: 'Основной поставщик'
-				};
-				
-				// Save test orders
-				const barOrders = [testBarOrder];
-				const kitchenOrders = [testKitchenOrder];
-				
-				localStorage.setItem('barDeliveryOrders', JSON.stringify(barOrders));
-				localStorage.setItem('kitchenDeliveryOrders', JSON.stringify(kitchenOrders));
-				
-				console.log('🧪 Test orders created!');
-				loadDashboardData();
-			}
 
 			// Load data when page loads
 			document.addEventListener('DOMContentLoaded', function() {
-				// Immediate debugging
-				console.log('🔍 Manager page loaded, checking localStorage...');
-				console.log('🔍 barDeliveryOrders:', localStorage.getItem('barDeliveryOrders'));
-				console.log('🔍 kitchenDeliveryOrders:', localStorage.getItem('kitchenDeliveryOrders'));
-				
-				// Create test orders immediately for debugging
-				createTestOrders();
-				
 				loadDashboardData();
-				loadSuppliers(); // Load suppliers on page load
-				
+				loadSuppliers();
 				// Refresh data every 30 seconds
 				setInterval(loadDashboardData, 30000);
-				setInterval(loadSuppliers, 30000); // Auto-refresh suppliers too
-				
-				// Add test orders button for debugging (remove in production)
-				console.log('🧪 To create test orders, run: createTestOrders()');
+				setInterval(loadSuppliers, 30000);
 			});
 		</script>
 	</Layout>

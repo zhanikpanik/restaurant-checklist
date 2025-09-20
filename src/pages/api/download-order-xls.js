@@ -1,9 +1,9 @@
 import * as XLSX from "xlsx";
-import { getAllOrders, readOrders } from "../../lib/orderStorage.js";
+import { getAllOrders, readOrders } from "../../lib/orderStorage-postgres.js";
 
 export const prerender = false;
 
-export async function POST({ request }) {
+export async function POST({ request, locals }) {
   try {
     console.log("📥 Generating XLS for delivered order...");
 
@@ -22,9 +22,10 @@ export async function POST({ request }) {
 
     let targetOrder = null;
 
-    // First try server storage
     try {
-      const serverOrders = await readOrders(department);
+      // Get orders from PostgreSQL database
+      const tenantId = locals.tenantId || 'default';
+      const serverOrders = await readOrders(department, tenantId);
       targetOrder = serverOrders.find(
         (order) => order.timestamp === orderTimestamp,
       );
