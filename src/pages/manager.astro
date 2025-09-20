@@ -145,61 +145,6 @@ import Layout from '../layouts/Layout.astro';
 					</div>
 				</div>
 
-				<!-- Dashboard Cards -->
-				<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-					<!-- Bar Overview -->
-					<div class="bg-white rounded-lg border border-gray-200 p-6">
-						<div class="flex items-center justify-between mb-4">
-							<h3 class="text-lg font-semibold text-gray-900">🍷 Бар</h3>
-							<a href="/bar" class="text-sm text-blue-600 hover:text-blue-800">Перейти →</a>
-						</div>
-						<div class="space-y-2">
-							<div class="flex justify-between">
-								<span class="text-sm text-gray-600">Активные заказы:</span>
-								<span class="text-sm font-medium" id="barActiveOrders">-</span>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-sm text-gray-600">Товаров в наличии:</span>
-								<span class="text-sm font-medium" id="barProductCount">-</span>
-							</div>
-						</div>
-					</div>
-
-					<!-- Kitchen Overview -->
-					<div class="bg-white rounded-lg border border-gray-200 p-6">
-						<div class="flex items-center justify-between mb-4">
-							<h3 class="text-lg font-semibold text-gray-900">🍳 Кухня</h3>
-							<a href="/kitchen" class="text-sm text-blue-600 hover:text-blue-800">Перейти →</a>
-						</div>
-						<div class="space-y-2">
-							<div class="flex justify-between">
-								<span class="text-sm text-gray-600">Активные заказы:</span>
-								<span class="text-sm font-medium" id="kitchenActiveOrders">-</span>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-sm text-gray-600">Товаров в наличии:</span>
-								<span class="text-sm font-medium" id="kitchenProductCount">-</span>
-							</div>
-						</div>
-					</div>
-
-					<!-- Overall Stats -->
-					<div class="bg-white rounded-lg border border-gray-200 p-6">
-						<div class="flex items-center justify-between mb-4">
-							<h3 class="text-lg font-semibold text-gray-900">📊 Общая статистика</h3>
-						</div>
-						<div class="space-y-2">
-							<div class="flex justify-between">
-								<span class="text-sm text-gray-600">Всего заказов:</span>
-								<span class="text-sm font-medium" id="totalOrders">-</span>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-sm text-gray-600">Всего товаров:</span>
-								<span class="text-sm font-medium" id="totalProducts">-</span>
-							</div>
-						</div>
-					</div>
-				</div>
 
 				<!-- Orders Management -->
 				<div class="bg-white rounded-lg border border-gray-200 mb-8">
@@ -434,20 +379,14 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 			
-			// Fallback: Load dashboard data from localStorage (if database fails)
-			async function loadDashboardDataFromLocalStorage() {
+			// Fallback: Load orders from localStorage (if database fails)
+			async function loadOrdersFromLocalStorage() {
 				console.log('⚠️ Falling back to localStorage data...');
 				
 				const barOrders = JSON.parse(localStorage.getItem('barDeliveryOrders') || '[]');
 				const kitchenOrders = JSON.parse(localStorage.getItem('kitchenDeliveryOrders') || '[]');
 				
 				console.log('📊 Manager: Loaded from localStorage - Bar:', barOrders.length, 'Kitchen:', kitchenOrders.length);
-				
-				document.getElementById('barActiveOrders').textContent = barOrders.filter(o => o.status === 'pending').length;
-				document.getElementById('debugBarOrders').textContent = barOrders.length + ' orders (localStorage)';
-
-				document.getElementById('kitchenActiveOrders').textContent = kitchenOrders.filter(o => o.status === 'pending').length;
-				document.getElementById('debugKitchenOrders').textContent = kitchenOrders.length + ' orders (localStorage)';
 				
 				// Load orders management
 				loadOrdersManagement(barOrders, kitchenOrders);
@@ -534,8 +473,8 @@ import Layout from '../layouts/Layout.astro';
 				ordersContainer.innerHTML = ordersHtml;
 			}
 
-			// Load dashboard data
-			async function loadDashboardData() {
+			// Load orders data
+			async function loadOrdersData() {
 				try {
 					// First, try to migrate any localStorage orders to PostgreSQL
 					await migrateLocalStorageOrders();
@@ -549,53 +488,16 @@ import Layout from '../layouts/Layout.astro';
 						const barOrders = allOrders.filter(o => o.department === 'bar');
 						const kitchenOrders = allOrders.filter(o => o.department === 'kitchen');
 						
-						console.log('📊 Manager: Loaded from PostgreSQL - Bar:', barOrders.length, 'Kitchen:', kitchenOrders.length);
-						
-						document.getElementById('barActiveOrders').textContent = barOrders.filter(o => (o.db_status || o.status) === 'pending').length;
-						document.getElementById('debugBarOrders').textContent = barOrders.length + ' orders';
-
-						document.getElementById('kitchenActiveOrders').textContent = kitchenOrders.filter(o => (o.db_status || o.status) === 'pending').length;
-						document.getElementById('debugKitchenOrders').textContent = kitchenOrders.length + ' orders';
-						
 						// Load orders management with database data
 						loadOrdersManagement(barOrders, kitchenOrders);
 					} else {
 						console.error('❌ Failed to load orders from database:', result.error);
 						// Fallback to localStorage
-						await loadDashboardDataFromLocalStorage();
+						await loadOrdersFromLocalStorage();
 					}
-
-					// Load product counts
-					try {
-						const barResponse = await fetch('/api/bar-inventory');
-						const barData = await barResponse.json();
-						document.getElementById('barProductCount').textContent = barData.data?.length || 0;
-					} catch (e) {
-						document.getElementById('barProductCount').textContent = '10'; // Mock data count
-					}
-
-					try {
-						const kitchenResponse = await fetch('/api/kitchen-inventory');
-						const kitchenData = await kitchenResponse.json();
-						document.getElementById('kitchenProductCount').textContent = kitchenData.data?.length || 0;
-					} catch (e) {
-						document.getElementById('kitchenProductCount').textContent = '15'; // Mock data count
-					}
-
-					// Calculate totals
-					const totalOrders = barOrders.length + kitchenOrders.length;
-					document.getElementById('totalOrders').textContent = totalOrders;
-					document.getElementById('debugTotalOrders').textContent = totalOrders + ' total';
-
-					const totalProducts = parseInt(document.getElementById('barProductCount').textContent) + 
-										 parseInt(document.getElementById('kitchenProductCount').textContent);
-					document.getElementById('totalProducts').textContent = totalProducts;
-
-					// Load orders management
-					loadOrdersManagement(barOrders, kitchenOrders);
 
 				} catch (error) {
-					console.error('Failed to load dashboard data:', error);
+					console.error('Failed to load orders data:', error);
 				}
 			}
 
@@ -741,7 +643,7 @@ import Layout from '../layouts/Layout.astro';
 
 					// Close modal and refresh
 					closeAddProductModal();
-					loadDashboardData();
+					loadOrdersData();
 
 					alert('Товар "' + name + '" добавлен в заказ!');
 				}
@@ -771,7 +673,7 @@ import Layout from '../layouts/Layout.astro';
 							
 							const updateResult = await updateResponse.json();
 							if (updateResult.success) {
-								loadDashboardData();
+								loadOrdersData();
 								alert('Заказ отправлен поставщику!');
 							} else {
 								throw new Error(updateResult.error);
@@ -826,7 +728,7 @@ import Layout from '../layouts/Layout.astro';
 							}
 						}
 						
-						loadDashboardData();
+						loadOrdersData();
 						alert('Отправлено заказов поставщикам: ' + sentCount);
 					} else {
 						throw new Error('Failed to load orders');
@@ -1019,10 +921,10 @@ import Layout from '../layouts/Layout.astro';
 
 			// Load data when page loads
 			document.addEventListener('DOMContentLoaded', function() {
-				loadDashboardData();
+				loadOrdersData();
 				loadSuppliers();
 				// Refresh data every 30 seconds
-				setInterval(loadDashboardData, 30000);
+				setInterval(loadOrdersData, 30000);
 				setInterval(loadSuppliers, 30000);
 			});
 		</script>
