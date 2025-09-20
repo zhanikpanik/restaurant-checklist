@@ -924,27 +924,42 @@ import Layout from '../layouts/Layout.astro';
 			
 			// Load suppliers from API
 			async function loadSuppliers() {
+				console.log('🔄 Loading suppliers from API...');
 				try {
 					const response = await fetch('/api/suppliers');
+					console.log('📡 Suppliers API response status:', response.status);
+					
 					const data = await response.json();
+					console.log('📊 Suppliers API response data:', data);
 					
 					if (data.success) {
+						console.log('✅ Successfully loaded', data.data.length, 'suppliers');
+						if (data.usingFallback) {
+							console.log('⚠️ Using fallback suppliers (not tenant-specific)');
+						}
 						displaySuppliers(data.data);
 					} else {
-						console.error('Failed to load suppliers:', data.error);
+						console.error('❌ Failed to load suppliers:', data.error);
 						displaySuppliers([]); // Show empty state
 					}
 				} catch (error) {
-					console.error('Error loading suppliers:', error);
+					console.error('❌ Error loading suppliers:', error);
 					displaySuppliers([]); // Show empty state
 				}
 			}
 			
 			// Display suppliers in the UI
 			function displaySuppliers(suppliers) {
+				console.log('🖥️ Displaying suppliers:', suppliers);
 				const container = document.getElementById('suppliersManagement');
 				
+				if (!container) {
+					console.error('❌ Suppliers container not found!');
+					return;
+				}
+				
 				if (!suppliers || suppliers.length === 0) {
+					console.log('📋 No suppliers to display, showing empty state');
 					container.innerHTML = `
 						<div class="text-center text-gray-500 py-8">
 							<span class="text-4xl mb-4 block">🏢</span>

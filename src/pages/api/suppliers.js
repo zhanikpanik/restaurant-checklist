@@ -8,23 +8,31 @@ async function getSuppliers(tenantId) {
     const tenantFilter = getTenantFilter(tenantId);
     const client = await pool.connect();
     try {
-        // Get suppliers for this tenant
+        console.log('🔍 Loading suppliers for tenant:', tenantId, 'restaurant_id:', tenantFilter.restaurant_id);
+        
+        // First try to get suppliers for this specific tenant
         const result = await client.query(
             'SELECT id, name, contact_info, phone, created_at FROM suppliers WHERE restaurant_id = $1 ORDER BY name ASC',
             [tenantFilter.restaurant_id]
         );
         
+        console.log('📊 Found', result.rows.length, 'suppliers for tenant', tenantId);
+        
         // If no suppliers found for this tenant, try to get all suppliers as fallback
         if (result.rows.length === 0) {
+            console.log('⚠️ No tenant-specific suppliers found, checking all suppliers...');
             const allSuppliersResult = await client.query('SELECT id, name, contact_info, phone, created_at FROM suppliers ORDER BY name ASC');
+            console.log('📊 Found', allSuppliersResult.rows.length, 'total suppliers in database');
+            
             if (allSuppliersResult.rows.length > 0) {
-                console.log('⚠️ No suppliers found for tenant, showing all suppliers as fallback');
+                console.log('✅ Using all suppliers as fallback for tenant', tenantId);
                 return {
                     status: 200,
                     body: { 
                         success: true, 
                         data: allSuppliersResult.rows,
-                        usingFallback: true 
+                        usingFallback: true,
+                        message: `Showing all suppliers (no tenant-specific suppliers found for ${tenantId})`
                     }
                 };
             }
