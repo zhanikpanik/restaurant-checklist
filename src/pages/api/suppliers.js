@@ -76,28 +76,14 @@ export async function GET({ locals }) {
     } catch (error) {
         console.error('Failed to fetch suppliers:', error);
         
-        // Return mock data if database connection fails
-        const mockSuppliers = [
-            {
-                id: 1,
-                name: 'Основной поставщик',
-                phone: '+7 (999) 123-45-67',
-                contact_info: 'Основной поставщик продуктов для ресторана',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 2,
-                name: 'Поставщик напитков',
-                phone: '+7 (999) 987-65-43',
-                contact_info: 'Алкогольные и безалкогольные напитки',
-                created_at: new Date().toISOString()
-            }
-        ];
+        // Return empty array if database connection fails - no hardcoded suppliers
+        console.log('⚠️ Database connection failed, returning empty suppliers array');
         
         return new Response(JSON.stringify({ 
             success: true, 
-            data: mockSuppliers,
-            usingMockData: true 
+            data: [], // Empty array instead of hardcoded suppliers
+            usingMockData: true,
+            message: 'Database connection failed - no suppliers available'
         }), { 
             status: 200, 
             headers: { 'Content-Type': 'application/json' } 
