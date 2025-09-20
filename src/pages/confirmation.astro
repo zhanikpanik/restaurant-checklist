@@ -65,6 +65,14 @@ import Layout from '../layouts/Layout.astro';
 				</button>
 			</div>
 
+			<!-- Add Products Button -->
+			<div class="mt-4">
+				<button id="addProductsBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
+					<span class="mr-2">➕</span>
+					Дополнить заказ
+				</button>
+			</div>
+
 			<!-- Navigation Buttons -->
 			<div class="flex flex-col sm:flex-row gap-3 mt-4">
 				<button id="mainMenuBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
@@ -606,6 +614,9 @@ import Layout from '../layouts/Layout.astro';
 			// Event listeners
 			document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
 			document.getElementById('saveOrderBtn').addEventListener('click', saveOrderOnly);
+			document.getElementById('addProductsBtn').addEventListener('click', () => {
+				window.location.href = '/add-products';
+			});
 			document.getElementById('mainMenuBtn').addEventListener('click', () => {
 				window.location.href = '/';
 			});
