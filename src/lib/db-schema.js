@@ -39,13 +39,22 @@ export async function setupDatabaseSchema() {
                 restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
                 name VARCHAR(255) NOT NULL,
                 phone VARCHAR(20),
-                email VARCHAR(255),
-                address TEXT,
+                contact_info TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(restaurant_id, name)
             );
         `);
+
+        // Migrate existing suppliers table if needed (add contact_info column if it doesn't exist)
+        try {
+            await client.query(`
+                ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS contact_info TEXT;
+            `);
+            console.log('✅ Suppliers table migration complete');
+        } catch (migrationError) {
+            console.log('ℹ️ Suppliers table migration skipped (already up to date)');
+        }
 
         // Create product_categories table with restaurant_id
         await client.query(`

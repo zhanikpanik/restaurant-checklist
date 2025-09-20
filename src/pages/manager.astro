@@ -663,6 +663,153 @@ import Layout from '../layouts/Layout.astro';
 				alert('Заказ из отдела: ' + departmentName + '\n\nДата создания: ' + date + '\nСтатус: ' + statusText + '\n\nТовары:\n' + itemsList + '\n\nПоставщик: ' + (order.supplier || 'Основной поставщик'));
 			}
 
+			// SUPPLIER MANAGEMENT FUNCTIONS
+			
+			// Load suppliers from API
+			async function loadSuppliers() {
+				try {
+					const response = await fetch('/api/suppliers');
+					const data = await response.json();
+					
+					if (data.success) {
+						displaySuppliers(data.data);
+					} else {
+						console.error('Failed to load suppliers:', data.error);
+						displaySuppliers([]); // Show empty state
+					}
+				} catch (error) {
+					console.error('Error loading suppliers:', error);
+					displaySuppliers([]); // Show empty state
+				}
+			}
+			
+			// Display suppliers in the UI
+			function displaySuppliers(suppliers) {
+				const container = document.getElementById('suppliersManagement');
+				
+				if (!suppliers || suppliers.length === 0) {
+					container.innerHTML = `
+						<div class="text-center text-gray-500 py-8">
+							<span class="text-4xl mb-4 block">🏢</span>
+							<p class="text-lg mb-2">Нет поставщиков</p>
+							<p class="text-sm">Добавьте первого поставщика</p>
+						</div>
+					`;
+					return;
+				}
+				
+				let suppliersHtml = '';
+				suppliers.forEach((supplier, index) => {
+					const createdDate = new Date(supplier.created_at).toLocaleDateString('ru-RU');
+					
+					suppliersHtml += `
+						<div class="border border-gray-200 rounded-lg p-4">
+							<div class="flex justify-between items-start mb-3">
+								<div>
+									<h4 class="font-medium text-gray-900">${supplier.name}</h4>
+									<p class="text-sm text-gray-600">Создан: ${createdDate}</p>
+								</div>
+								<div class="flex space-x-2">
+									<button 
+										onclick="editSupplier(${supplier.id})" 
+										class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
+									>
+										✏️ Изменить
+									</button>
+									<button 
+										onclick="deleteSupplier(${supplier.id})" 
+										class="px-3 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded"
+									>
+										🗑️ Удалить
+									</button>
+								</div>
+							</div>
+							
+							${supplier.phone ? `
+								<div class="mb-2">
+									<span class="text-sm text-gray-600">📞 Телефон: </span>
+									<span class="text-sm font-medium">${supplier.phone}</span>
+								</div>
+							` : ''}
+							
+							${supplier.contact_info ? `
+								<div class="text-sm text-gray-600">
+									<span class="font-medium">Контакты: </span>
+									<span>${supplier.contact_info}</span>
+								</div>
+							` : ''}
+						</div>
+					`;
+				});
+				
+				container.innerHTML = suppliersHtml;
+			}
+			
+			// Open add supplier modal
+			function addNewSupplier() {
+				document.getElementById('addSupplierModal').classList.remove('hidden');
+				document.getElementById('newSupplierName').focus();
+			}
+			
+			// Close add supplier modal
+			function closeAddSupplierModal() {
+				document.getElementById('addSupplierModal').classList.add('hidden');
+				document.getElementById('newSupplierName').value = '';
+				document.getElementById('newSupplierPhone').value = '';
+				document.getElementById('newSupplierContact').value = '';
+			}
+			
+			// Create new supplier
+			async function createSupplier() {
+				const name = document.getElementById('newSupplierName').value.trim();
+				const phone = document.getElementById('newSupplierPhone').value.trim();
+				const contact_info = document.getElementById('newSupplierContact').value.trim();
+				
+				if (!name) {
+					alert('Пожалуйста, введите название поставщика');
+					return;
+				}
+				
+				try {
+					const response = await fetch('/api/suppliers', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							name: name,
+							phone: phone || null,
+							contact_info: contact_info || null
+						})
+					});
+					
+					const data = await response.json();
+					
+					if (data.success) {
+						alert('Поставщик "' + name + '" успешно создан!');
+						closeAddSupplierModal();
+						loadSuppliers(); // Refresh the list
+					} else {
+						alert('Ошибка при создании поставщика: ' + data.error);
+					}
+				} catch (error) {
+					console.error('Error creating supplier:', error);
+					alert('Ошибка при создании поставщика. Проверьте подключение к серверу.');
+				}
+			}
+			
+			// Edit supplier (placeholder)
+			function editSupplier(supplierId) {
+				alert('Функция редактирования поставщика будет добавлена позже. ID: ' + supplierId);
+			}
+			
+			// Delete supplier (placeholder)
+			function deleteSupplier(supplierId) {
+				if (confirm('Вы уверены, что хотите удалить этого поставщика?')) {
+					alert('Функция удаления поставщика будет добавлена позже. ID: ' + supplierId);
+				}
+			}
+
 			// Create test orders for debugging (remove in production)
 			function createTestOrders() {
 				console.log('🧪 Creating test orders...');
@@ -711,9 +858,11 @@ import Layout from '../layouts/Layout.astro';
 				createTestOrders();
 				
 				loadDashboardData();
+				loadSuppliers(); // Load suppliers on page load
 				
 				// Refresh data every 30 seconds
 				setInterval(loadDashboardData, 30000);
+				setInterval(loadSuppliers, 30000); // Auto-refresh suppliers too
 				
 				// Add test orders button for debugging (remove in production)
 				console.log('🧪 To create test orders, run: createTestOrders()');

@@ -80,25 +80,25 @@ import Layout from '../layouts/Layout.astro';
 		let allProducts = [];
 		let selectedProducts = [];
 
-		document.addEventListener('DOMContentLoaded', () => {
-			// Initialize the page
-			loadProducts();
-			
-			// Event listeners
-			document.getElementById('backBtn').addEventListener('click', () => {
-				window.location.href = '/confirmation';
-			});
-			
-			document.getElementById('barTab').addEventListener('click', () => switchTab('bar'));
-			document.getElementById('kitchenTab').addEventListener('click', () => switchTab('kitchen'));
-			
-			document.getElementById('searchInput').addEventListener('input', (e) => {
-				filterProducts(e.target.value);
-			});
-			
-			document.getElementById('clearSelected').addEventListener('click', clearSelectedProducts);
-			document.getElementById('addToOrderBtn').addEventListener('click', addSelectedToOrder);
-		});
+		// Helper functions for +- buttons (defined globally)
+		function increaseQuantity(id) {
+			const currentProduct = selectedProducts.find(p => p.id === id && p.tab === currentTab);
+			const currentQuantity = currentProduct ? currentProduct.quantity : 0;
+			updateQuantity(id, currentQuantity + 1);
+		}
+
+		function decreaseQuantity(id) {
+			const currentProduct = selectedProducts.find(p => p.id === id && p.tab === currentTab);
+			const currentQuantity = currentProduct ? currentProduct.quantity : 0;
+			updateQuantity(id, Math.max(0, currentQuantity - 1));
+		}
+
+		// Update quantity from input field
+		function updateQuantityFromInput(id, inputValue) {
+			// Extract number from input value (remove unit text)
+			const quantity = parseInt(inputValue.replace(/[^0-9]/g, '')) || 0;
+			updateQuantity(id, quantity);
+		}
 
 		// Switch between bar and kitchen tabs
 		function switchTab(tab) {
@@ -223,18 +223,6 @@ import Layout from '../layouts/Layout.astro';
 		}
 
 
-		// Helper functions for +- buttons
-		function increaseQuantity(id) {
-			const currentProduct = selectedProducts.find(p => p.id === id && p.tab === currentTab);
-			const currentQuantity = currentProduct ? currentProduct.quantity : 0;
-			updateQuantity(id, currentQuantity + 1);
-		}
-
-		function decreaseQuantity(id) {
-			const currentProduct = selectedProducts.find(p => p.id === id && p.tab === currentTab);
-			const currentQuantity = currentProduct ? currentProduct.quantity : 0;
-			updateQuantity(id, Math.max(0, currentQuantity - 1));
-		}
 
 		// Update quantity for product
 		function updateQuantity(id, quantity) {
@@ -270,13 +258,6 @@ import Layout from '../layouts/Layout.astro';
 			
 			updateSelectedSummary();
 			displayProducts(allProducts); // Refresh display to show updated quantity
-		}
-
-		// Update quantity from input field
-		function updateQuantityFromInput(id, inputValue) {
-			// Extract number from input value (remove unit text)
-			const quantity = parseInt(inputValue.replace(/[^0-9]/g, '')) || 0;
-			updateQuantity(id, quantity);
 		}
 
 		// Update selected products summary
@@ -417,9 +398,25 @@ import Layout from '../layouts/Layout.astro';
 			document.getElementById('noResults').classList.remove('hidden');
 		}
 
-		// Make functions globally accessible for onclick handlers
-		window.increaseQuantity = increaseQuantity;
-		window.decreaseQuantity = decreaseQuantity;
-		window.updateQuantityFromInput = updateQuantityFromInput;
+		// Initialize page when DOM is loaded
+		document.addEventListener('DOMContentLoaded', () => {
+			// Initialize the page
+			loadProducts();
+			
+			// Event listeners
+			document.getElementById('backBtn').addEventListener('click', () => {
+				window.location.href = '/confirmation';
+			});
+			
+			document.getElementById('barTab').addEventListener('click', () => switchTab('bar'));
+			document.getElementById('kitchenTab').addEventListener('click', () => switchTab('kitchen'));
+			
+			document.getElementById('searchInput').addEventListener('input', (e) => {
+				filterProducts(e.target.value);
+			});
+			
+			document.getElementById('clearSelected').addEventListener('click', clearSelectedProducts);
+			document.getElementById('addToOrderBtn').addEventListener('click', addSelectedToOrder);
+		});
 	</script>
 </Layout>
