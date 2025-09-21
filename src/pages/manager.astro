@@ -73,27 +73,42 @@ import Layout from '../layouts/Layout.astro';
 			<div class="max-w-6xl mx-auto">
 
 
-				<!-- Orders Management -->
+				<!-- Category-Supplier Management -->
 				<div class="bg-white rounded-lg border border-gray-200 mb-8">
 					<div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-						<h3 class="text-lg font-semibold text-gray-900">📋 Управление заказами</h3>
+						<h3 class="text-lg font-semibold text-gray-900">🏷️ Категории и поставщики</h3>
+						<button 
+							onclick="loadCategorySuppliers()" 
+							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+						>
+							🔄 Обновить
+						</button>
+					</div>
+					<div class="p-6">
+						<div id="categorySuppliers" class="space-y-4">
+							<div class="text-center text-gray-500 py-8">
+								<span class="text-4xl mb-4 block">🏷️</span>
+								<p class="text-lg mb-2">Загрузка категорий...</p>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Orders by Category -->
+				<div class="bg-white rounded-lg border border-gray-200 mb-8">
+					<div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+						<h3 class="text-lg font-semibold text-gray-900">📋 Заказы по категориям</h3>
 						<div class="flex space-x-2">
 							<button 
-								onclick="loadServerOrders()" 
+								onclick="loadOrdersByCategory()" 
 								class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
 							>
-								🔄 Загрузить с сервера
-							</button>
-							<button 
-								onclick="sendAllOrdersToSuppliers()" 
-								class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
-							>
-								📤 Отправить все поставщикам
+								🔄 Обновить заказы
 							</button>
 						</div>
 					</div>
 					<div class="p-6">
-						<div id="ordersManagement" class="space-y-4">
+						<div id="ordersByCategory" class="space-y-4">
 							<div class="text-center text-gray-500 py-8">
 								<span class="text-4xl mb-4 block">📋</span>
 								<p class="text-lg mb-2">Загрузка заказов...</p>
@@ -1161,6 +1176,307 @@ import Layout from '../layouts/Layout.astro';
 				}, 5000);
 			}
 
+			// CATEGORY-SUPPLIER MANAGEMENT FUNCTIONS
+			
+			// Load category-supplier assignments
+			async function loadCategorySuppliers() {
+				console.log('🏷️ Loading category-supplier assignments...');
+				try {
+					const response = await fetch('/api/category-suppliers');
+					const data = await response.json();
+					
+					if (data.success) {
+						displayCategorySuppliers(data.data);
+					} else {
+						console.error('❌ Failed to load category suppliers:', data.error);
+						displayCategorySuppliers([]);
+					}
+				} catch (error) {
+					console.error('❌ Error loading category suppliers:', error);
+					displayCategorySuppliers([]);
+				}
+			}
+			
+			// Display category-supplier assignments
+			function displayCategorySuppliers(categorySuppliers) {
+				const container = document.getElementById('categorySuppliers');
+				
+				if (!container) {
+					console.error('❌ Category suppliers container not found!');
+					return;
+				}
+				
+				if (!categorySuppliers || categorySuppliers.length === 0) {
+					container.innerHTML = `
+						<div class="text-center text-gray-500 py-8">
+							<span class="text-4xl mb-4 block">🏷️</span>
+							<p class="text-lg mb-2">Нет категорий</p>
+							<p class="text-sm">Создайте товары с категориями</p>
+						</div>
+					`;
+					return;
+				}
+				
+				let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+				
+				categorySuppliers.forEach(category => {
+					const hasSupplier = category.supplier_id && category.supplier_name;
+					
+					html += `
+						<div class="border border-gray-200 rounded-lg p-4">
+							<div class="flex justify-between items-start mb-3">
+								<div>
+									<h4 class="font-medium text-gray-900">${category.category_name}</h4>
+									${hasSupplier ? `
+										<p class="text-sm text-green-600">📦 ${category.supplier_name}</p>
+										${category.supplier_phone ? `<p class="text-xs text-gray-500">📞 ${category.supplier_phone}</p>` : ''}
+									` : `
+										<p class="text-sm text-red-600">⚠️ Поставщик не назначен</p>
+									`}
+								</div>
+								<button 
+									onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', ${category.supplier_id || 'null'})"
+									class="px-3 py-1 text-xs ${hasSupplier ? 'bg-blue-100 hover:bg-blue-200 text-blue-700' : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-700'} rounded"
+								>
+									${hasSupplier ? '✏️ Изменить' : '➕ Назначить'}
+								</button>
+							</div>
+						</div>
+					`;
+				});
+				
+				html += '</div>';
+				container.innerHTML = html;
+			}
+			
+			// Load orders grouped by categories
+			async function loadOrdersByCategory() {
+				console.log('📋 Loading orders by category...');
+				try {
+					const response = await fetch('/api/orders-by-category');
+					const data = await response.json();
+					
+					if (data.success) {
+						displayOrdersByCategory(data.data);
+					} else {
+						console.error('❌ Failed to load orders by category:', data.error);
+						displayOrdersByCategory([]);
+					}
+				} catch (error) {
+					console.error('❌ Error loading orders by category:', error);
+					displayOrdersByCategory([]);
+				}
+			}
+			
+			// Display orders grouped by categories
+			function displayOrdersByCategory(categorizedOrders) {
+				const container = document.getElementById('ordersByCategory');
+				
+				if (!container) {
+					console.error('❌ Orders by category container not found!');
+					return;
+				}
+				
+				if (!categorizedOrders || categorizedOrders.length === 0) {
+					container.innerHTML = `
+						<div class="text-center text-gray-500 py-8">
+							<span class="text-4xl mb-4 block">📋</span>
+							<p class="text-lg mb-2">Нет заказов</p>
+							<p class="text-sm">Заказы появятся здесь после создания</p>
+						</div>
+					`;
+					return;
+				}
+				
+				let html = '<div class="space-y-6">';
+				
+				categorizedOrders.forEach(category => {
+					const hasSupplier = category.supplier && category.supplier.name;
+					const supplierInfo = hasSupplier ? category.supplier : null;
+					
+					html += `
+						<div class="border border-gray-200 rounded-lg overflow-hidden">
+							<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+								<div class="flex justify-between items-center">
+									<div class="flex items-center space-x-3">
+										<h4 class="text-lg font-semibold text-gray-900">${category.categoryName}</h4>
+										<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">${category.items.length} товаров</span>
+									</div>
+									<div class="flex items-center space-x-2">
+										${hasSupplier ? `
+											<div class="text-right">
+												<p class="text-sm font-medium text-gray-900">📦 ${supplierInfo.name}</p>
+												${supplierInfo.phone ? `<p class="text-xs text-gray-500">📞 ${supplierInfo.phone}</p>` : ''}
+											</div>
+											<button 
+												onclick="sendCategoryToSupplier(${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
+												class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
+											>
+												📤 Отправить поставщику
+											</button>
+										` : `
+											<div class="text-right">
+												<p class="text-sm text-red-600">⚠️ Поставщик не назначен</p>
+											</div>
+											<button 
+												onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', null)"
+												class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg"
+											>
+												➕ Назначить поставщика
+											</button>
+										`}
+									</div>
+								</div>
+							</div>
+							<div class="p-4">
+								<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+									${category.items.map(item => `
+										<div class="bg-white border border-gray-200 rounded p-3">
+											<div class="font-medium text-gray-900">${item.name}</div>
+											<div class="text-sm text-gray-600">${item.quantity} ${item.unit}</div>
+											<div class="text-xs text-gray-500 mt-1">из ${item.department}</div>
+										</div>
+									`).join('')}
+								</div>
+							</div>
+						</div>
+					`;
+				});
+				
+				html += '</div>';
+				container.innerHTML = html;
+			}
+			
+			// Send category orders to supplier
+			async function sendCategoryToSupplier(categoryId, categoryName, supplierId) {
+				if (!confirm(`Отправить все заказы из категории "${categoryName}" поставщику?`)) {
+					return;
+				}
+				
+				try {
+					const response = await fetch('/api/send-category-to-supplier', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ 
+							categoryId: categoryId, 
+							supplierId: supplierId 
+						})
+					});
+					
+					const data = await response.json();
+					
+					if (data.success) {
+						showToast(
+							`✅ Заказ отправлен: ${data.data.supplierName} - ${data.data.itemsCount} товаров`, 
+							'success'
+						);
+						
+						// Refresh the orders display
+						await loadOrdersByCategory();
+					} else {
+						throw new Error(data.error);
+					}
+				} catch (error) {
+					console.error('❌ Failed to send category to supplier:', error);
+					showToast('Ошибка при отправке заказов поставщику: ' + error.message, 'error');
+				}
+			}
+			
+			// Open supplier assignment modal
+			function openSupplierAssignModal(categoryId, categoryName, currentSupplierId) {
+				// Create and show modal for supplier assignment
+				const modal = document.createElement('div');
+				modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+				modal.innerHTML = `
+					<div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+						<div class="flex justify-between items-center mb-4">
+							<h3 class="text-lg font-semibold">Назначить поставщика</h3>
+							<button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">✕</button>
+						</div>
+						<div class="mb-4">
+							<p class="text-sm text-gray-600 mb-2">Категория: <strong>${categoryName}</strong></p>
+							<select id="supplierSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+								<option value="">Выберите поставщика</option>
+							</select>
+						</div>
+						<div class="flex space-x-3">
+							<button 
+								onclick="assignSupplierToCategory(${categoryId}, document.getElementById('supplierSelect').value)"
+								class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
+							>
+								💾 Сохранить
+							</button>
+							<button 
+								onclick="this.closest('.fixed').remove()"
+								class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg"
+							>
+								Отмена
+							</button>
+						</div>
+					</div>
+				`;
+				
+				document.body.appendChild(modal);
+				
+				// Load suppliers for the select
+				loadSuppliersForModal(currentSupplierId);
+			}
+			
+			// Load suppliers for modal
+			async function loadSuppliersForModal(currentSupplierId) {
+				try {
+					const response = await fetch('/api/suppliers');
+					const data = await response.json();
+					
+					if (data.success) {
+						const select = document.getElementById('supplierSelect');
+						data.data.forEach(supplier => {
+							const option = document.createElement('option');
+							option.value = supplier.id;
+							option.textContent = `${supplier.name}${supplier.phone ? ` (${supplier.phone})` : ''}`;
+							if (supplier.id == currentSupplierId) {
+								option.selected = true;
+							}
+							select.appendChild(option);
+						});
+					}
+				} catch (error) {
+					console.error('Error loading suppliers for modal:', error);
+				}
+			}
+			
+			// Assign supplier to category
+			async function assignSupplierToCategory(categoryId, supplierId) {
+				try {
+					const response = await fetch('/api/category-suppliers', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ 
+							categoryId: categoryId, 
+							supplierId: supplierId || null 
+						})
+					});
+					
+					const data = await response.json();
+					
+					if (data.success) {
+						showToast('Поставщик назначен категории', 'success');
+						
+						// Close modal
+						document.querySelector('.fixed.inset-0').remove();
+						
+						// Refresh displays
+						await loadCategorySuppliers();
+						await loadOrdersByCategory();
+					} else {
+						showToast('Ошибка при назначении поставщика', 'error');
+					}
+				} catch (error) {
+					console.error('Error assigning supplier to category:', error);
+					showToast('Ошибка при назначении поставщика', 'error');
+				}
+			}
+
 			// SUPPLIER MANAGEMENT FUNCTIONS
 			
 			// Load suppliers from API
@@ -1326,10 +1642,12 @@ import Layout from '../layouts/Layout.astro';
 
 			// Load data when page loads
 			document.addEventListener('DOMContentLoaded', function() {
-				loadOrdersData();
+				loadCategorySuppliers();
+				loadOrdersByCategory();
 				loadSuppliers();
 				// Refresh data every 30 seconds
-				setInterval(loadOrdersData, 30000);
+				setInterval(loadCategorySuppliers, 30000);
+				setInterval(loadOrdersByCategory, 30000);
 				setInterval(loadSuppliers, 30000);
 			});
 		</script>

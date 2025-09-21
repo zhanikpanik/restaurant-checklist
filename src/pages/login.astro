@@ -34,16 +34,7 @@ import Layout from '../layouts/Layout.astro';
 					<span class="text-2xl mr-3">👨‍💼</span>
 					<div class="text-left">
 						<div class="font-semibold">Менеджер</div>
-						<div class="text-sm opacity-90">Управление заказами</div>
-					</div>
-				</button>
-
-				<!-- Admin Role -->
-				<button onclick="selectRole('admin')" class="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-4 px-6 rounded-lg transition-colors duration-200 flex items-center justify-center">
-					<span class="text-2xl mr-3">⚙️</span>
-					<div class="text-left">
-						<div class="font-semibold">Администратор</div>
-						<div class="text-sm opacity-90">Полный доступ</div>
+						<div class="text-sm opacity-90">Управление заказами и поставщиками</div>
 					</div>
 				</button>
 			</div>
@@ -67,16 +58,13 @@ import Layout from '../layouts/Layout.astro';
 			const roleNames = {
 				chef: 'Повар 👨‍🍳',
 				barman: 'Бармен 🍷',
-				manager: 'Менеджер 👨‍💼',
-				admin: 'Администратор ⚙️'
+				manager: 'Менеджер 👨‍💼'
 			};
 			
 			alert(`✅ Вы вошли как: ${roleNames[role]}`);
 			
 			// Redirect to appropriate page
-			if (role === 'admin') {
-				window.location.href = '/settings';
-			} else if (role === 'manager') {
+			if (role === 'manager') {
 				window.location.href = '/manager';
 			} else if (role === 'chef') {
 				window.location.href = '/kitchen';
@@ -111,8 +99,7 @@ import Layout from '../layouts/Layout.astro';
 				const roleNames = {
 					chef: 'Повар 👨‍🍳',
 					barman: 'Бармен 🍷',
-					manager: 'Менеджер 👨‍💼',
-					admin: 'Администратор ⚙️'
+					manager: 'Менеджер 👨‍💼'
 				};
 				
 				const currentRoleDiv = document.createElement('div');
