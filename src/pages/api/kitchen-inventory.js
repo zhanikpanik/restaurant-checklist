@@ -79,8 +79,8 @@ export async function GET() {
                 quantity: parseFloat(leftover.storage_ingredient_left) || 0,
                 unit: translatedUnit,
                 minQuantity: 1,
-                categoryId: detail ? parseInt(detail.category_id) : null,
-                categoryName: detail ? detail.category_name : 'Uncategorized',
+                category_id: detail ? parseInt(detail.category_id) : null,
+                category_name: detail ? detail.category_name : 'Без категории',
             };
         });
         

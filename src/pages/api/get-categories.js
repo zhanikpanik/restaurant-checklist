@@ -5,11 +5,11 @@ export const prerender = false;
 export async function GET() {
     const client = await pool.connect();
     try {
-        // Check if categories table exists
+        // Check if product_categories table exists
         const tableExists = await client.query(`
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
-                WHERE table_name = 'categories'
+                WHERE table_name = 'product_categories'
             );
         `);
 
@@ -24,8 +24,9 @@ export async function GET() {
             });
         }
 
-        // Get all categories
-        const result = await client.query('SELECT * FROM categories ORDER BY name');
+        // Get all categories for default restaurant
+        const restaurantId = 'default';
+        const result = await client.query('SELECT * FROM product_categories WHERE restaurant_id = $1 ORDER BY name', [restaurantId]);
         
         return new Response(JSON.stringify({
             success: true,

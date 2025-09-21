@@ -157,17 +157,27 @@ import Layout from '../layouts/Layout.astro';
 							</div>
 						</div>
 
-						<!-- Search -->
+						<!-- Search and Bulk Actions -->
 						<div class="p-4 bg-gray-50 border-b border-gray-200">
-							<div class="relative">
-								<input 
-									type="text" 
-									id="productSearch" 
-									placeholder="Поиск товаров..." 
-									class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-									oninput="filterProducts()"
+							<div class="flex space-x-3 mb-3">
+								<div class="relative flex-1">
+									<input 
+										type="text" 
+										id="productSearch" 
+										placeholder="Поиск товаров..." 
+										class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+										oninput="filterProducts()"
+									>
+									<span class="absolute left-3 top-2.5 text-gray-400">🔍</span>
+								</div>
+								<button 
+									onclick="bulkCategorizeProducts()" 
+									class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg flex items-center space-x-2"
+									title="Автоматически категоризировать все товары без категории"
 								>
-								<span class="absolute left-3 top-2.5 text-gray-400">🔍</span>
+									<span>🤖</span>
+									<span>Автокатегории</span>
+								</button>
 							</div>
 						</div>
 
@@ -634,11 +644,11 @@ import Layout from '../layouts/Layout.astro';
 					
 					productsHtml += `
 						<div class="bg-white border border-gray-200 rounded-lg p-4 ${borderClass}" data-product-id="${product.id}">
-							<div class="flex justify-between items-center">
+							<div class="flex justify-between items-start mb-2">
 								<div class="flex-1">
 									<h4 class="font-medium text-gray-900">${product.name}</h4>
 									<p class="text-sm text-gray-600">На складе: ${product.quantity || 0} ${product.unit}</p>
-									${product.category ? `<p class="text-xs text-gray-500">${product.category}</p>` : ''}
+									${product.category_name ? `<p class="text-xs text-gray-500">📂 ${product.category_name}</p>` : '<p class="text-xs text-gray-400">📂 Без категории</p>'}
 								</div>
 								<div class="flex items-center space-x-2">
 									${isSelected ? `
@@ -666,12 +676,36 @@ import Layout from '../layouts/Layout.astro';
 									`}
 								</div>
 							</div>
+							<!-- Categorization Row -->
+							<div class="flex items-center space-x-2 pt-2 border-t border-gray-100">
+								<select 
+									id="category-select-${product.id}" 
+									class="flex-1 text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+									data-product-id="${product.id}"
+									data-product-name="${product.name}"
+									onchange="updateProductCategory(this)"
+								>
+									<option value="">Выберите категорию</option>
+									<!-- Categories will be loaded dynamically -->
+								</select>
+								<button 
+									class="px-2 py-1 text-xs bg-purple-50 hover:bg-purple-100 text-purple-700 rounded border border-purple-200"
+									onclick="suggestCategory('${product.id}', '${product.name}')"
+									title="Автоопределить категорию"
+									id="ai-btn-${product.id}"
+								>
+									🤖 AI
+								</button>
+							</div>
 						</div>
 					`;
 				});
 				productsHtml += '</div>';
 				
 				productsList.innerHTML = productsHtml;
+				
+				// Load categories for all select elements
+				loadCategoriesForProducts();
 			}
 
 			// Select product
@@ -918,6 +952,213 @@ import Layout from '../layouts/Layout.astro';
 					console.error('❌ Failed to view order details:', error);
 					alert('Ошибка при просмотре деталей заказа');
 				}
+			}
+
+			// CATEGORIZATION FUNCTIONS
+			
+			// Load categories for all product select elements
+			async function loadCategoriesForProducts() {
+				try {
+					const response = await fetch('/api/get-categories');
+					const data = await response.json();
+					
+					if (data.success && data.categories) {
+						const categories = data.categories;
+						
+						// Update all category select elements
+						const selects = document.querySelectorAll('select[id^="category-select-"]');
+						selects.forEach(select => {
+							const currentValue = select.value;
+							const productId = select.dataset.productId;
+							
+							// Clear existing options except the first one
+							while (select.options.length > 1) {
+								select.remove(1);
+							}
+							
+							// Add categories
+							categories.forEach(category => {
+								const option = document.createElement('option');
+								option.value = category.id;
+								option.textContent = category.name;
+								select.appendChild(option);
+							});
+							
+							// Set current category if product has one
+							const product = allProducts[currentDepartmentTab]?.find(p => p.id == productId);
+							if (product && product.category_id) {
+								select.value = product.category_id;
+							}
+						});
+					}
+				} catch (error) {
+					console.error('Error loading categories:', error);
+				}
+			}
+			
+			// Update product category manually
+			async function updateProductCategory(select) {
+				const productId = select.dataset.productId;
+				const categoryId = select.value;
+				
+				if (!productId || !categoryId) return;
+				
+				try {
+					const response = await fetch('/api/categorize-product', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ productId, categoryId })
+					});
+					
+					const data = await response.json();
+					
+					if (data.success) {
+						showToast('Категория обновлена', 'success');
+						// Update the product in memory
+						const product = allProducts[currentDepartmentTab]?.find(p => p.id == productId);
+						if (product) {
+							product.category_id = parseInt(categoryId);
+							const categoryOption = select.querySelector(`option[value="${categoryId}"]`);
+							product.category_name = categoryOption ? categoryOption.textContent : '';
+						}
+					} else {
+						showToast('Ошибка при обновлении категории', 'error');
+						select.value = '';
+					}
+				} catch (error) {
+					console.error('Error updating category:', error);
+					showToast('Ошибка при обновлении категории', 'error');
+					select.value = '';
+				}
+			}
+			
+			// Suggest category using AI
+			async function suggestCategory(productId, productName) {
+				const select = document.getElementById(`category-select-${productId}`);
+				const button = document.getElementById(`ai-btn-${productId}`);
+				
+				if (!productName) return;
+				
+				// Show loading state
+				const originalHTML = button.innerHTML;
+				button.disabled = true;
+				button.innerHTML = '⏳';
+				
+				try {
+					const response = await fetch('/api/categorize-product', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ productId, productName })
+					});
+					
+					const data = await response.json();
+					
+					if (data.success && data.categoryId) {
+						// Update the select value
+						select.value = data.categoryId;
+						
+						// Update the product in memory
+						const product = allProducts[currentDepartmentTab]?.find(p => p.id == productId);
+						if (product) {
+							product.category_id = data.categoryId;
+							const categoryOption = select.querySelector(`option[value="${data.categoryId}"]`);
+							product.category_name = categoryOption ? categoryOption.textContent : '';
+						}
+						
+						// Refresh categories if needed
+						await loadCategoriesForProducts();
+						select.value = data.categoryId;
+						
+						showToast('Категория определена автоматически', 'success');
+					} else {
+						showToast('Не удалось определить категорию', 'error');
+					}
+				} catch (error) {
+					console.error('Error suggesting category:', error);
+					showToast('Ошибка при определении категории', 'error');
+				} finally {
+					// Reset button state
+					button.disabled = false;
+					button.innerHTML = originalHTML;
+				}
+			}
+			
+			// Bulk AI categorization for all uncategorized products
+			async function bulkCategorizeProducts() {
+				if (!confirm('Автоматически категоризировать все товары без категории?')) {
+					return;
+				}
+				
+				const uncategorizedProducts = allProducts[currentDepartmentTab]?.filter(p => !p.category_id) || [];
+				
+				if (uncategorizedProducts.length === 0) {
+					showToast('Все товары уже категоризированы', 'info');
+					return;
+				}
+				
+				let processed = 0;
+				let errors = 0;
+				
+				showToast(`Начинается категоризация ${uncategorizedProducts.length} товаров...`, 'info');
+				
+				for (const product of uncategorizedProducts) {
+					try {
+						const response = await fetch('/api/categorize-product', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({ productId: product.id, productName: product.name })
+						});
+						
+						const data = await response.json();
+						
+						if (data.success && data.categoryId) {
+							product.category_id = data.categoryId;
+							processed++;
+						} else {
+							errors++;
+						}
+					} catch (error) {
+						console.error('Error categorizing product:', product.name, error);
+						errors++;
+					}
+					
+					// Small delay to avoid overwhelming the API
+					await new Promise(resolve => setTimeout(resolve, 100));
+				}
+				
+				// Refresh the display
+				await loadCategoriesForProducts();
+				displayProducts(allProducts[currentDepartmentTab]);
+				
+				showToast(`Категоризация завершена: ${processed} успешно, ${errors} ошибок`, processed > 0 ? 'success' : 'error');
+			}
+			
+			// Show toast notification
+			function showToast(message, type = 'info') {
+				const toast = document.createElement('div');
+				toast.className = 'fixed top-4 right-4 z-50 max-w-sm';
+				
+				const bgColor = type === 'success' ? 'bg-green-100 text-green-800 border-green-200' : 
+							   type === 'error' ? 'bg-red-100 text-red-800 border-red-200' : 
+							   'bg-blue-100 text-blue-800 border-blue-200';
+				
+				toast.innerHTML = `
+					<div class="border rounded-lg p-3 ${bgColor} shadow-lg">
+						<div class="flex items-center">
+							<span class="text-sm">${message}</span>
+							<button onclick="this.parentElement.parentElement.parentElement.remove()" class="ml-2 text-gray-500 hover:text-gray-700">✕</button>
+						</div>
+					</div>
+				`;
+				
+				document.body.appendChild(toast);
+				
+				// Auto remove after 5 seconds
+				setTimeout(() => {
+					if (toast.parentElement) {
+						toast.remove();
+					}
+				}, 5000);
 			}
 
 			// SUPPLIER MANAGEMENT FUNCTIONS

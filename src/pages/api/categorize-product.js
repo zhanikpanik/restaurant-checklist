@@ -13,27 +13,19 @@ export const prerender = false;
 
 // Create categories table if it doesn't exist
 async function ensureCategoriesTable(client) {
-    await client.query(`
-        CREATE TABLE IF NOT EXISTS categories (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) UNIQUE NOT NULL,
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    // Insert default categories if table is empty
-    const count = await client.query('SELECT COUNT(*) FROM categories');
-    if (parseInt(count.rows[0].count) === 0) {
-        for (const category of DEFAULT_CATEGORIES) {
-            await client.query(
-                'INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING',
-                [category]
-            );
-        }
+    // Get restaurant_id from tenant middleware (default to 'default' for now)
+    const restaurantId = 'default';
+    
+    // Insert default categories if they don't exist for this restaurant
+    for (const category of DEFAULT_CATEGORIES) {
+        await client.query(
+            'INSERT INTO product_categories (restaurant_id, name) VALUES ($1, $2) ON CONFLICT (restaurant_id, name) DO NOTHING',
+            [restaurantId, category]
+        );
     }
 }
 
-// Add category_id column to products if it doesn't exist
+// Add category_id column to products if it doesn't exist (this should already exist in schema)
 async function ensureProductCategoryColumn(client) {
     const columnExists = await client.query(`
         SELECT column_name 
@@ -42,7 +34,7 @@ async function ensureProductCategoryColumn(client) {
     `);
 
     if (columnExists.rows.length === 0) {
-        await client.query('ALTER TABLE products ADD COLUMN category_id INTEGER REFERENCES categories(id)');
+        await client.query('ALTER TABLE products ADD COLUMN category_id INTEGER REFERENCES product_categories(id)');
     }
 }
 
@@ -105,12 +97,13 @@ export async function POST({ request }) {
 
         // If no category provided, use AI to suggest one
         if (!finalCategoryId && productName) {
+            const restaurantId = 'default';
             const aiCategory = await categorizeWithAI(productName);
             
             // Get or create the AI-suggested category
             const categoryResult = await client.query(
-                'INSERT INTO categories (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name=EXCLUDED.name RETURNING id',
-                [aiCategory]
+                'INSERT INTO product_categories (restaurant_id, name) VALUES ($1, $2) ON CONFLICT (restaurant_id, name) DO UPDATE SET name=EXCLUDED.name RETURNING id',
+                [restaurantId, aiCategory]
             );
             
             finalCategoryId = categoryResult.rows[0].id;
@@ -160,7 +153,8 @@ export async function GET() {
         // Ensure database schema is set up
         await ensureCategoriesTable(client);
         
-        const result = await client.query('SELECT * FROM categories ORDER BY name');
+        const restaurantId = 'default';
+        const result = await client.query('SELECT * FROM product_categories WHERE restaurant_id = $1 ORDER BY name', [restaurantId]);
         
         await client.query('COMMIT');
         
