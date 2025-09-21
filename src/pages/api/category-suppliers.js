@@ -6,30 +6,74 @@ export const prerender = false;
 export async function GET() {
     const client = await pool.connect();
     try {
-        const restaurantId = 'default';
+        // Check if product_categories table exists and what columns it has
+        const tableCheck = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'product_categories'
+        `);
         
-        // First check if supplier_id column exists, if not add it
-        try {
-            await client.query(`
-                ALTER TABLE product_categories 
-                ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
-            `);
-        } catch (alterError) {
-            console.log('Column supplier_id might already exist or table needs to be created');
+        const columns = tableCheck.rows.map(row => row.column_name);
+        const hasRestaurantId = columns.includes('restaurant_id');
+        const hasSupplierId = columns.includes('supplier_id');
+        
+        // Add missing columns if needed
+        if (!hasSupplierId) {
+            try {
+                await client.query(`
+                    ALTER TABLE product_categories 
+                    ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+                `);
+                console.log('✅ Added supplier_id column to product_categories');
+            } catch (alterError) {
+                console.log('Could not add supplier_id column:', alterError.message);
+            }
         }
         
-        const result = await client.query(`
-            SELECT 
-                pc.id,
-                pc.name as category_name,
-                COALESCE(pc.supplier_id, NULL) as supplier_id,
-                s.name as supplier_name,
-                s.phone as supplier_phone
-            FROM product_categories pc
-            LEFT JOIN suppliers s ON pc.supplier_id = s.id
-            WHERE pc.restaurant_id = $1
-            ORDER BY pc.name
-        `, [restaurantId]);
+        if (!hasRestaurantId) {
+            try {
+                await client.query(`
+                    ALTER TABLE product_categories 
+                    ADD COLUMN restaurant_id VARCHAR(50) DEFAULT 'default';
+                `);
+                console.log('✅ Added restaurant_id column to product_categories');
+            } catch (alterError) {
+                console.log('Could not add restaurant_id column:', alterError.message);
+            }
+        }
+        
+        // Build query based on available columns
+        let query, params;
+        if (hasRestaurantId) {
+            query = `
+                SELECT 
+                    pc.id,
+                    pc.name as category_name,
+                    COALESCE(pc.supplier_id, NULL) as supplier_id,
+                    s.name as supplier_name,
+                    s.phone as supplier_phone
+                FROM product_categories pc
+                LEFT JOIN suppliers s ON pc.supplier_id = s.id
+                WHERE pc.restaurant_id = $1
+                ORDER BY pc.name
+            `;
+            params = ['default'];
+        } else {
+            query = `
+                SELECT 
+                    pc.id,
+                    pc.name as category_name,
+                    COALESCE(pc.supplier_id, NULL) as supplier_id,
+                    s.name as supplier_name,
+                    s.phone as supplier_phone
+                FROM product_categories pc
+                LEFT JOIN suppliers s ON pc.supplier_id = s.id
+                ORDER BY pc.name
+            `;
+            params = [];
+        }
+        
+        const result = await client.query(query, params);
         
         return new Response(JSON.stringify({
             success: true,
@@ -59,6 +103,16 @@ export async function POST({ request }) {
     
     try {
         await client.query('BEGIN');
+        
+        // Ensure supplier_id column exists first
+        try {
+            await client.query(`
+                ALTER TABLE product_categories 
+                ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+            `);
+        } catch (alterError) {
+            // Column might already exist
+        }
         
         // Update category with supplier assignment
         await client.query(

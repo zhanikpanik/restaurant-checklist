@@ -8,62 +8,165 @@ export async function GET() {
     try {
         const restaurantId = 'default';
         
+        // Check if orders table has restaurant_id column
+        const ordersTableCheck = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'orders'
+        `);
+        
+        const orderColumns = ordersTableCheck.rows.map(row => row.column_name);
+        const ordersHasRestaurantId = orderColumns.includes('restaurant_id');
+        
         // Get all orders from database
-        const ordersResult = await client.query(`
-            SELECT 
-                o.id as order_id,
-                o.order_data,
-                o.status,
-                o.created_at,
-                o.created_by_role
-            FROM orders o
-            WHERE o.restaurant_id = $1 
-            AND o.status = 'pending'
-            ORDER BY o.created_at DESC
-        `, [restaurantId]);
+        let ordersQuery, ordersParams;
+        if (ordersHasRestaurantId) {
+            ordersQuery = `
+                SELECT 
+                    o.id as order_id,
+                    o.order_data,
+                    o.status,
+                    o.created_at,
+                    o.created_by_role
+                FROM orders o
+                WHERE o.restaurant_id = $1 
+                AND o.status = 'pending'
+                ORDER BY o.created_at DESC
+            `;
+            ordersParams = [restaurantId];
+        } else {
+            ordersQuery = `
+                SELECT 
+                    o.id as order_id,
+                    o.order_data,
+                    o.status,
+                    o.created_at,
+                    o.created_by_role
+                FROM orders o
+                WHERE o.status = 'pending'
+                ORDER BY o.created_at DESC
+            `;
+            ordersParams = [];
+        }
+        
+        const ordersResult = await client.query(ordersQuery, ordersParams);
         
         const orders = ordersResult.rows;
         
-        // First ensure supplier_id column exists
-        try {
-            await client.query(`
-                ALTER TABLE product_categories 
-                ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
-            `);
-        } catch (alterError) {
-            console.log('Column supplier_id might already exist or table needs to be created');
+        // Check if product_categories table exists and what columns it has
+        const tableCheck = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'product_categories'
+        `);
+        
+        const columns = tableCheck.rows.map(row => row.column_name);
+        const hasRestaurantId = columns.includes('restaurant_id');
+        const hasSupplierId = columns.includes('supplier_id');
+        
+        // Add missing columns if needed
+        if (!hasSupplierId) {
+            try {
+                await client.query(`
+                    ALTER TABLE product_categories 
+                    ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+                `);
+                console.log('✅ Added supplier_id column to product_categories');
+            } catch (alterError) {
+                console.log('Could not add supplier_id column:', alterError.message);
+            }
+        }
+        
+        if (!hasRestaurantId) {
+            try {
+                await client.query(`
+                    ALTER TABLE product_categories 
+                    ADD COLUMN restaurant_id VARCHAR(50) DEFAULT 'default';
+                `);
+                console.log('✅ Added restaurant_id column to product_categories');
+            } catch (alterError) {
+                console.log('Could not add restaurant_id column:', alterError.message);
+            }
+        }
+        
+        // Build query based on available columns
+        let categoriesQuery, categoriesParams;
+        if (hasRestaurantId) {
+            categoriesQuery = `
+                SELECT 
+                    pc.id,
+                    pc.name as category_name,
+                    COALESCE(pc.supplier_id, NULL) as supplier_id,
+                    s.name as supplier_name,
+                    s.phone as supplier_phone,
+                    s.contact_info as supplier_contact
+                FROM product_categories pc
+                LEFT JOIN suppliers s ON pc.supplier_id = s.id
+                WHERE pc.restaurant_id = $1
+            `;
+            categoriesParams = [restaurantId];
+        } else {
+            categoriesQuery = `
+                SELECT 
+                    pc.id,
+                    pc.name as category_name,
+                    COALESCE(pc.supplier_id, NULL) as supplier_id,
+                    s.name as supplier_name,
+                    s.phone as supplier_phone,
+                    s.contact_info as supplier_contact
+                FROM product_categories pc
+                LEFT JOIN suppliers s ON pc.supplier_id = s.id
+            `;
+            categoriesParams = [];
         }
         
         // Get categories with suppliers
-        const categoriesResult = await client.query(`
-            SELECT 
-                pc.id,
-                pc.name as category_name,
-                COALESCE(pc.supplier_id, NULL) as supplier_id,
-                s.name as supplier_name,
-                s.phone as supplier_phone,
-                s.contact_info as supplier_contact
-            FROM product_categories pc
-            LEFT JOIN suppliers s ON pc.supplier_id = s.id
-            WHERE pc.restaurant_id = $1
-        `, [restaurantId]);
+        const categoriesResult = await client.query(categoriesQuery, categoriesParams);
         
         const categories = new Map();
         categoriesResult.rows.forEach(cat => {
             categories.set(cat.id, cat);
         });
         
-        // Get all products with their categories
-        const productsResult = await client.query(`
-            SELECT 
-                p.id as product_id,
-                p.name as product_name,
-                p.category_id,
-                pc.name as category_name
-            FROM products p
-            LEFT JOIN product_categories pc ON p.category_id = pc.id
-            WHERE p.restaurant_id = $1
-        `, [restaurantId]);
+        // Get all products with their categories (handle missing restaurant_id)
+        let productsQuery, productsParams;
+        
+        // Check if products table has restaurant_id column
+        const productsTableCheck = await client.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'products'
+        `);
+        
+        const productColumns = productsTableCheck.rows.map(row => row.column_name);
+        const productsHasRestaurantId = productColumns.includes('restaurant_id');
+        
+        if (productsHasRestaurantId) {
+            productsQuery = `
+                SELECT 
+                    p.id as product_id,
+                    p.name as product_name,
+                    p.category_id,
+                    pc.name as category_name
+                FROM products p
+                LEFT JOIN product_categories pc ON p.category_id = pc.id
+                WHERE p.restaurant_id = $1
+            `;
+            productsParams = [restaurantId];
+        } else {
+            productsQuery = `
+                SELECT 
+                    p.id as product_id,
+                    p.name as product_name,
+                    p.category_id,
+                    pc.name as category_name
+                FROM products p
+                LEFT JOIN product_categories pc ON p.category_id = pc.id
+            `;
+            productsParams = [];
+        }
+        
+        const productsResult = await client.query(productsQuery, productsParams);
         
         const products = new Map();
         productsResult.rows.forEach(prod => {
