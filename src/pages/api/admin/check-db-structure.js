@@ -5,35 +5,66 @@ export const prerender = false;
 export async function GET() {
     const client = await pool.connect();
     try {
-        // Check product_categories table structure
-        const columnsResult = await client.query(`
-            SELECT column_name, data_type, is_nullable
-            FROM information_schema.columns 
-            WHERE table_name = 'product_categories'
-            ORDER BY ordinal_position;
+        // Get all tables
+        const tablesResult = await client.query(`
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public'
+            ORDER BY table_name
         `);
         
-        // Check if supplier_id column exists
-        const hasSupplierIdColumn = columnsResult.rows.some(
-            row => row.column_name === 'supplier_id'
-        );
+        const allTables = tablesResult.rows.map(row => row.table_name);
         
-        // Get sample data from product_categories
-        let sampleCategories = [];
-        try {
-            const sampleResult = await client.query('SELECT * FROM product_categories LIMIT 5');
-            sampleCategories = sampleResult.rows;
-        } catch (error) {
-            console.log('Could not fetch sample categories:', error.message);
+        // Check each important table
+        const tableDetails = {};
+        
+        for (const tableName of ['restaurants', 'suppliers', 'product_categories', 'products', 'orders']) {
+            if (allTables.includes(tableName)) {
+                // Get columns for this table
+                const columnsResult = await client.query(`
+                    SELECT column_name, data_type, is_nullable, column_default
+                    FROM information_schema.columns 
+                    WHERE table_name = $1
+                    ORDER BY ordinal_position
+                `, [tableName]);
+                
+                // Get sample data
+                let sampleData = [];
+                try {
+                    const sampleResult = await client.query(`SELECT * FROM ${tableName} LIMIT 3`);
+                    sampleData = sampleResult.rows;
+                } catch (error) {
+                    console.log(`Could not fetch sample data from ${tableName}:`, error.message);
+                }
+                
+                tableDetails[tableName] = {
+                    exists: true,
+                    columns: columnsResult.rows,
+                    sampleData: sampleData,
+                    rowCount: sampleData.length
+                };
+            } else {
+                tableDetails[tableName] = {
+                    exists: false,
+                    columns: [],
+                    sampleData: [],
+                    rowCount: 0
+                };
+            }
         }
         
         return new Response(JSON.stringify({
             success: true,
             data: {
-                columns: columnsResult.rows,
-                hasSupplierIdColumn,
-                sampleCategories,
-                tableExists: columnsResult.rows.length > 0
+                allTables: allTables,
+                tableDetails: tableDetails,
+                databaseInfo: {
+                    hasRestaurants: allTables.includes('restaurants'),
+                    hasSuppliers: allTables.includes('suppliers'),
+                    hasProductCategories: allTables.includes('product_categories'),
+                    hasProducts: allTables.includes('products'),
+                    hasOrders: allTables.includes('orders')
+                }
             }
         }), {
             status: 200,

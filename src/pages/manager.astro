@@ -79,6 +79,13 @@ import Layout from '../layouts/Layout.astro';
 						<h3 class="text-lg font-semibold text-gray-900">🏷️ Категории и поставщики</h3>
 						<div class="flex space-x-2">
 							<button 
+								onclick="checkDatabaseStructure()" 
+								class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg"
+								title="Проверить структуру базы данных"
+							>
+								🔍 Проверить БД
+							</button>
+							<button 
 								onclick="migrateDatabase()" 
 								class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg"
 								title="Обновить структуру базы данных"
@@ -1187,6 +1194,48 @@ import Layout from '../layouts/Layout.astro';
 
 			// CATEGORY-SUPPLIER MANAGEMENT FUNCTIONS
 			
+			// Check database structure
+			async function checkDatabaseStructure() {
+				console.log('🔍 Checking database structure...');
+				showToast('Проверка структуры базы данных...', 'info');
+				
+				try {
+					const response = await fetch('/api/admin/check-db-structure');
+					const data = await response.json();
+					
+					if (data.success) {
+						console.log('📋 Database structure:', data.data);
+						
+						// Show detailed info in console
+						console.log('📋 All tables:', data.data.allTables);
+						console.log('📋 Table details:', data.data.tableDetails);
+						
+						// Create summary message
+						const tables = data.data.allTables;
+						const hasCategories = tables.includes('product_categories');
+						const hasSuppliers = tables.includes('suppliers');
+						const hasOrders = tables.includes('orders');
+						const hasProducts = tables.includes('products');
+						
+						let message = `Таблицы: ${tables.length} найдено\\n`;
+						message += `✅ restaurants: ${tables.includes('restaurants')}\\n`;
+						message += `✅ suppliers: ${hasSuppliers}\\n`;
+						message += `✅ product_categories: ${hasCategories}\\n`;
+						message += `✅ products: ${hasProducts}\\n`;
+						message += `✅ orders: ${hasOrders}`;
+						
+						alert('🔍 Структура базы данных:\\n\\n' + message + '\\n\\nДетали в консоли браузера (F12)');
+						showToast('✅ Структура базы данных проверена', 'success');
+					} else {
+						console.error('❌ Failed to check database structure:', data.error);
+						showToast('❌ Ошибка проверки: ' + data.error, 'error');
+					}
+				} catch (error) {
+					console.error('❌ Error checking database structure:', error);
+					showToast('❌ Ошибка при проверке структуры БД', 'error');
+				}
+			}
+			
 			// Migrate database schema
 			async function migrateDatabase() {
 				if (!confirm('Обновить структуру базы данных? Это может занять несколько секунд.')) {
@@ -1200,8 +1249,21 @@ import Layout from '../layouts/Layout.astro';
 					const response = await fetch('/api/admin/migrate-db');
 					const data = await response.json();
 					
+					console.log('🔧 Migration results:', data);
+					
 					if (data.success) {
 						showToast('✅ База данных успешно обновлена', 'success');
+						
+						// Show details if available
+						if (data.results) {
+							console.log('📋 Migration details:', data.results);
+							if (data.results.columnsAdded.length > 0) {
+								console.log('✅ Added columns:', data.results.columnsAdded);
+							}
+							if (data.results.errors.length > 0) {
+								console.log('⚠️ Migration errors:', data.results.errors);
+							}
+						}
 						
 						// Refresh all data after migration
 						setTimeout(() => {
@@ -1209,11 +1271,17 @@ import Layout from '../layouts/Layout.astro';
 							loadOrdersByCategory();
 						}, 1000);
 					} else {
-						showToast('❌ Ошибка миграции: ' + data.error, 'error');
+						console.error('❌ Migration failed:', data);
+						showToast('❌ Ошибка миграции: ' + (data.error || 'Unknown error'), 'error');
+						
+						// Show detailed error in console
+						if (data.results) {
+							console.log('📋 Migration results with errors:', data.results);
+						}
 					}
 				} catch (error) {
 					console.error('❌ Error during migration:', error);
-					showToast('❌ Ошибка при миграции базы данных', 'error');
+					showToast('❌ Ошибка при миграции базы данных: ' + error.message, 'error');
 				}
 			}
 			
