@@ -30,7 +30,7 @@ export async function GET() {
                     o.created_by_role
                 FROM orders o
                 WHERE o.restaurant_id = $1 
-                AND o.status = 'pending'
+                AND o.status IN ('pending', 'sent')
                 ORDER BY o.created_at DESC
             `;
             ordersParams = [restaurantId];
@@ -43,7 +43,7 @@ export async function GET() {
                     o.created_at,
                     o.created_by_role
                 FROM orders o
-                WHERE o.status = 'pending'
+                WHERE o.status IN ('pending', 'sent')
                 ORDER BY o.created_at DESC
             `;
             ordersParams = [];
@@ -69,7 +69,7 @@ export async function GET() {
             try {
                 await client.query(`
                     ALTER TABLE product_categories 
-                    ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+                    ADD COLUMN supplier_id INTEGER;
                 `);
                 console.log('✅ Added supplier_id column to product_categories');
             } catch (alterError) {

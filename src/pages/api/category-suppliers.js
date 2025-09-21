@@ -22,7 +22,7 @@ export async function GET() {
             try {
                 await client.query(`
                     ALTER TABLE product_categories 
-                    ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+                    ADD COLUMN supplier_id INTEGER;
                 `);
                 console.log('✅ Added supplier_id column to product_categories');
             } catch (alterError) {
