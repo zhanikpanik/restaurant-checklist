@@ -1,9 +1,7 @@
 import pool from '../../lib/db.js';
-import Anthropic from '@anthropic-ai/sdk';
+import fetch from 'node-fetch';
 
-const anthropic = new Anthropic({
-    apiKey: process.env.ANTHROPIC_API_KEY
-});
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const DEFAULT_CATEGORIES = [
     'Мясо', 'Рыба', 'Овощи', 'Фрукты', 'Молочные продукты',
@@ -48,25 +46,44 @@ async function ensureProductCategoryColumn(client) {
     }
 }
 
-// AI-based categorization using Anthropic
+// AI-based categorization using Anthropic REST API
 async function categorizeWithAI(productName) {
     try {
-        const message = await anthropic.messages.create({
-            model: "claude-3-opus-20240229",
-            max_tokens: 100,
-            temperature: 0.2,
-            system: `Ты помощник для категоризации продуктов питания. 
-            Выбери наиболее подходящую категорию из списка: ${DEFAULT_CATEGORIES.join(', ')}.
-            Верни только название категории, без дополнительного текста.`,
-            messages: [
-                {
-                    role: "user",
-                    content: `К какой категории относится продукт: "${productName}"?`
-                }
-            ]
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+                model: 'claude-3-opus-20240229',
+                max_tokens: 100,
+                messages: [
+                    {
+                        role: 'user',
+                        content: `Categorize this product into one of these categories: ${DEFAULT_CATEGORIES.join(', ')}. Return only the category name without any additional text. Product: "${productName}"`
+                    }
+                ]
+            })
         });
 
-        return message.content[0].text.trim();
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Anthropic API error:', error);
+            throw new Error(error.error?.message || 'Failed to categorize product');
+        }
+
+        const data = await response.json();
+        const category = data.content[0].text.trim();
+        
+        // Validate that the returned category is in our list
+        if (!DEFAULT_CATEGORIES.includes(category)) {
+            console.warn('AI returned invalid category:', category);
+            return 'Прочее';
+        }
+        
+        return category;
     } catch (error) {
         console.error('AI Categorization error:', error);
         return 'Прочее'; // Default category on error
