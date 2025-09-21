@@ -1,0 +1,217 @@
+---
+// src/components/CategoryManager.astro
+
+interface Props {
+    product: {
+        id: number;
+        name: string;
+        category_id?: number;
+        category_name?: string;
+    };
+}
+
+const { product } = Astro.props;
+
+// Get all categories
+const categoriesResponse = await fetch('/api/categorize-product');
+const categoriesData = await categoriesResponse.json();
+const categories = categoriesData.success ? categoriesData.categories : [];
+---
+
+<div class="category-manager">
+    <div class="flex items-center gap-2">
+        <select 
+            id={`category-select-${product.id}`} 
+            class="select select-bordered select-sm w-full max-w-xs"
+            data-product-id={product.id}
+            data-product-name={product.name}
+            onchange="updateProductCategory(this)"
+        >
+            <option value="">Выберите категорию</option>
+            {categories.map(category => (
+                <option 
+                    value={category.id} 
+                    selected={category.id === product.category_id}
+                >
+                    {category.name}
+                </option>
+            ))}
+        </select>
+        
+        <button 
+            class="btn btn-sm btn-ghost"
+            onclick="suggestCategory(this)"
+            data-product-id={product.id}
+            data-product-name={product.name}
+            title="Автоопределить категорию"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+        </button>
+    </div>
+</div>
+
+<script>
+// Suggest category using AI
+async function suggestCategory(button) {
+    const productId = button.dataset.productId;
+    const productName = button.dataset.productName;
+    const select = document.getElementById(`category-select-${productId}`);
+    
+    if (!productName) return;
+    
+    // Show loading state
+    const originalHTML = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = `
+        <span class="loading loading-spinner loading-sm"></span>
+        Определение...
+    `;
+    
+    try {
+        const response = await fetch('/api/categorize-product', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId, productName })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success && data.categoryId) {
+            // Update the select value
+            select.value = data.categoryId;
+            
+            // If the category is not in the list, refresh categories
+            if (!select.querySelector(`option[value="${data.categoryId}"]`)) {
+                await loadCategories();
+            }
+            
+            // Show success message
+            showToast('Категория определена автоматически', 'success');
+        } else {
+            showToast('Не удалось определить категорию', 'error');
+        }
+    } catch (error) {
+        console.error('Error suggesting category:', error);
+        showToast('Ошибка при определении категории', 'error');
+    } finally {
+        // Reset button state
+        button.disabled = false;
+        button.innerHTML = originalHTML;
+    }
+}
+
+// Update product category
+async function updateProductCategory(select) {
+    const productId = select.dataset.productId;
+    const categoryId = select.value;
+    
+    if (!productId || !categoryId) return;
+    
+    try {
+        const response = await fetch('/api/categorize-product', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId, categoryId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            showToast('Категория обновлена', 'success');
+        } else {
+            showToast('Ошибка при обновлении категории', 'error');
+            // Revert the select value on error
+            select.value = '';
+        }
+    } catch (error) {
+        console.error('Error updating category:', error);
+        showToast('Ошибка при обновлении категории', 'error');
+        select.value = '';
+    }
+}
+
+// Show toast message
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-end z-50`;
+    toast.innerHTML = `
+        <div class="alert alert-${type} shadow-lg">
+            <div>
+                <span>${message}</span>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Remove toast after 3 seconds
+    setTimeout(() => {
+        toast.remove();
+    }, 3000);
+}
+
+// Load categories and update select options
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/categorize-product');
+        const data = await response.json();
+        
+        if (data.success && data.categories) {
+            // Get all select elements
+            const selects = document.querySelectorAll('select[id^="category-select-"]');
+            
+            selects.forEach(select => {
+                const currentValue = select.value;
+                
+                // Save selected value
+                const selectedOption = select.querySelector('option:checked');
+                const selectedText = selectedOption ? selectedOption.textContent : '';
+                
+                // Clear all options except the first one
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+                
+                // Add new categories
+                data.categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    select.appendChild(option);
+                });
+                
+                // Restore selected value if it exists in new options
+                if (currentValue) {
+                    const optionExists = Array.from(select.options).some(opt => opt.value === currentValue);
+                    if (optionExists) {
+                        select.value = currentValue;
+                    } else if (selectedText) {
+                        // If the category was removed, add it back
+                        const option = document.createElement('option');
+                        option.value = currentValue;
+                        option.textContent = selectedText;
+                        select.appendChild(option);
+                        select.value = currentValue;
+                    }
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+    }
+}
+</script>
+
+<style>
+.category-manager {
+    min-width: 200px;
+}
+.toast {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1000;
+}
+</style>
