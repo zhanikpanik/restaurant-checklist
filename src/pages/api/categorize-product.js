@@ -1,8 +1,8 @@
 import pool from '../../lib/db.js';
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+const anthropic = new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY
 });
 
 const DEFAULT_CATEGORIES = [
@@ -48,23 +48,25 @@ async function ensureProductCategoryColumn(client) {
     }
 }
 
-// AI-based categorization using OpenAI
+// AI-based categorization using Anthropic
 async function categorizeWithAI(productName) {
     try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-3.5-turbo",
-            messages: [{
-                role: "system",
-                content: `Ты помощник для категоризации продуктов питания. 
-                Выбери наиболее подходящую категорию из списка: ${DEFAULT_CATEGORIES.join(', ')}.
-                Верни только название категории, без дополнительного текста.`
-            }, {
-                role: "user",
-                content: `К какой категории относится продукт: "${productName}"?`
-            }]
+        const message = await anthropic.messages.create({
+            model: "claude-3-opus-20240229",
+            max_tokens: 100,
+            temperature: 0.2,
+            system: `Ты помощник для категоризации продуктов питания. 
+            Выбери наиболее подходящую категорию из списка: ${DEFAULT_CATEGORIES.join(', ')}.
+            Верни только название категории, без дополнительного текста.`,
+            messages: [
+                {
+                    role: "user",
+                    content: `К какой категории относится продукт: "${productName}"?`
+                }
+            ]
         });
 
-        return response.choices[0].message.content.trim();
+        return message.content[0].text.trim();
     } catch (error) {
         console.error('AI Categorization error:', error);
         return 'Прочее'; // Default category on error

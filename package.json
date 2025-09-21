@@ -18,6 +18,7 @@
     "management"
   ],
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.21.2",
     "@astrojs/node": "^9.3.1",
     "@astrojs/tailwind": "^5.1.2",
     "astro": "^5.12.0",
