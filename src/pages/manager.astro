@@ -1395,53 +1395,64 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				let html = '<div class="space-y-6">';
+				let html = '<div class="space-y-4">';
 				
 				categorizedOrders.forEach(category => {
 					const hasSupplier = category.supplier && category.supplier.name;
 					const supplierInfo = hasSupplier ? category.supplier : null;
+					const hasPhone = hasSupplier && supplierInfo.phone;
 					
 					html += `
-						<div class="border border-gray-200 rounded-lg overflow-hidden">
-							<div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
-								<div class="flex justify-between items-center">
-									<div class="flex items-center space-x-3">
+						<div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+							<div class="flex justify-between items-start mb-3">
+								<div class="flex-1">
+									<div class="flex items-center space-x-2 mb-2">
 										<h4 class="text-lg font-semibold text-gray-900">${category.categoryName}</h4>
 										<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">${category.items.length} товаров</span>
 									</div>
-									<div class="flex items-center space-x-2">
-										${hasSupplier ? `
-											<div class="text-right">
-												<p class="text-sm font-medium text-gray-900">📦 ${supplierInfo.name}</p>
-												${supplierInfo.phone ? `<p class="text-xs text-gray-500">📞 ${supplierInfo.phone}</p>` : ''}
-											</div>
-											<button 
-												onclick="sendCategoryToSupplier(${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
-												class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
-											>
-												📤 Отправить поставщику
-											</button>
-										` : `
-											<div class="text-right">
-												<p class="text-sm text-red-600">⚠️ Поставщик не назначен</p>
-											</div>
-											<button 
-												onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', null)"
-												class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg"
-											>
-												➕ Назначить поставщика
-											</button>
-										`}
-									</div>
+									${hasSupplier ? `
+										<h5 class="font-medium text-gray-800 mb-1">📦 ${supplierInfo.name}</h5>
+										<p class="text-sm text-gray-600 mb-1">${category.items.length} товаров</p>
+										${hasPhone ? `<p class="text-xs text-gray-500">📱 ${supplierInfo.phone}</p>` : '<p class="text-xs text-red-500">⚠️ Нет номера телефона</p>'}
+									` : `
+										<h5 class="font-medium text-gray-800 mb-1">⚠️ Без поставщика</h5>
+										<p class="text-sm text-gray-600 mb-1">${category.items.length} товаров</p>
+										<p class="text-xs text-gray-500">Необходимо назначить поставщика</p>
+									`}
+								</div>
+								<div class="flex flex-col space-y-2">
+									${hasSupplier ? `
+										<button 
+											onclick="sendCategoryToSupplier(${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
+											${!hasPhone ? 'disabled' : ''}
+											class="px-4 py-2 rounded-lg font-medium transition-colors ${hasPhone ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
+										>
+											📱 Отправить ${supplierInfo.name}
+										</button>
+									` : `
+										<button 
+											onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', null)"
+											class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg font-medium transition-colors"
+										>
+											➕ Назначить поставщика
+										</button>
+									`}
+									${hasSupplier ? `
+										<button 
+											onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
+											class="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm rounded-lg border border-blue-200 transition-colors"
+										>
+											✏️ Изменить
+										</button>
+									` : ''}
 								</div>
 							</div>
-							<div class="p-4">
-								<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+							<div class="bg-white p-3 rounded border border-gray-200">
+								<div class="text-sm text-gray-700 space-y-1">
 									${category.items.map(item => `
-										<div class="bg-white border border-gray-200 rounded p-3">
-											<div class="font-medium text-gray-900">${item.name}</div>
-											<div class="text-sm text-gray-600">${item.quantity} ${item.unit}</div>
-											<div class="text-xs text-gray-500 mt-1">из ${item.department}</div>
+										<div class="flex justify-between items-center py-1">
+											<span>• ${item.name}</span>
+											<span class="font-medium">${item.quantity} ${item.unit}</span>
 										</div>
 									`).join('')}
 								</div>
@@ -1456,12 +1467,53 @@ import Layout from '../layouts/Layout.astro';
 			
 			// Send category orders to supplier
 			async function sendCategoryToSupplier(categoryId, categoryName, supplierId) {
-				if (!confirm(`Отправить все заказы из категории "${categoryName}" поставщику?`)) {
+				if (!confirm(`Отправить все заказы из категории "${categoryName}" поставщику через WhatsApp?`)) {
 					return;
 				}
 				
 				try {
-					const response = await fetch('/api/send-category-to-supplier', {
+					// First, get the category data to create WhatsApp message
+					const response = await fetch('/api/orders-by-category');
+					const data = await response.json();
+					
+					if (!data.success) {
+						throw new Error('Failed to load category data');
+					}
+					
+					// Find the specific category
+					const category = data.data.find(cat => cat.categoryId === categoryId);
+					if (!category || !category.supplier || !category.supplier.phone) {
+						throw new Error('Поставщик или номер телефона не найден');
+					}
+					
+					// Generate WhatsApp message
+					const today = new Date().toLocaleDateString('ru-RU');
+					let message = `📋 Заказ товаров - ${today}\n\n`;
+					message += `🏪 Категория: ${categoryName}\n`;
+					message += `📦 Поставщик: ${category.supplier.name}\n\n`;
+					
+					category.items.forEach(item => {
+						message += `• ${item.name} - ${item.quantity} ${item.unit}\n`;
+					});
+					
+					message += `\n📊 Итого: ${category.items.length} товаров`;
+					
+					// Send via WhatsApp
+					const encodedMessage = encodeURIComponent(message);
+					const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+					
+					let whatsappUrl;
+					if (isMobile) {
+						whatsappUrl = `whatsapp://send?phone=${category.supplier.phone}&text=${encodedMessage}`;
+					} else {
+						whatsappUrl = `https://web.whatsapp.com/send?phone=${category.supplier.phone}&text=${encodedMessage}`;
+					}
+					
+					// Open WhatsApp
+					window.open(whatsappUrl, '_blank');
+					
+					// Mark as sent in database
+					const sendResponse = await fetch('/api/send-category-to-supplier', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ 
@@ -1470,19 +1522,21 @@ import Layout from '../layouts/Layout.astro';
 						})
 					});
 					
-					const data = await response.json();
+					const sendData = await sendResponse.json();
 					
-					if (data.success) {
+					if (sendData.success) {
 						showToast(
-							`✅ Заказ отправлен: ${data.data.supplierName} - ${data.data.itemsCount} товаров`, 
+							`✅ Заказ отправлен через WhatsApp: ${category.supplier.name}`, 
 							'success'
 						);
 						
 						// Refresh the orders display
 						await loadOrdersByCategory();
 					} else {
-						throw new Error(data.error);
+						console.warn('Database update failed:', sendData.error);
+						showToast(`✅ Заказ отправлен через WhatsApp (ошибка обновления БД)`, 'success');
 					}
+					
 				} catch (error) {
 					console.error('❌ Failed to send category to supplier:', error);
 					showToast('Ошибка при отправке заказов поставщику: ' + error.message, 'error');
