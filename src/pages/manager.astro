@@ -77,12 +77,21 @@ import Layout from '../layouts/Layout.astro';
 				<div class="bg-white rounded-lg border border-gray-200 mb-8">
 					<div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
 						<h3 class="text-lg font-semibold text-gray-900">🏷️ Категории и поставщики</h3>
-						<button 
-							onclick="loadCategorySuppliers()" 
-							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-						>
-							🔄 Обновить
-						</button>
+						<div class="flex space-x-2">
+							<button 
+								onclick="migrateDatabase()" 
+								class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg"
+								title="Обновить структуру базы данных"
+							>
+								🔧 Миграция БД
+							</button>
+							<button 
+								onclick="loadCategorySuppliers()" 
+								class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+							>
+								🔄 Обновить
+							</button>
+						</div>
 					</div>
 					<div class="p-6">
 						<div id="categorySuppliers" class="space-y-4">
@@ -1177,6 +1186,36 @@ import Layout from '../layouts/Layout.astro';
 			}
 
 			// CATEGORY-SUPPLIER MANAGEMENT FUNCTIONS
+			
+			// Migrate database schema
+			async function migrateDatabase() {
+				if (!confirm('Обновить структуру базы данных? Это может занять несколько секунд.')) {
+					return;
+				}
+				
+				console.log('🔧 Starting database migration...');
+				showToast('Запуск миграции базы данных...', 'info');
+				
+				try {
+					const response = await fetch('/api/admin/migrate-db');
+					const data = await response.json();
+					
+					if (data.success) {
+						showToast('✅ База данных успешно обновлена', 'success');
+						
+						// Refresh all data after migration
+						setTimeout(() => {
+							loadCategorySuppliers();
+							loadOrdersByCategory();
+						}, 1000);
+					} else {
+						showToast('❌ Ошибка миграции: ' + data.error, 'error');
+					}
+				} catch (error) {
+					console.error('❌ Error during migration:', error);
+					showToast('❌ Ошибка при миграции базы данных', 'error');
+				}
+			}
 			
 			// Load category-supplier assignments
 			async function loadCategorySuppliers() {

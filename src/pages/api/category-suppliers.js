@@ -8,11 +8,21 @@ export async function GET() {
     try {
         const restaurantId = 'default';
         
+        // First check if supplier_id column exists, if not add it
+        try {
+            await client.query(`
+                ALTER TABLE product_categories 
+                ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+            `);
+        } catch (alterError) {
+            console.log('Column supplier_id might already exist or table needs to be created');
+        }
+        
         const result = await client.query(`
             SELECT 
                 pc.id,
                 pc.name as category_name,
-                pc.supplier_id,
+                COALESCE(pc.supplier_id, NULL) as supplier_id,
                 s.name as supplier_name,
                 s.phone as supplier_phone
             FROM product_categories pc

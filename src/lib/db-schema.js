@@ -69,6 +69,17 @@ export async function setupDatabaseSchema() {
             );
         `);
 
+        // Migration: Add supplier_id column if it doesn't exist
+        try {
+            await client.query(`
+                ALTER TABLE product_categories 
+                ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+            `);
+            console.log('✅ Product categories supplier_id column migration complete');
+        } catch (migrationError) {
+            console.log('ℹ️ Product categories migration skipped (already up to date)');
+        }
+
         // Create products table with restaurant_id
         await client.query(`
             CREATE TABLE IF NOT EXISTS products (
