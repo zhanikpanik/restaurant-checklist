@@ -87,7 +87,7 @@ import Layout from '../layouts/Layout.astro';
 								🔄 Обновить
 							</button>
 						</div>
-						<div id="ordersByCategory" class="space-y-4">
+						<div id="ordersByCategory" class="">
 							<div class="text-center text-gray-500 py-8">
 								<span class="text-4xl mb-4 block">📋</span>
 								<p class="text-lg mb-2">Загрузка заказов...</p>
@@ -1620,21 +1620,21 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				let html = '<div class="space-y-3">';
+				let html = '<div class="space-y-6">';
 				
 				// Loop through each date group
 				ordersByDate.forEach((dateGroup, dateIndex) => {
 					html += `
-						<div class="bg-blue-50 rounded-lg p-3">
-							<div class="flex justify-between items-center mb-3">
-								<h3 class="text-lg font-bold text-blue-900">📅 ${dateGroup.displayDate}</h3>
-								<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+						<div class="${dateIndex > 0 ? 'mt-8' : ''}">
+							<div class="flex justify-between items-center mb-4">
+								<h3 class="text-lg font-bold text-gray-900">📅 ${dateGroup.displayDate}</h3>
+								<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
 									${dateGroup.categories.length} категорий
 								</span>
 							</div>
 							
 							<!-- Desktop: Grid layout, Mobile: Single column -->
-							<div class="grid grid-cols-1 lg:grid-cols-2 gap-2">
+							<div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
 					`;
 					
 					// Loop through categories for this date
