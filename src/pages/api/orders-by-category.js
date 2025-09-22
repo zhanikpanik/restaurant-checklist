@@ -173,12 +173,29 @@ export async function GET() {
             products.set(prod.product_id, prod);
         });
         
-        // Process orders and group by categories
-        const categorizedOrders = {};
+        // Process orders and group by DATE first, then by categories
+        const ordersByDate = {};
         
         orders.forEach(order => {
             const orderData = order.order_data;
             const items = orderData.items || [];
+            
+            // Get the date of the order (format: YYYY-MM-DD)
+            const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+            const dateKey = orderDate;
+            
+            if (!ordersByDate[dateKey]) {
+                ordersByDate[dateKey] = {
+                    date: dateKey,
+                    displayDate: new Date(order.created_at).toLocaleDateString('ru-RU', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    }),
+                    categories: {}
+                };
+            }
             
             items.forEach(item => {
                 // Try to find product by name (since orders might not have product IDs)
@@ -205,10 +222,10 @@ export async function GET() {
                 
                 const categoryKey = categoryInfo.categoryName;
                 
-                if (!categorizedOrders[categoryKey]) {
+                if (!ordersByDate[dateKey].categories[categoryKey]) {
                     const categoryData = categoryInfo.categoryId ? categories.get(categoryInfo.categoryId) : null;
                     
-                    categorizedOrders[categoryKey] = {
+                    ordersByDate[dateKey].categories[categoryKey] = {
                         categoryId: categoryInfo.categoryId,
                         categoryName: categoryInfo.categoryName,
                         supplier: categoryData ? {
@@ -223,14 +240,15 @@ export async function GET() {
                 }
                 
                 // Add item to category
-                const existingItem = categorizedOrders[categoryKey].items.find(
+                const categoryRef = ordersByDate[dateKey].categories[categoryKey];
+                const existingItem = categoryRef.items.find(
                     existing => existing.name.toLowerCase() === item.name.toLowerCase() && existing.unit === item.unit
                 );
                 
                 if (existingItem) {
                     existingItem.quantity += parseFloat(item.quantity) || 0;
                 } else {
-                    categorizedOrders[categoryKey].items.push({
+                    categoryRef.items.push({
                         name: item.name,
                         quantity: parseFloat(item.quantity) || 0,
                         unit: item.unit,
@@ -239,14 +257,19 @@ export async function GET() {
                     });
                 }
                 
-                categorizedOrders[categoryKey].totalItems++;
+                categoryRef.totalItems++;
             });
         });
         
-        // Convert to array and sort
-        const result = Object.values(categorizedOrders).sort((a, b) => 
-            a.categoryName.localeCompare(b.categoryName)
-        );
+        // Convert to array and sort by date (newest first)
+        const result = Object.values(ordersByDate)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .map(dateGroup => ({
+                ...dateGroup,
+                categories: Object.values(dateGroup.categories).sort((a, b) => 
+                    a.categoryName.localeCompare(b.categoryName)
+                )
+            }));
         
         return new Response(JSON.stringify({
             success: true,
