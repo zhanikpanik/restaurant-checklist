@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant App - Autotester</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+        
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #4b5563;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .status {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .status.running {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border: 1px solid #93c5fd;
+        }
+        
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+        
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+        
+        .results {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .summary-card {
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .summary-card.total {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .summary-card.passed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .summary-card.failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .summary-card.rate {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .test-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+        }
+        
+        .test-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+        
+        .test-item:last-child {
+            border-bottom: none;
+        }
+        
+        .test-item.pass {
+            background: #f0fdf4;
+        }
+        
+        .test-item.fail {
+            background: #fef2f2;
+        }
+        
+        .test-name {
+            font-weight: 500;
+            flex: 1;
+        }
+        
+        .test-status {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .test-status.pass {
+            background: #10b981;
+            color: white;
+        }
+        
+        .test-status.fail {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .console {
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            button {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🧪 Restaurant App Autotester</h1>
+        <p>Automated testing suite for the Restaurant Checklist application</p>
+    </div>
+
+    <div class="controls">
+        <button id="runTestsBtn" class="btn-primary">🚀 Run All Tests</button>
+        <button id="quickTestBtn" class="btn-secondary">⚡ Quick Test</button>
+        <button id="clearLogsBtn" class="btn-secondary">🧹 Clear Logs</button>
+        <button id="exportReportBtn" class="btn-success hidden">📊 Export Report</button>
+    </div>
+
+    <div id="statusBar" class="status hidden">
+        <span id="statusText">Ready to run tests...</span>
+    </div>
+
+    <div id="results" class="results hidden">
+        <h2>📊 Test Results</h2>
+        
+        <div class="summary">
+            <div class="summary-card total">
+                <h3>Total Tests</h3>
+                <div id="totalTests">0</div>
+            </div>
+            <div class="summary-card passed">
+                <h3>Passed</h3>
+                <div id="passedTests">0</div>
+            </div>
+            <div class="summary-card failed">
+                <h3>Failed</h3>
+                <div id="failedTests">0</div>
+            </div>
+            <div class="summary-card rate">
+                <h3>Success Rate</h3>
+                <div id="successRate">0%</div>
+            </div>
+        </div>
+
+        <h3>Test Details</h3>
+        <div id="testList" class="test-list">
+            <!-- Test results will be populated here -->
+        </div>
+    </div>
+
+    <div id="console" class="console hidden">
+        <div id="consoleOutput"></div>
+    </div>
+
+    <script src="autotester.js"></script>
+    <script>
+        // UI Controller
+        class AutotesterUI {
+            constructor() {
+                this.setupEventListeners();
+                this.consoleOutput = [];
+                this.originalConsoleLog = console.log;
+                this.hijackConsole();
+            }
+
+            setupEventListeners() {
+                document.getElementById('runTestsBtn').addEventListener('click', () => this.runAllTests());
+                document.getElementById('quickTestBtn').addEventListener('click', () => this.runQuickTest());
+                document.getElementById('clearLogsBtn').addEventListener('click', () => this.clearLogs());
+                document.getElementById('exportReportBtn').addEventListener('click', () => this.exportReport());
+            }
+
+            hijackConsole() {
+                console.log = (...args) => {
+                    this.originalConsoleLog(...args);
+                    this.addToConsole(args.join(' '));
+                };
+            }
+
+            addToConsole(message) {
+                this.consoleOutput.push(message);
+                const consoleDiv = document.getElementById('consoleOutput');
+                if (consoleDiv) {
+                    consoleDiv.textContent = this.consoleOutput.join('\n');
+                    consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                }
+            }
+
+            showStatus(message, type = 'running') {
+                const statusBar = document.getElementById('statusBar');
+                const statusText = document.getElementById('statusText');
+                
+                statusBar.className = `status ${type}`;
+                statusBar.classList.remove('hidden');
+                statusText.textContent = message;
+            }
+
+            showConsole() {
+                document.getElementById('console').classList.remove('hidden');
+            }
+
+            clearLogs() {
+                this.consoleOutput = [];
+                document.getElementById('consoleOutput').textContent = '';
+                document.getElementById('console').classList.add('hidden');
+                document.getElementById('results').classList.add('hidden');
+                document.getElementById('statusBar').classList.add('hidden');
+                document.getElementById('exportReportBtn').classList.add('hidden');
+            }
+
+            async runAllTests() {
+                this.showStatus('🚀 Running all tests...', 'running');
+                this.showConsole();
+                
+                try {
+                    const tester = new RestaurantAppTester();
+                    const report = await tester.runAllTests();
+                    this.displayResults(report);
+                    
+                    if (report.summary.failed === 0) {
+                        this.showStatus(`✅ All tests passed! (${report.summary.total}/${report.summary.total})`, 'success');
+                    } else {
+                        this.showStatus(`⚠️ Tests completed with ${report.summary.failed} failures`, 'error');
+                    }
+                } catch (error) {
+                    this.showStatus(`❌ Testing failed: ${error.message}`, 'error');
+                    console.error('Test execution error:', error);
+                }
+            }
+
+            async runQuickTest() {
+                this.showStatus('⚡ Running quick tests...', 'running');
+                this.showConsole();
+                
+                try {
+                    const tester = new RestaurantAppTester();
+                    
+                    // Run only essential tests
+                    await tester.testPageLoads();
+                    await tester.testAPIEndpoints();
+                    
+                    const report = tester.generateReport();
+                    this.displayResults(report);
+                    
+                    if (report.summary.failed === 0) {
+                        this.showStatus(`✅ Quick tests passed!`, 'success');
+                    } else {
+                        this.showStatus(`⚠️ Quick tests completed with issues`, 'error');
+                    }
+                } catch (error) {
+                    this.showStatus(`❌ Quick testing failed: ${error.message}`, 'error');
+                }
+            }
+
+            displayResults(report) {
+                // Update summary
+                document.getElementById('totalTests').textContent = report.summary.total;
+                document.getElementById('passedTests').textContent = report.summary.passed;
+                document.getElementById('failedTests').textContent = report.summary.failed;
+                document.getElementById('successRate').textContent = report.summary.successRate + '%';
+
+                // Update test list
+                const testList = document.getElementById('testList');
+                testList.innerHTML = '';
+
+                report.results.forEach(result => {
+                    const testItem = document.createElement('div');
+                    testItem.className = `test-item ${result.status.toLowerCase()}`;
+                    
+                    testItem.innerHTML = `
+                        <div class="test-name">${result.test}</div>
+                        <div class="test-status ${result.status.toLowerCase()}">${result.status}</div>
+                    `;
+                    
+                    if (result.error) {
+                        testItem.title = result.error;
+                    }
+                    
+                    testList.appendChild(testItem);
+                });
+
+                // Show results
+                document.getElementById('results').classList.remove('hidden');
+                document.getElementById('exportReportBtn').classList.remove('hidden');
+
+                // Store report for export
+                this.lastReport = report;
+            }
+
+            exportReport() {
+                if (!this.lastReport) return;
+
+                const reportText = `Restaurant App Test Report
+Generated: ${this.lastReport.timestamp}
+
+SUMMARY:
+Total Tests: ${this.lastReport.summary.total}
+Passed: ${this.lastReport.summary.passed}
+Failed: ${this.lastReport.summary.failed}
+Success Rate: ${this.lastReport.summary.successRate}%
+
+DETAILED RESULTS:
+${this.lastReport.results.map(r => 
+    `${r.status === 'PASS' ? '✅' : '❌'} ${r.test}: ${r.message || r.error || 'OK'}`
+).join('\n')}
+
+CONSOLE OUTPUT:
+${this.consoleOutput.join('\n')}`;
+
+                const blob = new Blob([reportText], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `restaurant-app-test-report-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        // Initialize UI
+        const ui = new AutotesterUI();
+
+        // Add helpful info to console
+        console.log('🧪 Restaurant App Autotester UI loaded!');
+        console.log('💡 Click "Run All Tests" to start comprehensive testing');
+        console.log('💡 Click "Quick Test" for essential tests only');
+    </script>
+</body>
+</html>

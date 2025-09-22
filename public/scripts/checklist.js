@@ -151,12 +151,12 @@ function renderShoppingListProducts() {
                     <!-- Initial Add Button (shown when quantity is 0) -->
                     <div id="addBtn-${product.id}" class="add-button ${product.shoppingQuantity > 0 ? 'hidden' : ''}">
                         <button
-                          class="px-4 h-10 bg-green-500 hover:bg-green-600 text-white flex items-center justify-center text-lg font-medium transition-colors duration-200 rounded-lg"
+                          class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white flex items-center justify-center text-sm font-medium transition-colors duration-200 rounded-md"
                           onclick="showQuantityControls(${product.id})"
                           title="Добавить ${product.name}"
                           type="button"
                         >
-                          + Добавить
+                          +
                         </button>
                     </div>
                     
