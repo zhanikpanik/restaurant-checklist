@@ -498,12 +498,21 @@ import Layout from '../layouts/Layout.astro';
 								</div>
 								<div>
 									<label class="block text-sm font-medium text-gray-700 mb-2">Поставщик по умолчанию (необязательно)</label>
-									<select 
-										id="newCategorySupplier" 
-										class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-									>
-										<option value="">Без поставщика</option>
-									</select>
+									<div class="flex space-x-2">
+										<select 
+											id="newCategorySupplier" 
+											class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+										>
+											<option value="">Без поставщика</option>
+										</select>
+										<button 
+											onclick="addNewSupplierFromCategory()" 
+											class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md whitespace-nowrap"
+											title="Добавить нового поставщика"
+										>
+											➕ Добавить поставщика
+										</button>
+									</div>
 								</div>
 							</div>
 							<div class="flex space-x-3 pt-4">
@@ -1634,7 +1643,7 @@ import Layout from '../layouts/Layout.astro';
 							</div>
 							
 							<!-- Desktop: Grid layout, Mobile: Single column -->
-							<div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+							<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 					`;
 					
 					// Loop through categories for this date
@@ -2000,6 +2009,14 @@ import Layout from '../layouts/Layout.astro';
 				document.getElementById('newSupplierName').focus();
 			}
 			
+			// Open add supplier modal from category creation
+			function addNewSupplierFromCategory() {
+				// Store a flag to know we came from category modal
+				window.categoryModalContext = true;
+				document.getElementById('addSupplierModal').classList.remove('hidden');
+				document.getElementById('newSupplierName').focus();
+			}
+			
 			// Close add supplier modal
 			function closeAddSupplierModal() {
 				document.getElementById('addSupplierModal').classList.add('hidden');
@@ -2038,6 +2055,12 @@ import Layout from '../layouts/Layout.astro';
 						alert('Поставщик "' + name + '" успешно создан!');
 						closeAddSupplierModal();
 						loadSuppliers(); // Refresh the list
+						
+						// If we came from category modal, refresh the category supplier dropdown
+						if (window.categoryModalContext) {
+							loadSuppliersForCategoryModal();
+							window.categoryModalContext = false; // Reset the flag
+						}
 					} else {
 						alert('Ошибка при создании поставщика: ' + data.error);
 					}

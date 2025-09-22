@@ -189,7 +189,6 @@ export async function GET() {
                     date: dateKey,
                     displayDate: new Date(order.created_at).toLocaleDateString('ru-RU', {
                         weekday: 'long',
-                        year: 'numeric',
                         month: 'long',
                         day: 'numeric'
                     }),
