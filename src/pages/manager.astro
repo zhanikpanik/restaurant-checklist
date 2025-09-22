@@ -78,29 +78,15 @@ import Layout from '../layouts/Layout.astro';
 				<div class="p-4">
 					<!-- Orders Tab (Default) -->
 					<div id="content-orders" class="tab-content">
-						<div class="flex justify-between items-center mb-4">
+						<div class="mb-4">
 							<h3 class="text-lg font-semibold text-gray-900">📋 Заказы по категориям</h3>
-							<div class="flex gap-2">
-								<button 
-									onclick="openAddMissingProductsModal()" 
-									class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
-								>
-									➕ Добавить товары
-								</button>
-								<button 
-									onclick="loadOrdersByCategory()" 
-									class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-								>
-									🔄 Обновить
-								</button>
 						</div>
-					</div>
 						<div id="ordersByCategory" class="">
 							<div class="text-center text-gray-500 py-8">
 								<span class="text-4xl mb-4 block">📋</span>
 								<p class="text-lg mb-2">Загрузка заказов...</p>
-				</div>
-			</div>
+							</div>
+						</div>
 					</div>
 
 					<!-- Categories Tab -->

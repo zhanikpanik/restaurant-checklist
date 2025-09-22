@@ -4,6 +4,23 @@ export const prerender = false;
 
 // GET: Get all departments
 export async function GET() {
+    // Check if database pool is available
+    if (!pool) {
+        console.error('Database pool not initialized');
+        return new Response(JSON.stringify({
+            success: true,
+            data: [
+                { id: 1, name: 'Кухня', emoji: '🍳', poster_storage_id: 1, is_active: true, custom_products_count: 0 },
+                { id: 2, name: 'Бар', emoji: '🍷', poster_storage_id: 2, is_active: true, custom_products_count: 0 },
+                { id: 3, name: 'Горничная', emoji: '🧹', poster_storage_id: null, is_active: true, custom_products_count: 0 }
+            ],
+            message: 'Database not connected - using fallback departments'
+        }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' }
+        });
+    }
+    
     const client = await pool.connect();
     try {
         const result = await client.query(`
