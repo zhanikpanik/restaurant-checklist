@@ -1546,78 +1546,48 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				let html = '<div class="space-y-3">';
+				let html = '<div class="space-y-2">';
 				
 				categorySuppliers.forEach(category => {
 					const hasSupplier = category.supplier_id && category.supplier_name;
 					const hasPhone = hasSupplier && category.supplier_phone;
 					
 					html += `
-						<div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-							<!-- Category Header -->
-							<div class="bg-gray-50 px-3 py-2 border-b border-gray-200">
-								<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-									<div class="flex items-center space-x-2">
-										<h4 class="font-semibold text-gray-900">${category.category_name}</h4>
-										<span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-											ID: ${category.id}
-										</span>
-									</div>
-									<div class="text-xs text-gray-500 mt-1 sm:mt-0">
-										${hasSupplier ? `📦 ${category.supplier_name}` : '⚠️ Без поставщика'}
-									</div>
-								</div>
+						<div class="bg-gray-50 rounded-lg p-3">
+							<div class="flex justify-between items-center mb-2">
+								<h4 class="font-medium text-gray-900">${category.category_name}</h4>
+								<span class="text-xs text-gray-500">ID: ${category.id}</span>
 							</div>
 							
-							<!-- Category Info & Actions -->
-							<div class="p-3">
+							${hasSupplier ? `
+								<div class="text-sm text-green-600 mb-2">📦 ${category.supplier_name}</div>
+								${hasPhone ? `<div class="text-xs text-gray-500 mb-3">📱 ${category.supplier_phone}</div>` : `<div class="text-xs text-red-500 mb-3">⚠️ Нет телефона</div>`}
+							` : `
+								<div class="text-sm text-red-600 mb-3">⚠️ Без поставщика</div>
+							`}
+							
+							<div class="flex gap-2">
 								${hasSupplier ? `
-									<div class="mb-3 text-sm">
-										<div class="text-green-600 font-medium">📦 ${category.supplier_name}</div>
-										${hasPhone ? `
-											<div class="text-gray-500 text-xs">📱 ${category.supplier_phone}</div>
-										` : `
-											<div class="text-red-500 text-xs">⚠️ Нет номера телефона</div>
-										`}
-									</div>
-								` : `
-									<div class="mb-3 text-sm">
-										<div class="text-red-600 font-medium">⚠️ Поставщик не назначен</div>
-										<div class="text-gray-500 text-xs">Необходимо назначить поставщика для этой категории</div>
-									</div>
-								`}
-								
-								<!-- Action Buttons -->
-								<div class="flex flex-col space-y-2">
-									${hasSupplier ? `
-										<!-- Change Supplier Button -->
-										<button 
-											onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', ${category.supplier_id})"
-											class="w-full flex items-center justify-center px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm rounded-lg border border-blue-200 transition-colors"
-										>
-											<span class="mr-2">✏️</span>
-											Изменить поставщика
-										</button>
-									` : `
-										<!-- Assign Supplier Button -->
-										<button 
-											onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', null)"
-											class="w-full flex items-center justify-center px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium text-sm transition-colors"
-										>
-											<span class="mr-2">➕</span>
-											Назначить поставщика
-										</button>
-									`}
-									
-									<!-- Delete Category Button -->
 									<button 
-										onclick="deleteCategory(${category.id}, '${category.category_name}')"
-										class="w-full flex items-center justify-center px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-sm rounded-lg border border-red-200 transition-colors"
+										onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', ${category.supplier_id})"
+										class="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition-colors"
 									>
-										<span class="mr-2">🗑️</span>
-										Удалить категорию
+										✏️ Изменить
 									</button>
-								</div>
+								` : `
+									<button 
+										onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', null)"
+										class="flex-1 px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded transition-colors"
+									>
+										➕ Назначить
+									</button>
+								`}
+								<button 
+									onclick="deleteCategory(${category.id}, '${category.category_name}')"
+									class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded transition-colors"
+								>
+									🗑️
+								</button>
 							</div>
 						</div>
 					`;
@@ -1666,23 +1636,20 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				let html = '<div class="space-y-4">';
+				let html = '<div class="space-y-3">';
 				
 				// Loop through each date group
 				ordersByDate.forEach((dateGroup, dateIndex) => {
 					html += `
-						<div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 border border-blue-200">
-							<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3">
-								<h3 class="text-lg font-bold text-blue-900 flex items-center">
-									<span class="text-xl mr-2">📅</span>
-									${dateGroup.displayDate}
-								</h3>
-								<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full mt-1 sm:mt-0 self-start">
+						<div class="bg-blue-50 rounded-lg p-3">
+							<div class="flex justify-between items-center mb-3">
+								<h3 class="text-lg font-bold text-blue-900">📅 ${dateGroup.displayDate}</h3>
+								<span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
 									${dateGroup.categories.length} категорий
 								</span>
 							</div>
 							
-							<div class="space-y-3">
+							<div class="space-y-2">
 					`;
 					
 					// Loop through categories for this date
@@ -1692,73 +1659,51 @@ import Layout from '../layouts/Layout.astro';
 						const hasPhone = hasSupplier && supplierInfo.phone;
 						
 						html += `
-							<div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-								<!-- Category Header -->
-								<div class="bg-gray-50 px-3 py-2 border-b border-gray-200">
-									<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-										<div class="flex items-center space-x-2">
-											<h4 class="font-semibold text-gray-900">${category.categoryName}</h4>
-											<span class="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-												${category.items.length} шт
-											</span>
-										</div>
-										<div class="text-xs text-gray-500 mt-1 sm:mt-0">
-											${hasSupplier ? `📦 ${supplierInfo.name}` : '⚠️ Без поставщика'}
-										</div>
-									</div>
+							<div class="bg-white rounded-lg p-3">
+								<div class="flex justify-between items-center mb-2">
+									<h4 class="font-medium text-gray-900">${category.categoryName}</h4>
+									<span class="text-xs text-gray-500">${category.items.length} шт</span>
 								</div>
 								
-								<!-- Items List -->
-								<div class="p-3">
-									<div class="space-y-2 mb-3">
-										${category.items.map(item => `
-											<div class="flex justify-between items-center text-sm py-1">
-												<span class="text-gray-700">• ${item.name}</span>
-												<span class="font-medium text-gray-900 bg-gray-100 px-2 py-0.5 rounded">
-													${item.quantity} ${item.unit}
-												</span>
-											</div>
-										`).join('')}
-									</div>
-									
-									<!-- Action Buttons -->
-									<div class="flex flex-col space-y-2 pt-2 border-t border-gray-100">
-										${hasSupplier ? `
-											<!-- Send Button -->
-											<button 
-												onclick="sendCategoryToSupplier('${dateGroup.date}', ${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
-												${!hasPhone ? 'disabled' : ''}
-												class="w-full flex items-center justify-center px-3 py-2 rounded-lg font-medium text-sm transition-colors ${hasPhone ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
-											>
-												<span class="mr-2">📱</span>
-												${hasPhone ? `Отправить в WhatsApp` : 'Нет номера телефона'}
-											</button>
-											
-											<!-- Change Supplier Button -->
-											<button 
-												onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
-												class="w-full flex items-center justify-center px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm rounded-lg border border-blue-200 transition-colors"
-											>
-												<span class="mr-2">✏️</span>
-												Изменить поставщика
-											</button>
-											
-											${hasPhone ? `
-												<div class="text-xs text-gray-500 text-center">
-													📱 ${supplierInfo.phone}
-												</div>
-											` : ''}
-										` : `
-											<!-- Assign Supplier Button -->
-											<button 
-												onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', null)"
-												class="w-full flex items-center justify-center px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-medium text-sm transition-colors"
-											>
-												<span class="mr-2">➕</span>
-												Назначить поставщика
-											</button>
-										`}
-									</div>
+								${hasSupplier ? `
+									<div class="text-sm text-green-600 mb-2">📦 ${supplierInfo.name}</div>
+									${hasPhone ? `<div class="text-xs text-gray-500 mb-2">📱 ${supplierInfo.phone}</div>` : `<div class="text-xs text-red-500 mb-2">⚠️ Нет телефона</div>`}
+								` : `
+									<div class="text-sm text-red-600 mb-2">⚠️ Без поставщика</div>
+								`}
+								
+								<div class="space-y-1 mb-3 text-sm">
+									${category.items.map(item => `
+										<div class="flex justify-between">
+											<span>• ${item.name}</span>
+											<span class="font-medium">${item.quantity} ${item.unit}</span>
+										</div>
+									`).join('')}
+								</div>
+								
+								<div class="flex gap-2">
+									${hasSupplier ? `
+										<button 
+											onclick="sendCategoryToSupplier('${dateGroup.date}', ${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
+											${!hasPhone ? 'disabled' : ''}
+											class="flex-1 px-3 py-2 text-sm rounded transition-colors ${hasPhone ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
+										>
+											📱 Отправить
+										</button>
+										<button 
+											onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
+											class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition-colors"
+										>
+											✏️
+										</button>
+									` : `
+										<button 
+											onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', null)"
+											class="flex-1 px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded transition-colors"
+										>
+											➕ Назначить
+										</button>
+									`}
 								</div>
 							</div>
 						`;
@@ -2006,50 +1951,46 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				let suppliersHtml = '';
+				let suppliersHtml = '<div class="space-y-2">';
 				suppliers.forEach((supplier, index) => {
 					const createdDate = new Date(supplier.created_at).toLocaleDateString('ru-RU');
 					
 					suppliersHtml += `
-						<div class="border border-gray-200 rounded-lg p-4">
-							<div class="flex justify-between items-start mb-3">
-								<div>
-									<h4 class="font-medium text-gray-900">${supplier.name}</h4>
-									<p class="text-sm text-gray-600">Создан: ${createdDate}</p>
-								</div>
-								<div class="flex space-x-2">
-									<button 
-										onclick="editSupplier(${supplier.id})" 
-										class="px-3 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
-									>
-										✏️ Изменить
-									</button>
-									<button 
-										onclick="deleteSupplier(${supplier.id})" 
-										class="px-3 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded"
-									>
-										🗑️ Удалить
-									</button>
-								</div>
+						<div class="bg-gray-50 rounded-lg p-3">
+							<div class="flex justify-between items-center mb-2">
+								<h4 class="font-medium text-gray-900">${supplier.name}</h4>
+								<span class="text-xs text-gray-500">${createdDate}</span>
 							</div>
 							
 							${supplier.phone ? `
-								<div class="mb-2">
-									<span class="text-sm text-gray-600">📞 Телефон: </span>
-									<span class="text-sm font-medium">${supplier.phone}</span>
-								</div>
-							` : ''}
+								<div class="text-sm text-gray-600 mb-2">📱 ${supplier.phone}</div>
+							` : `
+								<div class="text-sm text-red-500 mb-2">⚠️ Нет телефона</div>
+							`}
 							
 							${supplier.contact_info ? `
-								<div class="text-sm text-gray-600">
-									<span class="font-medium">Контакты: </span>
-									<span>${supplier.contact_info}</span>
-								</div>
+								<div class="text-xs text-gray-500 mb-3">${supplier.contact_info}</div>
 							` : ''}
+							
+							<div class="flex gap-2">
+								<button 
+									onclick="editSupplier(${supplier.id})" 
+									class="flex-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded transition-colors"
+								>
+									✏️ Изменить
+								</button>
+								<button 
+									onclick="deleteSupplier(${supplier.id})" 
+									class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded transition-colors"
+								>
+									🗑️
+								</button>
+							</div>
 						</div>
 					`;
 				});
 				
+				suppliersHtml += '</div>';
 				container.innerHTML = suppliersHtml;
 			}
 			
