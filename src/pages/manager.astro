@@ -498,20 +498,66 @@ import Layout from '../layouts/Layout.astro';
 								</div>
 								<div>
 									<label class="block text-sm font-medium text-gray-700 mb-2">Поставщик по умолчанию (необязательно)</label>
-									<div class="flex space-x-2">
-										<select 
-											id="newCategorySupplier" 
-											class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-										>
-											<option value="">Без поставщика</option>
-										</select>
+									<div class="space-y-3">
+										<!-- Supplier List -->
+										<div id="suppliersList" class="space-y-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-2">
+											<!-- Suppliers will be loaded here -->
+											<div class="text-gray-500 text-sm">Загрузка поставщиков...</div>
+										</div>
+										
+										<!-- Add New Supplier Button -->
 										<button 
-											onclick="addNewSupplierFromCategory()" 
-											class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-md whitespace-nowrap"
-											title="Добавить нового поставщика"
+											id="addSupplierBtn"
+											onclick="showAddSupplierForm()" 
+											class="w-full px-3 py-2 border-2 border-dashed border-gray-300 text-gray-600 hover:border-green-500 hover:text-green-600 text-sm font-medium rounded-md transition-colors"
 										>
-											➕ Добавить поставщика
+											➕ Добавить нового поставщика
 										</button>
+										
+										<!-- Inline Add Supplier Form (Hidden by default) -->
+										<div id="inlineSupplierForm" class="hidden space-y-3 p-3 border border-green-200 bg-green-50 rounded-md">
+											<div>
+												<label class="block text-xs font-medium text-gray-700 mb-1">Название поставщика</label>
+												<input 
+													type="text" 
+													id="inlineSupplierName" 
+													class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+													placeholder="Например: ООО Поставщик"
+												/>
+											</div>
+											<div>
+												<label class="block text-xs font-medium text-gray-700 mb-1">Телефон (необязательно)</label>
+												<input 
+													type="tel" 
+													id="inlineSupplierPhone" 
+													class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+													placeholder="+7-XXX-XXX-XXXX"
+												/>
+											</div>
+											<div>
+												<label class="block text-xs font-medium text-gray-700 mb-1">Доп. информация (необязательно)</label>
+												<input 
+													type="text" 
+													id="inlineSupplierContact" 
+													class="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
+													placeholder="Email, адрес, заметки"
+												/>
+											</div>
+											<div class="flex space-x-2">
+												<button 
+													onclick="createInlineSupplier()" 
+													class="flex-1 px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded"
+												>
+													✓ Создать
+												</button>
+												<button 
+													onclick="hideAddSupplierForm()" 
+													class="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white text-sm font-medium rounded"
+												>
+													✕ Отмена
+												</button>
+											</div>
+										</div>
 									</div>
 								</div>
 							</div>
@@ -2009,12 +2055,137 @@ import Layout from '../layouts/Layout.astro';
 				document.getElementById('newSupplierName').focus();
 			}
 			
-			// Open add supplier modal from category creation
-			function addNewSupplierFromCategory() {
-				// Store a flag to know we came from category modal
-				window.categoryModalContext = true;
-				document.getElementById('addSupplierModal').classList.remove('hidden');
-				document.getElementById('newSupplierName').focus();
+			// Variables to track selected supplier in category modal
+			let selectedSupplierId = null;
+
+			// Load suppliers for category modal (inline list)
+			async function loadSuppliersForCategoryModal() {
+				try {
+					const response = await fetch('/api/suppliers');
+					const data = await response.json();
+					
+					const container = document.getElementById('suppliersList');
+					if (container) {
+						if (data.success && data.data && data.data.length > 0) {
+							let html = '';
+							
+							// Add "No supplier" option
+							html += `
+								<label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+									<input type="radio" name="categorySupplier" value="" class="mr-2" ${!selectedSupplierId ? 'checked' : ''} onchange="selectSupplier('')">
+									<span class="text-sm text-gray-700">Без поставщика</span>
+								</label>
+							`;
+							
+							// Add existing suppliers
+							data.data.forEach(supplier => {
+								html += `
+									<label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+										<input type="radio" name="categorySupplier" value="${supplier.id}" class="mr-2" ${selectedSupplierId == supplier.id ? 'checked' : ''} onchange="selectSupplier(${supplier.id})">
+										<div class="flex-1">
+											<div class="text-sm font-medium text-gray-900">${supplier.name}</div>
+											${supplier.phone ? `<div class="text-xs text-gray-500">📱 ${supplier.phone}</div>` : ''}
+										</div>
+									</label>
+								`;
+							});
+							
+							container.innerHTML = html;
+						} else {
+							container.innerHTML = `
+								<label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+									<input type="radio" name="categorySupplier" value="" class="mr-2" checked onchange="selectSupplier('')">
+									<span class="text-sm text-gray-700">Без поставщика</span>
+								</label>
+							`;
+						}
+					}
+				} catch (error) {
+					console.error('Error loading suppliers for category modal:', error);
+					const container = document.getElementById('suppliersList');
+					if (container) {
+						container.innerHTML = `
+							<label class="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
+								<input type="radio" name="categorySupplier" value="" class="mr-2" checked onchange="selectSupplier('')">
+								<span class="text-sm text-gray-700">Без поставщика</span>
+							</label>
+						`;
+					}
+				}
+			}
+
+			// Select supplier in category modal
+			function selectSupplier(supplierId) {
+				selectedSupplierId = supplierId || null;
+			}
+
+			// Show inline add supplier form
+			function showAddSupplierForm() {
+				document.getElementById('addSupplierBtn').classList.add('hidden');
+				document.getElementById('inlineSupplierForm').classList.remove('hidden');
+				document.getElementById('inlineSupplierName').focus();
+			}
+
+			// Hide inline add supplier form
+			function hideAddSupplierForm() {
+				document.getElementById('addSupplierBtn').classList.remove('hidden');
+				document.getElementById('inlineSupplierForm').classList.add('hidden');
+				// Clear form
+				document.getElementById('inlineSupplierName').value = '';
+				document.getElementById('inlineSupplierPhone').value = '';
+				document.getElementById('inlineSupplierContact').value = '';
+			}
+
+			// Create supplier inline
+			async function createInlineSupplier() {
+				const name = document.getElementById('inlineSupplierName').value.trim();
+				const phone = document.getElementById('inlineSupplierPhone').value.trim();
+				const contact_info = document.getElementById('inlineSupplierContact').value.trim();
+				
+				if (!name) {
+					alert('Пожалуйста, введите название поставщика');
+					return;
+				}
+				
+				try {
+					const response = await fetch('/api/suppliers', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							name: name,
+							phone: phone || null,
+							contact_info: contact_info || null
+						})
+					});
+					
+					const data = await response.json();
+					
+					if (data.success) {
+						// Hide the form
+						hideAddSupplierForm();
+						
+						// Reload the suppliers list
+						await loadSuppliersForCategoryModal();
+						
+						// Auto-select the newly created supplier
+						selectedSupplierId = data.data.id;
+						
+						// Update the radio buttons to reflect the selection
+						const radioButtons = document.querySelectorAll('input[name="categorySupplier"]');
+						radioButtons.forEach(radio => {
+							radio.checked = radio.value == selectedSupplierId;
+						});
+						
+						alert('Поставщик "' + name + '" успешно создан и выбран!');
+					} else {
+						alert('Ошибка при создании поставщика: ' + data.error);
+					}
+				} catch (error) {
+					console.error('Error creating supplier:', error);
+					alert('Ошибка при создании поставщика. Проверьте подключение к серверу.');
+				}
 			}
 			
 			// Close add supplier modal
@@ -2150,22 +2321,28 @@ import Layout from '../layouts/Layout.astro';
 			
 			// Add new category
 			function addNewCategory() {
-				loadSuppliersForCategoryModal();
 				document.getElementById('addCategoryModal').classList.remove('hidden');
 				document.getElementById('newCategoryName').focus();
+				// Load suppliers for the inline list
+				loadSuppliersForCategoryModal();
+				// Reset selected supplier
+				selectedSupplierId = null;
 			}
 			
 			// Close add category modal
 			function closeAddCategoryModal() {
 				document.getElementById('addCategoryModal').classList.add('hidden');
 				document.getElementById('newCategoryName').value = '';
-				document.getElementById('newCategorySupplier').value = '';
+				// Reset supplier selection
+				selectedSupplierId = null;
+				// Hide inline supplier form if it's open
+				hideAddSupplierForm();
 			}
 			
 			// Create category
 			async function createCategory() {
 				const name = document.getElementById('newCategoryName').value.trim();
-				const supplierId = document.getElementById('newCategorySupplier').value || null;
+				const supplierId = selectedSupplierId;
 				
 				if (!name) {
 					alert('Введите название категории');
