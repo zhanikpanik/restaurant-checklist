@@ -111,6 +111,45 @@ export async function setupDatabaseSchema() {
             );
         `);
 
+        // Create departments table for custom sections
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS departments (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL UNIQUE,
+                emoji VARCHAR(10) DEFAULT '📦',
+                poster_storage_id INTEGER, -- NULL for custom departments, 1=kitchen, 2=bar
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Insert default departments
+        await client.query(`
+            INSERT INTO departments (name, emoji, poster_storage_id) VALUES 
+                ('Кухня', '🍳', 1),
+                ('Бар', '🍷', 2),
+                ('Горничная', '🧹', NULL)
+            ON CONFLICT (name) DO NOTHING;
+        `);
+
+        // Create custom_products table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS custom_products (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                unit VARCHAR(50) DEFAULT 'шт',
+                category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
+                department_id INTEGER REFERENCES departments(id) ON DELETE CASCADE,
+                min_quantity INTEGER DEFAULT 1,
+                current_quantity INTEGER DEFAULT 0,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(name, department_id)
+            );
+        `);
+
         // Create indexes for better performance
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_suppliers_restaurant_id ON suppliers(restaurant_id);
@@ -118,9 +157,12 @@ export async function setupDatabaseSchema() {
             CREATE INDEX IF NOT EXISTS idx_products_restaurant_id ON products(restaurant_id);
             CREATE INDEX IF NOT EXISTS idx_orders_restaurant_id ON orders(restaurant_id);
             CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(restaurant_id, status);
+            CREATE INDEX IF NOT EXISTS idx_custom_products_department ON custom_products(department_id);
+            CREATE INDEX IF NOT EXISTS idx_custom_products_category ON custom_products(category_id);
+            CREATE INDEX IF NOT EXISTS idx_departments_active ON departments(is_active);
         `);
 
-        console.log('✅ Database schema setup complete');
+        console.log('✅ Database schema setup complete (including custom products and departments)');
         
     } catch (error) {
         console.error('❌ Error setting up database schema:', error);

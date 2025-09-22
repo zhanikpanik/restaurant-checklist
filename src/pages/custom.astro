@@ -166,66 +166,92 @@ import Layout from '../layouts/Layout.astro';
 			{ name: 'доп односпалки', unit: 'шт', quantity: 0, minQuantity: 3, isDefault: true }
 		];
 
-		// Load custom products from localStorage
-		function loadCustomProducts() {
+		// Load custom products from database
+		async function loadCustomProducts() {
 			try {
-				const stored = localStorage.getItem('customProducts');
-				const isFirstTime = localStorage.getItem('customProductsInitialized') !== 'true';
+				console.log('🔄 Loading custom products from database...');
 				
-				if (isFirstTime) {
-					// First time loading - create default products
-					customProducts = defaultProducts.map((product, index) => ({
-						id: Date.now() + index,
+				// First check if we need to migrate from localStorage
+				const localProducts = localStorage.getItem('customProducts');
+				if (localProducts && !localStorage.getItem('customProductsMigrated')) {
+					await migrateFromLocalStorage();
+				}
+				
+				// Load from database via combined inventory API
+				const response = await fetch('/api/combined-inventory?department=Горничная');
+				const result = await response.json();
+				
+				if (result.success && result.data) {
+					customProducts = result.data.map(product => ({
+						id: product.id,
 						name: product.name,
 						quantity: product.quantity,
 						unit: product.unit,
-						minQuantity: product.minQuantity,
+						minQuantity: product.minQuantity || 1,
 						checked: false,
 						shoppingQuantity: 0,
-						isDefault: product.isDefault,
-						isCustom: !product.isDefault,
+						isDefault: false,
+						isCustom: true,
+						source: product.source,
+						category_name: product.category_name,
 						createdAt: new Date().toISOString()
 					}));
 					
-					// Save to localStorage
-					saveCustomProducts();
-					localStorage.setItem('customProductsInitialized', 'true');
+					console.log(`✅ Loaded ${customProducts.length} custom products from database`);
 				} else {
-					// Load existing products
-					customProducts = stored ? JSON.parse(stored) : [];
-					
-					// Update existing products to ensure default products have isDefault flag
-					customProducts = customProducts.map(product => {
-						const defaultProduct = defaultProducts.find(dp => dp.name === product.name);
-						if (defaultProduct) {
-							// This is a default product, ensure it has the isDefault flag
-							return {
-								...product,
-								isDefault: true,
-								isCustom: false
-							};
-						} else {
-							// This is a custom product
-							return {
-								...product,
-								isDefault: false,
-								isCustom: true
-							};
-						}
-					});
-					
-					// Save the updated products back to localStorage
-					saveCustomProducts();
+					throw new Error(result.error || 'Failed to load products');
 				}
 				
 				filteredProducts = [...customProducts];
 				renderProducts();
 				updateCreateOrderButton();
 			} catch (error) {
-				console.error('Failed to load custom products:', error);
-				customProducts = [];
-				filteredProducts = [];
+				console.error('❌ Error loading custom products:', error);
+				
+				// Fallback to default products if database fails
+				customProducts = defaultProducts.map((product, index) => ({
+					id: Date.now() + index,
+					name: product.name,
+					quantity: product.quantity,
+					unit: product.unit,
+					minQuantity: product.minQuantity,
+					checked: false,
+					shoppingQuantity: 0,
+					isDefault: product.isDefault,
+					isCustom: !product.isDefault,
+					createdAt: new Date().toISOString()
+				}));
+				
+				filteredProducts = [...customProducts];
 				renderProducts();
+				updateCreateOrderButton();
+			}
+		}
+		
+		// Migrate existing localStorage products to database
+		async function migrateFromLocalStorage() {
+			try {
+				const localProducts = localStorage.getItem('customProducts');
+				if (!localProducts) return;
+				
+				const products = JSON.parse(localProducts);
+				console.log('🔄 Migrating', products.length, 'products from localStorage to database...');
+				
+				const response = await fetch('/api/migrate-custom-products', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ customProducts: products })
+				});
+				
+				const result = await response.json();
+				if (result.success) {
+					console.log('✅ Migration completed:', result.results);
+					localStorage.setItem('customProductsMigrated', 'true');
+				} else {
+					console.error('❌ Migration failed:', result.error);
+				}
+			} catch (error) {
+				console.error('❌ Migration error:', error);
 			}
 		}
 
@@ -519,9 +545,9 @@ import Layout from '../layouts/Layout.astro';
 		}
 
 		// Initialize page
-		document.addEventListener('DOMContentLoaded', function() {
+		document.addEventListener('DOMContentLoaded', async function() {
 			// Load products
-			loadCustomProducts();
+			await loadCustomProducts();
 			
 			// Load saved quantities from localStorage after products are loaded
 			setTimeout(() => {
