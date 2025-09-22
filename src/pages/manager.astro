@@ -24,144 +24,224 @@ import Layout from '../layouts/Layout.astro';
 		</header>
 
 		<!-- Main Content Area -->
-		<main class="flex-1 p-4">
+		<main class="flex-1">
 			<div class="max-w-6xl mx-auto">
-
-
-				<!-- Category-Supplier Management -->
-				<div class="bg-white rounded-lg border border-gray-200 mb-8">
-					<div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-						<h3 class="text-lg font-semibold text-gray-900">🏷️ Категории и поставщики</h3>
-						<div class="flex space-x-2">
-							<button 
-								onclick="addNewCategory()" 
-								class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
-								title="Добавить новую категорию"
-							>
-								➕ Добавить категорию
-							</button>
-							<button 
-								onclick="checkDatabaseStructure()" 
-								class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm font-medium rounded-lg"
-								title="Проверить структуру базы данных"
-							>
-								🔍 Проверить БД
-							</button>
-							<button 
-								onclick="migrateDatabase()" 
-								class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg"
-								title="Обновить структуру базы данных"
-							>
-								🔧 Миграция БД
-							</button>
-							<button 
-								onclick="loadCategorySuppliers()" 
-								class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-							>
-								🔄 Обновить
-							</button>
-						</div>
-					</div>
-					<div class="p-6">
-						<div id="categorySuppliers" class="space-y-4">
-							<div class="text-center text-gray-500 py-8">
-								<span class="text-4xl mb-4 block">🏷️</span>
-								<p class="text-lg mb-2">Загрузка категорий...</p>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Orders by Category -->
-				<div class="bg-white rounded-lg border border-gray-200 mb-8">
-					<div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-						<h3 class="text-lg font-semibold text-gray-900">📋 Заказы по категориям</h3>
-						<div class="flex space-x-2">
-							<button 
-								onclick="loadOrdersByCategory()" 
-								class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-							>
-								🔄 Обновить заказы
-							</button>
-						</div>
-					</div>
-					<div class="p-6">
-						<div id="ordersByCategory" class="space-y-4">
-							<div class="text-center text-gray-500 py-8">
-								<span class="text-4xl mb-4 block">📋</span>
-								<p class="text-lg mb-2">Загрузка заказов...</p>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Suppliers Management -->
-				<div class="bg-white rounded-lg border border-gray-200 mb-8">
-					<div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-						<h3 class="text-lg font-semibold text-gray-900">🏢 Поставщики</h3>
+				<!-- Tab Navigation -->
+				<div class="bg-white border-b border-gray-200 sticky top-0 z-40">
+					<nav class="flex space-x-8 px-4 overflow-x-auto">
 						<button 
-							onclick="addNewSupplier()" 
-							class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg"
+							onclick="switchTab('orders')" 
+							id="tab-orders"
+							class="py-4 px-2 border-b-2 font-medium text-sm whitespace-nowrap border-blue-500 text-blue-600"
 						>
-							➕ Добавить поставщика
+							📋 Заказы
 						</button>
-					</div>
-					<div class="p-6">
-						<div id="suppliersManagement" class="space-y-4">
-							<div class="text-center text-gray-500 py-8">
-								<span class="text-4xl mb-4 block">🏢</span>
-								<p class="text-lg mb-2">Загрузка поставщиков...</p>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<!-- Custom Departments Management -->
-				<div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-					<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-						<h2 class="text-xl font-semibold text-gray-900">🏢 Управление отделами</h2>
 						<button 
-							onclick="addNewDepartment()" 
-							class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
+							onclick="switchTab('categories')" 
+							id="tab-categories"
+							class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
 						>
-							➕ Добавить отдел
+							🏷️ Категории
 						</button>
-					</div>
-					<div class="p-6">
-						<div id="departmentsManagement" class="space-y-4">
-							<div class="text-center text-gray-500 py-8">
-								<span class="text-4xl mb-4 block">🏢</span>
-								<p class="text-lg mb-2">Загрузка отделов...</p>
-							</div>
-						</div>
-					</div>
+						<button 
+							onclick="switchTab('suppliers')" 
+							id="tab-suppliers"
+							class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
+						>
+							🏢 Поставщики
+						</button>
+						<button 
+							onclick="switchTab('departments')" 
+							id="tab-departments"
+							class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
+						>
+							🏪 Отделы
+						</button>
+						<button 
+							onclick="switchTab('products')" 
+							id="tab-products"
+							class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
+						>
+							📦 Товары
+						</button>
+						<button 
+							onclick="switchTab('settings')" 
+							id="tab-settings"
+							class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
+						>
+							⚙️ Настройки
+						</button>
+					</nav>
 				</div>
 
-				<!-- Custom Products Management -->
-				<div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
-					<div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-						<h2 class="text-xl font-semibold text-gray-900">📦 Управление товарами</h2>
-						<div class="flex space-x-2">
-							<select id="departmentFilter" onchange="loadCustomProducts()" class="px-3 py-2 border border-gray-300 rounded-md text-sm">
-								<option value="">Все отделы</option>
-							</select>
-							<button 
-								onclick="addNewCustomProduct()" 
-								class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-							>
-								➕ Добавить товар
-							</button>
+				<!-- Tab Content -->
+				<div class="p-4">
+					<!-- Orders Tab (Default) -->
+					<div id="content-orders" class="tab-content">
+						<div class="bg-white rounded-lg border border-gray-200">
+							<div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+								<h3 class="text-lg font-semibold text-gray-900">📋 Заказы по категориям</h3>
+								<button 
+									onclick="loadOrdersByCategory()" 
+									class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+								>
+									🔄 Обновить
+								</button>
+							</div>
+							<div class="p-4">
+								<div id="ordersByCategory" class="space-y-4">
+									<div class="text-center text-gray-500 py-8">
+										<span class="text-4xl mb-4 block">📋</span>
+										<p class="text-lg mb-2">Загрузка заказов...</p>
+									</div>
+								</div>
+							</div>
 						</div>
 					</div>
-					<div class="p-6">
-						<div id="customProductsManagement" class="space-y-4">
-							<div class="text-center text-gray-500 py-8">
-								<span class="text-4xl mb-4 block">📦</span>
-								<p class="text-lg mb-2">Загрузка товаров...</p>
+
+					<!-- Categories Tab -->
+					<div id="content-categories" class="tab-content hidden">
+						<div class="bg-white rounded-lg border border-gray-200">
+							<div class="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+								<h3 class="text-lg font-semibold text-gray-900">🏷️ Категории и поставщики</h3>
+								<div class="flex flex-wrap gap-2">
+									<button 
+										onclick="addNewCategory()" 
+										class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
+									>
+										➕ Категория
+									</button>
+									<button 
+										onclick="loadCategorySuppliers()" 
+										class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+									>
+										🔄 Обновить
+									</button>
+								</div>
+							</div>
+							<div class="p-4">
+								<div id="categorySuppliers" class="space-y-4">
+									<div class="text-center text-gray-500 py-8">
+										<span class="text-4xl mb-4 block">🏷️</span>
+										<p class="text-lg mb-2">Загрузка категорий...</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Suppliers Tab -->
+					<div id="content-suppliers" class="tab-content hidden">
+						<div class="bg-white rounded-lg border border-gray-200">
+							<div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+								<h3 class="text-lg font-semibold text-gray-900">🏢 Поставщики</h3>
+								<button 
+									onclick="addNewSupplier()" 
+									class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg"
+								>
+									➕ Добавить
+								</button>
+							</div>
+							<div class="p-4">
+								<div id="suppliersManagement" class="space-y-4">
+									<div class="text-center text-gray-500 py-8">
+										<span class="text-4xl mb-4 block">🏢</span>
+										<p class="text-lg mb-2">Загрузка поставщиков...</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Departments Tab -->
+					<div id="content-departments" class="tab-content hidden">
+						<div class="bg-white rounded-lg border border-gray-200">
+							<div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
+								<h3 class="text-lg font-semibold text-gray-900">🏪 Управление отделами</h3>
+								<button 
+									onclick="addNewDepartment()" 
+									class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
+								>
+									➕ Добавить
+								</button>
+							</div>
+							<div class="p-4">
+								<div id="departmentsManagement" class="space-y-4">
+									<div class="text-center text-gray-500 py-8">
+										<span class="text-4xl mb-4 block">🏢</span>
+										<p class="text-lg mb-2">Загрузка отделов...</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Products Tab -->
+					<div id="content-products" class="tab-content hidden">
+						<div class="bg-white rounded-lg border border-gray-200">
+							<div class="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+								<h3 class="text-lg font-semibold text-gray-900">📦 Управление товарами</h3>
+								<div class="flex flex-wrap gap-2">
+									<select id="departmentFilter" onchange="loadCustomProducts()" class="px-2 py-1 border border-gray-300 rounded text-sm">
+										<option value="">Все отделы</option>
+									</select>
+									<button 
+										onclick="addNewCustomProduct()" 
+										class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+									>
+										➕ Товар
+									</button>
+								</div>
+							</div>
+							<div class="p-4">
+								<div id="customProductsManagement" class="space-y-4">
+									<div class="text-center text-gray-500 py-8">
+										<span class="text-4xl mb-4 block">📦</span>
+										<p class="text-lg mb-2">Загрузка товаров...</p>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Settings Tab -->
+					<div id="content-settings" class="tab-content hidden">
+						<div class="bg-white rounded-lg border border-gray-200">
+							<div class="px-4 py-3 border-b border-gray-200">
+								<h3 class="text-lg font-semibold text-gray-900">⚙️ Настройки системы</h3>
+							</div>
+							<div class="p-4 space-y-4">
+								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+									<button 
+										onclick="checkDatabaseStructure()" 
+										class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
+									>
+										<div class="flex items-center space-x-3">
+											<span class="text-2xl">🔍</span>
+											<div>
+												<div class="font-medium">Проверить БД</div>
+												<div class="text-sm text-gray-500">Диагностика базы данных</div>
+											</div>
+										</div>
+									</button>
+									<button 
+										onclick="migrateDatabase()" 
+										class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
+									>
+										<div class="flex items-center space-x-3">
+											<span class="text-2xl">🔧</span>
+											<div>
+												<div class="font-medium">Миграция БД</div>
+												<div class="text-sm text-gray-500">Обновить структуру</div>
+											</div>
+										</div>
+									</button>
+								</div>
 							</div>
 						</div>
 					</div>
 				</div>
+			</div>
 
 				<!-- Add Product Modal -->
 				<div id="addProductModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
@@ -2512,20 +2592,55 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 
+			// Tab switching functionality
+			function switchTab(tabName) {
+				// Hide all tab contents
+				const tabContents = document.querySelectorAll('.tab-content');
+				tabContents.forEach(content => {
+					content.classList.add('hidden');
+				});
+				
+				// Remove active class from all tabs
+				const tabButtons = document.querySelectorAll('[id^="tab-"]');
+				tabButtons.forEach(button => {
+					button.classList.remove('border-blue-500', 'text-blue-600');
+					button.classList.add('border-transparent', 'text-gray-500');
+				});
+				
+				// Show selected tab content
+				const selectedContent = document.getElementById(`content-${tabName}`);
+				if (selectedContent) {
+					selectedContent.classList.remove('hidden');
+				}
+				
+				// Add active class to selected tab
+				const selectedTab = document.getElementById(`tab-${tabName}`);
+				if (selectedTab) {
+					selectedTab.classList.remove('border-transparent', 'text-gray-500');
+					selectedTab.classList.add('border-blue-500', 'text-blue-600');
+				}
+				
+				// Load data for specific tabs when they become active
+				if (tabName === 'categories') {
+					loadCategorySuppliers();
+				} else if (tabName === 'suppliers') {
+					loadSuppliers();
+				} else if (tabName === 'departments') {
+					loadDepartments();
+				} else if (tabName === 'products') {
+					loadCustomProducts();
+				} else if (tabName === 'orders') {
+					loadOrdersByCategory();
+				}
+			}
+
 			// Load data when page loads
 			document.addEventListener('DOMContentLoaded', function() {
-				loadCategorySuppliers();
+				// Load only orders data initially (default tab)
 				loadOrdersByCategory();
-				loadSuppliers();
-				loadCategories();
-				loadDepartments();
-				loadCustomProducts();
-				// Refresh data every 30 seconds
-				setInterval(loadCategorySuppliers, 30000);
+				
+				// Refresh orders data every 30 seconds (only for default tab)
 				setInterval(loadOrdersByCategory, 30000);
-				setInterval(loadSuppliers, 30000);
-				setInterval(loadDepartments, 60000);
-				setInterval(loadCustomProducts, 60000);
 			});
 		</script>
 	</Layout>
