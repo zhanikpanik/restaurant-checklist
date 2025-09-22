@@ -78,166 +78,140 @@ import Layout from '../layouts/Layout.astro';
 				<div class="p-4">
 					<!-- Orders Tab (Default) -->
 					<div id="content-orders" class="tab-content">
-						<div class="bg-white rounded-lg border border-gray-200">
-							<div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-								<h3 class="text-lg font-semibold text-gray-900">📋 Заказы по категориям</h3>
-								<button 
-									onclick="loadOrdersByCategory()" 
-									class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-								>
-									🔄 Обновить
-								</button>
-							</div>
-							<div class="p-4">
-								<div id="ordersByCategory" class="space-y-4">
-									<div class="text-center text-gray-500 py-8">
-										<span class="text-4xl mb-4 block">📋</span>
-										<p class="text-lg mb-2">Загрузка заказов...</p>
-									</div>
-								</div>
+						<div class="flex justify-between items-center mb-4">
+							<h3 class="text-lg font-semibold text-gray-900">📋 Заказы по категориям</h3>
+							<button 
+								onclick="loadOrdersByCategory()" 
+								class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+							>
+								🔄 Обновить
+							</button>
+						</div>
+						<div id="ordersByCategory" class="space-y-4">
+							<div class="text-center text-gray-500 py-8">
+								<span class="text-4xl mb-4 block">📋</span>
+								<p class="text-lg mb-2">Загрузка заказов...</p>
 							</div>
 						</div>
 					</div>
 
 					<!-- Categories Tab -->
 					<div id="content-categories" class="tab-content hidden">
-						<div class="bg-white rounded-lg border border-gray-200">
-							<div class="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-								<h3 class="text-lg font-semibold text-gray-900">🏷️ Категории и поставщики</h3>
-								<div class="flex flex-wrap gap-2">
-									<button 
-										onclick="addNewCategory()" 
-										class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
-									>
-										➕ Категория
-									</button>
-									<button 
-										onclick="loadCategorySuppliers()" 
-										class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-									>
-										🔄 Обновить
-									</button>
-								</div>
+						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+							<h3 class="text-lg font-semibold text-gray-900">🏷️ Категории и поставщики</h3>
+							<div class="flex flex-wrap gap-2">
+								<button 
+									onclick="addNewCategory()" 
+									class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
+								>
+									➕ Категория
+								</button>
+								<button 
+									onclick="loadCategorySuppliers()" 
+									class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+								>
+									🔄 Обновить
+								</button>
 							</div>
-							<div class="p-4">
-								<div id="categorySuppliers" class="space-y-4">
-									<div class="text-center text-gray-500 py-8">
-										<span class="text-4xl mb-4 block">🏷️</span>
-										<p class="text-lg mb-2">Загрузка категорий...</p>
-									</div>
-								</div>
+						</div>
+						<div id="categorySuppliers" class="space-y-4">
+							<div class="text-center text-gray-500 py-8">
+								<span class="text-4xl mb-4 block">🏷️</span>
+								<p class="text-lg mb-2">Загрузка категорий...</p>
 							</div>
 						</div>
 					</div>
 
 					<!-- Suppliers Tab -->
 					<div id="content-suppliers" class="tab-content hidden">
-						<div class="bg-white rounded-lg border border-gray-200">
-							<div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-								<h3 class="text-lg font-semibold text-gray-900">🏢 Поставщики</h3>
-								<button 
-									onclick="addNewSupplier()" 
-									class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg"
-								>
-									➕ Добавить
-								</button>
-							</div>
-							<div class="p-4">
-								<div id="suppliersManagement" class="space-y-4">
-									<div class="text-center text-gray-500 py-8">
-										<span class="text-4xl mb-4 block">🏢</span>
-										<p class="text-lg mb-2">Загрузка поставщиков...</p>
-									</div>
-								</div>
+						<div class="flex justify-between items-center mb-4">
+							<h3 class="text-lg font-semibold text-gray-900">🏢 Поставщики</h3>
+							<button 
+								onclick="addNewSupplier()" 
+								class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg"
+							>
+								➕ Добавить
+							</button>
+						</div>
+						<div id="suppliersManagement" class="space-y-4">
+							<div class="text-center text-gray-500 py-8">
+								<span class="text-4xl mb-4 block">🏢</span>
+								<p class="text-lg mb-2">Загрузка поставщиков...</p>
 							</div>
 						</div>
 					</div>
 
 					<!-- Departments Tab -->
 					<div id="content-departments" class="tab-content hidden">
-						<div class="bg-white rounded-lg border border-gray-200">
-							<div class="px-4 py-3 border-b border-gray-200 flex justify-between items-center">
-								<h3 class="text-lg font-semibold text-gray-900">🏪 Управление отделами</h3>
-								<button 
-									onclick="addNewDepartment()" 
-									class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
-								>
-									➕ Добавить
-								</button>
-							</div>
-							<div class="p-4">
-								<div id="departmentsManagement" class="space-y-4">
-									<div class="text-center text-gray-500 py-8">
-										<span class="text-4xl mb-4 block">🏢</span>
-										<p class="text-lg mb-2">Загрузка отделов...</p>
-									</div>
-								</div>
+						<div class="flex justify-between items-center mb-4">
+							<h3 class="text-lg font-semibold text-gray-900">🏪 Управление отделами</h3>
+							<button 
+								onclick="addNewDepartment()" 
+								class="px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
+							>
+								➕ Добавить
+							</button>
+						</div>
+						<div id="departmentsManagement" class="space-y-4">
+							<div class="text-center text-gray-500 py-8">
+								<span class="text-4xl mb-4 block">🏢</span>
+								<p class="text-lg mb-2">Загрузка отделов...</p>
 							</div>
 						</div>
 					</div>
 
 					<!-- Products Tab -->
 					<div id="content-products" class="tab-content hidden">
-						<div class="bg-white rounded-lg border border-gray-200">
-							<div class="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-								<h3 class="text-lg font-semibold text-gray-900">📦 Управление товарами</h3>
-								<div class="flex flex-wrap gap-2">
-									<select id="departmentFilter" onchange="loadCustomProducts()" class="px-2 py-1 border border-gray-300 rounded text-sm">
-										<option value="">Все отделы</option>
-									</select>
-									<button 
-										onclick="addNewCustomProduct()" 
-										class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
-									>
-										➕ Товар
-									</button>
-								</div>
+						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+							<h3 class="text-lg font-semibold text-gray-900">📦 Управление товарами</h3>
+							<div class="flex flex-wrap gap-2">
+								<select id="departmentFilter" onchange="loadCustomProducts()" class="px-2 py-1 border border-gray-300 rounded text-sm">
+									<option value="">Все отделы</option>
+								</select>
+								<button 
+									onclick="addNewCustomProduct()" 
+									class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+								>
+									➕ Товар
+								</button>
 							</div>
-							<div class="p-4">
-								<div id="customProductsManagement" class="space-y-4">
-									<div class="text-center text-gray-500 py-8">
-										<span class="text-4xl mb-4 block">📦</span>
-										<p class="text-lg mb-2">Загрузка товаров...</p>
-									</div>
-								</div>
+						</div>
+						<div id="customProductsManagement" class="space-y-4">
+							<div class="text-center text-gray-500 py-8">
+								<span class="text-4xl mb-4 block">📦</span>
+								<p class="text-lg mb-2">Загрузка товаров...</p>
 							</div>
 						</div>
 					</div>
 
 					<!-- Settings Tab -->
 					<div id="content-settings" class="tab-content hidden">
-						<div class="bg-white rounded-lg border border-gray-200">
-							<div class="px-4 py-3 border-b border-gray-200">
-								<h3 class="text-lg font-semibold text-gray-900">⚙️ Настройки системы</h3>
-							</div>
-							<div class="p-4 space-y-4">
-								<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-									<button 
-										onclick="checkDatabaseStructure()" 
-										class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
-									>
-										<div class="flex items-center space-x-3">
-											<span class="text-2xl">🔍</span>
-											<div>
-												<div class="font-medium">Проверить БД</div>
-												<div class="text-sm text-gray-500">Диагностика базы данных</div>
-											</div>
-										</div>
-									</button>
-									<button 
-										onclick="migrateDatabase()" 
-										class="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 text-left"
-									>
-										<div class="flex items-center space-x-3">
-											<span class="text-2xl">🔧</span>
-											<div>
-												<div class="font-medium">Миграция БД</div>
-												<div class="text-sm text-gray-500">Обновить структуру</div>
-											</div>
-										</div>
-									</button>
+						<h3 class="text-lg font-semibold text-gray-900 mb-4">⚙️ Настройки системы</h3>
+						<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+							<button 
+								onclick="checkDatabaseStructure()" 
+								class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 text-left"
+							>
+								<div class="flex items-center space-x-3">
+									<span class="text-2xl">🔍</span>
+									<div>
+										<div class="font-medium">Проверить БД</div>
+										<div class="text-sm text-gray-500">Диагностика базы данных</div>
+									</div>
 								</div>
-							</div>
+							</button>
+							<button 
+								onclick="migrateDatabase()" 
+								class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 text-left"
+							>
+								<div class="flex items-center space-x-3">
+									<span class="text-2xl">🔧</span>
+									<div>
+										<div class="font-medium">Миграция БД</div>
+										<div class="text-sm text-gray-500">Обновить структуру</div>
+									</div>
+								</div>
+							</button>
 						</div>
 					</div>
 				</div>
@@ -1670,7 +1644,7 @@ import Layout from '../layouts/Layout.astro';
 						const hasPhone = hasSupplier && supplierInfo.phone;
 						
 						html += `
-							<div class="bg-white rounded-lg p-3">
+							<div class="bg-gray-50 rounded-lg p-3">
 								<!-- Mobile: Full layout, Desktop: Compact header -->
 								<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2">
 									<h4 class="font-medium text-gray-900 mb-1 sm:mb-0">${category.categoryName}</h4>
