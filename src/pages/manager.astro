@@ -1779,68 +1779,104 @@ import Layout from '../layouts/Layout.astro';
 							<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
 					`;
 					
-					// Loop through categories for this date
+					// Group categories by supplier for this date
+					const supplierGroups = {};
 					dateGroup.categories.forEach(category => {
 						const hasSupplier = category.supplier && category.supplier.name;
-						const supplierInfo = hasSupplier ? category.supplier : null;
+						const supplierKey = hasSupplier ? category.supplier.id : 'no-supplier';
+						
+						if (!supplierGroups[supplierKey]) {
+							supplierGroups[supplierKey] = {
+								supplier: hasSupplier ? category.supplier : null,
+								categories: [],
+								totalItems: 0
+							};
+						}
+						
+						supplierGroups[supplierKey].categories.push(category);
+						supplierGroups[supplierKey].totalItems += category.items.length;
+					});
+					
+					// Display each supplier group
+					Object.values(supplierGroups).forEach(supplierGroup => {
+						const hasSupplier = supplierGroup.supplier !== null;
+						const supplierInfo = supplierGroup.supplier;
 						const hasPhone = hasSupplier && supplierInfo.phone;
+						const allCategoryIds = supplierGroup.categories.map(cat => cat.categoryId);
+						const allItems = supplierGroup.categories.flatMap(cat => cat.items);
 						
 						html += `
 							<div class="bg-gray-50 rounded-lg p-3">
-								<!-- Mobile: Full layout, Desktop: Compact header -->
-								<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2">
-									<h4 class="font-medium text-gray-900 mb-1 sm:mb-0">${category.categoryName}</h4>
-									<span class="text-xs text-gray-500 self-start sm:self-center">${category.items.length} шт</span>
+								<!-- Supplier Header -->
+								<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3">
+									<div>
+										${hasSupplier ? `
+											<h4 class="font-medium text-gray-900 mb-1">📦 ${supplierInfo.name}</h4>
+											${hasPhone ? `
+												<div class="text-xs text-gray-500">📱 ${supplierInfo.phone}</div>
+											` : `
+												<div class="text-xs text-red-500">⚠️ Нет телефона</div>
+											`}
+										` : `
+											<h4 class="font-medium text-red-600 mb-1">⚠️ Без поставщика</h4>
+											<div class="text-xs text-gray-500">Категории без назначенного поставщика</div>
+										`}
+									</div>
+									<span class="text-xs text-gray-500 self-start sm:self-center">
+										${supplierGroup.categories.length} категорий, ${allItems.length} товаров
+									</span>
 								</div>
 								
-								${hasSupplier ? `
-									<div class="text-sm text-green-600 mb-1">📦 ${supplierInfo.name}</div>
-									${hasPhone ? `
-										<div class="text-xs text-gray-500 mb-2">📱 ${supplierInfo.phone}</div>
-									` : `
-										<div class="text-xs text-red-500 mb-2">⚠️ Нет телефона</div>
-									`}
-								` : `
-									<div class="text-sm text-red-600 mb-2">⚠️ Без поставщика</div>
-								`}
-								
-								<!-- Items list - more compact on desktop -->
-								<div class="space-y-1 mb-3 text-sm max-h-32 overflow-y-auto">
-									${category.items.map(item => `
-										<div class="flex justify-between">
-											<span class="truncate pr-2">• ${item.name}</span>
-											<span class="font-medium whitespace-nowrap">${item.quantity} ${item.unit}</span>
+								<!-- Categories and Items -->
+								<div class="space-y-2 mb-3">
+									${supplierGroup.categories.map(category => `
+										<div class="border-l-2 border-gray-300 pl-3">
+											<div class="font-medium text-sm text-gray-800 mb-1">${category.categoryName}</div>
+											<div class="space-y-1 text-xs max-h-24 overflow-y-auto">
+												${category.items.map(item => `
+													<div class="flex justify-between">
+														<span class="truncate pr-2">• ${item.name}</span>
+														<span class="font-medium whitespace-nowrap">${item.quantity} ${item.unit}</span>
+													</div>
+												`).join('')}
+											</div>
 										</div>
 									`).join('')}
 								</div>
 								
-								<!-- Mobile: Full width buttons, Desktop: Compact buttons -->
+								<!-- Action Buttons -->
 								<div class="flex flex-col sm:flex-row gap-2">
 									${hasSupplier ? `
 										<button 
-											onclick="sendCategoryToSupplier('${dateGroup.date}', ${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
+											onclick="sendSupplierOrdersToSupplier('${dateGroup.date}', [${allCategoryIds.join(',')}], '${supplierInfo.name}', ${supplierInfo.id})"
 											${!hasPhone ? 'disabled' : ''}
 											class="flex-1 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm rounded transition-colors ${hasPhone ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
 										>
-											<span class="sm:hidden">📱 Отправить в WhatsApp</span>
-											<span class="hidden sm:inline">📱 Отправить</span>
-										</button>
-										<button 
-											onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', ${supplierInfo.id})"
-											class="px-2 py-1.5 sm:px-3 sm:py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm rounded transition-colors"
-										>
-											<span class="sm:hidden">✏️ Изменить</span>
-											<span class="hidden sm:inline">✏️</span>
+											<span class="sm:hidden">📱 Отправить все в WhatsApp</span>
+											<span class="hidden sm:inline">📱 Отправить все</span>
 										</button>
 									` : `
-										<button 
-											onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', null)"
-											class="flex-1 px-2 py-1.5 sm:px-3 sm:py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs sm:text-sm rounded transition-colors"
-										>
-											<span class="sm:hidden">➕ Назначить поставщика</span>
-											<span class="hidden sm:inline">➕ Назначить</span>
-										</button>
+										<div class="flex-1 flex flex-wrap gap-1">
+											${supplierGroup.categories.map(category => `
+												<button 
+													onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', null)"
+													class="px-2 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs rounded transition-colors"
+												>
+													${category.categoryName}
+												</button>
+											`).join('')}
+										</div>
 									`}
+									
+									${hasSupplier ? `
+										<button 
+											onclick="editSupplierCategories(${supplierInfo.id}, '${supplierInfo.name}', [${allCategoryIds.join(',')}])"
+											class="px-2 py-1.5 sm:px-3 sm:py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm rounded transition-colors"
+										>
+											<span class="sm:hidden">✏️ Изменить поставщика</span>
+											<span class="hidden sm:inline">✏️ Изменить</span>
+										</button>
+									` : ''}
 								</div>
 							</div>
 						`;
@@ -1856,7 +1892,54 @@ import Layout from '../layouts/Layout.astro';
 				container.innerHTML = html;
 			}
 			
-			// Send category orders to supplier
+			// Send multiple categories to supplier (consolidated order)
+			async function sendSupplierOrdersToSupplier(orderDate, categoryIds, supplierName, supplierId) {
+				console.log(`📤 Sending consolidated order to supplier: ${supplierName} for date: ${orderDate}`);
+				console.log(`Categories: ${categoryIds.join(', ')}`);
+				
+				try {
+					// Send all categories for this supplier at once
+					const promises = categoryIds.map(categoryId => 
+						fetch('/api/send-category-to-supplier', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json'
+							},
+							body: JSON.stringify({
+								categoryId: categoryId,
+								supplierId: supplierId
+							})
+						})
+					);
+					
+					const responses = await Promise.all(promises);
+					const results = await Promise.all(responses.map(r => r.json()));
+					
+					const successCount = results.filter(r => r.success).length;
+					const failCount = results.filter(r => !r.success).length;
+					
+					if (successCount > 0) {
+						alert(`✅ Отправлено ${successCount} категорий поставщику "${supplierName}"`);
+						loadOrdersByCategory(); // Refresh the display
+					}
+					
+					if (failCount > 0) {
+						alert(`⚠️ ${failCount} категорий не удалось отправить`);
+					}
+					
+				} catch (error) {
+					console.error('❌ Error sending consolidated order:', error);
+					alert('Ошибка при отправке заказа поставщику');
+				}
+			}
+			
+			// Edit supplier assignments for multiple categories
+			function editSupplierCategories(supplierId, supplierName, categoryIds) {
+				alert(`Функция редактирования поставщика для ${categoryIds.length} категорий будет добавлена позже.\n\nПоставщик: ${supplierName}\nКатегории: ${categoryIds.join(', ')}`);
+				// TODO: Implement bulk supplier assignment modal
+			}
+
+			// Send category orders to supplier (legacy function - kept for backward compatibility)
 			async function sendCategoryToSupplier(orderDate, categoryId, categoryName, supplierId) {
 				if (!confirm(`Отправить все заказы из категории "${categoryName}" за ${orderDate} поставщику через WhatsApp?`)) {
 					return;
