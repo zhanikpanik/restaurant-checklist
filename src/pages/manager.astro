@@ -17,53 +17,8 @@ import Layout from '../layouts/Layout.astro';
 						<h1 class="text-lg font-bold text-gray-900">Менеджер</h1>
 					</div>
 					
-					<!-- Right: Role Switch Dropdown -->
-					<div class="relative">
-						<button 
-							id="roleDropdownBtn"
-							onclick="toggleRoleDropdown()"
-							class="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center"
-							title="Переключить роль"
-						>
-							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m0-4l-4-4"/>
-							</svg>
-							<svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-							</svg>
-						</button>
-						
-						<!-- Dropdown Menu -->
-						<div 
-							id="roleDropdown" 
-							class="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50 hidden"
-						>
-							<div class="py-1">
-								<button 
-									onclick="switchToRole('bar')" 
-									class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-								>
-									<span class="text-lg mr-2">🍷</span>
-									Бар
-								</button>
-								<button 
-									onclick="switchToRole('kitchen')" 
-									class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-								>
-									<span class="text-lg mr-2">🍳</span>
-									Кухня
-								</button>
-								<button 
-									onclick="switchToRole('manager')" 
-									class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
-								>
-									<span class="text-lg mr-2">👔</span>
-									Менеджер
-									<span class="ml-auto text-xs text-green-600">●</span>
-								</button>
-							</div>
-						</div>
-					</div>
+				<!-- Right: Back Button -->
+				<a href="/" class="text-gray-600 hover:text-gray-900 text-sm font-medium">← Назад</a>
 				</div>
 			</div>
 		</header>
@@ -468,36 +423,7 @@ import Layout from '../layouts/Layout.astro';
 		</main>
 
 		<script is:inline>
-			// Toggle role dropdown
-			function toggleRoleDropdown() {
-				const dropdown = document.getElementById('roleDropdown');
-				dropdown.classList.toggle('hidden');
-			}
-			
-			// Switch to specific role
-			function switchToRole(role) {
-				const dropdown = document.getElementById('roleDropdown');
-				dropdown.classList.add('hidden');
-				
-				if (role === 'manager') {
-					// Already on manager page
-					return;
-				} else if (role === 'bar') {
-					window.location.href = '/bar';
-				} else if (role === 'kitchen') {
-					window.location.href = '/kitchen';
-				}
-			}
-			
-			// Close dropdown when clicking outside
-			document.addEventListener('click', function(event) {
-				const dropdown = document.getElementById('roleDropdown');
-				const button = document.getElementById('roleDropdownBtn');
-				
-				if (dropdown && button && !button.contains(event.target) && !dropdown.contains(event.target)) {
-					dropdown.classList.add('hidden');
-				}
-			});
+		// Removed role-based navigation - now using sections
 
 			// Global variables (moved to product selection section)
 			

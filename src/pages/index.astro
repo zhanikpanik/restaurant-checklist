@@ -1,33 +1,139 @@
 ---
-// Redirect to login - index page is unnecessary
+import Layout from '../layouts/Layout.astro';
 ---
 
-<script>
-	// Check if user has a role, redirect accordingly
-	const userRole = localStorage.getItem('userRole');
-	const userRoleTimestamp = localStorage.getItem('userRoleTimestamp');
+<Layout title="Restaurant System - Выберите отдел">
+	<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+		<div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
+			<div class="text-center mb-8">
+				<h1 class="text-3xl font-bold text-gray-800 mb-2">🍽️ Restaurant System</h1>
+				<p class="text-gray-600">Выберите отдел для работы</p>
+			</div>
 
-	// Check if role has expired (8 hours)
-	if (userRole && userRoleTimestamp) {
-		const eightHours = 8 * 60 * 60 * 1000;
-		if (Date.now() - parseInt(userRoleTimestamp) > eightHours) {
-			localStorage.removeItem('userRole');
-			localStorage.removeItem('userRoleTimestamp');
-			window.location.href = '/login';
-		} else {
-			// Role is valid, redirect to appropriate page
-			if (userRole === 'manager') {
-				window.location.href = '/manager';
-			} else if (userRole === 'chef') {
-				window.location.href = '/kitchen';
-			} else if (userRole === 'barman') {
-				window.location.href = '/bar';
-			} else {
-				window.location.href = '/login';
+			<div id="sectionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<!-- Loading state -->
+				<div class="col-span-full text-center py-8">
+					<div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
+					<p class="text-gray-600">Загрузка отделов...</p>
+				</div>
+			</div>
+
+			<div class="mt-8 text-center">
+				<p class="text-sm text-gray-500">Система управления рестораном</p>
+			</div>
+		</div>
+	</div>
+
+	<script is:inline>
+		// Load all departments and display them as sections
+		async function loadSections() {
+			try {
+				const response = await fetch('/api/departments');
+				const data = await response.json();
+				
+				if (data.success) {
+					displaySections(data.data);
+				} else {
+					throw new Error(data.error);
+				}
+			} catch (error) {
+				console.error('Error loading sections:', error);
+				// Fallback to default sections
+				displaySections([
+					{ id: 1, name: 'Кухня', emoji: '🍳', poster_storage_id: 1 },
+					{ id: 2, name: 'Бар', emoji: '🍷', poster_storage_id: 2 },
+					{ id: 3, name: 'Горничная', emoji: '🧹', poster_storage_id: null },
+					{ id: 4, name: 'Менеджер', emoji: '👨‍💼', poster_storage_id: null }
+				]);
 			}
 		}
-	} else {
-		// No role, redirect to login
-		window.location.href = '/login';
-	}
-</script>
+		
+		function displaySections(departments) {
+			const container = document.getElementById('sectionsContainer');
+			
+			// Add manager section first (special case)
+			let sectionsHtml = `
+				<button onclick="selectSection('manager')" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
+					<span class="text-3xl mr-4">👨‍💼</span>
+					<div class="text-left">
+						<div class="font-semibold text-lg">Менеджер</div>
+						<div class="text-sm opacity-90">Управление заказами и поставщиками</div>
+					</div>
+				</button>
+			`;
+			
+			// Add department sections
+			departments.forEach(dept => {
+				// Skip if it's manager (already added above)
+				if (dept.name.toLowerCase() === 'менеджер') return;
+				
+				const colors = getSectionColors(dept.name);
+				const description = getSectionDescription(dept.name, dept.poster_storage_id);
+				const sectionKey = getSectionKey(dept.name);
+				
+				sectionsHtml += `
+					<button onclick="selectSection('${sectionKey}', '${dept.name}')" class="w-full ${colors} text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
+						<span class="text-3xl mr-4">${dept.emoji}</span>
+						<div class="text-left">
+							<div class="font-semibold text-lg">${dept.name}</div>
+							<div class="text-sm opacity-90">${description}</div>
+						</div>
+					</button>
+				`;
+			});
+			
+			container.innerHTML = sectionsHtml;
+		}
+		
+		function getSectionColors(deptName) {
+			const name = deptName.toLowerCase();
+			if (name.includes('кухня')) return 'bg-orange-500 hover:bg-orange-600';
+			if (name.includes('бар')) return 'bg-purple-500 hover:bg-purple-600';
+			if (name.includes('горничная')) return 'bg-pink-500 hover:bg-pink-600';
+			if (name.includes('склад')) return 'bg-gray-500 hover:bg-gray-600';
+			if (name.includes('офис')) return 'bg-blue-500 hover:bg-blue-600';
+			if (name.includes('ресепшн')) return 'bg-indigo-500 hover:bg-indigo-600';
+			return 'bg-teal-500 hover:bg-teal-600'; // Default color
+		}
+		
+		function getSectionDescription(deptName, posterStorageId) {
+			const name = deptName.toLowerCase();
+			if (name.includes('кухня')) return 'Заказы для кухни';
+			if (name.includes('бар')) return 'Заказы для бара';
+			if (name.includes('горничная')) return 'Хозяйственные товары';
+			if (posterStorageId) return 'Товары из Poster';
+			return 'Управление товарами';
+		}
+		
+		function getSectionKey(deptName) {
+			const name = deptName.toLowerCase();
+			if (name.includes('кухня')) return 'kitchen';
+			if (name.includes('бар')) return 'bar';
+			if (name.includes('горничная')) return 'custom';
+			// For custom departments, use a safe URL key
+			return deptName.toLowerCase().replace(/[^a-zа-я0-9]/g, '');
+		}
+		
+		function selectSection(sectionKey, deptName = '') {
+			console.log(`Selected section: ${sectionKey}`, deptName);
+			
+			// Redirect to appropriate page
+			if (sectionKey === 'manager') {
+				window.location.href = '/manager';
+			} else if (sectionKey === 'kitchen') {
+				window.location.href = '/kitchen';
+			} else if (sectionKey === 'bar') {
+				window.location.href = '/bar';
+			} else if (sectionKey === 'custom') {
+				window.location.href = '/custom';
+			} else {
+				// For custom departments, we need to create dynamic pages or use a generic page
+				// For now, redirect to custom page with department parameter
+				window.location.href = `/custom?dept=${encodeURIComponent(deptName)}`;
+			}
+		}
+		
+		// Load sections when page loads
+		document.addEventListener('DOMContentLoaded', loadSections);
+	</script>
+</Layout>

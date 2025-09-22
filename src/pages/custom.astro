@@ -14,7 +14,7 @@ import Layout from '../layouts/Layout.astro';
 					</div>
 					<div class="text-right text-sm">
 						<div class="font-medium">Хозяйственные товары</div>
-						<a href="/login" class="text-purple-200 hover:text-white">← Выйти</a>
+						<a href="/" class="text-purple-200 hover:text-white">← Назад</a>
 					</div>
 				</div>
 			</div>
@@ -171,14 +171,29 @@ import Layout from '../layouts/Layout.astro';
 			try {
 				console.log('🔄 Loading custom products from database...');
 				
-				// First check if we need to migrate from localStorage
-				const localProducts = localStorage.getItem('customProducts');
-				if (localProducts && !localStorage.getItem('customProductsMigrated')) {
-					await migrateFromLocalStorage();
+				// Get department from URL parameter or default to Горничная
+				const urlParams = new URLSearchParams(window.location.search);
+				const deptName = urlParams.get('dept') || 'Горничная';
+				
+				// Update page title and header if it's a custom department
+				if (deptName !== 'Горничная') {
+					document.title = `${deptName} - Товары`;
+					const headerTitle = document.querySelector('h1');
+					if (headerTitle) headerTitle.textContent = deptName;
+					const headerDesc = document.querySelector('.text-right .font-medium');
+					if (headerDesc) headerDesc.textContent = 'Товары отдела';
+				}
+				
+				// First check if we need to migrate from localStorage (only for Горничная)
+				if (deptName === 'Горничная') {
+					const localProducts = localStorage.getItem('customProducts');
+					if (localProducts && !localStorage.getItem('customProductsMigrated')) {
+						await migrateFromLocalStorage();
+					}
 				}
 				
 				// Load from database via combined inventory API
-				const response = await fetch('/api/combined-inventory?department=Горничная');
+				const response = await fetch(`/api/combined-inventory?department=${encodeURIComponent(deptName)}`);
 				const result = await response.json();
 				
 				if (result.success && result.data) {
