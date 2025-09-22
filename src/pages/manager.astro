@@ -2535,14 +2535,25 @@ import Layout from '../layouts/Layout.astro';
 					const data = await response.json();
 					
 					const select = document.getElementById('newProductCategory');
-					if (select && data.success) {
+					if (select) {
 						select.innerHTML = '<option value="">Без категории</option>';
-						data.data.forEach(category => {
-							select.innerHTML += `<option value="${category.id}">${category.name}</option>`;
-						});
+						
+						// Handle both 'data' and 'categories' fields for backward compatibility
+						const categories = data.data || data.categories || [];
+						
+						if (data.success && categories.length > 0) {
+							categories.forEach(category => {
+								select.innerHTML += `<option value="${category.id}">${category.name}</option>`;
+							});
+						}
 					}
 				} catch (error) {
 					console.error('Error loading categories:', error);
+					// Still populate the select with default option even if API fails
+					const select = document.getElementById('newProductCategory');
+					if (select) {
+						select.innerHTML = '<option value="">Без категории</option>';
+					}
 				}
 			}
 			
