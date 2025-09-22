@@ -1,0 +1,282 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Select Restaurant - Multi-Tenant System">
+	<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+		<div class="max-w-4xl w-full bg-white rounded-xl shadow-lg p-8">
+			<div class="text-center mb-8">
+				<h1 class="text-3xl font-bold text-gray-800 mb-2">🏢 Restaurant System</h1>
+				<p class="text-gray-600">Select your restaurant to continue</p>
+			</div>
+
+			<div id="restaurantsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+				<!-- Loading state -->
+				<div class="col-span-full text-center py-8">
+					<div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
+					<p class="text-gray-600">Loading restaurants...</p>
+				</div>
+			</div>
+
+			<!-- Admin Section -->
+			<div class="mt-12 pt-8 border-t border-gray-200">
+				<div class="text-center">
+					<h3 class="text-lg font-semibold text-gray-700 mb-4">🔧 Administration</h3>
+					<div class="flex flex-wrap justify-center gap-3">
+						<button 
+							onclick="openAddRestaurantModal()" 
+							class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+						>
+							➕ Add Restaurant
+						</button>
+						<button 
+							onclick="refreshRestaurants()" 
+							class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+						>
+							🔄 Refresh
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Add Restaurant Modal -->
+	<div id="addRestaurantModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+		<div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+			<div class="p-6 border-b">
+				<div class="flex justify-between items-center">
+					<h3 class="text-lg font-semibold">➕ Add New Restaurant</h3>
+					<button onclick="closeAddRestaurantModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+				</div>
+			</div>
+			
+			<div class="p-6 space-y-4">
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-1">Restaurant ID</label>
+					<input 
+						type="text" 
+						id="newRestaurantId" 
+						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+						placeholder="e.g., restaurant_new"
+					/>
+				</div>
+				
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-1">Restaurant Name</label>
+					<input 
+						type="text" 
+						id="newRestaurantName" 
+						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+						placeholder="e.g., New Restaurant"
+					/>
+				</div>
+				
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-1">Logo Emoji</label>
+					<input 
+						type="text" 
+						id="newRestaurantLogo" 
+						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+						placeholder="🍽️"
+						maxlength="2"
+					/>
+				</div>
+				
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
+					<input 
+						type="color" 
+						id="newRestaurantColor" 
+						class="w-full h-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+						value="#3B82F6"
+					/>
+				</div>
+				
+				<div>
+					<label class="block text-sm font-medium text-gray-700 mb-1">Poster Token</label>
+					<input 
+						type="text" 
+						id="newRestaurantToken" 
+						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+						placeholder="account_id:token"
+					/>
+				</div>
+				
+				<div class="grid grid-cols-2 gap-3">
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1">Kitchen Storage ID</label>
+						<input 
+							type="number" 
+							id="newRestaurantKitchen" 
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							value="1"
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-1">Bar Storage ID</label>
+						<input 
+							type="number" 
+							id="newRestaurantBar" 
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+							value="2"
+						/>
+					</div>
+				</div>
+			</div>
+			
+			<div class="p-6 border-t">
+				<div class="flex space-x-3">
+					<button 
+						onclick="createRestaurant()" 
+						class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg"
+					>
+						✓ Create Restaurant
+					</button>
+					<button 
+						onclick="closeAddRestaurantModal()" 
+						class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg"
+					>
+						Cancel
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script is:inline>
+		// Load all restaurants and display them
+		async function loadRestaurants() {
+			try {
+				const response = await fetch('/api/restaurants');
+				const data = await response.json();
+				
+				if (data.success) {
+					displayRestaurants(data.data);
+				} else {
+					throw new Error(data.error);
+				}
+			} catch (error) {
+				console.error('Error loading restaurants:', error);
+				// Fallback to default restaurant
+				displayRestaurants([
+					{ id: 'default', name: 'Default Restaurant', logo: '🍽️', primary_color: '#3B82F6', is_active: true }
+				]);
+			}
+		}
+		
+		function displayRestaurants(restaurants) {
+			const container = document.getElementById('restaurantsContainer');
+			
+			let html = '';
+			restaurants.forEach(restaurant => {
+				const isActive = restaurant.is_active;
+				const statusClass = isActive ? 'hover:shadow-lg cursor-pointer' : 'opacity-50 cursor-not-allowed';
+				const statusText = isActive ? 'Active' : 'Inactive';
+				
+				html += `
+					<div class="bg-white border-2 border-gray-200 rounded-lg p-6 transition-all duration-200 ${statusClass}" 
+						 ${isActive ? `onclick="selectRestaurant('${restaurant.id}', '${restaurant.name}')"` : ''}>
+						<div class="text-center">
+							<div class="text-4xl mb-3">${restaurant.logo}</div>
+							<h3 class="text-lg font-semibold text-gray-900 mb-2">${restaurant.name}</h3>
+							<div class="text-sm text-gray-500 mb-3">ID: ${restaurant.id}</div>
+							<div class="flex items-center justify-center space-x-2 mb-4">
+								<div class="w-4 h-4 rounded-full" style="background-color: ${restaurant.primary_color}"></div>
+								<span class="text-xs text-gray-600">${statusText}</span>
+							</div>
+							${isActive ? `
+								<div class="text-xs text-blue-600 font-medium">Click to enter →</div>
+							` : `
+								<div class="text-xs text-red-600">Restaurant disabled</div>
+							`}
+						</div>
+					</div>
+				`;
+			});
+			
+			container.innerHTML = html;
+		}
+		
+		function selectRestaurant(restaurantId, restaurantName) {
+			console.log(`Selected restaurant: ${restaurantName} (${restaurantId})`);
+			
+			// Set tenant cookie
+			document.cookie = `tenant=${restaurantId}; path=/; max-age=${30 * 24 * 60 * 60}`; // 30 days
+			
+			// Redirect to main app with tenant parameter
+			window.location.href = `/?tenant=${restaurantId}`;
+		}
+		
+		function refreshRestaurants() {
+			loadRestaurants();
+		}
+		
+		// Modal functions
+		function openAddRestaurantModal() {
+			document.getElementById('addRestaurantModal').classList.remove('hidden');
+			document.getElementById('newRestaurantId').focus();
+		}
+		
+		function closeAddRestaurantModal() {
+			document.getElementById('addRestaurantModal').classList.add('hidden');
+			// Clear form
+			document.getElementById('newRestaurantId').value = '';
+			document.getElementById('newRestaurantName').value = '';
+			document.getElementById('newRestaurantLogo').value = '';
+			document.getElementById('newRestaurantColor').value = '#3B82F6';
+			document.getElementById('newRestaurantToken').value = '';
+			document.getElementById('newRestaurantKitchen').value = '1';
+			document.getElementById('newRestaurantBar').value = '2';
+		}
+		
+		async function createRestaurant() {
+			const id = document.getElementById('newRestaurantId').value.trim();
+			const name = document.getElementById('newRestaurantName').value.trim();
+			const logo = document.getElementById('newRestaurantLogo').value.trim() || '🍽️';
+			const primary_color = document.getElementById('newRestaurantColor').value;
+			const poster_token = document.getElementById('newRestaurantToken').value.trim();
+			const kitchen_storage_id = parseInt(document.getElementById('newRestaurantKitchen').value) || 1;
+			const bar_storage_id = parseInt(document.getElementById('newRestaurantBar').value) || 2;
+			
+			if (!id || !name || !poster_token) {
+				alert('Please fill in all required fields (ID, Name, Poster Token)');
+				return;
+			}
+			
+			try {
+				const response = await fetch('/api/restaurants', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						id,
+						name,
+						logo,
+						primary_color,
+						poster_token,
+						kitchen_storage_id,
+						bar_storage_id
+					})
+				});
+				
+				const data = await response.json();
+				
+				if (data.success) {
+					alert(`Restaurant "${name}" created successfully!`);
+					closeAddRestaurantModal();
+					loadRestaurants(); // Refresh the list
+				} else {
+					throw new Error(data.error);
+				}
+			} catch (error) {
+				console.error('Error creating restaurant:', error);
+				alert(`Error creating restaurant: ${error.message}`);
+			}
+		}
+		
+		// Load restaurants when page loads
+		document.addEventListener('DOMContentLoaded', loadRestaurants);
+	</script>
+</Layout>

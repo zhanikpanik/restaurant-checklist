@@ -48,12 +48,6 @@ import Layout from "../layouts/Layout.astro";
                 </div>
             </div>
 
-            <button
-                id="refreshBtn"
-                class="fixed bottom-6 right-6 p-4 bg-green-600 text-white rounded-full"
-            >
-                🔄
-            </button>
         </main>
     </div>
 
@@ -860,7 +854,6 @@ import Layout from "../layouts/Layout.astro";
             currentFilter = "delivered";
             loadOrders();
         };
-        document.getElementById("refreshBtn").onclick = loadOrders;
 
         // Download XLS function
         async function downloadOrderXLS(timestamp, department) {
