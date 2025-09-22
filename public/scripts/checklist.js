@@ -148,8 +148,20 @@ function renderShoppingListProducts() {
                     ${stockInfo}
                 </div>
                                     <div class="flex items-center justify-end">
-                    <!-- Inline quantity controls: - [input with unit] + -->
-                    <div class="flex items-center bg-gray-100 rounded-lg border border-gray-300">
+                    <!-- Initial Add Button (shown when quantity is 0) -->
+                    <div id="addBtn-${product.id}" class="add-button ${product.shoppingQuantity > 0 ? 'hidden' : ''}">
+                        <button
+                          class="px-4 h-10 bg-green-500 hover:bg-green-600 text-white flex items-center justify-center text-lg font-medium transition-colors duration-200 rounded-lg"
+                          onclick="showQuantityControls(${product.id})"
+                          title="Добавить ${product.name}"
+                          type="button"
+                        >
+                          + Добавить
+                        </button>
+                    </div>
+                    
+                    <!-- Quantity controls (shown when quantity > 0) -->
+                    <div id="quantityControls-${product.id}" class="quantity-controls flex items-center bg-gray-100 rounded-lg border border-gray-300 ${product.shoppingQuantity > 0 ? '' : 'hidden'}">
                         <button
                           class="px-2 h-10 bg-gray-100 hover:bg-gray-200 text-gray-700 flex items-center justify-center text-2xl font-normal transition-colors duration-200 rounded-l-lg"
                           onclick="updateShoppingQuantity(${product.id}, -1)"
@@ -377,6 +389,39 @@ function initializeOrderMode() {
   return true;
 }
 
+// Show quantity controls when user clicks "Add" button
+function showQuantityControls(productId) {
+  // Hide the add button
+  const addBtn = document.getElementById(`addBtn-${productId}`);
+  if (addBtn) {
+    addBtn.classList.add('hidden');
+  }
+  
+  // Show the quantity controls
+  const quantityControls = document.getElementById(`quantityControls-${productId}`);
+  if (quantityControls) {
+    quantityControls.classList.remove('hidden');
+  }
+  
+  // Set initial quantity to 1
+  setShoppingQuantity(productId, 1);
+}
+
+// Hide quantity controls and show add button when quantity becomes 0
+function hideQuantityControls(productId) {
+  // Show the add button
+  const addBtn = document.getElementById(`addBtn-${productId}`);
+  if (addBtn) {
+    addBtn.classList.remove('hidden');
+  }
+  
+  // Hide the quantity controls
+  const quantityControls = document.getElementById(`quantityControls-${productId}`);
+  if (quantityControls) {
+    quantityControls.classList.add('hidden');
+  }
+}
+
 function updateShoppingQuantity(productId, change) {
   // Convert productId to number to handle type mismatches
   const numericProductId = parseInt(productId);
@@ -403,6 +448,34 @@ function updateShoppingQuantity(productId, change) {
   }
 }
 
+// Show quantity controls and hide add button
+function showQuantityControls(productId) {
+  // Set initial quantity to 0.5
+  setShoppingQuantity(productId, 0.5);
+  
+  // Show quantity controls and hide add button
+  const addBtn = document.getElementById(`addBtn-${productId}`);
+  const quantityControls = document.getElementById(`quantityControls-${productId}`);
+  
+  if (addBtn) addBtn.classList.add('hidden');
+  if (quantityControls) quantityControls.classList.remove('hidden');
+  
+  // Focus on the input field
+  const input = document.querySelector(`.quantity-input[data-product-id="${productId}"]`);
+  if (input) {
+    setTimeout(() => input.focus(), 100);
+  }
+}
+
+// Hide quantity controls and show add button when quantity becomes 0
+function hideQuantityControls(productId) {
+  const addBtn = document.getElementById(`addBtn-${productId}`);
+  const quantityControls = document.getElementById(`quantityControls-${productId}`);
+  
+  if (addBtn) addBtn.classList.remove('hidden');
+  if (quantityControls) quantityControls.classList.add('hidden');
+}
+
 function setShoppingQuantity(productId, quantity) {
   console.log(`🛒 Setting quantity for product ${productId} to ${quantity}`);
   const shoppingItem = shoppingListData.find((p) => p.id == productId); // Use == instead of === for type flexibility
@@ -426,6 +499,18 @@ function setShoppingQuantity(productId, quantity) {
     // Log for debugging
     if (quantity > 0) {
       console.log(`${shoppingItem.name}: ${newQuantity} ${shoppingItem.unit}`);
+    }
+
+    // Handle UI state changes
+    if (newQuantity === 0) {
+      hideQuantityControls(productId);
+    } else {
+      // Ensure quantity controls are visible if quantity > 0
+      const addBtn = document.getElementById(`addBtn-${productId}`);
+      const quantityControls = document.getElementById(`quantityControls-${productId}`);
+      
+      if (addBtn) addBtn.classList.add('hidden');
+      if (quantityControls) quantityControls.classList.remove('hidden');
     }
 
     // Auto-save to cache whenever quantity changes
@@ -1313,6 +1398,8 @@ window.checklist = {
   initializeOrderMode,
   updateShoppingQuantity,
   setShoppingQuantity,
+  showQuantityControls,
+  hideQuantityControls,
   autoSaveToCache,
   saveCartToServer,
   loadCartFromServer,
@@ -1345,6 +1432,8 @@ window.shoppingListData = shoppingListData;
 window.updateProductDataFromGlobal = updateProductDataFromGlobal;
 window.setShoppingQuantity = setShoppingQuantity;
 window.updateShoppingQuantity = updateShoppingQuantity;
+window.showQuantityControls = showQuantityControls;
+window.hideQuantityControls = hideQuantityControls;
 window.initializeOrderMode = initializeOrderMode;
 window.updateFloatingButtonLabel = updateFloatingButtonLabel;
 window.updateAddedProductsLabel = updateAddedProductsLabel;
