@@ -187,16 +187,6 @@ import Layout from '../layouts/Layout.astro';
 			statusEl.textContent = 'В обработке';
 			statusEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800';
 
-			// Update summary
-			const totalCategories = orderData.categories.length;
-			const totalItems = orderData.categories.reduce((sum, cat) => sum + cat.items.length, 0);
-			
-			document.getElementById('orderSummary').innerHTML = `
-				<div>📅 Дата: ${orderData.displayDate}</div>
-				<div>📦 Категорий: ${totalCategories}</div>
-				<div>🛒 Товаров: ${totalItems}</div>
-			`;
-
 			// Display supplier groups
 			displaySupplierGroups(orderData);
 		}
