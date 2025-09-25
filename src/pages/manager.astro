@@ -85,13 +85,13 @@ import Layout from '../layouts/Layout.astro';
 							<div class="text-center text-gray-500 py-8">
 								<span class="text-4xl mb-4 block">📋</span>
 								<p class="text-lg mb-2">Загрузка заказов...</p>
-							</div>
-						</div>
 					</div>
+				</div>
+			</div>
 
 					<!-- Categories Tab -->
 					<div id="content-categories" class="tab-content hidden">
-						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-y-3 mb-4">
 							<h3 class="text-lg font-semibold text-gray-900">🏷️ Категории и поставщики</h3>
 							<div class="flex flex-wrap gap-2">
 							<button 
@@ -150,7 +150,7 @@ import Layout from '../layouts/Layout.astro';
 
 					<!-- Products Tab -->
 					<div id="content-products" class="tab-content hidden">
-						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-y-3 mb-4">
 							<h3 class="text-lg font-semibold text-gray-900">📦 Управление товарами</h3>
 							<div class="flex flex-wrap gap-2">
 								<select id="departmentFilter" onchange="loadCustomProducts()" class="px-2 py-1 border border-gray-300 rounded text-sm">
@@ -503,7 +503,7 @@ import Layout from '../layouts/Layout.astro';
 										</button>
 										
 										<!-- Inline Add Supplier Form (Hidden by default) -->
-										<div id="inlineSupplierForm" class="hidden space-y-3 p-3 border border-green-200 bg-green-50 rounded-md">
+										<div id="inlineSupplierForm" class="hidden space-y-3 p-y-3 border border-green-200 bg-green-50 rounded-md">
 											<div>
 												<label class="block text-xs font-medium text-gray-700 mb-1">Название поставщика</label>
 												<input 
@@ -1484,7 +1484,7 @@ import Layout from '../layouts/Layout.astro';
 							   'bg-blue-100 text-blue-800 border-blue-200';
 				
 				toast.innerHTML = `
-					<div class="border rounded-lg p-3 ${bgColor} shadow-lg">
+					<div class="border rounded-lg p-y-3 ${bgColor} shadow-lg">
 						<div class="flex items-center">
 							<span class="text-sm">${message}</span>
 							<button onclick="this.parentElement.parentElement.parentElement.remove()" class="ml-2 text-gray-500 hover:text-gray-700">✕</button>
@@ -1634,64 +1634,72 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				// Desktop: Grid layout, Mobile: Single column
-				let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
+				// Table-style layout
+				let html = `
+					<div class="overflow-x-auto">
+						<table class="w-full bg-white rounded-lg shadow-sm">
+							<thead class="bg-gray-50 border-b border-gray-200">
+								<tr>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Категория</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Поставщик</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Контакт</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-200">
+				`;
 				
 				categorySuppliers.forEach(category => {
 					const hasSupplier = category.supplier_id && category.supplier_name;
 					const hasPhone = hasSupplier && category.supplier_phone;
 					
 					html += `
-						<div class="bg-gray-50 rounded-lg p-3">
-							<!-- Mobile: Full layout, Desktop: Compact header -->
-							<div class="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
-								<h4 class="font-medium text-gray-900 mb-1 md:mb-0">${category.category_name}</h4>
-								<span class="text-xs text-gray-500 self-start md:self-center">ID: ${category.id}</span>
-							</div>
-							
-							${hasSupplier ? `
-								<div class="text-sm text-green-600 mb-1">📦 ${category.supplier_name}</div>
-								${hasPhone ? `
-									<div class="text-xs text-gray-500 mb-3">📱 ${category.supplier_phone}</div>
-								` : `
-									<div class="text-xs text-red-500 mb-3">⚠️ Нет телефона</div>
-								`}
-							` : `
-								<div class="text-sm text-red-600 mb-3">⚠️ Без поставщика</div>
-							`}
-							
-							<!-- Mobile: Full width buttons, Desktop: Compact buttons -->
-							<div class="flex flex-col md:flex-row gap-2">
+						<tr class="hover:bg-gray-50">
+							<td class="px-4 py-3">
+								<div class="font-medium text-gray-900">${category.category_name}</div>
+								<div class="text-xs text-gray-500">ID: ${category.id}</div>
+							</td>
+							<td class="px-4 py-3">
 								${hasSupplier ? `
-									<button 
-										onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', ${category.supplier_id})"
-										class="flex-1 px-2 py-1.5 md:px-3 md:py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs md:text-sm rounded transition-colors"
-									>
-										<span class="md:hidden">✏️ Изменить поставщика</span>
-										<span class="hidden md:inline">✏️ Изменить</span>
-									</button>
+									<div class="text-green-600 font-medium">📦 ${category.supplier_name}</div>
 								` : `
-									<button 
-										onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', null)"
-										class="flex-1 px-2 py-1.5 md:px-3 md:py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-xs md:text-sm rounded transition-colors"
-									>
-										<span class="md:hidden">➕ Назначить поставщика</span>
-										<span class="hidden md:inline">➕ Назначить</span>
-									</button>
+									<div class="text-red-600">⚠️ Без поставщика</div>
 								`}
-								<button 
-									onclick="deleteCategory(${category.id}, '${category.category_name}')"
-									class="px-2 py-1.5 md:px-3 md:py-2 bg-red-500 hover:bg-red-600 text-white text-xs md:text-sm rounded transition-colors"
-								>
-									<span class="md:hidden">🗑️ Удалить</span>
-									<span class="hidden md:inline">🗑️</span>
-								</button>
-							</div>
-						</div>
+							</td>
+							<td class="px-4 py-3">
+								${hasSupplier ? (hasPhone ? `
+									<div class="text-gray-600">📱 ${category.supplier_phone}</div>
+								` : `
+									<div class="text-red-500">⚠️ Нет телефона</div>
+								`) : `
+									<div class="text-gray-400">—</div>
+								`}
+							</td>
+							<td class="px-4 py-3 text-right">
+								<div class="flex justify-end gap-2">
+									<button 
+										onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', ${category.supplier_id || 'null'})"
+										class="px-3 py-1.5 text-xs font-medium rounded transition-colors ${hasSupplier ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-white'}"
+									>
+										${hasSupplier ? '✏️ Изменить' : '➕ Назначить'}
+									</button>
+									<button 
+										onclick="deleteCategory(${category.id}, '${category.category_name}')"
+										class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors"
+									>
+										🗑️
+									</button>
+								</div>
+							</td>
+						</tr>
 					`;
 				});
 				
-				html += '</div>';
+				html += `
+							</tbody>
+						</table>
+					</div>
+				`;
 				container.innerHTML = html;
 			}
 			
@@ -1714,7 +1722,7 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 			
-			// Display orders grouped by date and categories
+			// Display orders as cards
 			function displayOrdersByCategory(ordersByDate) {
 				const container = document.getElementById('ordersByCategory');
 				
@@ -1734,34 +1742,24 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				let html = '<div class="space-y-6">';
+				// Create cards for each order date
+				let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">';
 				
-				// Loop through each date group
-				ordersByDate.forEach((dateGroup, dateIndex) => {
-					html += `
-						<div class="${dateIndex > 0 ? 'mt-8' : ''}">
-							<div class="flex justify-between items-center mb-4">
-								<h3 class="text-lg font-bold text-gray-900">📅 ${dateGroup.displayDate}</h3>
-								<div class="flex items-center gap-2">
-									<button 
-										onclick="openAddMissingProductsForDate('${dateGroup.date}', '${dateGroup.displayDate}')" 
-										class="px-2 py-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium rounded transition-colors"
-									>
-										➕ Добавить
-									</button>
-									<span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-										${dateGroup.categories.length} категорий
-									</span>
-								</div>
-							</div>
-							
-							<!-- Desktop: Grid layout, Mobile: Single column -->
-							<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-					`;
-					
-					// Group categories by supplier for this date
+				ordersByDate.forEach((dateGroup) => {
+					// Collect all items and sections for this order
+					const allItems = [];
+					const sectionsUsed = new Set();
 					const supplierGroups = {};
+					
 					dateGroup.categories.forEach(category => {
+						category.items.forEach(item => {
+							allItems.push(item);
+							if (item.department) {
+								sectionsUsed.add(item.department);
+							}
+						});
+						
+						// Group by supplier for action buttons
 						const hasSupplier = category.supplier && category.supplier.name;
 						const supplierKey = hasSupplier ? category.supplier.id : 'no-supplier';
 						
@@ -1769,100 +1767,85 @@ import Layout from '../layouts/Layout.astro';
 							supplierGroups[supplierKey] = {
 								supplier: hasSupplier ? category.supplier : null,
 								categories: [],
-								totalItems: 0
+								categoryIds: []
 							};
 						}
 						
 						supplierGroups[supplierKey].categories.push(category);
-						supplierGroups[supplierKey].totalItems += category.items.length;
+						supplierGroups[supplierKey].categoryIds.push(category.categoryId);
 					});
 					
-					// Display each supplier group
-					Object.values(supplierGroups).forEach(supplierGroup => {
-						const hasSupplier = supplierGroup.supplier !== null;
-						const supplierInfo = supplierGroup.supplier;
-						const hasPhone = hasSupplier && supplierInfo.phone;
-						const allCategoryIds = supplierGroup.categories.map(cat => cat.categoryId);
-						const allItems = supplierGroup.categories.flatMap(cat => cat.items);
-						
-						html += `
-							<div class="bg-gray-50 rounded-lg p-3">
-								<!-- Supplier Header -->
-								<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-3">
-									<div>
-										${hasSupplier ? `
-											<h4 class="font-medium text-gray-900 mb-1">📦 ${supplierInfo.name}</h4>
-											${hasPhone ? `
-												<div class="text-xs text-gray-500">📱 ${supplierInfo.phone}</div>
-											` : `
-												<div class="text-xs text-red-500">⚠️ Нет телефона</div>
-											`}
-										` : `
-											<h4 class="font-medium text-red-600 mb-1">⚠️ Без поставщика</h4>
-											<div class="text-xs text-gray-500">Категории без назначенного поставщика</div>
-										`}
-									</div>
-									<span class="text-xs text-gray-500 self-start sm:self-center">
-										${supplierGroup.categories.length} категорий, ${allItems.length} товаров
+					const sectionsArray = Array.from(sectionsUsed);
+					const sectionEmojis = {
+						'kitchen': '🍳',
+						'bar': '🍷',
+						'Горничная': '🧹',
+						'custom': '📦'
+					};
+					
+					html += `
+						<div class="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
+							<!-- Section Tags (above date) -->
+							<div class="flex flex-wrap gap-2 mb-3">
+								${sectionsArray.map(section => `
+									<span class="inline-flex items-center text-sm font-medium">
+										${sectionEmojis[section] || '📦'} ${section === 'kitchen' ? 'Кухня' : section === 'bar' ? 'Бар' : section}
 									</span>
+								`).join('')}
+							</div>
+							
+							<!-- Order Header -->
+							<div class="flex justify-between items-start mb-4">
+								<div>
+									<h3 class="text-lg font-semibold text-gray-900">📅 ${dateGroup.displayDate}</h3>
+									<p class="text-sm text-gray-600">${allItems.length} товаров</p>
 								</div>
-								
-								<!-- Categories and Items -->
-								<div class="space-y-2 mb-3">
-									${supplierGroup.categories.map(category => `
-										<div class="border-l-2 border-gray-300 pl-3">
-											<div class="font-medium text-sm text-gray-800 mb-1">${category.categoryName}</div>
-											<div class="space-y-1 text-xs max-h-24 overflow-y-auto">
-												${category.items.map(item => `
-													<div class="flex justify-between">
-														<span class="truncate pr-2">• ${item.name}</span>
-														<span class="font-medium whitespace-nowrap">${item.quantity} ${item.unit}</span>
-													</div>
-												`).join('')}
-											</div>
+							</div>
+							
+							<!-- Products Preview -->
+							<div class="mb-4">
+								<h4 class="text-sm font-medium text-gray-700 mb-2">Товары:</h4>
+								<div class="max-h-32 overflow-y-auto space-y-1">
+									${allItems.slice(0, 8).map(item => `
+										<div class="flex justify-between items-center text-sm">
+											<span class="text-gray-700 truncate">${item.name}</span>
+											<span class="text-gray-500 whitespace-nowrap ml-2">${item.quantity} ${item.unit}</span>
 										</div>
 									`).join('')}
-								</div>
-								
-								<!-- Action Buttons -->
-								<div class="flex flex-col sm:flex-row gap-2">
-									${hasSupplier ? `
-										<button 
-											onclick="sendSupplierOrdersToSupplier('${dateGroup.date}', [${allCategoryIds.join(',')}], '${supplierInfo.name}', ${supplierInfo.id})"
-											${!hasPhone ? 'disabled' : ''}
-											class="flex-1 px-2 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm rounded transition-colors ${hasPhone ? 'bg-green-500 hover:bg-green-600 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
-										>
-											<span class="sm:hidden">📱 Отправить все в WhatsApp</span>
-											<span class="hidden sm:inline">📱 Отправить все</span>
-										</button>
-									` : `
-										<div class="flex-1 flex flex-wrap gap-1">
-											${supplierGroup.categories.map(category => `
-												<button 
-													onclick="openSupplierAssignModal(${category.categoryId}, '${category.categoryName}', null)"
-													class="px-2 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs rounded transition-colors"
-												>
-													${category.categoryName}
-												</button>
-											`).join('')}
+									${allItems.length > 8 ? `
+										<div class="text-xs text-gray-500 text-center pt-2">
+											... и еще ${allItems.length - 8} товаров
 										</div>
-									`}
-									
-									${hasSupplier ? `
-										<button 
-											onclick="editSupplierCategories(${supplierInfo.id}, '${supplierInfo.name}', [${allCategoryIds.join(',')}])"
-											class="px-2 py-1.5 sm:px-3 sm:py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs sm:text-sm rounded transition-colors"
-										>
-											<span class="sm:hidden">✏️ Изменить поставщика</span>
-											<span class="hidden sm:inline">✏️ Изменить</span>
-										</button>
 									` : ''}
 								</div>
 							</div>
-						`;
-					});
-					
-					html += `
+							
+							<!-- Suppliers Info -->
+							<div class="mb-4">
+								<h4 class="text-sm font-medium text-gray-700 mb-2">Поставщики:</h4>
+								<div class="space-y-1">
+									${Object.values(supplierGroups).map(group => {
+										const hasSupplier = group.supplier !== null;
+										return `
+											<div class="flex items-center justify-between text-sm">
+												<span class="${hasSupplier ? 'text-gray-700' : 'text-red-600'}">
+													${hasSupplier ? `📦 ${group.supplier.name}` : '⚠️ Без поставщика'}
+												</span>
+												<span class="text-gray-500">${group.categories.length} кат.</span>
+											</div>
+										`;
+									}).join('')}
+								</div>
+							</div>
+							
+							<!-- Action Buttons -->
+							<div>
+								<button 
+									onclick="viewOrderDetails('${dateGroup.date}')"
+									class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
+								>
+									Просмотреть детали
+								</button>
 							</div>
 						</div>
 					`;
@@ -1870,6 +1853,78 @@ import Layout from '../layouts/Layout.astro';
 				
 				html += '</div>';
 				container.innerHTML = html;
+			}
+			
+			// Send all suppliers for a specific date
+			async function sendAllSuppliersForDate(orderDate) {
+				console.log(`📤 Sending all suppliers for date: ${orderDate}`);
+				
+				if (!confirm(`Отправить заказы всем поставщикам за ${orderDate} через WhatsApp?`)) {
+					return;
+				}
+				
+				try {
+					// Get the order data for this date
+					const response = await fetch('/api/orders-by-category');
+					const data = await response.json();
+					
+					if (!data.success) {
+						throw new Error('Failed to load order data');
+					}
+					
+					// Find the specific date
+					const dateGroup = data.data.find(d => d.date === orderDate);
+					if (!dateGroup) {
+						throw new Error('Order date not found');
+					}
+					
+					// Group categories by supplier
+					const supplierGroups = {};
+					dateGroup.categories.forEach(category => {
+						const hasSupplier = category.supplier && category.supplier.name && category.supplier.phone;
+						if (hasSupplier) {
+							const supplierKey = category.supplier.id;
+							if (!supplierGroups[supplierKey]) {
+								supplierGroups[supplierKey] = {
+									supplier: category.supplier,
+									categories: [],
+									categoryIds: []
+								};
+							}
+							supplierGroups[supplierKey].categories.push(category);
+							supplierGroups[supplierKey].categoryIds.push(category.categoryId);
+						}
+					});
+					
+					if (Object.keys(supplierGroups).length === 0) {
+						showToast('Нет поставщиков с телефонами для отправки', 'error');
+						return;
+					}
+					
+					// Send to each supplier
+					let successCount = 0;
+					for (const supplierGroup of Object.values(supplierGroups)) {
+						try {
+							await sendSupplierOrdersToSupplier(
+								orderDate, 
+								supplierGroup.categoryIds, 
+								supplierGroup.supplier.name, 
+								supplierGroup.supplier.id
+							);
+							successCount++;
+						} catch (error) {
+							console.error(`Failed to send to ${supplierGroup.supplier.name}:`, error);
+						}
+					}
+					
+					if (successCount > 0) {
+						showToast(`✅ Заказы отправлены ${successCount} поставщикам`, 'success');
+					}
+					
+				} catch (error) {
+					console.error('❌ Failed to send to all suppliers:', error);
+					showToast('Ошибка при отправке заказов: ' + error.message, 'error');
+				}
 			}
 			
 			// Send multiple categories to supplier (consolidated order)
@@ -2151,51 +2206,67 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				// Desktop: Grid layout, Mobile: Single column
-				let suppliersHtml = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
+				// Table-style layout
+				let suppliersHtml = `
+					<div class="overflow-x-auto">
+						<table class="w-full bg-white rounded-lg shadow-sm">
+							<thead class="bg-gray-50 border-b border-gray-200">
+								<tr>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Поставщик</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Контакт</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Создан</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-200">
+				`;
 				suppliers.forEach((supplier, index) => {
 					const createdDate = new Date(supplier.created_at).toLocaleDateString('ru-RU');
 					
 					suppliersHtml += `
-						<div class="bg-gray-50 rounded-lg p-3">
-							<!-- Mobile: Full layout, Desktop: Compact header -->
-							<div class="flex flex-col md:flex-row md:justify-between md:items-start mb-2">
-								<h4 class="font-medium text-gray-900 mb-1 md:mb-0">${supplier.name}</h4>
-								<span class="text-xs text-gray-500 self-start md:self-center">${createdDate}</span>
-								</div>
-							
-							${supplier.phone ? `
-								<div class="text-sm text-gray-600 mb-1">📱 ${supplier.phone}</div>
-							` : `
-								<div class="text-sm text-red-500 mb-1">⚠️ Нет телефона</div>
-							`}
-							
-							${supplier.contact_info ? `
-								<div class="text-xs text-gray-500 mb-3 truncate" title="${supplier.contact_info}">${supplier.contact_info}</div>
-							` : ''}
-							
-							<!-- Mobile: Full width buttons, Desktop: Compact buttons -->
-							<div class="flex flex-col md:flex-row gap-2 mt-2">
+						<tr class="hover:bg-gray-50">
+							<td class="px-4 py-3">
+								<div class="font-medium text-gray-900">${supplier.name}</div>
+								<div class="text-xs text-gray-500">ID: ${supplier.id}</div>
+							</td>
+							<td class="px-4 py-3">
+								${supplier.phone ? `
+									<div class="text-gray-600">📱 ${supplier.phone}</div>
+								` : `
+									<div class="text-red-500">⚠️ Нет телефона</div>
+								`}
+								${supplier.contact_info ? `
+									<div class="text-xs text-gray-500 truncate" title="${supplier.contact_info}">${supplier.contact_info}</div>
+								` : ''}
+							</td>
+							<td class="px-4 py-3">
+								<div class="text-gray-600">${createdDate}</div>
+							</td>
+							<td class="px-4 py-3 text-right">
+								<div class="flex justify-end gap-2">
 									<button 
 										onclick="editSupplier(${supplier.id})" 
-									class="flex-1 px-2 py-1.5 md:px-3 md:py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs md:text-sm rounded transition-colors"
+										class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded transition-colors"
 									>
-									<span class="md:hidden">✏️ Изменить поставщика</span>
-									<span class="hidden md:inline">✏️ Изменить</span>
+										✏️ Изменить
 									</button>
 									<button 
 										onclick="deleteSupplier(${supplier.id})" 
-									class="px-2 py-1.5 md:px-3 md:py-2 bg-red-500 hover:bg-red-600 text-white text-xs md:text-sm rounded transition-colors"
+										class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors"
 									>
-									<span class="md:hidden">🗑️ Удалить</span>
-									<span class="hidden md:inline">🗑️</span>
+										🗑️
 									</button>
 								</div>
-						</div>
+							</td>
+						</tr>
 					`;
 				});
 				
-				suppliersHtml += '</div>';
+				suppliersHtml += `
+							</tbody>
+						</table>
+					</div>
+				`;
 				container.innerHTML = suppliersHtml;
 			}
 			
@@ -2598,43 +2669,76 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">';
+				let html = `
+					<div class="overflow-x-auto">
+						<table class="w-full bg-white rounded-lg shadow-sm">
+							<thead class="bg-gray-50 border-b border-gray-200">
+								<tr>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Отдел</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Тип</th>
+									<th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Товары</th>
+									<th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+								</tr>
+							</thead>
+							<tbody class="divide-y divide-gray-200">
+				`;
 				
 				departments.forEach(dept => {
 					const isPosterDept = dept.poster_storage_id !== null;
 					html += `
-						<div class="border border-gray-200 rounded-lg p-4 ${isPosterDept ? 'bg-blue-50 border-blue-200' : 'bg-white'}">
-							<div class="flex justify-between items-start mb-3">
+						<tr class="hover:bg-gray-50">
+							<td class="px-4 py-3">
 								<div class="flex items-center space-x-2">
 									<span class="text-2xl">${dept.emoji}</span>
 									<div>
-										<h4 class="font-medium text-gray-900">${dept.name}</h4>
-										${isPosterDept ? '<span class="text-xs text-blue-600">📡 Poster</span>' : '<span class="text-xs text-green-600">📦 Кастомный</span>'}
+										<div class="font-medium text-gray-900">${dept.name}</div>
+										<div class="text-xs text-gray-500">ID: ${dept.id}</div>
 									</div>
 								</div>
+							</td>
+							<td class="px-4 py-3">
+								${isPosterDept ? `
+									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+										📡 Poster
+									</span>
+								` : `
+									<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+										📦 Кастомный
+									</span>
+								`}
+							</td>
+							<td class="px-4 py-3">
+								<div class="text-gray-600">${dept.custom_products_count || 0} товаров</div>
+							</td>
+							<td class="px-4 py-3 text-right">
 								${!isPosterDept ? `
-									<div class="flex space-x-1">
+									<div class="flex justify-end gap-2">
 										<button 
 											onclick="editDepartment(${dept.id}, '${dept.name}', '${dept.emoji}')"
-											class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
+											class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded transition-colors"
 										>
-											✏️
+											✏️ Изменить
 										</button>
 										<button 
 											onclick="deleteDepartment(${dept.id}, '${dept.name}')"
-											class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded"
+											class="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors"
 										>
 											🗑️
 										</button>
 									</div>
-								` : ''}
-							</div>
-							<p class="text-sm text-gray-600">${dept.custom_products_count || 0} товаров</p>
-						</div>
+								` : `
+									<span class="text-gray-400 text-xs">Системный</span>
+								`}
+							</td>
+						</tr>
 					`;
 				});
 				
-				html += '</div>';
+				html += `
+							</tbody>
+						</table>
+					</div>
+				`;
 				container.innerHTML = html;
 			}
 			
@@ -2793,40 +2897,59 @@ import Layout from '../layouts/Layout.astro';
 								<h3 class="font-medium text-gray-900">${deptProducts[0]?.department_emoji || '📦'} ${deptName} (${deptProducts.length})</h3>
 							</div>
 							<div class="p-4">
-								<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+								<div class="overflow-x-auto">
+									<table class="w-full">
+										<thead class="bg-gray-50 border-b border-gray-200">
+											<tr>
+												<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Товар</th>
+												<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Категория</th>
+												<th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Остаток</th>
+												<th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Действия</th>
+											</tr>
+										</thead>
+										<tbody class="divide-y divide-gray-200">
 					`;
 					
 					deptProducts.forEach(product => {
 						html += `
-							<div class="border border-gray-200 rounded p-3">
-								<div class="flex justify-between items-start mb-2">
-									<h4 class="font-medium text-gray-900">${product.name}</h4>
-									<div class="flex space-x-1">
+							<tr class="hover:bg-gray-50">
+								<td class="px-3 py-2">
+									<div class="font-medium text-gray-900">${product.name}</div>
+									<div class="text-xs text-gray-500">${product.unit}</div>
+								</td>
+								<td class="px-3 py-2">
+									${product.category_name ? `
+										<div class="text-gray-600">${product.category_name}</div>
+									` : `
+										<div class="text-gray-400">Без категории</div>
+									`}
+								</td>
+								<td class="px-3 py-2">
+									<div class="text-gray-600">${product.current_quantity || 0} / ${product.min_quantity}</div>
+								</td>
+								<td class="px-3 py-2 text-right">
+									<div class="flex justify-end gap-1">
 										<button 
 											onclick="editCustomProduct(${product.id})"
-											class="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
+											class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition-colors"
 										>
 											✏️
 										</button>
 										<button 
 											onclick="deleteCustomProduct(${product.id}, '${product.name}')"
-											class="px-2 py-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 rounded"
+											class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white text-xs rounded transition-colors"
 										>
 											🗑️
 										</button>
 									</div>
-								</div>
-								<div class="text-sm text-gray-600 space-y-1">
-									<div>Единица: ${product.unit}</div>
-									<div>Мин. кол-во: ${product.min_quantity}</div>
-									<div>Текущее: ${product.current_quantity || 0}</div>
-									${product.category_name ? `<div>Категория: ${product.category_name}</div>` : ''}
-								</div>
-							</div>
+								</td>
+							</tr>
 						`;
 					});
 					
 					html += `
+										</tbody>
+									</table>
 								</div>
 							</div>
 						</div>
@@ -2993,6 +3116,11 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 
+			// Navigate to order details page
+			function viewOrderDetails(orderDate) {
+				window.location.href = `/order-details?date=${encodeURIComponent(orderDate)}`;
+			}
+
 			// Load data when page loads
 			document.addEventListener('DOMContentLoaded', function() {
 				// Load only orders data initially (default tab)
@@ -3129,7 +3257,7 @@ import Layout from '../layouts/Layout.astro';
 					const isSelected = selectedMissingProducts[productId];
 					
 					html += `
-						<div class="flex items-center justify-between p-3 border rounded-lg ${isSelected ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'}">
+						<div class="flex items-center justify-between p-y-3 border rounded-lg ${isSelected ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'}">
 							<div class="flex items-center flex-1">
 								<input 
 									type="checkbox" 

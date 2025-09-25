@@ -986,6 +986,8 @@ function clearAllQuantities() {
   // Reset data
   shoppingListData.forEach((item) => {
     item.shoppingQuantity = 0;
+    // Reset button states - hide quantity controls and show add button
+    hideQuantityControls(item.id);
   });
 
   // Clear all input fields
@@ -999,7 +1001,7 @@ function clearAllQuantities() {
   // Clear search
   clearSearch();
 
-  console.log("🧹 All quantities cleared");
+  console.log("🧹 All quantities cleared and button states reset");
 }
 
 // ===== CUSTOM ITEMS FUNCTIONALITY =====
@@ -1092,6 +1094,13 @@ function handleInlineCustomItemSubmit() {
 }
 
 function deleteCustomItem(productId) {
+  // Check if we're on the manager page - only allow deletion from manager tab
+  const currentPath = window.location.pathname;
+  if (!currentPath.includes('/manager')) {
+    alert('Удаление пользовательских товаров доступно только из вкладки менеджера');
+    return;
+  }
+
   const itemName = shoppingListData.find((item) => item.id === productId)?.name;
 
   if (confirm(`Удалить "${itemName}" из заказа?`)) {

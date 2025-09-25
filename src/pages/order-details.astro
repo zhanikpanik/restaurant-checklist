@@ -1,0 +1,630 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Order Details - Restaurant System">
+	<div class="min-h-screen bg-gray-50">
+		<!-- Header -->
+		<div class="bg-white shadow-sm border-b border-gray-200">
+			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+				<div class="flex justify-between items-center py-4">
+					<div class="flex items-center space-x-4">
+						<a href="/manager" class="text-gray-600 hover:text-gray-900 font-medium">
+							← 
+						</a>
+						<div class="h-6 w-px bg-gray-300"></div>
+						<h1 class="text-xl font-semibold text-gray-900" id="orderTitle">
+							📋 Заказ ...
+						</h1>
+					</div>
+					<div class="flex items-center space-x-3">
+						<span id="orderStatus" class="px-3 py-1 rounded-full text-sm font-medium">
+							<!-- Status will be populated -->
+						</span>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Main Content -->
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+			<!-- Loading State -->
+			<div id="loadingState" class="text-center py-12">
+				<div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
+				<p class="text-gray-600">Загрузка заказа...</p>
+			</div>
+
+			<!-- Error State -->
+			<div id="errorState" class="hidden text-center py-12">
+				<div class="text-red-500 text-4xl mb-4">❌</div>
+				<h3 class="text-lg font-medium text-gray-900 mb-2">Заказ не найден</h3>
+				<p class="text-gray-600 mb-4">Заказ не существует или был удален</p>
+				<a href="/manager" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">
+					← Вернуться к заказам
+				</a>
+			</div>
+
+			<!-- Order Content -->
+			<div id="orderContent" class="hidden">
+			<!-- Suppliers Section -->
+				<div class="space-y-6">
+					<div id="supplierGroups">
+						<!-- Supplier groups will be populated here -->
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Add Missing Products Modal -->
+		<div id="addMissingProductsModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+			<div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+				<div class="p-6 border-b">
+					<div class="flex justify-between items-center">
+						<h3 class="text-lg font-semibold">➕ Добавить недостающие товары</h3>
+						<button onclick="closeAddMissingProductsModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+					</div>
+					<p class="text-sm text-gray-600 mt-2">Выберите отдел и добавьте недостающие товары в заказ</p>
+				</div>
+				
+				<div class="p-6 flex-1 overflow-auto">
+					<!-- Section Tabs -->
+					<div class="mb-6">
+						<div class="flex border-b border-gray-200">
+							<button onclick="loadMissingProductsSection('kitchen')" class="section-btn flex-1 px-4 py-3 text-sm font-medium border-b-2 border-transparent hover:text-orange-600 hover:border-orange-300 transition-colors">
+								🍳 Кухня
+							</button>
+							<button onclick="loadMissingProductsSection('bar')" class="section-btn flex-1 px-4 py-3 text-sm font-medium border-b-2 border-transparent hover:text-purple-600 hover:border-purple-300 transition-colors">
+								🍷 Бар
+							</button>
+							<button onclick="loadMissingProductsSection('custom')" class="section-btn flex-1 px-4 py-3 text-sm font-medium border-b-2 border-transparent hover:text-gray-600 hover:border-gray-300 transition-colors">
+								🧹 Горничная
+							</button>
+							<button onclick="loadMissingProductsSection('other')" class="section-btn flex-1 px-4 py-3 text-sm font-medium border-b-2 border-transparent hover:text-blue-600 hover:border-blue-300 transition-colors">
+								📦 Другие
+							</button>
+						</div>
+					</div>
+					
+					<!-- Search -->
+					<div class="mb-4">
+						<input 
+							type="text" 
+							id="missingProductsSearch" 
+							placeholder="Поиск товаров..."
+							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+							oninput="filterMissingProducts()"
+						>
+					</div>
+					
+					<!-- Products List -->
+					<div id="missingProductsList" class="space-y-2 max-h-64 overflow-y-auto">
+						<div class="text-center text-gray-500 py-8">
+							<span class="text-4xl mb-2 block">📦</span>
+							<p>Выберите отдел для просмотра товаров</p>
+						</div>
+					</div>
+				</div>
+				
+				<div class="p-6 border-t">
+					<div class="flex space-x-3">
+						<button 
+							onclick="addSelectedMissingProducts()" 
+							class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg"
+							id="addMissingProductsSubmitBtn"
+							disabled
+						>
+							➕ Добавить выбранные
+						</button>
+						<button 
+							onclick="closeAddMissingProductsModal()" 
+							class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg"
+						>
+							Отмена
+						</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script is:inline>
+		// Global variables
+		let currentOrderData = null;
+		let currentOrderDate = null;
+		let currentMissingProductsSection = null;
+		let allMissingProducts = [];
+		let filteredMissingProducts = [];
+		let selectedMissingProducts = {};
+
+		// Get order date from URL parameters
+		function getOrderDateFromURL() {
+			const urlParams = new URLSearchParams(window.location.search);
+			return urlParams.get('date');
+		}
+
+		// Load order details
+		async function loadOrderDetails() {
+			const orderDate = getOrderDateFromURL();
+			if (!orderDate) {
+				showErrorState();
+				return;
+			}
+
+			currentOrderDate = orderDate;
+			showLoadingState();
+
+			try {
+				const response = await fetch('/api/orders-by-category');
+				const data = await response.json();
+
+				if (data.success && data.data) {
+					// Find the order for the specific date
+					const orderForDate = data.data.find(dateGroup => dateGroup.date === orderDate);
+					
+					if (orderForDate) {
+						currentOrderData = orderForDate;
+						displayOrderDetails(orderForDate);
+						showOrderContent();
+					} else {
+						showErrorState();
+					}
+				} else {
+					showErrorState();
+				}
+			} catch (error) {
+				console.error('Error loading order details:', error);
+				showErrorState();
+			}
+		}
+
+		// Display order details
+		function displayOrderDetails(orderData) {
+			// Update title
+			document.getElementById('orderTitle').textContent = `📋 ${orderData.displayDate}`;
+			
+			// Update status
+			const statusEl = document.getElementById('orderStatus');
+			statusEl.textContent = 'В обработке';
+			statusEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800';
+
+			// Update summary
+			const totalCategories = orderData.categories.length;
+			const totalItems = orderData.categories.reduce((sum, cat) => sum + cat.items.length, 0);
+			
+			document.getElementById('orderSummary').innerHTML = `
+				<div>📅 Дата: ${orderData.displayDate}</div>
+				<div>📦 Категорий: ${totalCategories}</div>
+				<div>🛒 Товаров: ${totalItems}</div>
+			`;
+
+			// Display supplier groups
+			displaySupplierGroups(orderData);
+		}
+
+		// Display supplier groups
+		function displaySupplierGroups(orderData) {
+			const container = document.getElementById('supplierGroups');
+			
+			// Group categories by supplier
+			const supplierGroups = {};
+			orderData.categories.forEach(category => {
+				const hasSupplier = category.supplier && category.supplier.name;
+				const supplierKey = hasSupplier ? category.supplier.id : 'no-supplier';
+				
+				if (!supplierGroups[supplierKey]) {
+					supplierGroups[supplierKey] = {
+						supplier: hasSupplier ? category.supplier : null,
+						categories: [],
+						totalItems: 0
+					};
+				}
+				
+				supplierGroups[supplierKey].categories.push(category);
+				supplierGroups[supplierKey].totalItems += category.items.length;
+			});
+
+			let html = '';
+			Object.values(supplierGroups).forEach(supplierGroup => {
+				const hasSupplier = supplierGroup.supplier !== null;
+				const supplierInfo = supplierGroup.supplier;
+				const hasPhone = hasSupplier && supplierInfo.phone;
+				const allCategoryIds = supplierGroup.categories.map(cat => cat.categoryId);
+				const allItems = supplierGroup.categories.flatMap(cat => cat.items);
+				
+				html += `
+					<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+						<!-- Supplier Header -->
+						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
+							<div>
+								${hasSupplier ? `
+									<h3 class="text-lg font-semibold text-gray-900 mb-1">📦 ${supplierInfo.name}</h3>
+									${hasPhone ? `
+										<div class="text-sm text-gray-600">📱 ${supplierInfo.phone}</div>
+									` : `
+										<div class="text-sm text-red-500">⚠️ Нет телефона</div>
+									`}
+								` : `
+									<h3 class="text-lg font-semibold text-red-600 mb-1">⚠️ Без поставщика</h3>
+									<div class="text-sm text-gray-600">Категории без назначенного поставщика</div>
+								`}
+							</div>
+						</div>
+						
+						<!-- Categories and Items -->
+						<div class="space-y-4 mb-6">
+							${supplierGroup.categories.map(category => `
+								<div class="border-l-4 border-gray-300 pl-4">
+									<h4 class="font-medium text-gray-800 mb-2">${category.categoryName}</h4>
+									<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+										${category.items.map(item => `
+											<div class="flex justify-between items-center bg-gray-50 rounded px-3 py-2">
+												<span class="text-sm text-gray-700">${item.name}</span>
+												<span class="text-sm font-medium text-gray-900">${item.quantity} ${item.unit}</span>
+											</div>
+										`).join('')}
+									</div>
+								</div>
+							`).join('')}
+						</div>
+						
+						<!-- Action Buttons -->
+						<div class="flex flex-col sm:flex-row gap-3">
+							${hasSupplier ? `
+								<button 
+									onclick="sendSupplierOrder('${orderData.date}', [${allCategoryIds.join(',')}], '${supplierInfo.name}', ${supplierInfo.id})"
+									${!hasPhone ? 'disabled' : ''}
+									class="flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${hasPhone ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
+								>
+									📱 Отправить поставщику
+								</button>
+							` : `
+								<div class="flex-1 flex flex-wrap gap-2">
+									${supplierGroup.categories.map(category => `
+										<button 
+											onclick="assignSupplierToCategory(${category.categoryId}, '${category.categoryName}')"
+											class="px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded transition-colors"
+										>
+											Назначить поставщика: ${category.categoryName}
+										</button>
+									`).join('')}
+								</div>
+							`}
+							
+						</div>
+					</div>
+				`;
+			});
+			
+			// Add missing products button after all supplier groups
+			html += `
+				<div class="mt-6 text-center">
+					<button 
+						id="addMissingProductsBtn"
+						onclick="openAddMissingProductsModal()" 
+						class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+					>
+						➕ Добавить недостающие товары
+					</button>
+				</div>
+			`;
+			
+			container.innerHTML = html;
+		}
+
+		// Send order to supplier
+		async function sendSupplierOrder(orderDate, categoryIds, supplierName, supplierId) {
+			console.log(`📤 Sending order to supplier: ${supplierName} for date: ${orderDate}`);
+			
+			try {
+				const promises = categoryIds.map(categoryId => 
+					fetch('/api/send-category-to-supplier', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							categoryId: categoryId,
+							supplierId: supplierId
+						})
+					})
+				);
+				
+				const responses = await Promise.all(promises);
+				const results = await Promise.all(responses.map(r => r.json()));
+				
+				const successCount = results.filter(r => r.success).length;
+				const failCount = results.filter(r => !r.success).length;
+				
+				if (successCount > 0) {
+					alert(`✅ Отправлено ${successCount} категорий поставщику "${supplierName}"`);
+					loadOrderDetails(); // Refresh the display
+				}
+				
+				if (failCount > 0) {
+					alert(`⚠️ ${failCount} категорий не удалось отправить`);
+				}
+				
+			} catch (error) {
+				console.error('❌ Error sending order:', error);
+				alert('Ошибка при отправке заказа поставщику');
+			}
+		}
+
+		// Assign supplier to category
+		function assignSupplierToCategory(categoryId, categoryName) {
+			alert(`Функция назначения поставщика для категории "${categoryName}" будет добавлена позже.`);
+			// TODO: Implement supplier assignment modal
+		}
+
+		// Edit supplier for categories
+		function editSupplierForCategories(supplierId, supplierName, categoryIds) {
+			alert(`Функция редактирования поставщика "${supplierName}" для ${categoryIds.length} категорий будет добавлена позже.`);
+			// TODO: Implement bulk supplier editing modal
+		}
+
+		// Missing Products Modal Functions (similar to manager.astro)
+		function openAddMissingProductsModal() {
+			document.getElementById('addMissingProductsModal').classList.remove('hidden');
+			// Reset state
+			currentMissingProductsSection = null;
+			allMissingProducts = [];
+			filteredMissingProducts = [];
+			selectedMissingProducts = {};
+			document.getElementById('missingProductsSearch').value = '';
+			updateMissingProductsButton();
+			
+			// Reset section tabs
+			document.querySelectorAll('.section-btn').forEach(btn => {
+				btn.classList.remove('text-green-600', 'border-green-500');
+				btn.classList.add('text-gray-500', 'border-transparent');
+			});
+		}
+
+		function closeAddMissingProductsModal() {
+			document.getElementById('addMissingProductsModal').classList.add('hidden');
+		}
+
+		async function loadMissingProductsSection(section) {
+			currentMissingProductsSection = section;
+			
+			// Update tab states
+			document.querySelectorAll('.section-btn').forEach(btn => {
+				btn.classList.remove('text-green-600', 'border-green-500');
+				btn.classList.add('text-gray-500', 'border-transparent');
+			});
+			event.target.classList.remove('text-gray-500', 'border-transparent');
+			event.target.classList.add('text-green-600', 'border-green-500');
+			
+			const container = document.getElementById('missingProductsList');
+			container.innerHTML = `
+				<div class="text-center text-gray-500 py-8">
+					<div class="animate-spin h-8 w-8 border-b-2 border-green-600 rounded-full mx-auto mb-4"></div>
+					<p>Загрузка товаров...</p>
+				</div>
+			`;
+			
+			try {
+				let apiUrl = '';
+				switch (section) {
+					case 'kitchen':
+						apiUrl = '/api/kitchen-inventory';
+						break;
+					case 'bar':
+						apiUrl = '/api/bar-inventory';
+						break;
+					case 'custom':
+						apiUrl = '/api/combined-inventory?department=Горничная';
+						break;
+					case 'other':
+						apiUrl = '/api/custom-products';
+						break;
+				}
+				
+				const response = await fetch(apiUrl);
+				const data = await response.json();
+				
+				if (data.success) {
+					allMissingProducts = data.data || [];
+					filteredMissingProducts = [...allMissingProducts];
+					displayMissingProducts();
+				} else {
+					throw new Error(data.error || 'Failed to load products');
+				}
+			} catch (error) {
+				console.error('Error loading missing products:', error);
+				container.innerHTML = `
+					<div class="text-center text-red-500 py-8">
+						<span class="text-4xl mb-2 block">❌</span>
+						<p>Ошибка загрузки товаров</p>
+						<p class="text-sm text-gray-500">${error.message}</p>
+					</div>
+				`;
+			}
+		}
+
+		function displayMissingProducts() {
+			const container = document.getElementById('missingProductsList');
+			
+			if (filteredMissingProducts.length === 0) {
+				container.innerHTML = `
+					<div class="text-center text-gray-500 py-8">
+						<span class="text-4xl mb-2 block">🔍</span>
+						<p>Товары не найдены</p>
+					</div>
+				`;
+				return;
+			}
+			
+			let html = '';
+			filteredMissingProducts.forEach(product => {
+				const productId = product.id || product.product_id;
+				const productName = product.name || product.product_name || product.title;
+				const productUnit = product.unit || 'шт';
+				const isSelected = selectedMissingProducts[productId];
+				
+				html += `
+					<div class="flex items-center justify-between p-3 border rounded-lg ${isSelected ? 'bg-green-50 border-green-300' : 'bg-gray-50 border-gray-200'}">
+						<div class="flex items-center flex-1">
+							<input 
+								type="checkbox" 
+								id="missing-product-${productId}"
+								${isSelected ? 'checked' : ''}
+								onchange="toggleMissingProduct(${productId}, '${productName}', '${productUnit}')"
+								class="mr-3 h-4 w-4 text-green-600 rounded focus:ring-green-500"
+							>
+							<div>
+								<label for="missing-product-${productId}" class="font-medium text-gray-900 cursor-pointer">
+									${productName}
+								</label>
+								<div class="text-sm text-gray-500">${productUnit}</div>
+							</div>
+						</div>
+						${isSelected ? `
+							<div class="flex items-center space-x-2">
+								<input 
+									type="number" 
+									value="${selectedMissingProducts[productId].quantity}"
+									min="0.1" 
+									step="0.1"
+									class="w-20 px-2 py-1 border border-green-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
+									onchange="updateMissingProductQuantity(${productId}, this.value)"
+								>
+								<span class="text-sm text-gray-600">${productUnit}</span>
+							</div>
+						` : ''}
+					</div>
+				`;
+			});
+			
+			container.innerHTML = html;
+		}
+
+		function toggleMissingProduct(productId, productName, unit) {
+			if (selectedMissingProducts[productId]) {
+				delete selectedMissingProducts[productId];
+			} else {
+				selectedMissingProducts[productId] = {
+					id: productId,
+					name: productName,
+					unit: unit,
+					quantity: 1,
+					section: currentMissingProductsSection
+				};
+			}
+			
+			displayMissingProducts();
+			updateMissingProductsButton();
+		}
+
+		function updateMissingProductQuantity(productId, quantity) {
+			if (selectedMissingProducts[productId]) {
+				selectedMissingProducts[productId].quantity = parseFloat(quantity) || 1;
+			}
+		}
+
+		function filterMissingProducts() {
+			const searchTerm = document.getElementById('missingProductsSearch').value.toLowerCase();
+			
+			if (!searchTerm) {
+				filteredMissingProducts = [...allMissingProducts];
+			} else {
+				filteredMissingProducts = allMissingProducts.filter(product => {
+					const productName = product.name || product.product_name || product.title || '';
+					return productName.toLowerCase().includes(searchTerm);
+				});
+			}
+			
+			displayMissingProducts();
+		}
+
+		function updateMissingProductsButton() {
+			const btn = document.getElementById('addMissingProductsSubmitBtn');
+			const selectedCount = Object.keys(selectedMissingProducts).length;
+			
+			if (selectedCount > 0) {
+				btn.disabled = false;
+				btn.textContent = `➕ Добавить выбранные (${selectedCount})`;
+			} else {
+				btn.disabled = true;
+				btn.textContent = '➕ Добавить выбранные';
+			}
+		}
+
+		async function addSelectedMissingProducts() {
+			const selectedCount = Object.keys(selectedMissingProducts).length;
+			if (selectedCount === 0) return;
+			
+			const btn = document.getElementById('addMissingProductsSubmitBtn');
+			const originalText = btn.textContent;
+			btn.disabled = true;
+			btn.textContent = '⏳ Добавление...';
+			
+			try {
+				// Create order items from selected products
+				const orderItems = Object.values(selectedMissingProducts).map(product => ({
+					name: product.name,
+					quantity: product.quantity,
+					unit: product.unit
+				}));
+				
+				// Create a new order with these items for the specific date
+				const orderData = {
+					department: currentMissingProductsSection || 'manager',
+					items: orderItems,
+					status: 'pending',
+					created_by: 'manager',
+					created_at: new Date(currentOrderDate).toISOString()
+				};
+				
+				const response = await fetch('/api/orders', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify(orderData)
+				});
+				
+				const data = await response.json();
+				
+				if (data.success) {
+					alert(`Успешно добавлено ${selectedCount} товаров в заказ!`);
+					closeAddMissingProductsModal();
+					// Refresh order details
+					loadOrderDetails();
+				} else {
+					throw new Error(data.error || 'Failed to add products');
+				}
+			} catch (error) {
+				console.error('Error adding missing products:', error);
+				alert('Ошибка при добавлении товаров: ' + error.message);
+				btn.disabled = false;
+				btn.textContent = originalText;
+			}
+		}
+
+		// UI State Functions
+		function showLoadingState() {
+			document.getElementById('loadingState').classList.remove('hidden');
+			document.getElementById('errorState').classList.add('hidden');
+			document.getElementById('orderContent').classList.add('hidden');
+		}
+
+		function showErrorState() {
+			document.getElementById('loadingState').classList.add('hidden');
+			document.getElementById('errorState').classList.remove('hidden');
+			document.getElementById('orderContent').classList.add('hidden');
+		}
+
+		function showOrderContent() {
+			document.getElementById('loadingState').classList.add('hidden');
+			document.getElementById('errorState').classList.add('hidden');
+			document.getElementById('orderContent').classList.remove('hidden');
+		}
+
+		// Initialize page
+		document.addEventListener('DOMContentLoaded', function() {
+			loadOrderDetails();
+		});
+	</script>
+</Layout>
+
