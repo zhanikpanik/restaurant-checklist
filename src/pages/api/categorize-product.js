@@ -1,4 +1,4 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 import fetch from 'node-fetch';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -84,7 +84,10 @@ async function categorizeWithAI(productName) {
 
 export async function POST({ request }) {
     const { productId, categoryId, productName } = await request.json();
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
 
     try {
         await client.query('BEGIN');
@@ -138,7 +141,7 @@ export async function POST({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
@@ -146,7 +149,10 @@ export async function POST({ request }) {
 // Get all categories
 // Get all categories
 export async function GET() {
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     try {
         await client.query('BEGIN');
         
@@ -177,6 +183,6 @@ export async function GET() {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

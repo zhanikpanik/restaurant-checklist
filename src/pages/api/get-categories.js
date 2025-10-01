@@ -1,22 +1,11 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 export async function GET({ url }) {
-    // Check if database pool is available
-    if (!pool) {
-        console.error('Database pool not initialized');
-        return new Response(JSON.stringify({
-            success: true,
-            data: [],
-            message: 'Database not connected - using fallback empty categories'
-        }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
+    const { client, error } = await getDbClient();
+    if (error) return error;
 
-    const client = await pool.connect();
     try {
         // Check if product_categories table exists
         const tableExists = await client.query(`
@@ -117,6 +106,6 @@ export async function GET({ url }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

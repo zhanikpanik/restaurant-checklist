@@ -1,9 +1,11 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 export async function POST({ request }) {
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+    if (error) return error;
+    
     try {
         console.log('🗑️ Clearing cart items from the database...');
         
@@ -40,6 +42,6 @@ export async function POST({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

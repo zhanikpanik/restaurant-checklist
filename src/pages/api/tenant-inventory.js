@@ -1,4 +1,5 @@
 import { getTenantId, posterApiRequest } from '../../lib/tenant-manager.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 import pool from '../../lib/db.js';
 
 export const prerender = false;
@@ -33,7 +34,10 @@ export async function GET({ request, url }) {
                 // Fallback storage IDs
                 targetStorageId = department === 'kitchen' ? 1 : department === 'bar' ? 2 : 1;
             } else {
-                const client = await pool.connect();
+                const { client, error } = await getDbClient();
+
+                if (error) return error;
+
                 try {
                     // Get department info with storage ID
                     const deptResult = await client.query(`
@@ -63,7 +67,7 @@ export async function GET({ request, url }) {
                         }
                     }
                 } finally {
-                    client.release();
+                    safeRelease(client);
                 }
             }
         }
@@ -158,7 +162,11 @@ export async function GET({ request, url }) {
 async function saveCategoriesForTenant(tenantId, ingredients) {
     if (!pool) return;
     
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    
+    if (error) return error;
+
     try {
         // Extract unique categories
         const uniqueCategories = new Map();
@@ -186,6 +194,6 @@ async function saveCategoriesForTenant(tenantId, ingredients) {
     } catch (error) {
         console.error('Error saving categories for tenant:', error);
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

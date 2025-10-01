@@ -1,10 +1,13 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 // GET: Fetch all categories with their supplier information
 export async function GET() {
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     try {
         const query = `
             SELECT 
@@ -34,14 +37,17 @@ export async function GET() {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
 // POST: Create a new category OR update supplier for existing category
 export async function POST({ request }) {
     const data = await request.json();
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     
     try {
         // Check if this is creating a new category (has 'name') or updating supplier (has 'category_id')
@@ -140,7 +146,7 @@ export async function POST({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
@@ -158,7 +164,11 @@ export async function DELETE({ request }) {
         });
     }
     
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    
+    if (error) return error;
+
     try {
         await client.query('BEGIN');
         
@@ -235,6 +245,6 @@ export async function DELETE({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

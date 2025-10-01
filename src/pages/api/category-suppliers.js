@@ -1,10 +1,13 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 // GET: Get all categories with their assigned suppliers
 export async function GET() {
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     try {
         // Check if product_categories table exists and what columns it has
         const tableCheck = await client.query(`
@@ -92,14 +95,17 @@ export async function GET() {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
 // POST: Assign supplier to category
 export async function POST({ request }) {
     const { categoryId, supplierId } = await request.json();
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     
     try {
         await client.query('BEGIN');
@@ -140,6 +146,6 @@ export async function POST({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

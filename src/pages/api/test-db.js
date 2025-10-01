@@ -1,11 +1,14 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 export async function GET() {
     try {
         console.log('🔍 Testing database connection...');
-        const client = await pool.connect();
+        const { client, error } = await getDbClient();
+
+        if (error) return error;
+
         
         try {
             // Test basic connection
@@ -44,7 +47,7 @@ export async function GET() {
             });
             
         } finally {
-            client.release();
+            safeRelease(client);
         }
         
     } catch (error) {

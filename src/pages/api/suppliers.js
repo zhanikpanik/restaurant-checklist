@@ -1,11 +1,14 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 import { getTenantFilter } from '../../lib/tenant.js';
 
 export const prerender = false;
 
 // GET: Fetch all suppliers
 async function getSuppliers(tenantId) {
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     try {
         console.log('🔍 Loading suppliers for tenant:', tenantId);
         
@@ -53,7 +56,7 @@ async function getSuppliers(tenantId) {
             }
         };
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
@@ -65,7 +68,11 @@ async function createSupplier(request, tenantId) {
         return { status: 400, body: { success: false, error: 'Supplier name is required' } };
     }
 
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+
+    if (error) return error;
+
     try {
         // Check if restaurant_id column exists
         const columnCheck = await client.query(`
@@ -102,7 +109,7 @@ async function createSupplier(request, tenantId) {
         }
         throw error;
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 

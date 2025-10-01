@@ -1,10 +1,13 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 // PUT: Update product supplier
 export async function PUT({ request }) {
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     
     try {
         const { productId, supplierId } = await request.json();
@@ -47,6 +50,6 @@ export async function PUT({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

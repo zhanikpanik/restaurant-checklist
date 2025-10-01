@@ -1,27 +1,13 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 // GET: Get all departments
 export async function GET() {
-    // Check if database pool is available
-    if (!pool) {
-        console.error('Database pool not initialized');
-        return new Response(JSON.stringify({
-            success: true,
-            data: [
-                { id: 1, name: 'Кухня', emoji: '🍳', poster_storage_id: 1, is_active: true, custom_products_count: 0 },
-                { id: 2, name: 'Бар', emoji: '🍷', poster_storage_id: 2, is_active: true, custom_products_count: 0 },
-                { id: 3, name: 'Горничная', emoji: '🧹', poster_storage_id: null, is_active: true, custom_products_count: 0 }
-            ],
-            message: 'Database not connected - using fallback departments'
-        }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
+    const { client, error } = await getDbClient();
     
-    const client = await pool.connect();
+    if (error) return error;
+
     try {
         const result = await client.query(`
             SELECT 
@@ -56,14 +42,17 @@ export async function GET() {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
 // POST: Create new department
 export async function POST({ request }) {
     const { name, emoji } = await request.json();
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     
     try {
         if (!name || name.trim() === '') {
@@ -100,14 +89,17 @@ export async function POST({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
 // PUT: Update department
 export async function PUT({ request }) {
     const { id, name, emoji } = await request.json();
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     
     try {
         if (!id || !name || name.trim() === '') {
@@ -149,14 +141,17 @@ export async function PUT({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
 // DELETE: Soft delete department (mark as inactive)
 export async function DELETE({ request }) {
     const { id } = await request.json();
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     
     try {
         if (!id) {
@@ -207,6 +202,6 @@ export async function DELETE({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

@@ -1,10 +1,13 @@
-import pool from '../../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 import { setupDatabaseSchema } from '../../../lib/db-schema.js';
 
 export const prerender = false;
 
 export async function GET() {
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     try {
         console.log('🔧 Manual database migration triggered...');
         
@@ -169,6 +172,6 @@ export async function GET() {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

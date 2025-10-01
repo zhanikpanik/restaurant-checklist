@@ -6,8 +6,8 @@ export const POSTER_CONFIG = {
     baseUrl: 'https://joinposter.com/api',
     
     // Access Token (get this from your Poster account)
-    // Hard-coded for now since environment variables aren't loading in Astro
-    	accessToken: process.env.POSTER_ACCESS_TOKEN || process.env.PUBLIC_POSTER_ACCESS_TOKEN || '305185:07928627ec76d09e589e1381710e55da',
+    // IMPORTANT: Set POSTER_ACCESS_TOKEN in your .env file
+    accessToken: process.env.POSTER_ACCESS_TOKEN || import.meta.env.POSTER_ACCESS_TOKEN,
     
     // API Endpoints for Bar Inventory Management
     // ✅ These are the VERIFIED working endpoints

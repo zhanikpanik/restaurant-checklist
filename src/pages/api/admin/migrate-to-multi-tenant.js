@@ -1,5 +1,6 @@
-import pool from '../../../lib/db.js';
+import { getDbClient, safeRelease } from '../../../lib/db-helper.js';
 import { setupDatabaseSchema } from '../../../lib/db-schema.js';
+import pool from '../../../lib/db.js';
 
 export const prerender = false;
 
@@ -18,7 +19,11 @@ export async function POST({ request }) {
         });
     }
     
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    
+    if (error) return error;
+
     
     try {
         console.log('🚀 Starting multi-tenant migration...');
@@ -190,7 +195,7 @@ export async function POST({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
@@ -208,7 +213,11 @@ export async function GET() {
         });
     }
     
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    
+    if (error) return error;
+
     
     try {
         // Check if multi-tenant columns exist
@@ -258,6 +267,6 @@ export async function GET() {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

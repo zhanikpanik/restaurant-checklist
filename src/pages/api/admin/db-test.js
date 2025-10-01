@@ -1,4 +1,4 @@
-import pool from '../../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
@@ -21,7 +21,10 @@ export async function GET() {
         console.log('Connection info:', connectionInfo);
         
         // Test 1: Can we get a client from the pool?
-        const client = await pool.connect();
+        const { client, error } = await getDbClient();
+
+        if (error) return error;
+
         console.log('✅ Database client connected successfully');
         
         try {
@@ -52,7 +55,7 @@ export async function GET() {
             });
             
         } finally {
-            client.release();
+            safeRelease(client);
         }
         
     } catch (error) {

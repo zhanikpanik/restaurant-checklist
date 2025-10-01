@@ -1,10 +1,13 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 // GET: Get custom products for a department or all departments
 export async function GET({ url }) {
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     try {
         const searchParams = new URL(url).searchParams;
         const departmentId = searchParams.get('department_id');
@@ -76,14 +79,17 @@ export async function GET({ url }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
 // POST: Create new custom product
 export async function POST({ request }) {
     const { name, unit, departmentId, categoryId, minQuantity, currentQuantity } = await request.json();
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     
     try {
         if (!name || name.trim() === '' || !departmentId) {
@@ -127,14 +133,17 @@ export async function POST({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
 // PUT: Update custom product
 export async function PUT({ request }) {
     const { id, name, unit, categoryId, minQuantity, currentQuantity } = await request.json();
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     
     try {
         if (!id || !name || name.trim() === '') {
@@ -176,14 +185,17 @@ export async function PUT({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 
 // DELETE: Soft delete custom product (mark as inactive)
 export async function DELETE({ request }) {
     const { id } = await request.json();
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
     
     try {
         if (!id) {
@@ -224,6 +236,6 @@ export async function DELETE({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }

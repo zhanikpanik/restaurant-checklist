@@ -1,4 +1,4 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
@@ -6,7 +6,11 @@ export const prerender = false;
 async function saveCategoriesToDb(categories) {
     if (!categories || categories.size === 0) return;
 
-    const client = await pool.connect();
+    const { client, error } = await getDbClient();
+
+
+    if (error) return error;
+
     try {
         await client.query('BEGIN');
         const query = `
@@ -23,7 +27,7 @@ async function saveCategoriesToDb(categories) {
         await client.query('ROLLBACK');
         console.error('❌ Error saving categories to DB:', error);
     } finally {
-        client.release();
+        safeRelease(client);
     }
 }
 

@@ -1,10 +1,13 @@
-import pool from '../../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 export async function GET() {
     try {
-        const client = await pool.connect();
+        const { client, error } = await getDbClient();
+
+        if (error) return error;
+
         
         try {
             // Check what categories exist in the database
@@ -30,7 +33,7 @@ export async function GET() {
             });
             
         } finally {
-            client.release();
+            safeRelease(client);
         }
         
     } catch (error) {

@@ -1,21 +1,17 @@
-import pool from '../../lib/db.js';
+import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
 export async function GET({ url }) {
+    const { client, error } = await getDbClient();
+    if (error) return error;
+    
     try {
         console.log('📦 Loading cart items from the database...');
         
-        const client = await pool.connect();
-        let responseData;
-
-        try {
-            const result = await client.query('SELECT * FROM cart_items ORDER BY created_at DESC');
-            responseData = result.rows;
-            console.log(`✅ Loaded ${responseData.length} cart items from the database.`);
-        } finally {
-            client.release();
-        }
+        const result = await client.query('SELECT * FROM cart_items ORDER BY created_at DESC');
+        const responseData = result.rows;
+        console.log(`✅ Loaded ${responseData.length} cart items from the database.`);
         
         return new Response(JSON.stringify({
             success: true,
@@ -39,5 +35,7 @@ export async function GET({ url }) {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });
+    } finally {
+        safeRelease(client);
     }
 }
