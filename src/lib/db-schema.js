@@ -160,8 +160,15 @@ export async function setupDatabaseSchema() {
             CREATE INDEX IF NOT EXISTS idx_suppliers_restaurant_id ON suppliers(restaurant_id);
             CREATE INDEX IF NOT EXISTS idx_categories_restaurant_id ON product_categories(restaurant_id);
             CREATE INDEX IF NOT EXISTS idx_products_restaurant_id ON products(restaurant_id);
+            CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
+            CREATE INDEX IF NOT EXISTS idx_products_supplier_id ON products(supplier_id);
+            CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
+            CREATE INDEX IF NOT EXISTS idx_products_restaurant_category ON products(restaurant_id, category_id);
+            CREATE INDEX IF NOT EXISTS idx_products_poster_id ON products(poster_id) WHERE poster_id IS NOT NULL;
+            CREATE INDEX IF NOT EXISTS idx_products_department ON products(department);
             CREATE INDEX IF NOT EXISTS idx_orders_restaurant_id ON orders(restaurant_id);
             CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(restaurant_id, status);
+            CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_custom_products_department ON custom_products(department_id);
             CREATE INDEX IF NOT EXISTS idx_custom_products_category ON custom_products(category_id);
             CREATE INDEX IF NOT EXISTS idx_departments_active ON departments(is_active);

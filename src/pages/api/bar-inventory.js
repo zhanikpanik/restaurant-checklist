@@ -82,11 +82,55 @@ export async function GET() {
                 name: leftover.ingredient_name,
                 quantity: parseFloat(leftover.ingredient_left) || 0,
                 unit: translatedUnit,
-                minQuantity: 1, // You might want to get this from Poster later
-                category_id: detail ? parseInt(detail.category_id) : null,
-                category_name: detail ? detail.category_name : 'Без категории',
+                minQuantity: 1,
+                poster_category_id: detail ? parseInt(detail.category_id) : null,
+                poster_category_name: detail ? detail.category_name : null,
             };
         });
+        
+        // 5. Enrich with our database categories
+        const { client: dbClient, error: dbError } = await getDbClient();
+        if (!dbError && dbClient) {
+            try {
+                // Get category assignments from our database
+                const productIds = barProducts.map(p => p.id);
+                const query = `
+                    SELECT p.id, p.category_id, pc.name as category_name
+                    FROM products p
+                    LEFT JOIN product_categories pc ON p.category_id = pc.id
+                    WHERE p.id = ANY($1) AND p.restaurant_id = 'default'
+                `;
+                const result = await dbClient.query(query, [productIds]);
+                
+                // Create a map of product_id -> category info
+                const categoryMap = new Map(
+                    result.rows.map(row => [row.id, { category_id: row.category_id, category_name: row.category_name }])
+                );
+                
+                // Enrich products with database categories
+                barProducts.forEach(product => {
+                    const dbCategory = categoryMap.get(product.id);
+                    if (dbCategory) {
+                        product.category_id = dbCategory.category_id;
+                        product.category_name = dbCategory.category_name || 'Без категории';
+                    } else {
+                        product.category_id = null;
+                        product.category_name = 'Без категории';
+                    }
+                });
+                
+                console.log(`✅ Enriched ${result.rows.length} products with database categories`);
+            } catch (error) {
+                console.error('⚠️ Error enriching with database categories:', error);
+                // Fallback: just use null categories
+                barProducts.forEach(product => {
+                    product.category_id = null;
+                    product.category_name = 'Без категории';
+                });
+            } finally {
+                safeRelease(dbClient);
+            }
+        }
         
         return new Response(JSON.stringify({ 
             success: true, 

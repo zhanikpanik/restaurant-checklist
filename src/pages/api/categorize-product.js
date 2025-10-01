@@ -18,10 +18,26 @@ async function ensureCategoriesTable(client) {
     
     // Insert default categories if they don't exist for this restaurant
     for (const category of DEFAULT_CATEGORIES) {
-        await client.query(
-            'INSERT INTO product_categories (restaurant_id, name) VALUES ($1, $2) ON CONFLICT (restaurant_id, name) DO NOTHING',
-            [restaurantId, category]
-        );
+        try {
+            // Check if category exists first
+            const existsResult = await client.query(
+                'SELECT id FROM product_categories WHERE restaurant_id = $1 AND name = $2',
+                [restaurantId, category]
+            );
+            
+            if (existsResult.rows.length === 0) {
+                // Category doesn't exist, insert it
+                await client.query(
+                    'INSERT INTO product_categories (restaurant_id, name) VALUES ($1, $2)',
+                    [restaurantId, category]
+                );
+            }
+        } catch (err) {
+            // Ignore duplicate key errors
+            if (err.code !== '23505') {
+                throw err;
+            }
+        }
     }
 }
 
@@ -39,8 +55,10 @@ async function ensureProductCategoryColumn(client) {
 }
 
 // AI-based categorization using Anthropic REST API
-async function categorizeWithAI(productName) {
+async function categorizeWithAI(productName, availableCategories) {
     try {
+        const categoryNames = availableCategories.map(c => c.name).join(', ');
+        
         const response = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST',
             headers: {
@@ -49,12 +67,12 @@ async function categorizeWithAI(productName) {
                 'anthropic-version': '2023-06-01'
             },
             body: JSON.stringify({
-                model: 'claude-3-opus-20240229',
+                model: 'claude-3-5-sonnet-20241022',
                 max_tokens: 100,
                 messages: [
                     {
                         role: 'user',
-                        content: `Categorize this product into one of these categories: ${DEFAULT_CATEGORIES.join(', ')}. Return only the category name without any additional text. Product: "${productName}"`
+                        content: `Categorize this product into one of these categories: ${categoryNames}. Return ONLY the category name, nothing else. Product: "${productName}"`
                     }
                 ]
             })
@@ -67,18 +85,24 @@ async function categorizeWithAI(productName) {
         }
 
         const data = await response.json();
-        const category = data.content[0].text.trim();
+        const suggestedCategory = data.content[0].text.trim();
         
-        // Validate that the returned category is in our list
-        if (!DEFAULT_CATEGORIES.includes(category)) {
-            console.warn('AI returned invalid category:', category);
-            return 'Прочее';
+        console.log(`🤖 AI suggested "${suggestedCategory}" for "${productName}"`);
+        
+        // Find matching category (case-insensitive)
+        const matchedCategory = availableCategories.find(
+            c => c.name.toLowerCase() === suggestedCategory.toLowerCase()
+        );
+        
+        if (matchedCategory) {
+            return matchedCategory.id;
         }
         
-        return category;
+        console.warn(`⚠️ AI returned category "${suggestedCategory}" not in available list`);
+        return null;
     } catch (error) {
         console.error('AI Categorization error:', error);
-        return 'Прочее'; // Default category on error
+        return null;
     }
 }
 
@@ -92,6 +116,8 @@ export async function POST({ request }) {
     try {
         await client.query('BEGIN');
         
+        const restaurantId = 'default';
+        
         // Ensure database schema is set up
         await ensureCategoriesTable(client);
         await ensureProductCategoryColumn(client);
@@ -100,24 +126,88 @@ export async function POST({ request }) {
 
         // If no category provided, use AI to suggest one
         if (!finalCategoryId && productName) {
-            const restaurantId = 'default';
-            const aiCategory = await categorizeWithAI(productName);
-            
-            // Get or create the AI-suggested category
-            const categoryResult = await client.query(
-                'INSERT INTO product_categories (restaurant_id, name) VALUES ($1, $2) ON CONFLICT (restaurant_id, name) DO UPDATE SET name=EXCLUDED.name RETURNING id',
-                [restaurantId, aiCategory]
+            // Get available categories from database
+            const categoriesResult = await client.query(
+                'SELECT id, name FROM product_categories WHERE restaurant_id = $1 ORDER BY name',
+                [restaurantId]
             );
             
-            finalCategoryId = categoryResult.rows[0].id;
+            if (categoriesResult.rows.length === 0) {
+                throw new Error('No categories available. Please create categories first.');
+            }
+            
+            console.log(`🤖 Categorizing "${productName}" using ${categoriesResult.rows.length} available categories`);
+            
+            // Ask AI to choose from available categories
+            finalCategoryId = await categorizeWithAI(productName, categoriesResult.rows);
+            
+            if (!finalCategoryId) {
+                console.warn(`⚠️ Could not categorize "${productName}"`);
+                // Don't fail, just skip this product
+                await client.query('COMMIT');
+                return new Response(JSON.stringify({
+                    success: false,
+                    error: 'Could not determine appropriate category'
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
         }
 
-        // Update product category
-        if (productId && finalCategoryId) {
-            await client.query(
-                'UPDATE products SET category_id = $1 WHERE id = $2',
-                [finalCategoryId, productId]
-            );
+        // Update or insert product category (UPSERT)
+        if (productId !== undefined) {
+            try {
+                // Try to update first (allow null categoryId to clear category)
+                const updateResult = await client.query(
+                    'UPDATE products SET category_id = $1 WHERE id = $2',
+                    [finalCategoryId, productId]
+                );
+                
+                if (updateResult.rowCount > 0) {
+                    console.log(`✅ Updated category ${finalCategoryId || 'NULL'} for product ${productId}`);
+                } else {
+                    // Product doesn't exist in database
+                    if (finalCategoryId) {
+                        // Check if it exists first (might be without restaurant_id)
+                        const existsResult = await client.query(
+                            'SELECT id FROM products WHERE id = $1 LIMIT 1',
+                            [productId]
+                        );
+                        
+                        if (existsResult.rows.length > 0) {
+                            // Exists but UPDATE didn't work, try without restaurant_id filter
+                            await client.query(
+                                'UPDATE products SET category_id = $1 WHERE id = $2',
+                                [finalCategoryId, productId]
+                            );
+                            console.log(`✅ Updated category ${finalCategoryId} for product ${productId} (without restaurant filter)`);
+                        } else {
+                            // Truly doesn't exist, insert it
+                            try {
+                                await client.query(
+                                    `INSERT INTO products (id, restaurant_id, category_id, name, created_at) 
+                                     VALUES ($1, $2, $3, $4, NOW())`,
+                                    [productId, restaurantId, finalCategoryId, productName || `Product ${productId}`]
+                                );
+                                console.log(`✅ Inserted product ${productId} with category ${finalCategoryId}`);
+                            } catch (insertErr) {
+                                console.warn(`⚠️ Could not insert product ${productId}:`, insertErr.message);
+                                // Product might have been inserted by another request, try update again
+                                await client.query(
+                                    'UPDATE products SET category_id = $1 WHERE id = $2',
+                                    [finalCategoryId, productId]
+                                );
+                            }
+                        }
+                    } else {
+                        console.log(`⚠️ Product ${productId} not in database, skipping (no category to set)`);
+                    }
+                }
+            } catch (err) {
+                console.error(`Error updating product ${productId}:`, err.message);
+                throw err;
+            }
         }
 
         await client.query('COMMIT');

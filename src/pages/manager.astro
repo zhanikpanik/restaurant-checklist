@@ -157,6 +157,22 @@ import Layout from '../layouts/Layout.astro';
 									<option value="">Все отделы</option>
 								</select>
 								<button 
+									onclick="bulkCategorizeProducts()" 
+									class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg"
+									title="Одноразовая автоматическая категоризация всех товаров"
+								>
+									🤖 Категоризировать все
+								</button>
+								<button 
+									id="saveCategoriesBtn"
+									onclick="savePendingChanges()" 
+									class="hidden px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg shadow-sm"
+									title="Сохранить все изменения категорий"
+								>
+									💾 Сохранить <span id="pendingCount" class="ml-1 bg-green-800 px-2 rounded-full text-xs">0</span>
+								</button>
+
+								<button 
 									onclick="addNewCustomProduct()" 
 									class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
 								>
@@ -255,10 +271,10 @@ import Layout from '../layouts/Layout.astro';
 								<button 
 									onclick="bulkCategorizeProducts()" 
 									class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg flex items-center space-x-2"
-									title="Автоматически категоризировать все товары без категории"
+									title="Одноразовая автоматическая категоризация всех товаров"
 								>
 									<span>🤖</span>
-									<span>Автокатегории</span>
+									<span>Категоризировать все</span>
 								</button>
 							</div>
 						</div>
@@ -1066,6 +1082,7 @@ import Layout from '../layouts/Layout.astro';
 									class="flex-1 text-xs border border-gray-300 rounded px-2 py-1 bg-white"
 									data-product-id="${product.id}"
 									data-product-name="${product.name}"
+											data-original-value="${product.category_id || ''}"
 									onchange="updateProductCategory(this)"
 								>
 									<option value="">Выберите категорию</option>
@@ -1297,7 +1314,7 @@ import Layout from '../layouts/Layout.astro';
 							}
 						}
 						
-						// Update status in database
+							// Update status in database
 						if (order.db_id) {
 							const updateResponse = await fetch('/api/update-order-status', {
 								method: 'POST',
@@ -1554,8 +1571,8 @@ import Layout from '../layouts/Layout.astro';
 					const response = await fetch('/api/get-categories');
 					const data = await response.json();
 					
-					if (data.success && data.categories) {
-						const categories = data.categories;
+					if (data.success && data.data) {
+						const categories = data.data;
 						
 						// Update all category select elements
 						const selects = document.querySelectorAll('select[id^="category-select-"]');
@@ -1588,39 +1605,103 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 			
-			// Update product category manually
-			async function updateProductCategory(select) {
+			// Track pending category changes
+			let pendingChanges = {};
+
+			// Update product category (track change, don't save yet)
+			function updateProductCategory(select) {
 				const productId = select.dataset.productId;
+				const productName = select.dataset.productName;
 				const categoryId = select.value;
 				
-				if (!productId || !categoryId) return;
+				if (!productId) return;
+				
+				// Track the change
+				pendingChanges[productId] = {
+					productId: parseInt(productId),
+					productName: productName,
+					categoryId: categoryId ? parseInt(categoryId) : null,
+					originalValue: select.dataset.originalValue
+				};
+				
+				// Mark dropdown as changed
+				select.classList.add('border-2', 'border-yellow-400', 'bg-yellow-50');
+				
+				// Update save button
+				updateSaveButton();
+				
+				console.log(`📝 Tracked change for ${productName}: category ${categoryId}`);
+			}
+
+			// Update the save button visibility and count
+			function updateSaveButton() {
+				const changeCount = Object.keys(pendingChanges).length;
+				const saveBtn = document.getElementById('saveCategoriesBtn');
+				const countSpan = document.getElementById('pendingCount');
+				
+				if (changeCount > 0) {
+					saveBtn.classList.remove('hidden');
+					countSpan.textContent = changeCount;
+				} else {
+					saveBtn.classList.add('hidden');
+					pendingChanges = {};
+				}
+			}
+
+			// Save all pending changes at once
+			async function savePendingChanges() {
+				const changes = Object.values(pendingChanges);
+				
+				if (changes.length === 0) {
+					showToast('Нет изменений для сохранения', 'info');
+					return;
+				}
+				
+				const saveBtn = document.getElementById('saveCategoriesBtn');
+				const originalText = saveBtn.innerHTML;
+				saveBtn.disabled = true;
+				saveBtn.innerHTML = '⏳ Сохранение...';
+				
+				console.log(`💾 Saving ${changes.length} category changes...`);
 				
 				try {
-					const response = await fetch('/api/categorize-product', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ productId, categoryId })
-					});
+					// Save all changes in parallel
+					const results = await Promise.allSettled(
+						changes.map(change =>
+							fetch('/api/categorize-product', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify(change)
+							}).then(r => r.json())
+						)
+					);
 					
-					const data = await response.json();
+					// Count successes and failures
+					const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+					const failed = results.length - successful;
 					
-					if (data.success) {
-						showToast('Категория обновлена', 'success');
-						// Update the product in memory
-						const product = allProducts[currentDepartmentTab]?.find(p => p.id == productId);
-						if (product) {
-							product.category_id = parseInt(categoryId);
-							const categoryOption = select.querySelector(`option[value="${categoryId}"]`);
-							product.category_name = categoryOption ? categoryOption.textContent : '';
-						}
+					// Show results
+					if (failed === 0) {
+						showToast(`✅ Сохранено ${successful} изменений`, 'success');
+						console.log(`✅ Successfully saved ${successful} changes`);
 					} else {
-						showToast('Ошибка при обновлении категории', 'error');
-						select.value = '';
+						showToast(`⚠️ Сохранено: ${successful}, Ошибок: ${failed}`, 'warning');
+						console.log(`⚠️ Saved: ${successful}, Failed: ${failed}`);
 					}
+					
+					// Clear pending changes
+					pendingChanges = {};
+					updateSaveButton();
+					
+					// Reload products to show updated data
+					await loadCustomProducts();
+					
 				} catch (error) {
-					console.error('Error updating category:', error);
-					showToast('Ошибка при обновлении категории', 'error');
-					select.value = '';
+					console.error('Error saving changes:', error);
+					showToast('Ошибка при сохранении изменений', 'error');
+				} finally {
+					saveBtn.disabled = false;
+					saveBtn.innerHTML = originalText;
 				}
 			}
 			
@@ -1675,13 +1756,13 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 			
-			// Bulk AI categorization for all uncategorized products
+			// Bulk AI categorization for all uncategorized products (one-time setup)
 			async function bulkCategorizeProducts() {
-				if (!confirm('Автоматически категоризировать все товары без категории?')) {
+				if (!confirm('Автоматически категоризировать все товары без категории?\n\nЭто одноразовая настройка. После этого вы сможете вручную изменять категории через выпадающие списки.')) {
 					return;
 				}
 				
-				const uncategorizedProducts = allProducts[currentDepartmentTab]?.filter(p => !p.category_id) || [];
+				const uncategorizedProducts = window.currentProductsList?.filter(p => !p.category_id && !p.category_name) || [];
 				
 				if (uncategorizedProducts.length === 0) {
 					showToast('Все товары уже категоризированы', 'info');
@@ -1718,9 +1799,10 @@ import Layout from '../layouts/Layout.astro';
 					await new Promise(resolve => setTimeout(resolve, 100));
 				}
 				
-				// Refresh the display
-				await loadCategoriesForProducts();
-				displayProducts(allProducts[currentDepartmentTab]);
+				showToast(`✅ Готово! Категоризировано: ${processed}, Ошибок: ${errors}`, 'success');
+				
+				// Reload products to show updated categories
+				await loadCustomProducts();
 				
 				showToast(`Категоризация завершена: ${processed} успешно, ${errors} ошибок`, processed > 0 ? 'success' : 'error');
 			}
@@ -3304,22 +3386,69 @@ import Layout from '../layouts/Layout.astro';
 			
 			// Load custom products
 			async function loadCustomProducts() {
-				console.log('📦 Loading custom products...');
+				console.log('📦 Loading all products (Poster + Custom)...');
 				try {
-					const departmentId = document.getElementById('departmentFilter')?.value || '';
-					const url = departmentId ? `/api/custom-products?department_id=${departmentId}` : '/api/custom-products';
+					const departmentFilter = document.getElementById('departmentFilter')?.value || '';
 					
-					const response = await fetch(url);
-					const data = await response.json();
+					// Fetch all products from different sources
+					let allProductsList = [];
 					
-					if (data.success) {
-						displayCustomProducts(data.data);
-					} else {
-						console.error('❌ Failed to load custom products:', data.error);
-						displayCustomProducts([]);
+					// Load Poster products from bar and kitchen
+					if (!departmentFilter || departmentFilter === 'bar') {
+						try {
+							const barResponse = await fetch('/api/bar-inventory');
+							const barData = await barResponse.json();
+							if (barData.success && barData.data) {
+								const barProducts = barData.data.map(p => ({
+									...p,
+									department_name: 'Бар',
+									source: 'poster'
+								}));
+								allProductsList = allProductsList.concat(barProducts);
+							}
+						} catch (err) {
+							console.warn('Failed to load bar products:', err);
+						}
 					}
+					
+					if (!departmentFilter || departmentFilter === 'kitchen') {
+						try {
+							const kitchenResponse = await fetch('/api/kitchen-inventory');
+							const kitchenData = await kitchenResponse.json();
+							if (kitchenData.success && kitchenData.data) {
+								const kitchenProducts = kitchenData.data.map(p => ({
+									...p,
+									department_name: 'Кухня',
+									source: 'poster'
+								}));
+								allProductsList = allProductsList.concat(kitchenProducts);
+							}
+						} catch (err) {
+							console.warn('Failed to load kitchen products:', err);
+						}
+					}
+					
+					// Load custom products
+					try {
+						const url = departmentFilter ? `/api/custom-products?department_id=${departmentFilter}` : '/api/custom-products';
+						const customResponse = await fetch(url);
+						const customData = await customResponse.json();
+						if (customData.success && customData.data) {
+							const customProducts = customData.data.map(p => ({
+								...p,
+								source: 'custom'
+							}));
+							allProductsList = allProductsList.concat(customProducts);
+						}
+					} catch (err) {
+						console.warn('Failed to load custom products:', err);
+					}
+					
+					console.log(`✅ Loaded ${allProductsList.length} total products`);
+					displayCustomProducts(allProductsList);
+					
 				} catch (error) {
-					console.error('❌ Error loading custom products:', error);
+					console.error('❌ Error loading products:', error);
 					displayCustomProducts([]);
 				}
 			}
@@ -3378,24 +3507,35 @@ import Layout from '../layouts/Layout.astro';
 					`;
 					
 					deptProducts.forEach(product => {
+						const isPoster = product.source === 'poster';
+						const sourceBadge = isPoster ? '<span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Poster</span>' : '<span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">Свой</span>';
+						
 						html += `
 							<tr class="hover:bg-gray-50">
 								<td class="px-3 py-2">
 									<div class="font-medium text-gray-900">${product.name}</div>
-									<div class="text-xs text-gray-500">${product.unit}</div>
+									<div class="text-xs text-gray-500 flex items-center gap-2">
+										<span>${product.unit}</span>
+										${sourceBadge}
+									</div>
 								</td>
 								<td class="px-3 py-2">
-									${product.category_name ? `
-										<div class="text-gray-600">${product.category_name}</div>
-									` : `
-										<div class="text-gray-400">Без категории</div>
-									`}
+									<select 
+										class="category-select-${product.id} text-xs border border-gray-300 rounded px-2 py-1 bg-white"
+										data-product-id="${product.id}"
+										data-product-name="${product.name}"
+											data-original-value="${product.category_id || ''}"
+										onchange="updateProductCategory(this)"
+									>
+										<option value="">Без категории</option>
+									</select>
 								</td>
 								<td class="px-3 py-2">
-									<div class="text-gray-600">${product.current_quantity || 0} / ${product.min_quantity}</div>
+									<div class="text-gray-600 text-sm">${product.quantity || product.current_quantity || 0}${product.min_quantity ? ` / ${product.min_quantity}` : ''}</div>
 								</td>
 								<td class="px-3 py-2 text-right">
 									<div class="flex justify-end gap-1">
+										${!isPoster ? `
 										<button 
 											onclick="editCustomProduct(${product.id})"
 											class="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs rounded transition-colors"
@@ -3408,6 +3548,9 @@ import Layout from '../layouts/Layout.astro';
 										>
 											🗑️
 										</button>
+										` : `
+											<span class="text-xs text-gray-400">Poster</span>
+										`}
 									</div>
 								</td>
 							</tr>
@@ -3425,14 +3568,71 @@ import Layout from '../layouts/Layout.astro';
 				
 				html += '</div>';
 				container.innerHTML = html;
+				
+				// Store products globally for bulk categorization
+				window.currentProductsList = products;
+				
+				// Populate category dropdowns
+				loadCategoriesForAllProducts();
+			}
+			
+			// Load categories for all product dropdowns
+			async function loadCategoriesForAllProducts() {
+				try {
+					const response = await fetch('/api/get-categories');
+					const data = await response.json();
+					
+					console.log('📋 Categories loaded:', data);
+					
+					if (data.success && data.data) {
+						// Populate all category dropdowns
+						window.currentProductsList?.forEach(product => {
+							const select = document.querySelector(`.category-select-${product.id}`);
+							if (select) {
+								// Build options
+								let optionsHtml = '<option value="">Без категории</option>';
+								data.data.forEach(category => {
+									const selected = product.category_id == category.id ? 'selected' : '';
+									optionsHtml += `<option value="${category.id}" ${selected}>${category.name}</option>`;
+								});
+								select.innerHTML = optionsHtml;
+							}
+						});
+						console.log(`✅ Populated ${data.data.length} categories for ${window.currentProductsList?.length} products`);
+					} else {
+						console.warn('⚠️ No categories found');
+					}
+				} catch (error) {
+					console.error('Error loading categories:', error);
+				}
 			}
 			
 			// Add new custom product
-			function addNewCustomProduct() {
+			async function addNewCustomProduct() {
 				// Load categories for the dropdown
-				loadCategoriesForProductModal();
+				await loadCategoriesForNewProduct();
 				document.getElementById('addCustomProductModal').classList.remove('hidden');
 				document.getElementById('newProductName').focus();
+			}
+			
+			// Load categories for new product modal
+			async function loadCategoriesForNewProduct() {
+				try {
+					const response = await fetch('/api/get-categories');
+					const data = await response.json();
+					
+					if (data.success && data.data) {
+						const select = document.getElementById('newProductCategory');
+						if (select) {
+							select.innerHTML = '<option value="">Без категории</option>';
+							data.data.forEach(category => {
+								select.innerHTML += `<option value="${category.id}">${category.name}</option>`;
+							});
+						}
+					}
+				} catch (error) {
+					console.error('Error loading categories:', error);
+				}
 			}
 			
 			// Close add custom product modal
