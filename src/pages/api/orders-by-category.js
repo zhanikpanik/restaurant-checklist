@@ -247,12 +247,14 @@ export async function GET() {
                     existing => existing.name.toLowerCase() === item.name.toLowerCase() && existing.unit === item.unit
                 );
                 
+                const orderedQty = parseFloat(item.shoppingQuantity || item.quantity) || 0;
+                
                 if (existingItem) {
-                    existingItem.quantity += parseFloat(item.quantity) || 0;
+                    existingItem.quantity += orderedQty;
                 } else {
                     categoryRef.items.push({
                         name: item.name,
-                        quantity: parseFloat(item.quantity) || 0,
+                        quantity: orderedQty,
                         unit: item.unit,
                         orderId: order.order_id,
                         department: orderData.department || order.created_by_role

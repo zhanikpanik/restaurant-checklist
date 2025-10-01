@@ -155,21 +155,6 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Create cart_items table for shopping cart persistence
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS cart_items (
-                id SERIAL PRIMARY KEY,
-                product_id VARCHAR(100) NOT NULL,
-                name VARCHAR(255) NOT NULL,
-                quantity NUMERIC(10, 2) NOT NULL,
-                unit VARCHAR(50),
-                department VARCHAR(100) NOT NULL,
-                restaurant_id VARCHAR(50) REFERENCES restaurants(id) ON DELETE CASCADE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        `);
-
         // Create indexes for better performance
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_suppliers_restaurant_id ON suppliers(restaurant_id);
@@ -180,8 +165,6 @@ export async function setupDatabaseSchema() {
             CREATE INDEX IF NOT EXISTS idx_custom_products_department ON custom_products(department_id);
             CREATE INDEX IF NOT EXISTS idx_custom_products_category ON custom_products(category_id);
             CREATE INDEX IF NOT EXISTS idx_departments_active ON departments(is_active);
-            CREATE INDEX IF NOT EXISTS idx_cart_items_department ON cart_items(department);
-            CREATE INDEX IF NOT EXISTS idx_cart_items_restaurant ON cart_items(restaurant_id);
         `);
 
         console.log('✅ Database schema setup complete (including custom products and departments)');

@@ -556,125 +556,6 @@ async function autoSaveToCache() {
   }
 }
 
-// Save current cart to server for multi-device sync
-async function saveCartToServer() {
-  try {
-    const startTime = performance.now();
-    
-    // Get products that have quantities > 0
-    const itemsToOrder = shoppingListData.filter(
-      (item) => item.shoppingQuantity > 0,
-    );
-
-    // Determine department (default to 'bar' for backward compatibility)
-    const department = window.currentDepartment || "bar";
-    const departmentName = department === "kitchen" ? "Кухня" : department === "custom" ? "Горничная" : "Бар";
-
-    // Save to server for multi-device sync
-    try {
-      console.log(`🔄 Saving ${itemsToOrder.length} items to server for ${department}:`, itemsToOrder);
-      
-      const response = await fetch('/api/save-cart-items', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          department: department,
-          items: itemsToOrder
-        })
-      });
-
-      const endTime = performance.now();
-      const syncTime = Math.round(endTime - startTime);
-
-      console.log(`📤 Save response status: ${response.status} ${response.statusText}`);
-      const result = await response.json();
-      console.log(`📤 Server save response for ${department}:`, result);
-      console.log(`⏱️ Sync completed in ${syncTime}ms`);
-      
-      if (result.success) {
-        console.log(`🌐 Server sync: ${departmentName} cart saved (${itemsToOrder.length} items)`);
-        return true;
-      } else {
-        console.warn(`⚠️ Server sync failed for ${departmentName}:`, result.error);
-        return false;
-      }
-    } catch (serverError) {
-      console.warn(`⚠️ Server sync failed for ${departmentName}:`, serverError.message);
-      return false;
-    }
-  } catch (error) {
-    console.error("❌ Save to server failed:", error);
-    return false;
-  }
-}
-
-// Load cart items from server and merge with local data
-async function loadCartFromServer() {
-  try {
-    const department = window.currentDepartment || "bar";
-    console.log(`🔄 Loading cart from database for all departments...`);
-    
-    // Load all items from the server (no department filter needed)
-    const apiUrl = `/api/get-cart-items`;
-    console.log(`📡 Fetching from: ${apiUrl}`);
-    
-    const response = await fetch(apiUrl);
-    console.log(`📡 Response status: ${response.status} ${response.statusText}`);
-    
-    const result = await response.json();
-
-    // The new API returns a flat array in result.data
-    if (result.success && Array.isArray(result.data)) {
-      const allServerItems = result.data;
-      console.log(`📋 Found ${allServerItems.length} total items in the database.`);
-
-      // Reset all local quantities to 0 before applying server state
-      if (shoppingListData) {
-        shoppingListData.forEach(item => {
-          item.shoppingQuantity = 0;
-        });
-      }
-      
-      // Merge server data with local shopping list
-      if (shoppingListData && allServerItems.length > 0) {
-        allServerItems.forEach(serverItem => {
-          // Find the corresponding local item. Note: DB stores 'product_id'
-          const localItem = shoppingListData.find(item => item.id == serverItem.product_id);
-          if (localItem) {
-            // Update the quantity for the local item
-            localItem.shoppingQuantity = serverItem.quantity || 0;
-          } else {
-            // This can happen if a custom item was added on another device
-            // We will handle this case later if needed.
-            console.log(`⚠️ Server item with product_id ${serverItem.product_id} not found in local data.`);
-          }
-        });
-        
-        // IMPORTANT: Save the updated state for the current department to localStorage
-        // This ensures the cart page, which reads from localStorage, is up to date.
-        const cacheKey = `${department}ShoppingList`;
-        const itemsToSave = shoppingListData.filter(item => item.shoppingQuantity > 0);
-        localStorage.setItem(cacheKey, JSON.stringify(itemsToSave));
-        console.log(`💾 Saved ${itemsToSave.length} synced items to localStorage for ${department}`);
-        
-        // Update UI to reflect loaded quantities
-        updateAllQuantityInputs();
-        updateFloatingButtonLabel();
-        
-        console.log(`🌐 Synced state from database. Current page (${department}) has ${itemsToSave.length} items.`);
-      }
-    } else {
-      console.log(`ℹ️ No cart data found in the database or API error.`);
-    }
-  } catch (error) {
-    console.warn('⚠️ Failed to load cart from server:', error.message);
-    // Fallback to localStorage on network error
-    loadCartFromLocalStorage();
-  }
-}
-
 // Fallback: Load cart items from localStorage
 function loadCartFromLocalStorage() {
   try {
@@ -1410,8 +1291,6 @@ window.checklist = {
   showQuantityControls,
   hideQuantityControls,
   autoSaveToCache,
-  saveCartToServer,
-  loadCartFromServer,
   loadCartFromLocalStorage,
   updateAllQuantityInputs,
   saveFinalOrderToCache,

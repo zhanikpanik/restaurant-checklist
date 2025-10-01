@@ -162,10 +162,10 @@ import Layout from '../layouts/Layout.astro';
 					window.initializeOrderMode();
 				}
 				
-				// Wait a bit for shopping list data to be initialized, then load cart from server
-				setTimeout(async () => {
-					if (window.checklist && window.checklist.loadCartFromServer) {
-						await window.checklist.loadCartFromServer();
+				// Wait a bit for shopping list data to be initialized, then load cart from localStorage
+				setTimeout(() => {
+					if (window.checklist && window.checklist.loadCartFromLocalStorage) {
+						window.checklist.loadCartFromLocalStorage();
 					}
 				}, 500);
 				
@@ -210,38 +210,9 @@ import Layout from '../layouts/Layout.astro';
 		});
 
 		// Go to cart function - saves to server then navigates
-		async function goToCart() {
-			const btn = document.getElementById('sendWhatsAppBtn');
-			const originalText = btn.innerHTML;
-			btn.innerHTML = '<span>⏳ Синхронизация...</span>';
-			btn.disabled = true;
-
-			try {
-				console.log('🔄 goToCart() called');
-				console.log('🔍 Checking window.checklist:', window.checklist);
-				console.log('🔍 Checking saveCartToServer function:', window.checklist?.saveCartToServer);
-				
-				// Save current cart to server for multi-device sync
-				if (window.checklist && window.checklist.saveCartToServer) {
-					console.log('📤 Calling saveCartToServer...');
-					const syncResult = await window.checklist.saveCartToServer();
-					console.log('📤 Sync result:', syncResult);
-				} else {
-					console.error('❌ window.checklist.saveCartToServer not available');
-				}
-				
-				// Navigate to cart
-				console.log('🔄 Navigating to cart...');
-				window.location.href = '/cart';
-				
-			} catch (error) {
-				console.error('❌ Failed to sync cart:', error);
-				btn.innerHTML = '<span>❌ Ошибка</span>';
-				setTimeout(() => {
-					btn.innerHTML = originalText;
-					btn.disabled = false;
-				}, 2000);
-			}
+		function goToCart() {
+			// Simply navigate to cart - localStorage is already synced
+			window.location.href = '/cart';
 		}
 
 

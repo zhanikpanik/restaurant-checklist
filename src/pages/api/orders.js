@@ -32,7 +32,8 @@ export async function POST({ request, locals }) {
         }
         
         for (const item of orderData.items) {
-            if (!item.name || !item.quantity || !item.unit) {
+            const qty = item.shoppingQuantity || item.quantity;
+            if (!item.name || !qty || !item.unit) {
                 return new Response(JSON.stringify({
                     success: false,
                     error: 'Each item must have name, quantity, and unit'
@@ -48,14 +49,18 @@ export async function POST({ request, locals }) {
             timestamp: new Date().toISOString(),
             department: orderData.department,
             departmentName: getDepartmentDisplayName(orderData.department),
-            items: orderData.items.map(item => ({
-                id: item.id || generateItemId(),
-                name: item.name,
-                quantity: parseFloat(item.quantity),
-                unit: item.unit
-            })),
+            items: orderData.items.map(item => {
+                const orderedQty = parseFloat(item.shoppingQuantity || item.quantity);
+                return {
+                    id: item.id || generateItemId(),
+                    name: item.name,
+                    quantity: orderedQty,
+                    shoppingQuantity: orderedQty,
+                    unit: item.unit
+                };
+            }),
             totalItems: orderData.items.length,
-            totalQuantity: orderData.items.reduce((sum, item) => sum + parseFloat(item.quantity), 0),
+            totalQuantity: orderData.items.reduce((sum, item) => sum + parseFloat(item.shoppingQuantity || item.quantity), 0),
             status: orderData.status || 'pending',
             source: 'manager',
             created_by: orderData.created_by || 'manager'

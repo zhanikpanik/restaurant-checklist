@@ -1,10 +1,10 @@
-import { updateOrderStatus } from '../../lib/orderStorage-postgres.js';
+import { updateOrderStatus, updateOrderWithDelivery } from '../../lib/orderStorage-postgres.js';
 
 export const prerender = false;
 
 export async function POST({ request, locals }) {
     try {
-        const { orderId, status } = await request.json();
+        const { orderId, status, deliveredItems } = await request.json();
         const tenantId = locals.tenantId || 'default';
         
         if (!orderId || !status) {
@@ -17,18 +17,37 @@ export async function POST({ request, locals }) {
         
         console.log(`🔄 Updating order ${orderId} status to ${status}...`);
         
-        const success = await updateOrderStatus(orderId, status, tenantId);
-        
-        if (success) {
-            return new Response(JSON.stringify({
-                success: true,
-                message: `Order ${orderId} status updated to ${status}`
-            }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' }
-            });
+        // If delivered items are provided, update quantities too
+        if (status === 'delivered' && deliveredItems && Array.isArray(deliveredItems)) {
+            console.log(`📦 Updating delivered quantities for ${deliveredItems.length} items`);
+            const success = await updateOrderWithDelivery(orderId, deliveredItems, tenantId);
+            
+            if (success) {
+                return new Response(JSON.stringify({
+                    success: true,
+                    message: `Order ${orderId} marked as delivered with updated quantities`
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } else {
+                throw new Error('Failed to update order with delivery info');
+            }
         } else {
-            throw new Error('Failed to update order status');
+            // Just update status
+            const success = await updateOrderStatus(orderId, status, tenantId);
+            
+            if (success) {
+                return new Response(JSON.stringify({
+                    success: true,
+                    message: `Order ${orderId} status updated to ${status}`
+                }), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } else {
+                throw new Error('Failed to update order status');
+            }
         }
         
     } catch (error) {

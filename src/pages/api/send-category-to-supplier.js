@@ -15,7 +15,7 @@ export async function POST({ request }) {
         
         const restaurantId = 'default';
         
-        // Get all pending orders from database
+        // Get all orders from database (any status - allow resending)
         const ordersResult = await client.query(`
             SELECT 
                 o.id as order_id,
@@ -24,8 +24,7 @@ export async function POST({ request }) {
                 o.created_at,
                 o.created_by_role
             FROM orders o
-            WHERE o.restaurant_id = $1 
-            AND o.status = 'pending'
+            WHERE o.restaurant_id = $1
             ORDER BY o.created_at DESC
         `, [restaurantId]);
         
@@ -84,12 +83,14 @@ export async function POST({ request }) {
                         existing => existing.name.toLowerCase() === item.name.toLowerCase() && existing.unit === item.unit
                     );
                     
+                    const orderedQty = parseFloat(item.shoppingQuantity || item.quantity) || 0;
+                    
                     if (existingItem) {
-                        existingItem.quantity += parseFloat(item.quantity) || 0;
+                        existingItem.quantity += orderedQty;
                     } else {
                         categoryItems.push({
                             name: item.name,
-                            quantity: parseFloat(item.quantity) || 0,
+                            quantity: orderedQty,
                             unit: item.unit,
                             department: orderData.department || order.created_by_role
                         });

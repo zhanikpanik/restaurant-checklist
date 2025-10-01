@@ -200,26 +200,11 @@ import Layout from '../layouts/Layout.astro';
 		}
 
 		// Clear cart after successful order
-		async function clearCartAfterOrder() {
+		function clearCartAfterOrder() {
 			try {
 				console.log('🧹 Clearing cart after successful order...');
 				
-				// Clear server-side cart
-				const clearResponse = await fetch('/api/clear-cart-items', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({}) // Clear all departments
-				});
-				
-				if (clearResponse.ok) {
-					console.log('✅ Server-side cart cleared successfully');
-				} else {
-					console.warn('⚠️ Failed to clear server-side cart');
-				}
-				
-				// Clear localStorage cart (already done in saveOrderToDeliveryQueue, but ensure it's done)
+				// Clear localStorage cart for all departments
 				localStorage.removeItem('barShoppingList');
 				localStorage.removeItem('kitchenShoppingList');
 				localStorage.removeItem('customShoppingList');
@@ -244,14 +229,15 @@ import Layout from '../layouts/Layout.astro';
 					items: orderData.items.map(item => ({
 						id: item.id,
 						name: item.name,
-						quantity: item.quantity || item.shoppingQuantity,
+						quantity: item.shoppingQuantity || item.quantity, // Use ordered amount
+						shoppingQuantity: item.shoppingQuantity || item.quantity,
 						unit: item.unit,
 						department: item.department,
 						departmentName: item.departmentName
 					})),
 					totalItems: orderData.totalItems,
 					totalQuantity: orderData.items.reduce((sum, item) => sum + (item.quantity || item.shoppingQuantity), 0),
-					status: 'sent'
+					status: 'pending'
 				};
 
 				// Save unified order to general history
@@ -301,7 +287,7 @@ import Layout from '../layouts/Layout.astro';
 							items: items,
 							totalItems: items.length,
 							totalQuantity: items.reduce((sum, item) => sum + item.quantity, 0),
-							status: 'sent',
+							status: 'pending',
 							isPartOfUnified: true
 						};
 						
@@ -347,12 +333,13 @@ import Layout from '../layouts/Layout.astro';
 					items: orderData.items.map(item => ({
 						id: item.id,
 						name: item.name,
-						quantity: item.quantity,
+						quantity: item.shoppingQuantity || item.quantity, // Use ordered amount
+						shoppingQuantity: item.shoppingQuantity || item.quantity,
 						unit: item.unit
 					})),
 					totalItems: orderData.items.length,
 					totalQuantity: orderData.items.reduce((sum, item) => sum + item.quantity, 0),
-					status: 'sent'
+					status: 'pending'
 				};
 
 				const historyKey = `${orderData.department}OrderHistory`;

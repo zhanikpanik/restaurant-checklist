@@ -577,10 +577,10 @@ import Layout from '../layouts/Layout.astro';
 				window.initializeOrderMode();
 			}
 			
-			// Wait a bit for shopping list data to be initialized, then load cart from server
-			setTimeout(async () => {
-				if (window.checklist && window.checklist.loadCartFromServer) {
-					await window.checklist.loadCartFromServer();
+			// Wait a bit for shopping list data to be initialized, then load cart from localStorage
+			setTimeout(() => {
+				if (window.checklist && window.checklist.loadCartFromLocalStorage) {
+					window.checklist.loadCartFromLocalStorage();
 				}
 			}, 500);
 			

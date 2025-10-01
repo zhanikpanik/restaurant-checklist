@@ -25,7 +25,8 @@ export async function POST({ request, locals }) {
         }
         
         for (const item of orderData.items) {
-            if (!item.name || !item.quantity || !item.unit) {
+            const qty = item.shoppingQuantity || item.quantity;
+            if (!item.name || !qty || !item.unit) {
                 throw new Error('Each item must have name, quantity, and unit');
             }
         }
@@ -35,14 +36,18 @@ export async function POST({ request, locals }) {
             timestamp: new Date().toISOString(),
             department: orderData.department,
             departmentName: orderData.department === 'bar' ? 'Бар' : 'Кухня',
-            items: orderData.items.map(item => ({
-                id: item.id || -(Date.now() + Math.random()), // Generate negative ID for external items
-                name: item.name,
-                quantity: parseFloat(item.quantity),
-                unit: item.unit
-            })),
+            items: orderData.items.map(item => {
+                const orderedQty = parseFloat(item.shoppingQuantity || item.quantity);
+                return {
+                    id: item.id || -(Date.now() + Math.random()), // Generate negative ID for external items
+                    name: item.name,
+                    quantity: orderedQty,
+                    shoppingQuantity: orderedQty,
+                    unit: item.unit
+                };
+            }),
             totalItems: orderData.items.length,
-            totalQuantity: orderData.items.reduce((sum, item) => sum + parseFloat(item.quantity), 0),
+            totalQuantity: orderData.items.reduce((sum, item) => sum + parseFloat(item.shoppingQuantity || item.quantity), 0),
             status: 'sent',
             source: 'external',
             supplier: orderData.supplier || 'External Supplier',

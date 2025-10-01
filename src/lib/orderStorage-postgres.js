@@ -158,6 +158,78 @@ export async function updateOrderStatus(orderId, status, tenantId = 'default') {
     }
 }
 
+// Update order with delivery information (status + adjusted quantities)
+export async function updateOrderWithDelivery(orderId, deliveredItems, tenantId = 'default') {
+    const client = await pool.connect();
+    try {
+        const tenantFilter = getTenantFilter(tenantId);
+        
+        // First, fetch the current order
+        const fetchQuery = 'SELECT order_data FROM orders WHERE restaurant_id = $1 AND id = $2';
+        const fetchResult = await client.query(fetchQuery, [tenantFilter.restaurant_id, orderId]);
+        
+        if (fetchResult.rows.length === 0) {
+            console.log(`⚠️ Order ${orderId} not found`);
+            return false;
+        }
+        
+        const orderData = fetchResult.rows[0].order_data;
+        
+        // Update items with delivered quantities
+        const updatedItems = orderData.items.map(item => {
+            const deliveredItem = deliveredItems.find(d => d.id == item.id);
+            if (deliveredItem) {
+                return {
+                    ...item,
+                    orderedQuantity: item.shoppingQuantity || item.quantity, // Save original ordered amount
+                    deliveredQuantity: deliveredItem.deliveredQuantity, // Save delivered amount
+                    quantity: deliveredItem.deliveredQuantity, // Update main quantity field
+                    shoppingQuantity: deliveredItem.deliveredQuantity
+                };
+            }
+            return item;
+        });
+        
+        // Update order_data with new items and status
+        const updatedOrderData = {
+            ...orderData,
+            items: updatedItems,
+            status: 'delivered'
+        };
+        
+        // Update the order in database
+        const updateQuery = `
+            UPDATE orders 
+            SET order_data = $2, 
+                status = 'delivered', 
+                delivered_at = $3 
+            WHERE restaurant_id = $1 AND id = $4
+            RETURNING id, status
+        `;
+        
+        const result = await client.query(updateQuery, [
+            tenantFilter.restaurant_id,
+            updatedOrderData,
+            new Date(),
+            orderId
+        ]);
+        
+        if (result.rows.length > 0) {
+            console.log(`✅ Order ${orderId} marked as delivered with updated quantities`);
+            return true;
+        } else {
+            console.log(`⚠️ Order ${orderId} not updated`);
+            return false;
+        }
+        
+    } catch (error) {
+        console.error(`❌ Failed to update order with delivery:`, error);
+        return false;
+    } finally {
+        client.release();
+    }
+}
+
 // Delete old orders (cleanup function)
 export async function deleteOldOrders(daysOld = 30, tenantId = 'default') {
     const client = await pool.connect();
