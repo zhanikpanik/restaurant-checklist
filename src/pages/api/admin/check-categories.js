@@ -1,4 +1,4 @@
-import { getDbClient, safeRelease } from '../../lib/db-helper.js';
+import { getDbClient, safeRelease } from '../../../lib/db-helper.js';
 
 export const prerender = false;
 
