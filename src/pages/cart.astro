@@ -387,10 +387,21 @@ import Layout from '../layouts/Layout.astro';
 				
 				allOrders.departments.forEach(dept => {
 					const deptItems = allOrders.allItems.filter(item => item.departmentName === dept.name);
-					const departmentKey = dept.name === 'Бар' ? 'bar' : dept.name === 'Кухня' ? 'kitchen' : 'custom';
+					// Map department names to keys, but preserve actual department names for non-standard departments
+					let departmentKey;
+					if (dept.name === 'Бар') {
+						departmentKey = 'bar';
+					} else if (dept.name === 'Кухня') {
+						departmentKey = 'kitchen';
+					} else if (dept.name === 'Горничная') {
+						departmentKey = 'custom';
+					} else {
+						// For custom departments like Офис, use the actual name as key
+						departmentKey = dept.name.toLowerCase();
+					}
 					
-					// For bar and kitchen, save to database
-					if (departmentKey === 'bar' || departmentKey === 'kitchen') {
+					// Save all departments to database (not just bar, kitchen, custom)
+					if (true) { // Save all departments
 						// Clean up items - use shoppingQuantity as the main quantity
 						const cleanedItems = deptItems.map(item => ({
 							...item,
@@ -510,37 +521,59 @@ import Layout from '../layouts/Layout.astro';
 			const allItems = [];
 			const departments = [];
 			
-			// Bar
-			const barOrders = JSON.parse(localStorage.getItem('barShoppingList') || '[]');
-			const barItems = barOrders.filter(item => item.shoppingQuantity > 0);
-			if (barItems.length > 0) {
-				barItems.forEach(item => {
-					allItems.push({...item, department: 'bar', departmentName: 'Бар', departmentEmoji: '🍷'});
-				});
-				departments.push({name: 'Бар', emoji: '🍷', count: barItems.length});
+			// Check all possible localStorage keys for shopping lists
+			const storageKeys = [
+				{ key: 'barShoppingList', dept: 'bar', name: 'Бар', emoji: '🍷' },
+				{ key: 'kitchenShoppingList', dept: 'kitchen', name: 'Кухня', emoji: '🍳' },
+				{ key: 'customShoppingList', dept: 'custom', name: 'Горничная', emoji: '🧹' }
+			];
+			
+			// Also check for dynamic department names from window variables
+			if (window.currentDepartmentName && window.currentDepartment) {
+				const deptName = window.currentDepartmentName;
+				const deptKey = window.currentDepartment;
+				
+				// Only add if it's not already in the standard list
+				if (!storageKeys.find(s => s.dept === deptKey)) {
+					storageKeys.push({
+						key: 'customShoppingList', // Custom departments use customShoppingList
+						dept: deptKey,
+						name: deptName,
+						emoji: getDepartmentEmoji(deptName)
+					});
+				}
 			}
 			
-			// Kitchen
-			const kitchenOrders = JSON.parse(localStorage.getItem('kitchenShoppingList') || '[]');
-			const kitchenItems = kitchenOrders.filter(item => item.shoppingQuantity > 0);
-			if (kitchenItems.length > 0) {
-				kitchenItems.forEach(item => {
-					allItems.push({...item, department: 'kitchen', departmentName: 'Кухня', departmentEmoji: '🍳'});
-				});
-				departments.push({name: 'Кухня', emoji: '🍳', count: kitchenItems.length});
-			}
-			
-			// Custom
-			const customOrders = JSON.parse(localStorage.getItem('customShoppingList') || '[]');
-			const customItems = customOrders.filter(item => item.shoppingQuantity > 0);
-			if (customItems.length > 0) {
-				customItems.forEach(item => {
-					allItems.push({...item, department: 'custom', departmentName: 'Горничная', departmentEmoji: '🧹'});
-				});
-				departments.push({name: 'Горничная', emoji: '🧹', count: customItems.length});
-			}
+			storageKeys.forEach(({ key, dept, name, emoji }) => {
+				const orders = JSON.parse(localStorage.getItem(key) || '[]');
+				const items = orders.filter(item => item.shoppingQuantity > 0);
+				
+				if (items.length > 0) {
+					items.forEach(item => {
+						allItems.push({
+							...item, 
+							department: dept, 
+							departmentName: name, 
+							departmentEmoji: emoji
+						});
+					});
+					departments.push({name: name, emoji: emoji, count: items.length});
+				}
+			});
 			
 			return {allItems, departments, totalItems: allItems.length};
+		}
+		
+		// Get emoji for department name
+		function getDepartmentEmoji(deptName) {
+			const name = deptName.toLowerCase();
+			if (name.includes('офис')) return '🏢';
+			if (name.includes('горничная')) return '🧹';
+			if (name.includes('склад')) return '📦';
+			if (name.includes('ресепшн')) return '🏨';
+			if (name.includes('бар')) return '🍷';
+			if (name.includes('кухня')) return '🍳';
+			return '📋'; // Default
 		}
 
 		// Generate WhatsApp message

@@ -14,9 +14,13 @@ export async function POST({ request, locals }) {
             throw new Error('Invalid order data: department and items array are required');
         }
         
-        // Validate department
-        if (!['bar', 'kitchen'].includes(orderData.department)) {
-            throw new Error('Invalid department: must be "bar" or "kitchen"');
+        // Validate department - allow any department name
+        const allowedDepartments = ['bar', 'kitchen', 'custom', 'housekeeping', 'офис', 'office'];
+        const deptLower = orderData.department.toLowerCase();
+        
+        // Allow known departments or any custom department name
+        if (!allowedDepartments.includes(deptLower) && orderData.department.length < 2) {
+            throw new Error('Invalid department: department name must be at least 2 characters');
         }
         
         // Add source field to identify as internal order

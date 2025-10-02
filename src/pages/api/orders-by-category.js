@@ -2,6 +2,31 @@ import { getDbClient, safeRelease } from '../../lib/db-helper.js';
 
 export const prerender = false;
 
+// Helper functions for department display
+function getDepartmentDisplayName(department) {
+    const departmentNames = {
+        'bar': 'Бар',
+        'kitchen': 'Кухня',
+        'housekeeping': 'Горничная',
+        'custom': 'Горничная',
+        'офис': 'Офис',
+        'office': 'Офис'
+    };
+    return departmentNames[department.toLowerCase()] || department || 'Неизвестно';
+}
+
+function getDepartmentEmoji(department) {
+    const departmentEmojis = {
+        'bar': '🍷',
+        'kitchen': '🍳',
+        'housekeeping': '🧹',
+        'custom': '🧹',
+        'офис': '🏢',
+        'office': '🏢'
+    };
+    return departmentEmojis[department.toLowerCase()] || '📋';
+}
+
 // GET: Get all orders grouped by categories with supplier information
 export async function GET() {
     const { client, error } = await getDbClient();
@@ -176,28 +201,34 @@ export async function GET() {
             products.set(prod.product_id, prod);
         });
         
-        // Process orders and group by DATE first, then by categories
-        const ordersByDate = {};
+        // Process orders as individual orders (no grouping by date)
+        const individualOrders = [];
         
         orders.forEach(order => {
             const orderData = order.order_data;
             const items = orderData.items || [];
             
-            // Get the date of the order (format: YYYY-MM-DD)
-            const orderDate = new Date(order.created_at).toISOString().split('T')[0];
-            const dateKey = orderDate;
+            if (items.length === 0) return; // Skip empty orders
             
-            if (!ordersByDate[dateKey]) {
-                ordersByDate[dateKey] = {
-                    date: dateKey,
-                    displayDate: new Date(order.created_at).toLocaleDateString('ru-RU', {
-                        weekday: 'long',
-                        month: 'long',
-                        day: 'numeric'
-                    }),
-                    categories: {}
-                };
-            }
+            // Create individual order object
+            const individualOrder = {
+                orderId: order.order_id,
+                department: orderData.department || order.created_by_role,
+                departmentName: getDepartmentDisplayName(orderData.department || order.created_by_role),
+                departmentEmoji: getDepartmentEmoji(orderData.department || order.created_by_role),
+                timestamp: order.created_at,
+                displayDate: new Date(order.created_at).toLocaleString('ru-RU', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }),
+                status: order.status,
+                categories: {},
+                totalItems: 0,
+                totalQuantity: 0
+            };
             
             items.forEach(item => {
                 // Try to find product by name (since orders might not have product IDs)
@@ -224,10 +255,10 @@ export async function GET() {
                 
                 const categoryKey = categoryInfo.categoryName;
                 
-                if (!ordersByDate[dateKey].categories[categoryKey]) {
+                if (!individualOrder.categories[categoryKey]) {
                     const categoryData = categoryInfo.categoryId ? categories.get(categoryInfo.categoryId) : null;
                     
-                    ordersByDate[dateKey].categories[categoryKey] = {
+                    individualOrder.categories[categoryKey] = {
                         categoryId: categoryInfo.categoryId,
                         categoryName: categoryInfo.categoryName,
                         supplier: categoryData ? {
@@ -242,38 +273,31 @@ export async function GET() {
                 }
                 
                 // Add item to category
-                const categoryRef = ordersByDate[dateKey].categories[categoryKey];
-                const existingItem = categoryRef.items.find(
-                    existing => existing.name.toLowerCase() === item.name.toLowerCase() && existing.unit === item.unit
-                );
-                
+                const categoryRef = individualOrder.categories[categoryKey];
                 const orderedQty = parseFloat(item.shoppingQuantity || item.quantity) || 0;
                 
-                if (existingItem) {
-                    existingItem.quantity += orderedQty;
-                } else {
-                    categoryRef.items.push({
-                        name: item.name,
-                        quantity: orderedQty,
-                        unit: item.unit,
-                        orderId: order.order_id,
-                        department: orderData.department || order.created_by_role
-                    });
-                }
+                categoryRef.items.push({
+                    name: item.name,
+                    quantity: orderedQty,
+                    unit: item.unit,
+                    department: orderData.department || order.created_by_role
+                });
                 
                 categoryRef.totalItems++;
+                individualOrder.totalItems++;
+                individualOrder.totalQuantity += orderedQty;
             });
+            
+            // Convert categories object to array
+            individualOrder.categories = Object.values(individualOrder.categories).sort((a, b) => 
+                a.categoryName.localeCompare(b.categoryName)
+            );
+            
+            individualOrders.push(individualOrder);
         });
         
-        // Convert to array and sort by date (newest first)
-        const result = Object.values(ordersByDate)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .map(dateGroup => ({
-                ...dateGroup,
-                categories: Object.values(dateGroup.categories).sort((a, b) => 
-                    a.categoryName.localeCompare(b.categoryName)
-                )
-            }));
+        // Sort by timestamp (newest first)
+        const result = individualOrders.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
         return new Response(JSON.stringify({
             success: true,

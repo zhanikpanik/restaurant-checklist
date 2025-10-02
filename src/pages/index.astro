@@ -110,6 +110,7 @@ import Layout from '../layouts/Layout.astro';
 			if (name.includes('кухня')) return 'kitchen';
 			if (name.includes('бар')) return 'bar';
 			if (name.includes('горничная')) return 'custom';
+			if (name.includes('офис')) return 'офис';
 			// For custom departments, use a safe URL key
 			return deptName.toLowerCase().replace(/[^a-zа-я0-9]/g, '');
 		}
@@ -127,9 +128,9 @@ import Layout from '../layouts/Layout.astro';
 			} else if (sectionKey === 'custom') {
 				window.location.href = '/custom';
 			} else {
-				// For custom departments, we need to create dynamic pages or use a generic page
-				// For now, redirect to custom page with department parameter
-				window.location.href = `/custom?dept=${encodeURIComponent(deptName)}`;
+				// For custom departments (including Офис), redirect to custom page with department parameter
+				// This will pass the actual department name so it can be used correctly
+				window.location.href = `/custom?dept=${encodeURIComponent(deptName)}&key=${encodeURIComponent(sectionKey)}`;
 			}
 		}
 		

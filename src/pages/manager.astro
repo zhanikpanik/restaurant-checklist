@@ -2004,12 +2004,14 @@ import Layout from '../layouts/Layout.astro';
 								</div>
 								
 								<div class="flex flex-col sm:flex-row gap-2">
+									${!hasSupplier ? `
 									<button 
 										onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', ${category.supplier_id || 'null'})"
-										class="flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${hasSupplier ? 'bg-blue-500 hover:bg-blue-600 text-white' : 'bg-yellow-500 hover:bg-yellow-600 text-white'}"
+										class="flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors bg-yellow-500 hover:bg-yellow-600 text-white"
 									>
-										${hasSupplier ? '✏️ Изменить поставщика' : '➕ Назначить поставщика'}
+										➕ Назначить поставщика
 									</button>
+									` : ''}
 									<button 
 										onclick="openProductAssignModal(${category.id}, '${category.category_name}')"
 										class="flex-1 px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors"
@@ -2051,8 +2053,8 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 			
-			// Display orders as cards
-			function displayOrdersByCategory(ordersByDate) {
+			// Display individual orders as cards
+			function displayOrdersByCategory(individualOrders) {
 				const container = document.getElementById('ordersByCategory');
 				
 				if (!container) {
@@ -2060,7 +2062,7 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				if (!ordersByDate || ordersByDate.length === 0) {
+				if (!individualOrders || individualOrders.length === 0) {
 					container.innerHTML = `
 						<div class="text-center text-gray-500 py-8">
 							<span class="text-4xl mb-4 block">📋</span>
@@ -2071,21 +2073,17 @@ import Layout from '../layouts/Layout.astro';
 					return;
 				}
 				
-				// Create cards for each order date
+				// Create cards for each individual order
 				let html = '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">';
 				
-				ordersByDate.forEach((dateGroup) => {
-					// Collect all items and sections for this order
+				individualOrders.forEach((order) => {
+					// Collect all items from all categories
 					const allItems = [];
-					const sectionsUsed = new Set();
 					const supplierGroups = {};
 					
-					dateGroup.categories.forEach(category => {
+					order.categories.forEach(category => {
 						category.items.forEach(item => {
 							allItems.push(item);
-							if (item.department) {
-								sectionsUsed.add(item.department);
-							}
 						});
 						
 						// Group by supplier for action buttons
@@ -2104,73 +2102,71 @@ import Layout from '../layouts/Layout.astro';
 						supplierGroups[supplierKey].categoryIds.push(category.categoryId);
 					});
 					
-					const sectionsArray = Array.from(sectionsUsed);
-					const sectionEmojis = {
-						'kitchen': '🍳',
-						'bar': '🍷',
-						'Горничная': '🧹',
-						'custom': '📦'
-					};
+					// Status color
+					const statusColor = order.status === 'pending' ? 'yellow' : order.status === 'sent' ? 'blue' : 'green';
+					const statusText = order.status === 'pending' ? 'Ожидает' : order.status === 'sent' ? 'Отправлен' : 'Доставлен';
 					
 					html += `
 						<div class="bg-white rounded-lg shadow-md border border-gray-200 p-6 hover:shadow-lg transition-shadow">
-							<!-- Section Tags (above date) -->
-							<div class="flex flex-wrap gap-2 mb-3">
-								${sectionsArray.map(section => `
-									<span class="inline-flex items-center text-sm font-medium">
-										${sectionEmojis[section] || '📦'} ${section === 'kitchen' ? 'Кухня' : section === 'bar' ? 'Бар' : section}
-									</span>
-								`).join('')}
+							<!-- Department Tag -->
+							<div class="flex items-center justify-between mb-3">
+								<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+									${order.departmentEmoji} ${order.departmentName}
+								</span>
+								<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-${statusColor}-100 text-${statusColor}-800">
+									${statusText}
+								</span>
 							</div>
 							
 							<!-- Order Header -->
-							<div class="flex justify-between items-start mb-4">
-								<div>
-									<h3 class="text-lg font-semibold text-gray-900">📅 ${dateGroup.displayDate}</h3>
-									<p class="text-sm text-gray-600">${allItems.length} товаров</p>
-								</div>
+							<div class="mb-4">
+								<h3 class="text-lg font-semibold text-gray-900">Заказ #${order.orderId}</h3>
+								<p class="text-sm text-gray-600">${order.displayDate}</p>
+								<p class="text-sm text-gray-600">${order.totalItems} товаров (${order.totalQuantity} ед.)</p>
 							</div>
 							
 							<!-- Products Preview -->
 							<div class="mb-4">
 								<h4 class="text-sm font-medium text-gray-700 mb-2">Товары:</h4>
 								<div class="max-h-32 overflow-y-auto space-y-1">
-									${allItems.slice(0, 8).map(item => `
+									${allItems.slice(0, 6).map(item => `
 										<div class="flex justify-between items-center text-sm">
 											<span class="text-gray-700 truncate">${item.name}</span>
-											<span class="text-gray-500 whitespace-nowrap ml-2">${item.shoppingQuantity || item.quantity} ${item.unit}</span>
+											<span class="text-gray-500 whitespace-nowrap ml-2">${item.quantity} ${item.unit}</span>
 										</div>
 									`).join('')}
-									${allItems.length > 8 ? `
+									${allItems.length > 6 ? `
 										<div class="text-xs text-gray-500 text-center pt-2">
-											... и еще ${allItems.length - 8} товаров
+											... и еще ${allItems.length - 6} товаров
 										</div>
 									` : ''}
 								</div>
 							</div>
 							
 							<!-- Suppliers Info -->
-							<div class="mb-4">
-								<h4 class="text-sm font-medium text-gray-700 mb-2">Поставщики:</h4>
-								<div class="space-y-1">
-									${Object.values(supplierGroups).map(group => {
-										const hasSupplier = group.supplier !== null;
-										return `
-											<div class="flex items-center justify-between text-sm">
-												<span class="${hasSupplier ? 'text-gray-700' : 'text-red-600'}">
-													${hasSupplier ? `📦 ${group.supplier.name}` : '⚠️ Без поставщика'}
-												</span>
-												<span class="text-gray-500">${group.categories.length} кат.</span>
-											</div>
-										`;
-									}).join('')}
+							${Object.keys(supplierGroups).length > 0 ? `
+								<div class="mb-4">
+									<h4 class="text-sm font-medium text-gray-700 mb-2">Поставщики:</h4>
+									<div class="space-y-1">
+										${Object.values(supplierGroups).map(group => {
+											const hasSupplier = group.supplier !== null;
+											return `
+												<div class="flex items-center justify-between text-sm">
+													<span class="${hasSupplier ? 'text-gray-700' : 'text-red-600'}">
+														${hasSupplier ? `📦 ${group.supplier.name}` : '⚠️ Без поставщика'}
+													</span>
+													<span class="text-gray-500">${group.categories.length} кат.</span>
+												</div>
+											`;
+										}).join('')}
+									</div>
 								</div>
-							</div>
+							` : ''}
 							
 							<!-- Action Buttons -->
 							<div>
 								<button 
-									onclick="viewOrderDetails('${dateGroup.date}')"
+									onclick="viewOrderDetails('${order.orderId}')"
 									class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
 								>
 									Просмотреть детали
@@ -3784,8 +3780,8 @@ import Layout from '../layouts/Layout.astro';
 			}
 
 			// Navigate to order details page
-			function viewOrderDetails(orderDate) {
-				window.location.href = `/order-details?date=${encodeURIComponent(orderDate)}`;
+			function viewOrderDetails(orderId) {
+				window.location.href = `/order-details?orderId=${encodeURIComponent(orderId)}`;
 			}
 
 			// Load data when page loads

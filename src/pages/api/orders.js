@@ -114,6 +114,11 @@ function getDepartmentDisplayName(department) {
             return 'Бар';
         case 'custom':
             return 'Горничная';
+        case 'housekeeping':
+            return 'Горничная';
+        case 'офис':
+        case 'office':
+            return 'Офис';
         case 'manager':
             return 'Менеджер';
         default:

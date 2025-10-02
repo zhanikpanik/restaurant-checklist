@@ -291,8 +291,8 @@ import Layout from '../layouts/Layout.astro';
 							isPartOfUnified: true
 						};
 						
-						if (dept === 'bar' || dept === 'kitchen') {
-							// Save bar and kitchen to server
+						if (dept === 'bar' || dept === 'kitchen' || dept === 'custom') {
+							// Save all departments to server
 							const response = await fetch('/api/save-internal-order', {
 								method: 'POST',
 								headers: {
@@ -307,18 +307,6 @@ import Layout from '../layouts/Layout.astro';
 							} else {
 								console.warn(`⚠️ Failed to save ${dept} order to server:`, result.error);
 							}
-						} else if (dept === 'custom') {
-							// Save custom orders to local customOrderHistory for delivery visibility
-							const customHistoryKey = 'customOrderHistory';
-							const existingCustomHistory = JSON.parse(localStorage.getItem(customHistoryKey) || '[]');
-							existingCustomHistory.unshift(deptOrder);
-							
-							if (existingCustomHistory.length > 20) {
-								existingCustomHistory.splice(20);
-							}
-							
-							localStorage.setItem(customHistoryKey, JSON.stringify(existingCustomHistory));
-							console.log(`✅ Custom order saved to ${customHistoryKey} for delivery tracking`);
 						}
 					}
 				} catch (serverError) {

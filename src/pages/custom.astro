@@ -108,6 +108,7 @@ import Layout from '../layouts/Layout.astro';
 			<!-- Floating Action Button -->
 			<button 
 				id="createOrderBtn" 
+				onclick="createOrder()"
 				class="fixed bottom-6 right-6 bg-gray-400 hover:bg-gray-500 text-white font-medium py-4 px-6 rounded-lg shadow-lg z-50 transition-all duration-200 flex items-center space-x-2 min-w-[180px] justify-center"
 			>
 				<span class="text-center">В корзину</span>
@@ -117,7 +118,7 @@ import Layout from '../layouts/Layout.astro';
 
 
 	<script is:inline>
-		// Set role and department
+		// Set role and department - will be updated based on URL parameter
 		window.userRole = 'custom';
 		window.currentDepartment = 'custom';
 		
@@ -174,6 +175,11 @@ import Layout from '../layouts/Layout.astro';
 				// Get department from URL parameter or default to Горничная
 				const urlParams = new URLSearchParams(window.location.search);
 				const deptName = urlParams.get('dept') || 'Горничная';
+				const deptKey = urlParams.get('key') || 'custom';
+				
+				// Update global department variables for cart compatibility
+				window.currentDepartment = deptKey;
+				window.currentDepartmentName = deptName;
 				
 				// Update page title and header if it's a custom department
 				if (deptName !== 'Горничная') {
@@ -284,7 +290,7 @@ import Layout from '../layouts/Layout.astro';
 		}
 
 		// Add new product
-		function addProduct() {
+		async function addProduct() {
 			const name = document.getElementById('productName').value.trim();
 			const quantity = parseFloat(document.getElementById('productQuantity').value) || 0;
 			const unit = document.getElementById('productUnit').value;
@@ -301,34 +307,110 @@ import Layout from '../layouts/Layout.astro';
 				return;
 			}
 
-			// Create new product
-			const newProduct = {
-				id: Date.now(),
-				name: name,
-				quantity: 0,
-				unit: unit,
-				minQuantity: 0,
-				checked: true,
-				shoppingQuantity: quantity,
-				isDefault: false,
-				isCustom: true,
-				createdAt: new Date().toISOString()
-			};
+			try {
+				// Get current department from URL
+				const urlParams = new URLSearchParams(window.location.search);
+				const deptName = urlParams.get('dept') || 'Горничная';
+				
+				// First, get or create the department
+				let departmentId = await getDepartmentId(deptName);
+				
+				// Save product to database
+				const response = await fetch('/api/custom-products', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						name: name,
+						unit: unit,
+						departmentId: departmentId,
+						minQuantity: 1,
+						currentQuantity: 0
+					})
+				});
+				
+				const result = await response.json();
+				if (!result.success) {
+					throw new Error(result.error || 'Failed to save product');
+				}
+				
+				// Create new product for local display
+				const newProduct = {
+					id: result.data.id,
+					name: name,
+					quantity: 0,
+					unit: unit,
+					minQuantity: 1,
+					checked: true,
+					shoppingQuantity: quantity,
+					isDefault: false,
+					isCustom: true,
+					source: 'custom',
+					createdAt: new Date().toISOString()
+				};
 
-			customProducts.push(newProduct);
-			selectedProducts.push(newProduct);
-			saveCustomProducts();
-			
-			// Clear form
-			document.getElementById('productName').value = '';
-			document.getElementById('productQuantity').value = '';
-			document.getElementById('productUnit').value = 'шт';
+				customProducts.push(newProduct);
+				selectedProducts.push(newProduct);
+				
+				// Clear form
+				document.getElementById('productName').value = '';
+				document.getElementById('productQuantity').value = '';
+				document.getElementById('productUnit').value = 'шт';
 
-			// Refresh display
-			applySearch();
-			updateCreateOrderButton();
-			
-			alert(`Товар "${name}" добавлен в заказ!`);
+				// Refresh display
+				applySearch();
+				updateCreateOrderButton();
+				
+				alert(`Товар "${name}" добавлен в заказ и сохранен в базе данных!`);
+			} catch (error) {
+				console.error('Error adding product:', error);
+				alert(`Ошибка при добавлении товара: ${error.message}`);
+			}
+		}
+		
+		// Get or create department ID
+		async function getDepartmentId(deptName) {
+			try {
+				// First try to get existing department
+				const getResponse = await fetch('/api/departments');
+				const getResult = await getResponse.json();
+				
+				if (getResult.success) {
+					const existingDept = getResult.data.find(d => d.name === deptName);
+					if (existingDept) {
+						return existingDept.id;
+					}
+				}
+				
+				// If department doesn't exist, create it
+				const createResponse = await fetch('/api/departments', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						name: deptName,
+						emoji: getEmojiForDepartment(deptName)
+					})
+				});
+				
+				const createResult = await createResponse.json();
+				if (createResult.success) {
+					return createResult.data.id;
+				} else {
+					throw new Error('Failed to create department');
+				}
+			} catch (error) {
+				console.error('Error getting/creating department:', error);
+				throw error;
+			}
+		}
+		
+		// Get appropriate emoji for department
+		function getEmojiForDepartment(deptName) {
+			const name = deptName.toLowerCase();
+			if (name.includes('офис')) return '🏢';
+			if (name.includes('горничная')) return '🧹';
+			if (name.includes('склад')) return '📦';
+			if (name.includes('ресепшн')) return '🏨';
+			return '📋'; // Default
 		}
 
 		// Delete product

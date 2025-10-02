@@ -10,11 +10,11 @@ import Layout from '../layouts/Layout.astro';
 				<div class="flex justify-between items-center py-4">
 					<div class="flex items-center space-x-4">
 						<a href="/manager" class="text-gray-600 hover:text-gray-900 font-medium">
-							← 
+							← Назад к заказам
 						</a>
 						<div class="h-6 w-px bg-gray-300"></div>
 						<h1 class="text-xl font-semibold text-gray-900" id="orderTitle">
-							📋 Заказ ...
+							📋 Загрузка заказа...
 						</h1>
 					</div>
 					<div class="flex items-center space-x-3">
@@ -136,21 +136,20 @@ import Layout from '../layouts/Layout.astro';
 		let filteredMissingProducts = [];
 		let selectedMissingProducts = {};
 
-		// Get order date from URL parameters
-		function getOrderDateFromURL() {
+		// Get order ID from URL parameters
+		function getOrderIdFromURL() {
 			const urlParams = new URLSearchParams(window.location.search);
-			return urlParams.get('date');
+			return urlParams.get('orderId');
 		}
 
 		// Load order details
 		async function loadOrderDetails() {
-			const orderDate = getOrderDateFromURL();
-			if (!orderDate) {
+			const orderId = getOrderIdFromURL();
+			if (!orderId) {
 				showErrorState();
 				return;
 			}
 
-			currentOrderDate = orderDate;
 			showLoadingState();
 
 			try {
@@ -158,12 +157,13 @@ import Layout from '../layouts/Layout.astro';
 				const data = await response.json();
 
 				if (data.success && data.data) {
-					// Find the order for the specific date
-					const orderForDate = data.data.find(dateGroup => dateGroup.date === orderDate);
+					// Find the order with the specific ID
+					const orderForId = data.data.find(order => order.orderId.toString() === orderId.toString());
 					
-					if (orderForDate) {
-						currentOrderData = orderForDate;
-						displayOrderDetails(orderForDate);
+					if (orderForId) {
+						currentOrderData = orderForId;
+						currentOrderDate = orderForId.timestamp; // Keep for compatibility with missing products
+						displayOrderDetails(orderForId);
 						showOrderContent();
 					} else {
 						showErrorState();
@@ -180,12 +180,15 @@ import Layout from '../layouts/Layout.astro';
 		// Display order details
 		function displayOrderDetails(orderData) {
 			// Update title
-			document.getElementById('orderTitle').textContent = `📋 ${orderData.displayDate}`;
+			document.getElementById('orderTitle').textContent = `${orderData.departmentEmoji} Заказ #${orderData.orderId} - ${orderData.departmentName}`;
 			
 			// Update status
 			const statusEl = document.getElementById('orderStatus');
-			statusEl.textContent = 'В обработке';
-			statusEl.className = 'px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800';
+			const statusColor = orderData.status === 'pending' ? 'yellow' : orderData.status === 'sent' ? 'blue' : 'green';
+			const statusText = orderData.status === 'pending' ? 'Ожидает' : orderData.status === 'sent' ? 'Отправлен' : 'Доставлен';
+			
+			statusEl.textContent = statusText;
+			statusEl.className = `px-3 py-1 rounded-full text-sm font-medium bg-${statusColor}-100 text-${statusColor}-800`;
 
 			// Display supplier groups
 			displaySupplierGroups(orderData);
