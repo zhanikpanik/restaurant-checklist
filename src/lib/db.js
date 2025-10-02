@@ -14,10 +14,43 @@ const pool = databaseUrl ? new pg.Pool({
     ssl: databaseUrl?.includes('railway.internal') ? false : {
         rejectUnauthorized: false // Required for some cloud database providers
     },
-    max: 10, // Maximum number of clients in the pool
+    // Connection pool settings optimized for 5-10 restaurants
+    max: 20, // Maximum connections (was 10, increased for multiple restaurants)
+    min: 2, // Minimum idle connections (keep 2 connections always ready)
     idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-    connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+    connectionTimeoutMillis: 5000, // Reduced from 10s to 5s (fail fast)
+    maxUses: 7500, // Recycle connection after 7500 queries (prevent memory leaks)
+    allowExitOnIdle: true, // Allow pool to close if no activity
+    
+    // Add connection retry settings
+    application_name: 'restaurant-checklist',
+    statement_timeout: 30000, // 30 second query timeout (prevent long-running queries)
+    query_timeout: 30000,
 }) : null;
+
+// Monitor pool health
+if (pool) {
+    pool.on('error', (err) => {
+        console.error('💥 Unexpected database pool error:', err);
+    });
+    
+    pool.on('connect', () => {
+        console.log('🔌 Database client connected');
+    });
+    
+    pool.on('remove', () => {
+        console.log('🔌 Database client removed from pool');
+    });
+    
+    // Log pool statistics every 5 minutes for monitoring
+    setInterval(() => {
+        console.log('📊 DB Pool Stats:', {
+            total: pool.totalCount,
+            idle: pool.idleCount,
+            waiting: pool.waitingCount
+        });
+    }, 300000);
+}
 
 import { setupDatabaseSchema } from './db-schema.js';
 

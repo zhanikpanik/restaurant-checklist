@@ -29,6 +29,17 @@ import Layout from '../layouts/Layout.astro';
 				<p class="text-gray-600">Загрузка товаров бара...</p>
 			</div>
 
+			<!-- My Recent Orders Section -->
+			<div id="myRecentOrders" class="mb-6 hidden">
+				<h2 class="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+					<span class="text-xl mr-2">📋</span>
+					Мои заказы
+				</h2>
+				<div id="recentOrdersList" class="space-y-3">
+					<!-- Orders will be loaded here -->
+				</div>
+			</div>
+
 			<!-- Order View -->
 			<div id="orderView" class="space-y-4 hidden">
 				<!-- Search Field -->
@@ -187,27 +198,127 @@ import Layout from '../layouts/Layout.astro';
 					</div>
 				`;
 			}
+	}
+	
+	// Load recent orders for bar
+	async function loadMyRecentOrders() {
+		try {
+			const response = await fetch('/api/get-all-orders');
+			const data = await response.json();
+			
+			if (data.success) {
+				// Filter orders for bar department that are pending (not delivered)
+				const barOrders = data.data
+					.filter(order => 
+						(order.department === 'bar' || order.departmentName === 'Бар') &&
+						(order.db_status !== 'delivered' && order.status !== 'delivered')
+					)
+					.sort((a, b) => new Date(b.db_created_at || b.timestamp) - new Date(a.db_created_at || a.timestamp))
+					.slice(0, 3); // Show last 3 orders
+				
+				displayMyRecentOrders(barOrders);
+			}
+		} catch (error) {
+			console.error('Error loading recent orders:', error);
+		}
+	}
+	
+	// Display recent orders
+	function displayMyRecentOrders(orders) {
+		const container = document.getElementById('recentOrdersList');
+		const section = document.getElementById('myRecentOrders');
+		
+		if (!orders || orders.length === 0) {
+			section.classList.add('hidden');
+			return;
 		}
 		
-		// Load on page ready
-		document.addEventListener('DOMContentLoaded', function() {
-			loadBarProducts();
+		section.classList.remove('hidden');
+		
+		let html = '';
+		orders.forEach(order => {
+			const date = new Date(order.db_created_at || order.timestamp);
+			const totalItems = order.items?.length || 0;
+			const totalQty = order.items?.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0) || 0;
 			
-			// Load saved quantities from localStorage after products are loaded
-			setTimeout(() => {
-				console.log('🔄 Attempting to restore cart from localStorage...');
-				console.log('🔍 window.checklist available:', !!window.checklist);
-				console.log('🔍 loadCartFromLocalStorage available:', !!window.checklist?.loadCartFromLocalStorage);
-				console.log('🔍 shoppingListData available:', !!window.shoppingListData);
-				
-				if (window.checklist && window.checklist.loadCartFromLocalStorage) {
-					window.checklist.loadCartFromLocalStorage();
-					console.log('📥 Called loadCartFromLocalStorage');
-				} else {
-					console.error('❌ loadCartFromLocalStorage not available');
-				}
-			}, 1000); // Increased timeout
+			html += `
+				<div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+					<div class="flex justify-between items-start mb-2">
+						<div>
+							<div class="font-medium text-gray-900">Заказ от ${date.toLocaleDateString('ru-RU')}</div>
+							<div class="text-sm text-gray-600">${date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</div>
+						</div>
+						<div class="text-right">
+							<div class="text-sm font-medium text-gray-700">${totalItems} товаров</div>
+							<div class="text-xs text-gray-500">${totalQty.toFixed(1)} шт.</div>
+						</div>
+					</div>
+					<div class="flex gap-2 mt-3">
+						<button 
+							onclick="addMissingProductsToOrder('${order.timestamp}')" 
+							class="flex-1 bg-blue-500 hover:bg-blue-600 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center space-x-1"
+						>
+							<span>➕</span>
+							<span>Добавить товары</span>
+						</button>
+						<button 
+							onclick="viewOrderDetails('${order.timestamp}')" 
+							class="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+						>
+							👁️
+						</button>
+					</div>
+				</div>
+			`;
 		});
+		
+		container.innerHTML = html;
+	}
+	
+	// Add missing products to existing order
+	function addMissingProductsToOrder(orderTimestamp) {
+		console.log('➕ Adding missing products to order:', orderTimestamp);
+		localStorage.setItem('modifyOrderTimestamp', orderTimestamp);
+		window.location.href = `/modify-order?timestamp=${encodeURIComponent(orderTimestamp)}`;
+	}
+	
+	// View order details
+	function viewOrderDetails(orderTimestamp) {
+		window.location.href = `/delivery`;
+	}
+	
+	// Load on page ready
+	document.addEventListener('DOMContentLoaded', function() {
+		loadBarProducts();
+		loadMyRecentOrders(); // Load recent orders
+		
+		// Auto-refresh orders every 30 seconds
+		setInterval(() => {
+			loadMyRecentOrders();
+		}, 30000);
+		
+		// Refresh orders when page becomes visible again
+		document.addEventListener('visibilitychange', function() {
+			if (!document.hidden) {
+				loadMyRecentOrders();
+			}
+		});
+		
+		// Load saved quantities from localStorage after products are loaded
+		setTimeout(() => {
+			console.log('🔄 Attempting to restore cart from localStorage...');
+			console.log('🔍 window.checklist available:', !!window.checklist);
+			console.log('🔍 loadCartFromLocalStorage available:', !!window.checklist?.loadCartFromLocalStorage);
+			console.log('🔍 shoppingListData available:', !!window.shoppingListData);
+			
+			if (window.checklist && window.checklist.loadCartFromLocalStorage) {
+				window.checklist.loadCartFromLocalStorage();
+				console.log('📥 Called loadCartFromLocalStorage');
+			} else {
+				console.error('❌ loadCartFromLocalStorage not available');
+			}
+		}, 1000); // Increased timeout
+	});
 
 		// Go to cart function - saves to server then navigates
 		function goToCart() {

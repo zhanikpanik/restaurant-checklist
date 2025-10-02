@@ -113,6 +113,49 @@ async function createSupplier(request, tenantId) {
     }
 }
 
+// PUT: Update an existing supplier
+async function updateSupplier(request, tenantId) {
+    const { id, name, contact_info, phone } = await request.json();
+
+    if (!id) {
+        return { status: 400, body: { success: false, error: 'Supplier ID is required' } };
+    }
+
+    if (!name || name.trim() === '') {
+        return { status: 400, body: { success: false, error: 'Supplier name is required' } };
+    }
+
+    const { client, error } = await getDbClient();
+
+    if (error) return error;
+
+    try {
+        console.log('🔄 Updating supplier ID:', id);
+        
+        const result = await client.query(
+            'UPDATE suppliers SET name = $1, contact_info = $2, phone = $3 WHERE id = $4 RETURNING *',
+            [name.trim(), contact_info || null, phone || null, id]
+        );
+        
+        if (result.rows.length === 0) {
+            return { status: 404, body: { success: false, error: 'Supplier not found' } };
+        }
+        
+        console.log('✅ Supplier updated successfully');
+        return {
+            status: 200,
+            body: { success: true, data: result.rows[0] }
+        };
+    } catch (error) {
+        if (error.code === '23505') { // Unique constraint violation
+            return { status: 409, body: { success: false, error: 'Supplier name already exists' } };
+        }
+        throw error;
+    } finally {
+        safeRelease(client);
+    }
+}
+
 // Main handler for GET and POST requests
 export async function GET({ locals }) {
     try {
@@ -172,6 +215,26 @@ export async function POST({ request, locals }) {
                 headers: { 'Content-Type': 'application/json' } 
             });
         }
+        
+        return new Response(JSON.stringify({ success: false, error: 'Server error' }), { status: 500 });
+    }
+}
+
+export async function PUT({ request, locals }) {
+    let requestData;
+    try {
+        requestData = await request.json();
+        const tenantId = locals.tenantId || 'default';
+        
+        // Create a new request object with the parsed data
+        const newRequest = {
+            json: async () => requestData
+        };
+        
+        const { status, body } = await updateSupplier(newRequest, tenantId);
+        return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+    } catch (error) {
+        console.error('Failed to update supplier:', error);
         
         return new Response(JSON.stringify({ success: false, error: 'Server error' }), { status: 500 });
     }

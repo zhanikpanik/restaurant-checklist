@@ -29,20 +29,27 @@ import Layout from '../layouts/Layout.astro';
 				<!-- Tab Navigation -->
 				<div class="bg-white border-b border-gray-200 sticky top-0 z-40">
 					<nav class="flex space-x-8 px-4 overflow-x-auto">
-						<button 
-							onclick="switchTab('orders')" 
-							id="tab-orders"
-							class="py-4 px-2 border-b-2 font-medium text-sm whitespace-nowrap border-blue-500 text-blue-600"
-						>
-							📋 Заказы
-						</button>
-						<button 
-							onclick="switchTab('categories')" 
-							id="tab-categories"
-							class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
-						>
-							🏷️ Категории
-						</button>
+					<button 
+						onclick="switchTab('orders')" 
+						id="tab-orders"
+						class="py-4 px-2 border-b-2 font-medium text-sm whitespace-nowrap border-blue-500 text-blue-600"
+					>
+						📋 Заказы
+					</button>
+					<button 
+						onclick="switchTab('delivered')" 
+						id="tab-delivered"
+						class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
+					>
+						✅ Доставлено
+					</button>
+					<button 
+						onclick="switchTab('categories')" 
+						id="tab-categories"
+						class="py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 font-medium text-sm whitespace-nowrap"
+					>
+						🏷️ Категории
+					</button>
 								<button 
 							onclick="switchTab('suppliers')" 
 							id="tab-suppliers"
@@ -85,12 +92,32 @@ import Layout from '../layouts/Layout.astro';
 							<div class="text-center text-gray-500 py-8">
 								<span class="text-4xl mb-4 block">📋</span>
 								<p class="text-lg mb-2">Загрузка заказов...</p>
+			</div>
+		</div>
+	</div>
+
+				<!-- Delivered Orders Tab -->
+				<div id="content-delivered" class="tab-content hidden">
+					<div class="mb-4 flex justify-between items-center">
+						<h3 class="text-lg font-semibold text-gray-900">✅ Доставленные заказы</h3>
+						<button 
+							onclick="exportAllDeliveredOrders()" 
+							class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg flex items-center space-x-2"
+						>
+							<span>📄</span>
+							<span>Экспорт всех в Excel</span>
+						</button>
+					</div>
+					<div id="deliveredOrders" class="">
+						<div class="text-center text-gray-500 py-8">
+							<span class="text-4xl mb-4 block">✅</span>
+							<p class="text-lg mb-2">Загрузка доставленных заказов...</p>
+						</div>
 					</div>
 				</div>
-			</div>
 
-					<!-- Categories Tab -->
-					<div id="content-categories" class="tab-content hidden">
+				<!-- Categories Tab -->
+				<div id="content-categories" class="tab-content hidden">
 						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-y-3 mb-4">
 							<h3 class="text-lg font-semibold text-gray-900">🏷️ Категории и поставщики</h3>
 							<div class="flex flex-wrap gap-2">
@@ -363,10 +390,64 @@ import Layout from '../layouts/Layout.astro';
 								</button>
 							</div>
 						</div>
+				</div>
+			</div>
+
+			<!-- Edit Supplier Modal -->
+			<div id="editSupplierModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+				<div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+					<div class="flex justify-between items-center mb-4">
+						<h3 class="text-lg font-semibold">✏️ Редактировать поставщика</h3>
+						<button onclick="closeEditSupplierModal()" class="text-gray-400 hover:text-gray-600">✕</button>
+					</div>
+					<div class="space-y-4">
+						<input type="hidden" id="editSupplierId">
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-1">Название компании</label>
+							<input 
+								type="text" 
+								id="editSupplierName" 
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+								placeholder="Введите название поставщика"
+							>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-1">Телефон</label>
+							<input 
+								type="tel" 
+								id="editSupplierPhone" 
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+								placeholder="+7 (xxx) xxx-xx-xx"
+							>
+						</div>
+						<div>
+							<label class="block text-sm font-medium text-gray-700 mb-1">Контактная информация</label>
+							<textarea 
+								id="editSupplierContact" 
+								class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+								placeholder="Email, адрес, дополнительная информация"
+								rows="3"
+							></textarea>
+						</div>
+						<div class="flex space-x-3 pt-4">
+							<button 
+								onclick="updateSupplier()" 
+								class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
+							>
+								💾 Сохранить
+							</button>
+							<button 
+								onclick="closeEditSupplierModal()" 
+								class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg"
+							>
+								Отмена
+							</button>
+						</div>
 					</div>
 				</div>
+			</div>
 
-				<!-- Add Department Modal -->
+			<!-- Add Department Modal -->
 				<div id="addDepartmentModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
 					<div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
 						<div class="p-6">
@@ -406,11 +487,56 @@ import Layout from '../layouts/Layout.astro';
 									Отмена
 								</button>
 							</div>
-						</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Edit Department Modal -->
+	<div id="editDepartmentModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+		<div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+			<div class="p-6">
+				<h3 class="text-lg font-semibold text-gray-900 mb-4">✏️ Редактировать отдел</h3>
+				<div class="space-y-4">
+					<input type="hidden" id="editDepartmentId">
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">Название отдела</label>
+						<input 
+							type="text" 
+							id="editDepartmentName" 
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+							placeholder="Например: Склад, Офис, Ресепшн"
+						/>
+					</div>
+					<div>
+						<label class="block text-sm font-medium text-gray-700 mb-2">Эмодзи (необязательно)</label>
+						<input 
+							type="text" 
+							id="editDepartmentEmoji" 
+							class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+							placeholder="📦"
+							maxlength="2"
+						/>
 					</div>
 				</div>
+				<div class="flex space-x-3 pt-4">
+					<button 
+						onclick="updateDepartment()" 
+						class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
+					>
+						💾 Сохранить
+					</button>
+					<button 
+						onclick="closeEditDepartmentModal()" 
+						class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg"
+					>
+						Отмена
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
 
-				<!-- Add Custom Product Modal -->
+	<!-- Add Custom Product Modal -->
 				<div id="addCustomProductModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
 					<div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
 						<div class="p-6">
@@ -2003,28 +2129,26 @@ import Layout from '../layouts/Layout.astro';
 									</div>
 								</div>
 								
-								<div class="flex flex-col sm:flex-row gap-2">
-									${!hasSupplier ? `
-									<button 
-										onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', ${category.supplier_id || 'null'})"
-										class="flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors bg-yellow-500 hover:bg-yellow-600 text-white"
-									>
-										➕ Назначить поставщика
-									</button>
-									` : ''}
-									<button 
-										onclick="openProductAssignModal(${category.id}, '${category.category_name}')"
-										class="flex-1 px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors"
-									>
-										📋 Управление товарами
-									</button>
-									<button 
-										onclick="deleteCategory(${category.id}, '${category.category_name}')"
-										class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
-									>
-										🗑️
-									</button>
-								</div>
+							<div class="flex flex-col sm:flex-row gap-2">
+								<button 
+									onclick="openSupplierAssignModal(${category.id}, '${category.category_name}', ${category.supplier_id || 'null'})"
+									class="flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-colors ${hasSupplier ? 'bg-blue-500 hover:bg-blue-600' : 'bg-yellow-500 hover:bg-yellow-600'} text-white"
+								>
+									${hasSupplier ? '🔄 Изменить поставщика' : '➕ Назначить поставщика'}
+								</button>
+								<button 
+									onclick="openProductAssignModal(${category.id}, '${category.category_name}')"
+									class="flex-1 px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors"
+								>
+									📋 Управление товарами
+								</button>
+								<button 
+									onclick="deleteCategory(${category.id}, '${category.category_name}')"
+									class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
+								>
+									🗑️
+								</button>
+							</div>
 							</div>
 						</div>
 					`;
@@ -2701,10 +2825,228 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 
-			// SUPPLIER MANAGEMENT FUNCTIONS
+		// DELIVERED ORDERS MANAGEMENT
+		
+		// Load delivered orders
+		async function loadDeliveredOrders() {
+			console.log('✅ Loading delivered orders...');
+			try {
+				const response = await fetch('/api/get-all-orders');
+				const data = await response.json();
+				
+				if (data.success) {
+					// Filter only delivered orders
+					const deliveredOrders = data.data.filter(order => 
+						order.db_status === 'delivered' || order.status === 'delivered'
+					);
+					console.log(`✅ Found ${deliveredOrders.length} delivered orders`);
+					displayDeliveredOrders(deliveredOrders);
+				} else {
+					console.error('❌ Failed to load delivered orders:', data.error);
+					displayDeliveredOrders([]);
+				}
+			} catch (error) {
+				console.error('❌ Error loading delivered orders:', error);
+				displayDeliveredOrders([]);
+			}
+		}
+		
+		// Display delivered orders
+		function displayDeliveredOrders(orders) {
+			const container = document.getElementById('deliveredOrders');
 			
-			// Load suppliers from API
-			async function loadSuppliers() {
+			if (!container) {
+				console.error('❌ Delivered orders container not found!');
+				return;
+			}
+			
+			if (!orders || orders.length === 0) {
+				container.innerHTML = `
+					<div class="text-center text-gray-500 py-8">
+						<span class="text-4xl mb-4 block">✅</span>
+						<p class="text-lg mb-2">Нет доставленных заказов</p>
+						<p class="text-sm">Доставленные заказы появятся здесь</p>
+					</div>
+				`;
+				return;
+			}
+			
+			// Sort by delivered date (newest first)
+			const sortedOrders = orders.sort((a, b) => {
+				const dateA = new Date(a.db_delivered_at || a.deliveredAt || a.db_created_at || a.timestamp);
+				const dateB = new Date(b.db_delivered_at || b.deliveredAt || b.db_created_at || b.timestamp);
+				return dateB - dateA;
+			});
+			
+			let html = '<div class="space-y-4">';
+			
+			sortedOrders.forEach(order => {
+				const deliveredDate = new Date(order.db_delivered_at || order.deliveredAt || order.db_created_at || order.timestamp);
+				const createdDate = new Date(order.db_created_at || order.timestamp);
+				const departmentName = order.departmentName || order.department;
+				const totalItems = order.items?.length || 0;
+				const totalQuantity = order.totalQuantity || 0;
+				
+				html += `
+					<div class="bg-green-50 border border-green-200 rounded-lg p-4">
+						<div class="flex justify-between items-start mb-3">
+							<div>
+								<div class="flex items-center space-x-2 mb-1">
+									<span class="text-lg font-semibold text-gray-900">${departmentName}</span>
+									<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">✅ Доставлено</span>
+								</div>
+								<div class="text-sm text-gray-600">
+									<div>Создан: ${createdDate.toLocaleString('ru-RU')}</div>
+									<div>Доставлен: ${deliveredDate.toLocaleString('ru-RU')}</div>
+								</div>
+							</div>
+							<div class="text-right">
+								<div class="text-sm font-medium text-gray-700">${totalItems} товаров</div>
+								<div class="text-xs text-gray-500">${totalQuantity} шт.</div>
+							</div>
+						</div>
+						
+						<div class="mb-3 max-h-40 overflow-y-auto">
+							<div class="text-sm space-y-1">
+								${order.items?.slice(0, 10).map(item => `
+									<div class="flex justify-between text-gray-700">
+										<span>${item.name}</span>
+										<span class="font-medium">${item.actualQuantity || item.quantity || 0} ${item.unit}</span>
+									</div>
+								`).join('') || '<div class="text-gray-500">Нет товаров</div>'}
+								${order.items?.length > 10 ? `<div class="text-xs text-gray-500 mt-2">... и ещё ${order.items.length - 10} товаров</div>` : ''}
+							</div>
+						</div>
+						
+						<div class="flex space-x-2">
+							<button 
+								onclick="downloadDeliveredOrderXLS('${order.db_id || order.timestamp}')" 
+								class="flex-1 px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center justify-center space-x-1"
+							>
+								<span>📄</span>
+								<span>Скачать Excel</span>
+							</button>
+							<button 
+								onclick="viewDeliveredOrderDetails('${order.db_id || order.timestamp}')" 
+								class="px-3 py-2 text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors"
+							>
+								👁️ Просмотр
+							</button>
+						</div>
+					</div>
+				`;
+			});
+			
+			html += '</div>';
+			container.innerHTML = html;
+		}
+		
+		// Download single delivered order as Excel
+		async function downloadDeliveredOrderXLS(orderId) {
+			try {
+				console.log(`📄 Downloading delivered order: ${orderId}`);
+				
+				const response = await fetch('/api/download-order-xls', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ orderId: orderId })
+				});
+				
+				if (!response.ok) {
+					throw new Error('Failed to download order');
+				}
+				
+				const blob = await response.blob();
+				const url = window.URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = `order-${orderId}-${new Date().toISOString().split('T')[0]}.xlsx`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				window.URL.revokeObjectURL(url);
+				
+				showToast('Файл успешно скачан!', 'success');
+			} catch (error) {
+				console.error('❌ Failed to download order:', error);
+				showToast('Ошибка при скачивании файла', 'error');
+			}
+		}
+		
+		// Export all delivered orders
+		async function exportAllDeliveredOrders() {
+			try {
+				console.log('📄 Exporting all delivered orders...');
+				
+				const response = await fetch('/api/get-all-orders');
+				const data = await response.json();
+				
+				if (!data.success) {
+					throw new Error('Failed to load orders');
+				}
+				
+				// Filter delivered orders
+				const deliveredOrders = data.data.filter(order => 
+					order.db_status === 'delivered' || order.status === 'delivered'
+				);
+				
+				if (deliveredOrders.length === 0) {
+					alert('Нет доставленных заказов для экспорта');
+					return;
+				}
+				
+				// Create Excel-like data structure
+				const excelData = deliveredOrders.map(order => ({
+					orderId: order.db_id || order.timestamp,
+					department: order.departmentName || order.department,
+					createdAt: new Date(order.db_created_at || order.timestamp).toLocaleString('ru-RU'),
+					deliveredAt: new Date(order.db_delivered_at || order.deliveredAt).toLocaleString('ru-RU'),
+					totalItems: order.items?.length || 0,
+					totalQuantity: order.totalQuantity || 0,
+					items: order.items || []
+				}));
+				
+				// Send to download API
+				const downloadResponse = await fetch('/api/download-order-xls', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ 
+						type: 'bulk',
+						orders: excelData 
+					})
+				});
+				
+				if (!downloadResponse.ok) {
+					throw new Error('Failed to export orders');
+				}
+				
+				const blob = await downloadResponse.blob();
+				const url = window.URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = `delivered-orders-${new Date().toISOString().split('T')[0]}.xlsx`;
+				document.body.appendChild(a);
+				a.click();
+				document.body.removeChild(a);
+				window.URL.revokeObjectURL(url);
+				
+				showToast(`Экспортировано ${deliveredOrders.length} заказов!`, 'success');
+			} catch (error) {
+				console.error('❌ Failed to export delivered orders:', error);
+				alert('Ошибка при экспорте заказов: ' + error.message);
+			}
+		}
+		
+		// View delivered order details (opens modal or navigates to details page)
+		function viewDeliveredOrderDetails(orderId) {
+			// You can implement a modal or navigate to order-details page
+			window.location.href = `/order-details?id=${orderId}`;
+		}
+		
+		// SUPPLIER MANAGEMENT FUNCTIONS
+		
+		// Load suppliers from API
+		async function loadSuppliers() {
 				console.log('🔄 Loading suppliers from API...');
 				try {
 					const response = await fetch('/api/suppliers');
@@ -2790,7 +3132,7 @@ import Layout from '../layouts/Layout.astro';
 							<td class="px-4 py-3 text-right">
 								<div class="flex justify-end gap-2">
 									<button 
-										onclick="editSupplier(${supplier.id})" 
+										onclick='editSupplier(${supplier.id}, ${JSON.stringify(supplier.name)}, ${JSON.stringify(supplier.phone || "")}, ${JSON.stringify(supplier.contact_info || "")})' 
 										class="px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium rounded transition-colors"
 									>
 										✏️ Изменить
@@ -3007,17 +3349,68 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 			
-			// Edit supplier (placeholder)
-			function editSupplier(supplierId) {
-				alert('Функция редактирования поставщика будет добавлена позже. ID: ' + supplierId);
+		// Edit supplier
+		function editSupplier(supplierId, name, phone, contactInfo) {
+			// Populate the modal with current values
+			document.getElementById('editSupplierId').value = supplierId;
+			document.getElementById('editSupplierName').value = name;
+			document.getElementById('editSupplierPhone').value = phone || '';
+			document.getElementById('editSupplierContact').value = contactInfo || '';
+			
+			// Show the modal
+			document.getElementById('editSupplierModal').classList.remove('hidden');
+			document.getElementById('editSupplierName').focus();
+		}
+		
+		// Close edit supplier modal
+		function closeEditSupplierModal() {
+			document.getElementById('editSupplierModal').classList.add('hidden');
+			document.getElementById('editSupplierId').value = '';
+			document.getElementById('editSupplierName').value = '';
+			document.getElementById('editSupplierPhone').value = '';
+			document.getElementById('editSupplierContact').value = '';
+		}
+		
+		// Update supplier
+		async function updateSupplier() {
+			const id = document.getElementById('editSupplierId').value;
+			const name = document.getElementById('editSupplierName').value.trim();
+			const phone = document.getElementById('editSupplierPhone').value.trim();
+			const contact_info = document.getElementById('editSupplierContact').value.trim();
+			
+			if (!name) {
+				alert('Введите название поставщика');
+				return;
 			}
 			
-			// Delete supplier (placeholder)
-			function deleteSupplier(supplierId) {
-				if (confirm('Вы уверены, что хотите удалить этого поставщика?')) {
-					alert('Функция удаления поставщика будет добавлена позже. ID: ' + supplierId);
+			try {
+				const response = await fetch('/api/suppliers', {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ id, name, phone, contact_info })
+				});
+				
+				const data = await response.json();
+				
+				if (data.success) {
+					showToast('Поставщик "' + name + '" обновлен!', 'success');
+					closeEditSupplierModal();
+					loadSuppliers(); // Refresh the list
+				} else {
+					alert('Ошибка при обновлении поставщика: ' + data.error);
 				}
+			} catch (error) {
+				console.error('Error updating supplier:', error);
+				alert('Ошибка при обновлении поставщика. Проверьте подключение к серверу.');
 			}
+		}
+		
+		// Delete supplier (placeholder)
+		function deleteSupplier(supplierId) {
+			if (confirm('Вы уверены, что хотите удалить этого поставщика?')) {
+				alert('Функция удаления поставщика будет добавлена позже. ID: ' + supplierId);
+			}
+		}
 
 
 			// ========== CATEGORIES MANAGEMENT ==========
@@ -3061,31 +3454,9 @@ import Layout from '../layouts/Layout.astro';
 					});
 				}
 				
-				// Load suppliers for category modal
-				if (newCategorySupplierSelect) {
-					loadSuppliersForCategoryModal();
-				}
-			}
-			
-			// Load suppliers for category modal
-			async function loadSuppliersForCategoryModal() {
-				try {
-					const response = await fetch('/api/suppliers');
-					const data = await response.json();
-					
-					const select = document.getElementById('newCategorySupplier');
-					if (select && data.success) {
-						select.innerHTML = '<option value="">Без поставщика</option>';
-						data.data.forEach(supplier => {
-							select.innerHTML += `<option value="${supplier.id}">${supplier.name}</option>`;
-						});
-					}
-				} catch (error) {
-					console.error('Error loading suppliers for category modal:', error);
-				}
-			}
-			
-			// Add new category
+		}
+		
+		// Add new category
 			function addNewCategory() {
 				document.getElementById('addCategoryModal').classList.remove('hidden');
 				document.getElementById('newCategoryName').focus();
@@ -3346,14 +3717,67 @@ import Layout from '../layouts/Layout.astro';
 					} else {
 						alert('Ошибка: ' + data.error);
 					}
-				} catch (error) {
-					console.error('Error creating department:', error);
-					alert('Ошибка создания отдела');
-				}
+			} catch (error) {
+				console.error('Error creating department:', error);
+				alert('Ошибка создания отдела');
+			}
+		}
+		
+		// Edit department
+		function editDepartment(id, name, emoji) {
+			// Populate the modal with current values
+			document.getElementById('editDepartmentId').value = id;
+			document.getElementById('editDepartmentName').value = name;
+			document.getElementById('editDepartmentEmoji').value = emoji || '';
+			
+			// Show the modal
+			document.getElementById('editDepartmentModal').classList.remove('hidden');
+			document.getElementById('editDepartmentName').focus();
+		}
+		
+		// Close edit department modal
+		function closeEditDepartmentModal() {
+			document.getElementById('editDepartmentModal').classList.add('hidden');
+			document.getElementById('editDepartmentId').value = '';
+			document.getElementById('editDepartmentName').value = '';
+			document.getElementById('editDepartmentEmoji').value = '';
+		}
+		
+		// Update department
+		async function updateDepartment() {
+			const id = document.getElementById('editDepartmentId').value;
+			const name = document.getElementById('editDepartmentName').value.trim();
+			const emoji = document.getElementById('editDepartmentEmoji').value.trim();
+			
+			if (!name) {
+				alert('Введите название отдела');
+				return;
 			}
 			
-			// Delete department
-			async function deleteDepartment(id, name) {
+			try {
+				const response = await fetch('/api/departments', {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ id, name, emoji: emoji || '📦' })
+				});
+				
+				const data = await response.json();
+				
+				if (data.success) {
+					showToast(`Отдел "${name}" обновлен!`, 'success');
+					closeEditDepartmentModal();
+					loadDepartments();
+				} else {
+					alert('Ошибка: ' + data.error);
+				}
+			} catch (error) {
+				console.error('Error updating department:', error);
+				alert('Ошибка обновления отдела');
+			}
+		}
+		
+		// Delete department
+		async function deleteDepartment(id, name) {
 				if (!confirm(`Удалить отдел "${name}"?`)) return;
 				
 				try {
@@ -3765,19 +4189,21 @@ import Layout from '../layouts/Layout.astro';
 					selectedTab.classList.add('border-blue-500', 'text-blue-600');
 				}
 				
-				// Load data for specific tabs when they become active
-				if (tabName === 'categories') {
-					loadCategorySuppliers();
-				} else if (tabName === 'suppliers') {
-					loadSuppliers();
-				} else if (tabName === 'departments') {
-					loadDepartments();
-				} else if (tabName === 'products') {
-					loadCustomProducts();
-				} else if (tabName === 'orders') {
-					loadOrdersByCategory();
-				}
+			// Load data for specific tabs when they become active
+			if (tabName === 'categories') {
+				loadCategorySuppliers();
+			} else if (tabName === 'delivered') {
+				loadDeliveredOrders();
+			} else if (tabName === 'suppliers') {
+				loadSuppliers();
+			} else if (tabName === 'departments') {
+				loadDepartments();
+			} else if (tabName === 'products') {
+				loadCustomProducts();
+			} else if (tabName === 'orders') {
+				loadOrdersByCategory();
 			}
+		}
 
 			// Navigate to order details page
 			function viewOrderDetails(orderId) {
