@@ -3,7 +3,7 @@ import pool from '../../lib/db.js';
 export async function GET() {
     try {
         const result = await pool.query(
-            'SELECT * FROM restaurants ORDER BY name'
+            'SELECT * FROM restaurants WHERE poster_token IS NOT NULL ORDER BY name'
         );
         
         return new Response(JSON.stringify({
