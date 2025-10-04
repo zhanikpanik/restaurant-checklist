@@ -1,25 +1,28 @@
 import { getDbClient, safeRelease } from '../../lib/db-helper.js';
+import { getTenantId } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
 // GET: Fetch all categories with their supplier information
-export async function GET() {
+export async function GET({ request }) {
+    const tenantId = getTenantId(request);
     const { client, error } = await getDbClient();
 
     if (error) return error;
 
     try {
         const query = `
-            SELECT 
-                pc.id, 
-                pc.name, 
+            SELECT
+                pc.id,
+                pc.name,
                 pc.supplier_id,
                 s.name AS supplier_name
             FROM product_categories pc
             LEFT JOIN suppliers s ON pc.supplier_id = s.id
+            WHERE pc.restaurant_id = $1
             ORDER BY pc.name ASC;
         `;
-        const result = await client.query(query);
+        const result = await client.query(query, [tenantId]);
         return new Response(JSON.stringify({
             success: true,
             data: result.rows
@@ -43,18 +46,19 @@ export async function GET() {
 
 // POST: Create a new category OR update supplier for existing category
 export async function POST({ request }) {
+    const tenantId = getTenantId(request);
     const data = await request.json();
     const { client, error } = await getDbClient();
 
     if (error) return error;
 
-    
+
     try {
         // Check if this is creating a new category (has 'name') or updating supplier (has 'category_id')
         if (data.name) {
             // Creating a new category
             const { name, supplier_id } = data;
-            
+
             if (!name.trim()) {
                 return new Response(JSON.stringify({
                     success: false,
@@ -64,13 +68,13 @@ export async function POST({ request }) {
                     headers: { 'Content-Type': 'application/json' }
                 });
             }
-            
-            // Check if category already exists
+
+            // Check if category already exists for this tenant
             const existingCheck = await client.query(
-                'SELECT id FROM product_categories WHERE LOWER(name) = LOWER($1)',
-                [name.trim()]
+                'SELECT id FROM product_categories WHERE LOWER(name) = LOWER($1) AND restaurant_id = $2',
+                [name.trim(), tenantId]
             );
-            
+
             if (existingCheck.rows.length > 0) {
                 return new Response(JSON.stringify({
                     success: false,
@@ -80,13 +84,13 @@ export async function POST({ request }) {
                     headers: { 'Content-Type': 'application/json' }
                 });
             }
-            
+
             const query = `
-                INSERT INTO product_categories (name, supplier_id) 
-                VALUES ($1, $2) 
+                INSERT INTO product_categories (name, supplier_id, restaurant_id)
+                VALUES ($1, $2, $3)
                 RETURNING id, name, supplier_id;
             `;
-            const result = await client.query(query, [name.trim(), supplier_id || null]);
+            const result = await client.query(query, [name.trim(), supplier_id || null, tenantId]);
             
             return new Response(JSON.stringify({
                 success: true,
@@ -99,16 +103,16 @@ export async function POST({ request }) {
         } else if (data.category_id !== undefined) {
             // Updating supplier for existing category
             const { category_id, supplier_id } = data;
-            
+
             const newSupplierId = supplier_id === undefined ? null : supplier_id;
-            
+
             const query = `
-                UPDATE product_categories 
-                SET supplier_id = $1 
-                WHERE id = $2
+                UPDATE product_categories
+                SET supplier_id = $1
+                WHERE id = $2 AND restaurant_id = $3
                 RETURNING id, name, supplier_id;
             `;
-            const result = await client.query(query, [newSupplierId, category_id]);
+            const result = await client.query(query, [newSupplierId, category_id, tenantId]);
             
             if (result.rows.length === 0) {
                 return new Response(JSON.stringify({
@@ -152,8 +156,9 @@ export async function POST({ request }) {
 
 // DELETE: Delete a category
 export async function DELETE({ request }) {
+    const tenantId = getTenantId(request);
     const { id } = await request.json();
-    
+
     if (!id) {
         return new Response(JSON.stringify({
             success: false,
@@ -163,21 +168,21 @@ export async function DELETE({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     }
-    
+
     const { client, error } = await getDbClient();
 
-    
+
     if (error) return error;
 
     try {
         await client.query('BEGIN');
-        
-        // Check if category is being used by products
+
+        // Check if category is being used by products (tenant-specific)
         const usageCheck = await client.query(
-            'SELECT COUNT(*) as count FROM products WHERE category_id = $1',
-            [id]
+            'SELECT COUNT(*) as count FROM products WHERE category_id = $1 AND restaurant_id = $2',
+            [id, tenantId]
         );
-        
+
         const productCount = parseInt(usageCheck.rows[0].count);
         if (productCount > 0) {
             await client.query('ROLLBACK');
@@ -189,13 +194,13 @@ export async function DELETE({ request }) {
                 headers: { 'Content-Type': 'application/json' }
             });
         }
-        
-        // Check if category is being used by custom products
+
+        // Check if category is being used by custom products (tenant-specific)
         const customUsageCheck = await client.query(
-            'SELECT COUNT(*) as count FROM custom_products WHERE category_id = $1',
-            [id]
+            'SELECT COUNT(*) as count FROM custom_products WHERE category_id = $1 AND restaurant_id = $2',
+            [id, tenantId]
         );
-        
+
         const customProductCount = parseInt(customUsageCheck.rows[0].count);
         if (customProductCount > 0) {
             await client.query('ROLLBACK');
@@ -207,11 +212,11 @@ export async function DELETE({ request }) {
                 headers: { 'Content-Type': 'application/json' }
             });
         }
-        
-        // Delete the category
+
+        // Delete the category (tenant-specific)
         const result = await client.query(
-            'DELETE FROM product_categories WHERE id = $1 RETURNING name',
-            [id]
+            'DELETE FROM product_categories WHERE id = $1 AND restaurant_id = $2 RETURNING name',
+            [id, tenantId]
         );
         
         if (result.rows.length === 0) {

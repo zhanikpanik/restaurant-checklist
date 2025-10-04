@@ -31,20 +31,41 @@ export async function GET() {
 
 export async function POST({ request }) {
     try {
-        const { id, name, logo, primary_color, currency } = await request.json();
-        
+        const {
+            id,
+            name,
+            logo,
+            primary_color,
+            currency,
+            poster_token,
+            kitchen_storage_id,
+            bar_storage_id
+        } = await request.json();
+
         if (!id || !name) {
             return new Response(JSON.stringify({
                 success: false,
                 error: 'Restaurant ID and name are required'
             }), { status: 400 });
         }
-        
+
         const result = await pool.query(
-            `INSERT INTO restaurants (id, name, logo, primary_color, currency) 
-             VALUES ($1, $2, $3, $4, $5) 
+            `INSERT INTO restaurants (
+                id, name, logo, primary_color, currency,
+                poster_token, kitchen_storage_id, bar_storage_id
+            )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [id, name, logo || '🍽️', primary_color || '#3B82F6', currency || '₽']
+            [
+                id,
+                name,
+                logo || '🍽️',
+                primary_color || '#3B82F6',
+                currency || '₽',
+                poster_token || null,
+                kitchen_storage_id || 1,
+                bar_storage_id || 2
+            ]
         );
         
         return new Response(JSON.stringify({

@@ -109,13 +109,18 @@ export async function getRestaurantConfig(tenantId) {
  * Fallback configuration when database is not available
  */
 function getFallbackConfig(tenantId) {
+    // Try both process.env and import.meta.env for compatibility
+    const envToken = typeof import.meta !== 'undefined' && import.meta.env
+        ? (import.meta.env.POSTER_ACCESS_TOKEN || import.meta.env.POSTER_TOKEN)
+        : (process.env.POSTER_ACCESS_TOKEN || process.env.POSTER_TOKEN);
+
     return {
         id: tenantId,
         name: 'Restaurant',
         logo: '🍽️',
         primary_color: '#3B82F6',
         currency: '₽',
-        poster_token: process.env.POSTER_TOKEN || '305185:07928627ec76d09e589e1381710e55da',
+        poster_token: envToken || '305185:07928627ec76d09e589e1381710e55da',
         poster_base_url: 'https://joinposter.com/api',
         kitchen_storage_id: 1,
         bar_storage_id: 2,
@@ -131,13 +136,23 @@ function getFallbackConfig(tenantId) {
  */
 export async function getPosterConfig(tenantId) {
     const config = await getRestaurantConfig(tenantId);
-    
-    if (!config.poster_token) {
-        throw new Error(`No Poster token configured for restaurant ${tenantId}`);
+
+    // Try both process.env and import.meta.env for compatibility
+    const envToken = typeof import.meta !== 'undefined' && import.meta.env
+        ? (import.meta.env.POSTER_ACCESS_TOKEN || import.meta.env.POSTER_TOKEN)
+        : (process.env.POSTER_ACCESS_TOKEN || process.env.POSTER_TOKEN);
+
+    // Use token from config, or fall back to environment variable
+    const token = config.poster_token || envToken;
+
+    console.log(`[${tenantId}] Token sources - DB: ${config.poster_token ? 'YES' : 'NO'}, ENV: ${envToken ? 'YES' : 'NO'}, Final: ${token ? 'YES' : 'NO'}`);
+
+    if (!token) {
+        throw new Error(`No Poster token configured for restaurant ${tenantId}. Please set poster_token in database or POSTER_ACCESS_TOKEN in environment.`);
     }
-    
+
     return {
-        token: config.poster_token,
+        token: token,
         baseUrl: config.poster_base_url || 'https://joinposter.com/api',
         kitchenStorageId: config.kitchen_storage_id || 1,
         barStorageId: config.bar_storage_id || 2

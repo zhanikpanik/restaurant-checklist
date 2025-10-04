@@ -1,29 +1,32 @@
 import { getDbClient, safeRelease } from '../../lib/db-helper.js';
+import { getTenantId } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
 // PUT: Update product supplier
 export async function PUT({ request }) {
+    const tenantId = getTenantId(request);
     const { client, error } = await getDbClient();
 
     if (error) return error;
 
-    
+
     try {
         const { productId, supplierId } = await request.json();
-        
+
         if (!productId) {
             throw new Error('Product ID is required');
         }
-        
+
         await client.query('BEGIN');
-        
+
+        // Update only products that belong to this tenant
         const result = await client.query(
-            `UPDATE products 
-             SET supplier_id = $1, updated_at = CURRENT_TIMESTAMP 
-             WHERE id = $2 
+            `UPDATE products
+             SET supplier_id = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2 AND restaurant_id = $3
              RETURNING id, name`,
-            [supplierId || null, productId]
+            [supplierId || null, productId, tenantId]
         );
         
         if (result.rows.length === 0) {

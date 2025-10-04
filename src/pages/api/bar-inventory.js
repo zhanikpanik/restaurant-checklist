@@ -1,9 +1,10 @@
 import { getDbClient, safeRelease } from '../../lib/db-helper.js';
+import { getTenantId, getPosterConfig } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
 // Helper function to save categories to our database
-async function saveCategoriesToDb(categories) {
+async function saveCategoriesToDb(categories, tenantId) {
     if (!categories || categories.size === 0) return;
 
     const { client, error } = await getDbClient();
@@ -14,15 +15,15 @@ async function saveCategoriesToDb(categories) {
     try {
         await client.query('BEGIN');
         const query = `
-            INSERT INTO product_categories (name, poster_category_id)
-            VALUES ($1, $2)
-            ON CONFLICT (poster_category_id) DO NOTHING;
+            INSERT INTO product_categories (name, poster_category_id, restaurant_id)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (poster_category_id, restaurant_id) DO NOTHING;
         `;
         for (const [id, name] of categories) {
-            await client.query(query, [name, id]);
+            await client.query(query, [name, id, tenantId]);
         }
         await client.query('COMMIT');
-        console.log(`💾 Synced ${categories.size} categories to the database.`);
+        console.log(`💾 Synced ${categories.size} categories to the database for tenant ${tenantId}.`);
     } catch (error) {
         await client.query('ROLLBACK');
         console.error('❌ Error saving categories to DB:', error);
@@ -31,29 +32,34 @@ async function saveCategoriesToDb(categories) {
     }
 }
 
-export async function GET() {
-    const token = '305185:07928627ec76d09e589e1381710e55da';
-    const baseUrl = 'https://joinposter.com/api';
-    
+export async function GET({ request }) {
+    // Get tenant-specific configuration
+    const tenantId = getTenantId(request);
+    const posterConfig = await getPosterConfig(tenantId);
+
+    const token = posterConfig.token;
+    const baseUrl = posterConfig.baseUrl;
+    const barStorageId = posterConfig.barStorageId;
+
     try {
-        console.log('🍷 Fetching BAR inventory and ingredient details from Poster...');
+        console.log(`🍷 [${tenantId}] Fetching BAR inventory and ingredient details from Poster...`);
 
         // 1. Fetch all ingredient details (including categories)
         const ingredientsDetailsRes = await fetch(`${baseUrl}/menu.getIngredients?token=${token}`);
         const ingredientsDetailsData = await ingredientsDetailsRes.json();
         if (ingredientsDetailsData.error) throw new Error(`Poster API error (getIngredients): ${ingredientsDetailsData.error.message}`);
-        
+
         const allIngredients = ingredientsDetailsData.response;
         const ingredientMap = new Map(allIngredients.map(ing => [ing.ingredient_id, ing]));
-        console.log(`✅ Loaded details for ${allIngredients.length} ingredients.`);
+        console.log(`✅ [${tenantId}] Loaded details for ${allIngredients.length} ingredients.`);
 
-        // 2. Fetch inventory leftovers for the BAR storage
-        const leftoversRes = await fetch(`${baseUrl}/storage.getStorageLeftovers?token=${token}&storage_id=2`);
+        // 2. Fetch inventory leftovers for the BAR storage (tenant-specific storage ID)
+        const leftoversRes = await fetch(`${baseUrl}/storage.getStorageLeftovers?token=${token}&storage_id=${barStorageId}`);
         const leftoversData = await leftoversRes.json();
         if (leftoversData.error) throw new Error(`Poster API error (getStorageLeftovers): ${leftoversData.error.message}`);
-        
+
         const leftovers = leftoversData.response || [];
-        console.log(`✅ Loaded ${leftovers.length} BAR leftovers from Poster.`);
+        console.log(`✅ [${tenantId}] Loaded ${leftovers.length} BAR leftovers from Poster (storage_id: ${barStorageId}).`);
 
         // 3. Extract unique categories and save them to our database
         const uniqueCategories = new Map();
@@ -62,7 +68,7 @@ export async function GET() {
                 uniqueCategories.set(ing.category_id, ing.category_name);
             }
         });
-        await saveCategoriesToDb(uniqueCategories);
+        await saveCategoriesToDb(uniqueCategories, tenantId);
 
         // Unit translation map
         const unitTranslation = {
@@ -92,21 +98,21 @@ export async function GET() {
         const { client: dbClient, error: dbError } = await getDbClient();
         if (!dbError && dbClient) {
             try {
-                // Get category assignments from our database
+                // Get category assignments from our database (tenant-specific)
                 const productIds = barProducts.map(p => p.id);
                 const query = `
                     SELECT p.id, p.category_id, pc.name as category_name
                     FROM products p
                     LEFT JOIN product_categories pc ON p.category_id = pc.id
-                    WHERE p.id = ANY($1) AND p.restaurant_id = 'default'
+                    WHERE p.id = ANY($1) AND p.restaurant_id = $2
                 `;
-                const result = await dbClient.query(query, [productIds]);
-                
+                const result = await dbClient.query(query, [productIds, tenantId]);
+
                 // Create a map of product_id -> category info
                 const categoryMap = new Map(
                     result.rows.map(row => [row.id, { category_id: row.category_id, category_name: row.category_name }])
                 );
-                
+
                 // Enrich products with database categories
                 barProducts.forEach(product => {
                     const dbCategory = categoryMap.get(product.id);
@@ -118,10 +124,10 @@ export async function GET() {
                         product.category_name = 'Без категории';
                     }
                 });
-                
-                console.log(`✅ Enriched ${result.rows.length} products with database categories`);
+
+                console.log(`✅ [${tenantId}] Enriched ${result.rows.length} products with database categories`);
             } catch (error) {
-                console.error('⚠️ Error enriching with database categories:', error);
+                console.error(`⚠️ [${tenantId}] Error enriching with database categories:`, error);
                 // Fallback: just use null categories
                 barProducts.forEach(product => {
                     product.category_id = null;
@@ -131,18 +137,19 @@ export async function GET() {
                 safeRelease(dbClient);
             }
         }
-        
-        return new Response(JSON.stringify({ 
-            success: true, 
+
+        return new Response(JSON.stringify({
+            success: true,
             data: barProducts,
-            storage: { id: 2, name: 'бар', itemCount: barProducts.length }
+            storage: { id: barStorageId, name: 'бар', itemCount: barProducts.length },
+            tenant: tenantId
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
         });
-        
+
     } catch (error) {
-        console.error('❌ Failed to fetch BAR leftovers:', error);
+        console.error(`❌ [${tenantId}] Failed to fetch BAR leftovers:`, error);
         return new Response(JSON.stringify({ 
             success: false, 
             error: error.message,

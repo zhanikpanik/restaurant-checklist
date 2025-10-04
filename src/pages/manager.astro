@@ -1689,6 +1689,84 @@ import Layout from '../layouts/Layout.astro';
 				}
 			}
 
+			// MARK ORDER AS DELIVERED FUNCTION
+			async function markOrderAsDelivered(orderId, department) {
+				if (!confirm(`Подтвердить доставку заказа #${orderId} из отдела ${department === 'bar' ? 'Бар' : department === 'kitchen' ? 'Кухня' : 'Горничная'}?`)) {
+					return;
+				}
+
+				try {
+					console.log(`📦 Marking order ${orderId} as delivered...`);
+					
+					// Fetch order details to get items
+					const response = await fetch('/api/get-all-orders');
+					const data = await response.json();
+					
+					if (!data.success) {
+						throw new Error('Failed to load order data');
+					}
+					
+					// Find the order in the appropriate department
+					let order = null;
+					if (department === 'bar' && data.barOrders) {
+						order = data.barOrders.find(o => o.timestamp === orderId || o.db_id === orderId);
+					} else if (department === 'kitchen' && data.kitchenOrders) {
+						order = data.kitchenOrders.find(o => o.timestamp === orderId || o.db_id === orderId);
+					} else if (department === 'custom' && data.customOrders) {
+						order = data.customOrders.find(o => o.timestamp === orderId || o.db_id === orderId);
+					}
+					
+					if (!order) {
+						// Try to find in orders-by-category format
+						const categoryResponse = await fetch('/api/orders-by-category');
+						const categoryData = await categoryResponse.json();
+						
+						if (categoryData.success && categoryData.data) {
+							for (const dateGroup of categoryData.data) {
+								order = dateGroup.orders.find(o => o.orderId === orderId);
+								if (order) break;
+							}
+						}
+					}
+					
+					if (!order) {
+						throw new Error('Order not found');
+					}
+					
+					// Prepare delivered items - use actual quantities if available, otherwise use ordered quantities
+					const deliveredItems = order.items ? order.items.map(item => ({
+						id: item.id,
+						deliveredQuantity: item.actualQuantity || item.quantity || item.shoppingQuantity || 0
+					})) : [];
+					
+					// Update order status to delivered
+					const updateResponse = await fetch('/api/update-order-status', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+						},
+						body: JSON.stringify({
+							orderId: order.db_id || order.timestamp,
+							status: 'delivered',
+							deliveredItems: deliveredItems
+						})
+					});
+
+					const result = await updateResponse.json();
+
+					if (result.success) {
+						alert('✅ Заказ успешно отмечен как доставлен!');
+						// Reload orders to show updated status
+						loadOrdersByCategory();
+					} else {
+						throw new Error(result.error || 'Failed to update order status');
+					}
+				} catch (error) {
+					console.error('❌ Failed to mark order as delivered:', error);
+					alert('Ошибка при отметке заказа как доставлен: ' + error.message);
+				}
+			}
+
 			// CATEGORIZATION FUNCTIONS
 			
 			// Load categories for all product select elements
@@ -2288,13 +2366,21 @@ import Layout from '../layouts/Layout.astro';
 							` : ''}
 							
 							<!-- Action Buttons -->
-							<div>
+							<div class="flex flex-col gap-2">
 								<button 
 									onclick="viewOrderDetails('${order.orderId}')"
 									class="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors"
 								>
 									Просмотреть детали
 								</button>
+								${order.status === 'sent' ? `
+									<button 
+										onclick="markOrderAsDelivered('${order.orderId}', '${order.department}')"
+										class="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+									>
+										✅ Отметить как доставлен
+									</button>
+								` : ''}
 							</div>
 						</div>
 					`;
@@ -3806,15 +3892,35 @@ import Layout from '../layouts/Layout.astro';
 			
 			// Load custom products
 			async function loadCustomProducts() {
-				console.log('📦 Loading all products (Poster + Custom)...');
+				console.log('📦 Loading all products (Custom + Poster)...');
 				try {
 					const departmentFilter = document.getElementById('departmentFilter')?.value || '';
+					console.log('🔍 Department filter:', departmentFilter);
 					
 					// Fetch all products from different sources
 					let allProductsList = [];
 					
-					// Load Poster products from bar and kitchen
-					if (!departmentFilter || departmentFilter === 'bar') {
+					// Load custom products FIRST
+					try {
+						const url = departmentFilter ? `/api/custom-products?department_id=${departmentFilter}` : '/api/custom-products';
+						console.log('📡 Loading custom products from:', url);
+						const customResponse = await fetch(url);
+						const customData = await customResponse.json();
+						if (customData.success && customData.data) {
+							const customProducts = customData.data.map(p => ({
+								...p,
+								source: 'custom'
+							}));
+							allProductsList = allProductsList.concat(customProducts);
+							console.log(`✅ Loaded ${customProducts.length} custom products`);
+						}
+					} catch (err) {
+						console.warn('Failed to load custom products:', err);
+					}
+					
+					// Load Poster products from bar and kitchen (only if no specific department filter or if it matches)
+					if (!departmentFilter) {
+						// Load all Poster products when no filter is selected
 						try {
 							const barResponse = await fetch('/api/bar-inventory');
 							const barData = await barResponse.json();
@@ -3825,13 +3931,12 @@ import Layout from '../layouts/Layout.astro';
 									source: 'poster'
 								}));
 								allProductsList = allProductsList.concat(barProducts);
+								console.log(`✅ Loaded ${barProducts.length} bar products from Poster`);
 							}
 						} catch (err) {
 							console.warn('Failed to load bar products:', err);
 						}
-					}
-					
-					if (!departmentFilter || departmentFilter === 'kitchen') {
+						
 						try {
 							const kitchenResponse = await fetch('/api/kitchen-inventory');
 							const kitchenData = await kitchenResponse.json();
@@ -3842,29 +3947,74 @@ import Layout from '../layouts/Layout.astro';
 									source: 'poster'
 								}));
 								allProductsList = allProductsList.concat(kitchenProducts);
+								console.log(`✅ Loaded ${kitchenProducts.length} kitchen products from Poster`);
 							}
 						} catch (err) {
 							console.warn('Failed to load kitchen products:', err);
 						}
-					}
-					
-					// Load custom products
-					try {
-						const url = departmentFilter ? `/api/custom-products?department_id=${departmentFilter}` : '/api/custom-products';
-						const customResponse = await fetch(url);
-						const customData = await customResponse.json();
-						if (customData.success && customData.data) {
-							const customProducts = customData.data.map(p => ({
-								...p,
-								source: 'custom'
-							}));
-							allProductsList = allProductsList.concat(customProducts);
+					} else {
+						// When a specific department is selected, try to load Poster products for that department
+						// We need to map department IDs to their names to determine which Poster API to call
+						try {
+							// Load departments to map ID to name
+							const deptResponse = await fetch('/api/departments');
+							const deptData = await deptResponse.json();
+							if (deptData.success && deptData.data) {
+								const selectedDept = deptData.data.find(d => d.id == departmentFilter);
+								if (selectedDept) {
+									console.log('🎯 Selected department:', selectedDept.name);
+									
+									// Load Poster products based on department name
+									if (selectedDept.name === 'Бар') {
+										try {
+											const barResponse = await fetch('/api/bar-inventory');
+											const barData = await barResponse.json();
+											if (barData.success && barData.data) {
+												const barProducts = barData.data.map(p => ({
+													...p,
+													department_name: 'Бар',
+													source: 'poster'
+												}));
+												allProductsList = allProductsList.concat(barProducts);
+												console.log(`✅ Loaded ${barProducts.length} bar products from Poster for filtered department`);
+											}
+										} catch (err) {
+											console.warn('Failed to load bar products for filtered department:', err);
+										}
+									} else if (selectedDept.name === 'Кухня') {
+										try {
+											const kitchenResponse = await fetch('/api/kitchen-inventory');
+											const kitchenData = await kitchenResponse.json();
+											if (kitchenData.success && kitchenData.data) {
+												const kitchenProducts = kitchenData.data.map(p => ({
+													...p,
+													department_name: 'Кухня',
+													source: 'poster'
+												}));
+												allProductsList = allProductsList.concat(kitchenProducts);
+												console.log(`✅ Loaded ${kitchenProducts.length} kitchen products from Poster for filtered department`);
+											}
+										} catch (err) {
+											console.warn('Failed to load kitchen products for filtered department:', err);
+										}
+									}
+								}
+							}
+						} catch (err) {
+							console.warn('Failed to load department info for Poster products:', err);
 						}
-					} catch (err) {
-						console.warn('Failed to load custom products:', err);
 					}
 					
-					console.log(`✅ Loaded ${allProductsList.length} total products`);
+					// Sort products: custom first, then Poster products, then by name
+					allProductsList.sort((a, b) => {
+						// Custom products first
+						if (a.source === 'custom' && b.source !== 'custom') return -1;
+						if (a.source !== 'custom' && b.source === 'custom') return 1;
+						// Then sort by name
+						return a.name.localeCompare(b.name);
+					});
+					
+					console.log(`✅ Loaded ${allProductsList.length} total products (${allProductsList.filter(p => p.source === 'custom').length} custom, ${allProductsList.filter(p => p.source === 'poster').length} poster)`);
 					displayCustomProducts(allProductsList);
 					
 				} catch (error) {
@@ -4199,6 +4349,7 @@ import Layout from '../layouts/Layout.astro';
 			} else if (tabName === 'departments') {
 				loadDepartments();
 			} else if (tabName === 'products') {
+				loadDepartments(); // Load departments first to populate dropdown
 				loadCustomProducts();
 			} else if (tabName === 'orders') {
 				loadOrdersByCategory();
@@ -4212,6 +4363,9 @@ import Layout from '../layouts/Layout.astro';
 
 			// Load data when page loads
 			document.addEventListener('DOMContentLoaded', function() {
+				// Load departments first so dropdowns are populated
+				loadDepartments();
+				
 				// Load only orders data initially (default tab)
 				loadOrdersByCategory();
 				

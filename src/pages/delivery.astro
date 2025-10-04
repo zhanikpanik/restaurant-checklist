@@ -6,10 +6,14 @@ import Layout from "../layouts/Layout.astro";
 
 <Layout title="Доставка - Заказы">
     <div class="min-h-screen bg-white">
-        <header class="bg-green-600 text-white px-4 py-6">
-            <div class="max-w-md mx-auto flex justify-between items-center">
-                <h1 class="text-2xl font-bold">🚚 Доставка</h1>
-                <a href="/login" class="text-green-200 hover:text-white">← Выйти</a>
+        <header class="bg-green-600 text-white px-4 py-4">
+            <div class="max-w-md mx-auto flex items-center relative">
+                <a href="/" class="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95 z-10">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </a>
+                <h1 class="text-lg font-semibold absolute left-1/2 transform -translate-x-1/2">🚚 Доставка</h1>
             </div>
         </header>
 
@@ -568,15 +572,22 @@ import Layout from "../layouts/Layout.astro";
                     localStorage.setItem(storageKey, JSON.stringify(orders));
                     updatedOrders.push(orders[orderIndex]);
 
-                    // Also save to server storage
+                    // Also save to server storage - use update endpoint instead of create
                     try {
-                        await fetch('/api/save-internal-order', {
+                        await fetch('/api/update-order-status', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(orders[orderIndex])
+                            body: JSON.stringify({
+                                orderId: orders[orderIndex].db_id,
+                                status: 'delivered',
+                                deliveredItems: orders[orderIndex].items.map(item => ({
+                                    id: item.id,
+                                    deliveredQuantity: item.actualQuantity || item.quantity
+                                }))
+                            })
                         });
                     } catch (error) {
-                        console.warn('⚠️ Error saving to server:', error);
+                        console.warn('⚠️ Error updating server order:', error);
                     }
                 }
             }
@@ -747,23 +758,30 @@ import Layout from "../layouts/Layout.astro";
                 localStorage.removeItem(tempKey);
                 localStorage.removeItem(tempPricesKey);
 
-                // Also save to server storage for download functionality
+                // Also save to server storage - use update endpoint instead of create
                 try {
-                    const response = await fetch('/api/save-internal-order', {
+                    const response = await fetch('/api/update-order-status', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
                         },
-                        body: JSON.stringify(orders[orderIndex])
+                        body: JSON.stringify({
+                            orderId: orders[orderIndex].db_id,
+                            status: 'delivered',
+                            deliveredItems: orders[orderIndex].items.map(item => ({
+                                id: item.id,
+                                deliveredQuantity: item.actualQuantity || item.quantity
+                            }))
+                        })
                     });
 
                     if (response.ok) {
-                        console.log('✅ Order saved to server for download');
+                        console.log('✅ Order updated on server for download');
                     } else {
-                        console.warn('⚠️ Failed to save to server storage');
+                        console.warn('⚠️ Failed to update server order');
                     }
                 } catch (error) {
-                    console.warn('⚠️ Error saving to server:', error);
+                    console.warn('⚠️ Error updating server order:', error);
                 }
 
                 // Show confirmation

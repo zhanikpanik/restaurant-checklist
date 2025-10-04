@@ -130,18 +130,37 @@ async function updateSupplier(request, tenantId) {
     if (error) return error;
 
     try {
-        console.log('🔄 Updating supplier ID:', id);
-        
-        const result = await client.query(
-            'UPDATE suppliers SET name = $1, contact_info = $2, phone = $3 WHERE id = $4 RETURNING *',
-            [name.trim(), contact_info || null, phone || null, id]
-        );
+        console.log(`🔄 [${tenantId}] Updating supplier ID:`, id);
+
+        // Check if restaurant_id column exists
+        const columnCheck = await client.query(`
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_name = 'suppliers' AND column_name = 'restaurant_id'
+        `);
+
+        const hasRestaurantId = columnCheck.rows.length > 0;
+
+        let result;
+        if (hasRestaurantId) {
+            // Update only if belongs to tenant
+            result = await client.query(
+                'UPDATE suppliers SET name = $1, contact_info = $2, phone = $3 WHERE id = $4 AND restaurant_id = $5 RETURNING *',
+                [name.trim(), contact_info || null, phone || null, id, tenantId]
+            );
+        } else {
+            // No tenant filtering if column doesn't exist
+            result = await client.query(
+                'UPDATE suppliers SET name = $1, contact_info = $2, phone = $3 WHERE id = $4 RETURNING *',
+                [name.trim(), contact_info || null, phone || null, id]
+            );
+        }
         
         if (result.rows.length === 0) {
             return { status: 404, body: { success: false, error: 'Supplier not found' } };
         }
         
-        console.log('✅ Supplier updated successfully');
+        console.log(`✅ [${tenantId}] Supplier updated successfully`);
         return {
             status: 200,
             body: { success: true, data: result.rows[0] }

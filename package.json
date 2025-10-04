@@ -9,7 +9,9 @@
     "preview": "astro preview",
     "start": "node ./dist/server/entry.mjs",
     "astro": "astro",
-    "categorize": "node scripts/categorize-products.js"
+    "categorize": "node scripts/categorize-products.js",
+    "migrate": "node scripts/run-migration.js",
+    "postbuild": "node scripts/run-migration.js"
   },
   "keywords": [
     "restaurant",

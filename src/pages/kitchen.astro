@@ -5,19 +5,14 @@ import Layout from '../layouts/Layout.astro';
 <Layout title="Кухня - Инвентарь">
 	<div class="min-h-screen bg-white">
 		<!-- Header with Role Info -->
-		<header class="bg-orange-600 text-white px-4 py-6">
-			<div class="max-w-md mx-auto">
-				<div class="flex items-center justify-between mb-4">
-					<div class="flex items-center space-x-2">
-						<span class="text-2xl">🍳</span>
-						<h1 class="text-2xl font-bold">Кухня</h1>
-					</div>
-					<div class="text-right text-sm">
-						<div class="font-medium">Персонал кухни</div>
-						<a href="/" class="text-orange-200 hover:text-white">← Назад</a>
-					</div>
-				</div>
-
+		<header class="bg-orange-600 text-white px-4 py-4">
+			<div class="max-w-md mx-auto flex items-center relative">
+				<a href="/" class="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95 z-10">
+					<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+						<path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"></path>
+					</svg>
+				</a>
+				<h1 class="text-lg font-semibold absolute left-1/2 transform -translate-x-1/2">🍳 Кухня</h1>
 			</div>
 		</header>
 
@@ -210,7 +205,7 @@ import Layout from '../layouts/Layout.astro';
 				const kitchenOrders = data.data
 					.filter(order => 
 						(order.department === 'kitchen' || order.departmentName === 'Кухня') &&
-						(order.db_status !== 'delivered' && order.status !== 'delivered')
+						!(order.db_status === 'delivered' || order.status === 'delivered')
 					)
 					.sort((a, b) => new Date(b.db_created_at || b.timestamp) - new Date(a.db_created_at || a.timestamp))
 					.slice(0, 3); // Show last 3 orders
