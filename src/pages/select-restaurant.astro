@@ -54,87 +54,77 @@ import Layout from '../layouts/Layout.astro';
 			<div class="p-6 space-y-4">
 				<div>
 					<label class="block text-sm font-medium text-gray-700 mb-1">Restaurant ID</label>
-					<input 
-						type="text" 
-						id="newRestaurantId" 
+					<input
+						type="text"
+						id="newRestaurantId"
 						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 						placeholder="e.g., restaurant_new"
 					/>
 				</div>
-				
+
 				<div>
 					<label class="block text-sm font-medium text-gray-700 mb-1">Restaurant Name</label>
-					<input 
-						type="text" 
-						id="newRestaurantName" 
+					<input
+						type="text"
+						id="newRestaurantName"
 						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 						placeholder="e.g., New Restaurant"
 					/>
 				</div>
-				
+
 				<div>
 					<label class="block text-sm font-medium text-gray-700 mb-1">Logo Emoji</label>
-					<input 
-						type="text" 
-						id="newRestaurantLogo" 
+					<input
+						type="text"
+						id="newRestaurantLogo"
 						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 						placeholder="🍽️"
 						maxlength="2"
 					/>
 				</div>
-				
+
 				<div>
 					<label class="block text-sm font-medium text-gray-700 mb-1">Primary Color</label>
-					<input 
-						type="color" 
-						id="newRestaurantColor" 
+					<input
+						type="color"
+						id="newRestaurantColor"
 						class="w-full h-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 						value="#3B82F6"
 					/>
 				</div>
-				
-				<div>
-					<label class="block text-sm font-medium text-gray-700 mb-1">Poster Token</label>
-					<input 
-						type="text" 
-						id="newRestaurantToken" 
-						class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-						placeholder="account_id:token"
-					/>
-				</div>
-				
+
 				<div class="grid grid-cols-2 gap-3">
 					<div>
 						<label class="block text-sm font-medium text-gray-700 mb-1">Kitchen Storage ID</label>
-						<input 
-							type="number" 
-							id="newRestaurantKitchen" 
+						<input
+							type="number"
+							id="newRestaurantKitchen"
 							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 							value="1"
 						/>
 					</div>
 					<div>
 						<label class="block text-sm font-medium text-gray-700 mb-1">Bar Storage ID</label>
-						<input 
-							type="number" 
-							id="newRestaurantBar" 
+						<input
+							type="number"
+							id="newRestaurantBar"
 							class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
 							value="2"
 						/>
 					</div>
 				</div>
 			</div>
-			
+
 			<div class="p-6 border-t">
 				<div class="flex space-x-3">
-					<button 
-						onclick="createRestaurant()" 
-						class="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg"
+					<button
+						onclick="createRestaurantAndConnect()"
+						class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
 					>
-						✓ Create Restaurant
+						🔗 Create & Connect Poster
 					</button>
-					<button 
-						onclick="closeAddRestaurantModal()" 
+					<button
+						onclick="closeAddRestaurantModal()"
 						class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg"
 					>
 						Cancel
@@ -225,26 +215,25 @@ import Layout from '../layouts/Layout.astro';
 			document.getElementById('newRestaurantName').value = '';
 			document.getElementById('newRestaurantLogo').value = '';
 			document.getElementById('newRestaurantColor').value = '#3B82F6';
-			document.getElementById('newRestaurantToken').value = '';
 			document.getElementById('newRestaurantKitchen').value = '1';
 			document.getElementById('newRestaurantBar').value = '2';
 		}
-		
-		async function createRestaurant() {
+
+		async function createRestaurantAndConnect() {
 			const id = document.getElementById('newRestaurantId').value.trim();
 			const name = document.getElementById('newRestaurantName').value.trim();
 			const logo = document.getElementById('newRestaurantLogo').value.trim() || '🍽️';
 			const primary_color = document.getElementById('newRestaurantColor').value;
-			const poster_token = document.getElementById('newRestaurantToken').value.trim();
 			const kitchen_storage_id = parseInt(document.getElementById('newRestaurantKitchen').value) || 1;
 			const bar_storage_id = parseInt(document.getElementById('newRestaurantBar').value) || 2;
-			
-			if (!id || !name || !poster_token) {
-				alert('Please fill in all required fields (ID, Name, Poster Token)');
+
+			if (!id || !name) {
+				alert('Please fill in Restaurant ID and Name');
 				return;
 			}
-			
+
 			try {
+				// Create restaurant first (without token)
 				const response = await fetch('/api/restaurants', {
 					method: 'POST',
 					headers: {
@@ -255,18 +244,17 @@ import Layout from '../layouts/Layout.astro';
 						name,
 						logo,
 						primary_color,
-						poster_token,
 						kitchen_storage_id,
 						bar_storage_id
 					})
 				});
-				
+
 				const data = await response.json();
-				
+
 				if (data.success) {
-					alert(`Restaurant "${name}" created successfully!`);
 					closeAddRestaurantModal();
-					loadRestaurants(); // Refresh the list
+					// Redirect to OAuth authorization
+					window.location.href = `/api/poster/oauth/authorize?restaurant_id=${id}`;
 				} else {
 					throw new Error(data.error);
 				}

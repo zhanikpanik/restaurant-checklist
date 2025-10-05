@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:dev.joinposter.com)"
+      "WebFetch(domain:dev.joinposter.com)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(curl -i \"http://localhost:3000/api/poster/oauth/callback?account=test&code=testcode&state=teststate:test_oauth\")"
     ],
     "deny": [],
     "ask": []
