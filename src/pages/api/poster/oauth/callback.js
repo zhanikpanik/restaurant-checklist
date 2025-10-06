@@ -58,8 +58,6 @@ export async function GET({ request, redirect }) {
         const tokenParams = new URLSearchParams({
             application_id: appId,
             application_secret: appSecret,
-            grant_type: 'authorization_code',
-            redirect_uri: env.POSTER_REDIRECT_URI,
             code: code
         });
 
