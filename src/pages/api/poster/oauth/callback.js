@@ -107,19 +107,23 @@ export async function GET({ request, redirect }) {
         );
 
         // Always sync departments from Poster storages on OAuth
-        console.log(`📦 Syncing departments from Poster storages for ${restaurantId}...`);
+        console.log(`📦 [${restaurantId}] Syncing departments from Poster storages...`);
 
         try {
             // Fetch all storages from Poster
             const storagesUrl = `https://${account}.joinposter.com/api/storage.getStorages?token=${tokenToStore}`;
+            console.log(`📡 [${restaurantId}] Fetching storages from: https://${account}.joinposter.com/api/storage.getStorages`);
+
             const storagesResponse = await fetch(storagesUrl);
             const storagesData = await storagesResponse.json();
 
+            console.log(`📥 [${restaurantId}] Storage API response:`, JSON.stringify(storagesData).substring(0, 200));
+
             if (storagesData.error) {
-                console.error('❌ Error fetching storages from Poster:', storagesData.error);
+                console.error(`❌ [${restaurantId}] Error fetching storages from Poster:`, storagesData.error);
             } else {
                 const storages = storagesData.response || [];
-                console.log(`✅ Found ${storages.length} storages in Poster`);
+                console.log(`✅ [${restaurantId}] Found ${storages.length} storages in Poster:`, storages.map(s => s.storage_name));
 
                 // Helper function to assign emoji based on storage name
                 const getEmojiForStorage = (storageName) => {
@@ -134,16 +138,22 @@ export async function GET({ request, redirect }) {
                 };
 
                 // Deactivate all existing Poster-synced departments (ones with poster_storage_id)
-                await pool.query(
+                const deactivated = await pool.query(
                     `UPDATE departments
                      SET is_active = false
-                     WHERE restaurant_id = $1 AND poster_storage_id IS NOT NULL`,
+                     WHERE restaurant_id = $1 AND poster_storage_id IS NOT NULL
+                     RETURNING name`,
                     [restaurantId]
                 );
+                console.log(`🔄 [${restaurantId}] Deactivated ${deactivated.rows.length} old departments:`, deactivated.rows.map(r => r.name));
 
                 // Create/reactivate departments from current Poster storages
+                let created = 0;
+                let updated = 0;
+
                 for (const storage of storages) {
                     const emoji = getEmojiForStorage(storage.storage_name);
+                    console.log(`🔍 [${restaurantId}] Processing storage: ${storage.storage_name} (ID: ${storage.storage_id})`);
 
                     // Try to reactivate existing department first
                     const reactivated = await pool.query(
@@ -156,18 +166,21 @@ export async function GET({ request, redirect }) {
 
                     if (reactivated.rows.length === 0) {
                         // Create new department if it doesn't exist
-                        await pool.query(
+                        const inserted = await pool.query(
                             `INSERT INTO departments (name, emoji, poster_storage_id, is_active, restaurant_id)
-                             VALUES ($1, $2, $3, true, $4)`,
+                             VALUES ($1, $2, $3, true, $4)
+                             RETURNING id`,
                             [storage.storage_name, emoji, storage.storage_id, restaurantId]
                         );
-                        console.log(`✅ Created department: ${storage.storage_name} (storage_id: ${storage.storage_id})`);
+                        console.log(`✅ [${restaurantId}] Created department: ${storage.storage_name} (storage_id: ${storage.storage_id}, dept_id: ${inserted.rows[0].id})`);
+                        created++;
                     } else {
-                        console.log(`✅ Updated department: ${storage.storage_name} (storage_id: ${storage.storage_id})`);
+                        console.log(`✅ [${restaurantId}] Updated department: ${storage.storage_name} (storage_id: ${storage.storage_id}, dept_id: ${reactivated.rows[0].id})`);
+                        updated++;
                     }
                 }
 
-                console.log(`✅ Synced ${storages.length} departments from Poster`);
+                console.log(`✅ [${restaurantId}] Department sync complete: ${created} created, ${updated} updated, ${storages.length} total`);
             }
         } catch (error) {
             console.error('❌ Error syncing departments from Poster:', error);
