@@ -106,40 +106,56 @@ export async function GET({ request, redirect }) {
             [tokenToStore, account, restaurantId]
         );
 
-        // Create default departments for this restaurant if they don't exist
+        // Sync departments from Poster storages
         const existingDepts = await pool.query(
             'SELECT COUNT(*) as count FROM departments WHERE restaurant_id = $1 AND is_active = true',
             [restaurantId]
         );
 
         if (parseInt(existingDepts.rows[0].count) === 0) {
-            console.log(`📦 Creating default departments for restaurant ${restaurantId}...`);
+            console.log(`📦 Syncing departments from Poster storages for ${restaurantId}...`);
 
-            // Get restaurant config to get storage IDs
-            const restaurantConfig = await pool.query(
-                'SELECT kitchen_storage_id, bar_storage_id FROM restaurants WHERE id = $1',
-                [restaurantId]
-            );
+            try {
+                // Fetch all storages from Poster
+                const storagesUrl = `https://${account}.joinposter.com/api/storage.getStorages?token=${tokenToStore}`;
+                const storagesResponse = await fetch(storagesUrl);
+                const storagesData = await storagesResponse.json();
 
-            const config = restaurantConfig.rows[0];
+                if (storagesData.error) {
+                    console.error('❌ Error fetching storages from Poster:', storagesData.error);
+                } else {
+                    const storages = storagesData.response || [];
+                    console.log(`✅ Found ${storages.length} storages in Poster`);
 
-            // Create Kitchen department
-            await pool.query(
-                `INSERT INTO departments (name, emoji, poster_storage_id, is_active, restaurant_id)
-                 VALUES ($1, $2, $3, true, $4)
-                 ON CONFLICT DO NOTHING`,
-                ['Кухня', '🍳', config.kitchen_storage_id || 1, restaurantId]
-            );
+                    // Helper function to assign emoji based on storage name
+                    const getEmojiForStorage = (storageName) => {
+                        const name = storageName.toLowerCase();
+                        if (name.includes('кухн') || name.includes('kitchen')) return '🍳';
+                        if (name.includes('бар') || name.includes('bar')) return '🍷';
+                        if (name.includes('склад') || name.includes('storage') || name.includes('warehouse')) return '📦';
+                        if (name.includes('офис') || name.includes('office')) return '🏢';
+                        if (name.includes('горничн') || name.includes('housekeeping')) return '🧹';
+                        if (name.includes('ресепшн') || name.includes('reception')) return '🔔';
+                        return '📍';
+                    };
 
-            // Create Bar department
-            await pool.query(
-                `INSERT INTO departments (name, emoji, poster_storage_id, is_active, restaurant_id)
-                 VALUES ($1, $2, $3, true, $4)
-                 ON CONFLICT DO NOTHING`,
-                ['Бар', '🍷', config.bar_storage_id || 2, restaurantId]
-            );
+                    // Create departments from storages
+                    for (const storage of storages) {
+                        const emoji = getEmojiForStorage(storage.storage_name);
+                        await pool.query(
+                            `INSERT INTO departments (name, emoji, poster_storage_id, is_active, restaurant_id)
+                             VALUES ($1, $2, $3, true, $4)
+                             ON CONFLICT DO NOTHING`,
+                            [storage.storage_name, emoji, storage.storage_id, restaurantId]
+                        );
+                        console.log(`✅ Created department: ${storage.storage_name} (storage_id: ${storage.storage_id})`);
+                    }
 
-            console.log(`✅ Created default departments (Kitchen & Bar) for ${restaurantId}`);
+                    console.log(`✅ Synced ${storages.length} departments from Poster`);
+                }
+            } catch (error) {
+                console.error('❌ Error syncing departments from Poster:', error);
+            }
         }
 
         // Clear restaurant cache
