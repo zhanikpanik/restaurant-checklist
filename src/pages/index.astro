@@ -74,13 +74,14 @@ import Layout from '../layouts/Layout.astro';
 			departments.forEach(dept => {
 				// Skip if it's manager (already added above)
 				if (dept.name.toLowerCase() === 'менеджер') return;
-				
+
 				const colors = getSectionColors(dept.name);
 				const description = getSectionDescription(dept.name, dept.poster_storage_id);
 				const sectionKey = getSectionKey(dept.name);
-				
+				const storageId = dept.poster_storage_id;
+
 				sectionsHtml += `
-					<button onclick="selectSection('${sectionKey}', '${dept.name}')" class="w-full ${colors} text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
+					<button onclick="selectSection('${sectionKey}', '${dept.name}', '${storageId || ''}')" class="w-full ${colors} text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
 						<span class="text-3xl mr-4">${dept.emoji}</span>
 						<div class="text-left">
 							<div class="font-semibold text-lg">${dept.name}</div>
@@ -123,24 +124,20 @@ import Layout from '../layouts/Layout.astro';
 			return deptName.toLowerCase().replace(/[^a-zа-я0-9]/g, '');
 		}
 		
-		function selectSection(sectionKey, deptName = '') {
-			console.log(`Selected section: ${sectionKey}`, deptName);
-			
+		function selectSection(sectionKey, deptName = '', storageId = '') {
+			console.log(`Selected section: ${sectionKey}`, deptName, storageId);
+
 			// Redirect to appropriate page
 			if (sectionKey === 'manager') {
 				window.location.href = '/manager';
 			} else if (sectionKey === 'delivery') {
 				window.location.href = '/delivery';
-			} else if (sectionKey === 'kitchen') {
-				window.location.href = '/kitchen';
-			} else if (sectionKey === 'bar') {
-				window.location.href = '/bar';
-			} else if (sectionKey === 'custom') {
-				window.location.href = '/custom';
+			} else if (storageId && storageId !== 'null' && storageId !== '') {
+				// If department has a Poster storage ID, redirect to dynamic storage page
+				window.location.href = `/storage/${storageId}`;
 			} else {
-				// For custom departments (including Офис), redirect to custom page with department parameter
-				// This will pass the actual department name so it can be used correctly
-				window.location.href = `/custom?dept=${encodeURIComponent(deptName)}&key=${encodeURIComponent(sectionKey)}`;
+				// For custom departments without storage ID, redirect to custom page
+				window.location.href = '/custom';
 			}
 		}
 		
