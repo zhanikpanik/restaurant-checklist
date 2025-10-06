@@ -134,14 +134,39 @@ export async function setupDatabaseSchema() {
         await client.query(`
             CREATE TABLE IF NOT EXISTS departments (
                 id SERIAL PRIMARY KEY,
-                name VARCHAR(255) NOT NULL UNIQUE,
+                name VARCHAR(255) NOT NULL,
                 emoji VARCHAR(10) DEFAULT '📦',
-                poster_storage_id INTEGER, -- NULL for custom departments, 1=kitchen, 2=bar
+                poster_storage_id INTEGER,
+                restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
                 is_active BOOLEAN DEFAULT true,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(restaurant_id, poster_storage_id)
             );
         `);
+
+        // Add restaurant_id column if it doesn't exist (migration)
+        try {
+            await client.query(`
+                ALTER TABLE departments ADD COLUMN IF NOT EXISTS restaurant_id VARCHAR(50) REFERENCES restaurants(id) ON DELETE CASCADE;
+            `);
+
+            // Drop old unique constraint on name if exists
+            await client.query(`
+                ALTER TABLE departments DROP CONSTRAINT IF EXISTS departments_name_key;
+            `);
+
+            // Add new unique constraint on restaurant_id + poster_storage_id
+            await client.query(`
+                ALTER TABLE departments DROP CONSTRAINT IF EXISTS departments_restaurant_id_poster_storage_id_key;
+                ALTER TABLE departments ADD CONSTRAINT departments_restaurant_id_poster_storage_id_key
+                    UNIQUE(restaurant_id, poster_storage_id);
+            `);
+
+            console.log('✅ Departments table migration complete');
+        } catch (migrationError) {
+            console.log('ℹ️ Departments migration skipped (already up to date)');
+        }
 
         // Departments will be created via OAuth callback or manual sync
 
