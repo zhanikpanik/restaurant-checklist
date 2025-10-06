@@ -25,17 +25,7 @@ export async function setupDatabaseSchema() {
             );
         `);
         
-        // Insert default restaurants if they don't exist
-        await client.query(`
-            INSERT INTO restaurants (id, name, logo, primary_color) 
-            VALUES 
-                ('default', 'Default Restaurant', '🍽️', '#3B82F6'),
-                ('restaurant1', 'Restaurant One', '🍕', '#EF4444'),
-                ('restaurant2', 'Restaurant Two', '🍣', '#10B981'),
-                ('pizzaplace', 'Pizza Place', '🍕', '#F59E0B'),
-                ('sushibar', 'Sushi Bar', '🍣', '#8B5CF6')
-            ON CONFLICT (id) DO NOTHING;
-        `);
+        // Restaurants will be created via OAuth callback
 
         // Create suppliers table with restaurant_id
         await client.query(`
@@ -129,14 +119,7 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Insert default departments
-        await client.query(`
-            INSERT INTO departments (name, emoji, poster_storage_id) VALUES 
-                ('Кухня', '🍳', 1),
-                ('Бар', '🍷', 2),
-                ('Горничная', '🧹', NULL)
-            ON CONFLICT (name) DO NOTHING;
-        `);
+        // Departments will be created via OAuth callback or manual sync
 
         // Create custom_products table
         await client.query(`
