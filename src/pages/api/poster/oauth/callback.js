@@ -12,6 +12,7 @@ export async function GET({ request, redirect }) {
 
         // Log full URL for debugging
         console.log('📥 OAuth callback URL:', request.url);
+        console.log('📥 Request headers:', Object.fromEntries(request.headers.entries()));
 
         // Log all parameters for debugging
         const allParams = {};

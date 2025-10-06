@@ -31,6 +31,9 @@ export async function GET({ request, redirect }) {
         const appId = env.POSTER_APP_ID;
         const redirectUri = env.POSTER_REDIRECT_URI;
 
+        console.log('🔑 OAuth authorize - restaurant:', restaurantId, 'appId:', appId);
+        console.log('🔗 Redirect URI:', redirectUri);
+
         if (!appId || !redirectUri) {
             return new Response(JSON.stringify({
                 success: false,
@@ -44,6 +47,8 @@ export async function GET({ request, redirect }) {
         posterAuthUrl.searchParams.set('response_type', 'code');
         posterAuthUrl.searchParams.set('redirect_uri', redirectUri);
         posterAuthUrl.searchParams.set('state', `${state}:${restaurantId}`);
+
+        console.log('🚀 Redirecting to Poster OAuth:', posterAuthUrl.toString());
 
         // Redirect to Poster OAuth
         return redirect(posterAuthUrl.toString(), 302);
