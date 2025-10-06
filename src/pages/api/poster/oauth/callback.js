@@ -192,8 +192,19 @@ export async function GET({ request, redirect }) {
 
         console.log(`✅ Restaurant ${restaurantId} connected to Poster account ${account}`);
 
-        // Redirect to restaurant selection or dashboard
-        return redirect(`/?restaurant=${restaurantId}&oauth=success`, 302);
+        // Set tenant cookie so user is automatically logged into the correct restaurant
+        const cookieOptions = 'Path=/; Max-Age=31536000; SameSite=Lax'; // 1 year
+        const headers = new Headers();
+        headers.set('Set-Cookie', `tenant=${restaurantId}; ${cookieOptions}`);
+        headers.set('Location', `/?oauth=success`);
+
+        console.log(`🍪 Setting tenant cookie: tenant=${restaurantId}`);
+
+        // Redirect to home page with tenant cookie set
+        return new Response(null, {
+            status: 302,
+            headers: headers
+        });
 
     } catch (error) {
         console.error('❌ OAuth callback error:', error);

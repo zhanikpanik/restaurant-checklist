@@ -10,6 +10,8 @@ export async function GET({ request }) {
 
     if (error) return error;
 
+    console.log(`📋 [${tenantId}] Fetching departments...`);
+
     try {
         const result = await client.query(`
             SELECT
@@ -27,18 +29,27 @@ export async function GET({ request }) {
             ORDER BY d.created_at ASC
         `, [tenantId]);
 
+        console.log(`✅ [${tenantId}] Found ${result.rows.length} departments:`, result.rows.map(d => `${d.name} (storage_id: ${d.poster_storage_id})`));
+
         return new Response(JSON.stringify({
             success: true,
-            data: result.rows
+            data: result.rows,
+            debug: {
+                tenantId: tenantId,
+                count: result.rows.length
+            }
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        console.error('Error getting departments:', error);
+        console.error(`❌ [${tenantId}] Error getting departments:`, error);
         return new Response(JSON.stringify({
             success: false,
-            error: error.message
+            error: error.message,
+            debug: {
+                tenantId: tenantId
+            }
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }

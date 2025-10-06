@@ -5,6 +5,17 @@ import Layout from '../layouts/Layout.astro';
 <Layout title="Restaurant System - Выберите отдел">
 	<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
 		<div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
+			<!-- Current Restaurant Indicator -->
+			<div id="tenantIndicator" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+				<div class="flex items-center justify-between">
+					<div class="flex items-center gap-2">
+						<span class="text-sm font-medium text-blue-800">Текущий ресторан:</span>
+						<span id="tenantName" class="text-sm text-blue-600 font-semibold">Загрузка...</span>
+					</div>
+					<a href="/select-restaurant" class="text-xs text-blue-600 hover:text-blue-800 underline">Изменить</a>
+				</div>
+			</div>
+
 			<div class="text-center mb-8">
 				<h1 class="text-3xl font-bold text-gray-800 mb-2">🍽️ Restaurant System</h1>
 				<p class="text-gray-600">Выберите отдел для работы</p>
@@ -25,27 +36,93 @@ import Layout from '../layouts/Layout.astro';
 	</div>
 
 	<script is:inline>
+		// Get current tenant from cookie
+		function getCurrentTenant() {
+			const cookies = document.cookie.split(';');
+			const tenantCookie = cookies.find(c => c.trim().startsWith('tenant='));
+			return tenantCookie ? tenantCookie.split('=')[1].trim() : 'unknown';
+		}
+
+		// Load tenant info and display it
+		async function loadTenantInfo() {
+			const tenant = getCurrentTenant();
+			const tenantNameEl = document.getElementById('tenantName');
+
+			console.log('🏢 Current tenant:', tenant);
+			tenantNameEl.textContent = tenant;
+
+			// Try to fetch restaurant details
+			try {
+				const response = await fetch('/api/restaurants');
+				const data = await response.json();
+				if (data.success) {
+					const restaurant = data.data.find(r => r.id === tenant);
+					if (restaurant) {
+						tenantNameEl.textContent = `${restaurant.logo || '🍽️'} ${restaurant.name}`;
+					}
+				}
+			} catch (error) {
+				console.error('Error fetching restaurant info:', error);
+			}
+		}
+
 		// Load all departments and display them as sections
 		async function loadSections() {
 			try {
 				const response = await fetch('/api/departments');
 				const data = await response.json();
-				
+
+				console.log('📊 Departments API response:', data);
+				console.log('🏢 Current tenant:', getCurrentTenant());
+
 				if (data.success) {
-					displaySections(data.data);
+					if (data.data.length === 0) {
+						console.warn('⚠️ No departments found for current tenant');
+						showNoDepartmentsMessage();
+					} else {
+						displaySections(data.data);
+					}
 				} else {
 					throw new Error(data.error);
 				}
 			} catch (error) {
-				console.error('Error loading sections:', error);
-				// Fallback to default sections
-				displaySections([
-					{ id: 1, name: 'Кухня', emoji: '🍳', poster_storage_id: 1 },
-					{ id: 2, name: 'Бар', emoji: '🍷', poster_storage_id: 2 },
-					{ id: 3, name: 'Горничная', emoji: '🧹', poster_storage_id: null },
-					{ id: 4, name: 'Менеджер', emoji: '👨‍💼', poster_storage_id: null }
-				]);
+				console.error('❌ Error loading sections:', error);
+				showErrorMessage(error.message);
 			}
+		}
+
+		function showNoDepartmentsMessage() {
+			const container = document.getElementById('sectionsContainer');
+			container.innerHTML = `
+				<div class="col-span-full text-center py-8">
+					<div class="text-6xl mb-4">📭</div>
+					<h3 class="text-xl font-semibold text-gray-700 mb-2">Отделы не найдены</h3>
+					<p class="text-gray-600 mb-4">Для текущего ресторана отделы не настроены</p>
+					<div class="space-y-2">
+						<a href="/select-restaurant" class="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
+							Выбрать другой ресторан
+						</a>
+						<br>
+						<a href="/settings" class="inline-block bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg">
+							Настроить отделы
+						</a>
+					</div>
+				</div>
+			`;
+		}
+
+		function showErrorMessage(message) {
+			const container = document.getElementById('sectionsContainer');
+			container.innerHTML = `
+				<div class="col-span-full text-center py-8">
+					<div class="text-6xl mb-4">⚠️</div>
+					<h3 class="text-xl font-semibold text-red-700 mb-2">Ошибка загрузки</h3>
+					<p class="text-gray-600 mb-4">${message}</p>
+					<button onclick="loadSections()" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
+						Попробовать снова
+					</button>
+				</div>
+			`;
 		}
 		
 		function displaySections(departments) {
@@ -142,6 +219,9 @@ import Layout from '../layouts/Layout.astro';
 		}
 		
 		// Load sections when page loads
-		document.addEventListener('DOMContentLoaded', loadSections);
+		document.addEventListener('DOMContentLoaded', () => {
+			loadTenantInfo();
+			loadSections();
+		});
 	</script>
 </Layout>
