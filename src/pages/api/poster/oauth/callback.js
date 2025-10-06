@@ -54,17 +54,24 @@ export async function GET({ request, redirect }) {
             return redirect('/?error=oauth_config_missing', 302);
         }
 
-        const tokenUrl = new URL('https://joinposter.com/api/v2/auth/access_token');
-        tokenUrl.searchParams.set('application_id', appId);
-        tokenUrl.searchParams.set('application_secret', appSecret);
-        tokenUrl.searchParams.set('grant_type', 'authorization_code');
-        tokenUrl.searchParams.set('redirect_uri', env.POSTER_REDIRECT_URI);
-        tokenUrl.searchParams.set('code', code);
+        const tokenParams = new URLSearchParams({
+            application_id: appId,
+            application_secret: appSecret,
+            grant_type: 'authorization_code',
+            redirect_uri: env.POSTER_REDIRECT_URI,
+            code: code
+        });
 
         console.log('🔄 Exchanging OAuth code for access token...');
-        console.log('Token URL:', tokenUrl.toString().replace(appSecret, '***'));
+        console.log('Token params:', tokenParams.toString().replace(appSecret, '***'));
 
-        const tokenResponse = await fetch(tokenUrl.toString());
+        const tokenResponse = await fetch('https://joinposter.com/api/v2/auth/access_token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: tokenParams.toString()
+        });
         const tokenData = await tokenResponse.json();
 
         console.log('Token response status:', tokenResponse.status);
