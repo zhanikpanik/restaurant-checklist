@@ -27,6 +27,30 @@ export async function setupDatabaseSchema() {
         
         // Restaurants will be created via OAuth callback
 
+        // Create poster_tokens table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS poster_tokens (
+                id SERIAL PRIMARY KEY,
+                restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+                access_token TEXT NOT NULL,
+                refresh_token TEXT,
+                expires_at TIMESTAMP,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Add poster_account_name column to restaurants if it doesn't exist
+        try {
+            await client.query(`
+                ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS poster_account_name VARCHAR(255);
+            `);
+            console.log('✅ Restaurants poster_account_name column migration complete');
+        } catch (migrationError) {
+            console.log('ℹ️ Restaurants migration skipped (already up to date)');
+        }
+
         // Create suppliers table with restaurant_id
         await client.query(`
             CREATE TABLE IF NOT EXISTS suppliers (
