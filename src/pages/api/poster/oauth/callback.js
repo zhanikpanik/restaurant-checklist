@@ -57,6 +57,8 @@ export async function GET({ request, redirect }) {
         const tokenUrl = new URL('https://joinposter.com/api/v2/auth/access_token');
         tokenUrl.searchParams.set('application_id', appId);
         tokenUrl.searchParams.set('application_secret', appSecret);
+        tokenUrl.searchParams.set('grant_type', 'authorization_code');
+        tokenUrl.searchParams.set('redirect_uri', env.POSTER_REDIRECT_URI);
         tokenUrl.searchParams.set('code', code);
 
         console.log('🔄 Exchanging OAuth code for access token...');
