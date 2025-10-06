@@ -45,37 +45,32 @@ export async function GET({ request, redirect }) {
         console.log('✅ Found restaurant with pending OAuth:', restaurantId);
 
         // Exchange authorization code for access token
+        // Poster uses: GET /api/v2/auth/access_token with simpler params
         const appId = env.POSTER_APP_ID;
         const appSecret = env.POSTER_APP_SECRET;
-        const redirectUri = env.POSTER_REDIRECT_URI;
 
-        if (!appId || !appSecret || !redirectUri) {
+        if (!appId || !appSecret) {
+            console.log('❌ Missing OAuth config - appId:', appId ? 'SET' : 'MISSING', 'appSecret:', appSecret ? 'SET' : 'MISSING');
             return redirect('/?error=oauth_config_missing', 302);
         }
 
         const tokenUrl = new URL('https://joinposter.com/api/v2/auth/access_token');
-        const tokenParams = new URLSearchParams({
-            application_id: appId,
-            application_secret: appSecret,
-            grant_type: 'authorization_code',
-            redirect_uri: redirectUri,
-            code: code
-        });
+        tokenUrl.searchParams.set('application_id', appId);
+        tokenUrl.searchParams.set('application_secret', appSecret);
+        tokenUrl.searchParams.set('code', code);
 
         console.log('🔄 Exchanging OAuth code for access token...');
-        const tokenResponse = await fetch(tokenUrl.toString(), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: tokenParams.toString()
-        });
+        console.log('Token URL:', tokenUrl.toString().replace(appSecret, '***'));
 
+        const tokenResponse = await fetch(tokenUrl.toString());
         const tokenData = await tokenResponse.json();
+
+        console.log('Token response status:', tokenResponse.status);
+        console.log('Token response:', tokenData.access_token ? { access_token: 'RECEIVED', ...tokenData } : tokenData);
 
         if (!tokenData.access_token) {
             console.error('❌ OAuth token exchange failed:', tokenData);
-            return redirect('/?error=token_exchange_failed', 302);
+            return redirect('/?error=token_exchange_failed&details=' + encodeURIComponent(JSON.stringify(tokenData)), 302);
         }
 
         console.log('✅ OAuth token received for account:', account);
