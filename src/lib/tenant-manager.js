@@ -151,9 +151,19 @@ export async function getPosterConfig(tenantId) {
         throw new Error(`No Poster token configured for restaurant ${tenantId}. Please set poster_token in database or POSTER_ACCESS_TOKEN in environment.`);
     }
 
+    // Build account-specific base URL if we have the account name
+    let baseUrl = config.poster_base_url;
+    if (!baseUrl && config.poster_account_name) {
+        baseUrl = `https://${config.poster_account_name}.joinposter.com/api`;
+        console.log(`[${tenantId}] Using account-specific URL: ${baseUrl}`);
+    } else if (!baseUrl) {
+        baseUrl = 'https://joinposter.com/api';
+        console.log(`[${tenantId}] Warning: No account name found, using generic URL`);
+    }
+
     return {
         token: token,
-        baseUrl: config.poster_base_url || 'https://joinposter.com/api',
+        baseUrl: baseUrl,
         kitchenStorageId: config.kitchen_storage_id || 1,
         barStorageId: config.bar_storage_id || 2
     };
