@@ -1,7 +1,12 @@
-// Load dotenv only in development (Railway provides env vars directly)
-if (process.env.NODE_ENV !== 'production') {
-    const dotenv = await import('dotenv');
-    dotenv.config();
+// Railway provides env vars directly in process.env
+// Only load dotenv in development
+try {
+    if (process.env.NODE_ENV !== 'production') {
+        const dotenv = await import('dotenv');
+        dotenv.config();
+    }
+} catch (e) {
+    console.warn('dotenv loading skipped:', e.message);
 }
 
 export const env = {
@@ -11,11 +16,10 @@ export const env = {
     DATABASE_URL: process.env.DATABASE_URL
 };
 
-// Log in production to verify vars are loaded
-if (process.env.NODE_ENV === 'production') {
-    console.log('🔧 Environment check:', {
-        POSTER_APP_ID: process.env.POSTER_APP_ID ? 'SET' : 'MISSING',
-        POSTER_APP_SECRET: process.env.POSTER_APP_SECRET ? 'SET' : 'MISSING',
-        POSTER_REDIRECT_URI: process.env.POSTER_REDIRECT_URI ? 'SET' : 'MISSING'
-    });
-}
+// Always log to verify vars are loaded
+console.log('🔧 Environment variables:', {
+    POSTER_APP_ID: env.POSTER_APP_ID ? 'SET' : 'MISSING',
+    POSTER_APP_SECRET: env.POSTER_APP_SECRET ? 'SET' : 'MISSING',
+    POSTER_REDIRECT_URI: env.POSTER_REDIRECT_URI ? env.POSTER_REDIRECT_URI.substring(0, 30) + '...' : 'MISSING',
+    NODE_ENV: process.env.NODE_ENV || 'development'
+});
