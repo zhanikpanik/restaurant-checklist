@@ -11,7 +11,8 @@
       "WebFetch(domain:github.com)",
       "Bash(curl:*)",
       "Bash(railway logs:*)",
-      "Bash(railway run psql:*)"
+      "Bash(railway run psql:*)",
+      "Bash(railway run:*)"
     ],
     "deny": [],
     "ask": []
