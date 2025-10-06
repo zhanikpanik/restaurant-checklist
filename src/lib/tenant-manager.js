@@ -16,8 +16,31 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 export function getTenantId(request) {
     try {
         const url = new URL(request.url);
-        
-        // 1. Check subdomain (e.g., restaurant-a.yourdomain.com)
+
+        // 1. Check query parameter first (?tenant=restaurant_a) - highest priority
+        const tenantParam = url.searchParams.get('tenant');
+        if (tenantParam) {
+            return tenantParam;
+        }
+
+        // 2. Check cookie (set by restaurant selection)
+        const cookies = request.headers.get('cookie');
+        if (cookies) {
+            const tenantCookie = cookies
+                .split(';')
+                .find(c => c.trim().startsWith('tenant='));
+            if (tenantCookie) {
+                return tenantCookie.split('=')[1].trim();
+            }
+        }
+
+        // 3. Check custom header
+        const tenantHeader = request.headers.get('X-Tenant-ID');
+        if (tenantHeader) {
+            return tenantHeader;
+        }
+
+        // 4. Check subdomain (e.g., restaurant-a.yourdomain.com) - lowest priority
         const hostname = url.hostname;
         const parts = hostname.split('.');
         if (parts.length > 2) {
@@ -26,30 +49,7 @@ export function getTenantId(request) {
                 return subdomain.replace('-', '_'); // Convert to valid tenant ID
             }
         }
-        
-        // 2. Check query parameter (?tenant=restaurant_a)
-        const tenantParam = url.searchParams.get('tenant');
-        if (tenantParam) {
-            return tenantParam;
-        }
-        
-        // 3. Check custom header
-        const tenantHeader = request.headers.get('X-Tenant-ID');
-        if (tenantHeader) {
-            return tenantHeader;
-        }
-        
-        // 4. Check cookie
-        const cookies = request.headers.get('cookie');
-        if (cookies) {
-            const tenantCookie = cookies
-                .split(';')
-                .find(c => c.trim().startsWith('tenant='));
-            if (tenantCookie) {
-                return tenantCookie.split('=')[1];
-            }
-        }
-        
+
         // 5. Default fallback
         return 'default';
         
