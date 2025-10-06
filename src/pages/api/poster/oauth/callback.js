@@ -106,6 +106,42 @@ export async function GET({ request, redirect }) {
             [tokenToStore, account, restaurantId]
         );
 
+        // Create default departments for this restaurant if they don't exist
+        const existingDepts = await pool.query(
+            'SELECT COUNT(*) as count FROM departments WHERE restaurant_id = $1 AND is_active = true',
+            [restaurantId]
+        );
+
+        if (parseInt(existingDepts.rows[0].count) === 0) {
+            console.log(`📦 Creating default departments for restaurant ${restaurantId}...`);
+
+            // Get restaurant config to get storage IDs
+            const restaurantConfig = await pool.query(
+                'SELECT kitchen_storage_id, bar_storage_id FROM restaurants WHERE id = $1',
+                [restaurantId]
+            );
+
+            const config = restaurantConfig.rows[0];
+
+            // Create Kitchen department
+            await pool.query(
+                `INSERT INTO departments (name, emoji, poster_storage_id, is_active, restaurant_id)
+                 VALUES ($1, $2, $3, true, $4)
+                 ON CONFLICT DO NOTHING`,
+                ['Кухня', '🍳', config.kitchen_storage_id || 1, restaurantId]
+            );
+
+            // Create Bar department
+            await pool.query(
+                `INSERT INTO departments (name, emoji, poster_storage_id, is_active, restaurant_id)
+                 VALUES ($1, $2, $3, true, $4)
+                 ON CONFLICT DO NOTHING`,
+                ['Бар', '🍷', config.bar_storage_id || 2, restaurantId]
+            );
+
+            console.log(`✅ Created default departments (Kitchen & Bar) for ${restaurantId}`);
+        }
+
         // Clear restaurant cache
         const { clearRestaurantCache } = await import('../../../../lib/tenant-manager.js');
         clearRestaurantCache(restaurantId);
