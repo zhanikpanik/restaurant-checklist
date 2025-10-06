@@ -106,56 +106,71 @@ export async function GET({ request, redirect }) {
             [tokenToStore, account, restaurantId]
         );
 
-        // Sync departments from Poster storages
-        const existingDepts = await pool.query(
-            'SELECT COUNT(*) as count FROM departments WHERE restaurant_id = $1 AND is_active = true',
-            [restaurantId]
-        );
+        // Always sync departments from Poster storages on OAuth
+        console.log(`📦 Syncing departments from Poster storages for ${restaurantId}...`);
 
-        if (parseInt(existingDepts.rows[0].count) === 0) {
-            console.log(`📦 Syncing departments from Poster storages for ${restaurantId}...`);
+        try {
+            // Fetch all storages from Poster
+            const storagesUrl = `https://${account}.joinposter.com/api/storage.getStorages?token=${tokenToStore}`;
+            const storagesResponse = await fetch(storagesUrl);
+            const storagesData = await storagesResponse.json();
 
-            try {
-                // Fetch all storages from Poster
-                const storagesUrl = `https://${account}.joinposter.com/api/storage.getStorages?token=${tokenToStore}`;
-                const storagesResponse = await fetch(storagesUrl);
-                const storagesData = await storagesResponse.json();
+            if (storagesData.error) {
+                console.error('❌ Error fetching storages from Poster:', storagesData.error);
+            } else {
+                const storages = storagesData.response || [];
+                console.log(`✅ Found ${storages.length} storages in Poster`);
 
-                if (storagesData.error) {
-                    console.error('❌ Error fetching storages from Poster:', storagesData.error);
-                } else {
-                    const storages = storagesData.response || [];
-                    console.log(`✅ Found ${storages.length} storages in Poster`);
+                // Helper function to assign emoji based on storage name
+                const getEmojiForStorage = (storageName) => {
+                    const name = storageName.toLowerCase();
+                    if (name.includes('кухн') || name.includes('kitchen')) return '🍳';
+                    if (name.includes('бар') || name.includes('bar')) return '🍷';
+                    if (name.includes('склад') || name.includes('storage') || name.includes('warehouse')) return '📦';
+                    if (name.includes('офис') || name.includes('office')) return '🏢';
+                    if (name.includes('горничн') || name.includes('housekeeping')) return '🧹';
+                    if (name.includes('ресепшн') || name.includes('reception')) return '🔔';
+                    return '📍';
+                };
 
-                    // Helper function to assign emoji based on storage name
-                    const getEmojiForStorage = (storageName) => {
-                        const name = storageName.toLowerCase();
-                        if (name.includes('кухн') || name.includes('kitchen')) return '🍳';
-                        if (name.includes('бар') || name.includes('bar')) return '🍷';
-                        if (name.includes('склад') || name.includes('storage') || name.includes('warehouse')) return '📦';
-                        if (name.includes('офис') || name.includes('office')) return '🏢';
-                        if (name.includes('горничн') || name.includes('housekeeping')) return '🧹';
-                        if (name.includes('ресепшн') || name.includes('reception')) return '🔔';
-                        return '📍';
-                    };
+                // Deactivate all existing Poster-synced departments (ones with poster_storage_id)
+                await pool.query(
+                    `UPDATE departments
+                     SET is_active = false
+                     WHERE restaurant_id = $1 AND poster_storage_id IS NOT NULL`,
+                    [restaurantId]
+                );
 
-                    // Create departments from storages
-                    for (const storage of storages) {
-                        const emoji = getEmojiForStorage(storage.storage_name);
+                // Create/reactivate departments from current Poster storages
+                for (const storage of storages) {
+                    const emoji = getEmojiForStorage(storage.storage_name);
+
+                    // Try to reactivate existing department first
+                    const reactivated = await pool.query(
+                        `UPDATE departments
+                         SET is_active = true, name = $1, emoji = $2, updated_at = CURRENT_TIMESTAMP
+                         WHERE restaurant_id = $3 AND poster_storage_id = $4
+                         RETURNING id`,
+                        [storage.storage_name, emoji, restaurantId, storage.storage_id]
+                    );
+
+                    if (reactivated.rows.length === 0) {
+                        // Create new department if it doesn't exist
                         await pool.query(
                             `INSERT INTO departments (name, emoji, poster_storage_id, is_active, restaurant_id)
-                             VALUES ($1, $2, $3, true, $4)
-                             ON CONFLICT DO NOTHING`,
+                             VALUES ($1, $2, $3, true, $4)`,
                             [storage.storage_name, emoji, storage.storage_id, restaurantId]
                         );
                         console.log(`✅ Created department: ${storage.storage_name} (storage_id: ${storage.storage_id})`);
+                    } else {
+                        console.log(`✅ Updated department: ${storage.storage_name} (storage_id: ${storage.storage_id})`);
                     }
-
-                    console.log(`✅ Synced ${storages.length} departments from Poster`);
                 }
-            } catch (error) {
-                console.error('❌ Error syncing departments from Poster:', error);
+
+                console.log(`✅ Synced ${storages.length} departments from Poster`);
             }
+        } catch (error) {
+            console.error('❌ Error syncing departments from Poster:', error);
         }
 
         // Clear restaurant cache

@@ -22,6 +22,8 @@ export async function GET({ request }) {
         }
 
         console.log(`📦 [${tenantId}] Fetching inventory for storage ${storageId}...`);
+        console.log(`📦 [${tenantId}] Request URL: ${request.url}`);
+        console.log(`📦 [${tenantId}] Cookies: ${request.headers.get('cookie')}`);
 
         const posterConfig = await getPosterConfig(tenantId);
         const token = posterConfig.token;
@@ -41,7 +43,7 @@ export async function GET({ request }) {
         }
 
         const storages = storagesData.response || [];
-        const storage = storages.find(s => s.storage_id === storageId);
+        const storage = storages.find(s => String(s.storage_id) === String(storageId));
 
         if (!storage) {
             throw new Error(`Storage with ID ${storageId} not found`);
