@@ -10,20 +10,25 @@ export async function GET({ request, redirect }) {
     try {
         const url = new URL(request.url);
 
+        // Log full URL for debugging
+        console.log('📥 OAuth callback URL:', request.url);
+
         // Log all parameters for debugging
         const allParams = {};
         url.searchParams.forEach((value, key) => {
             allParams[key] = value;
         });
-        console.log('📥 OAuth callback received with params:', JSON.stringify(allParams, null, 2));
+        console.log('📥 OAuth callback params:', JSON.stringify(allParams, null, 2));
 
         const account = url.searchParams.get('account');
         const code = url.searchParams.get('code');
         const stateParam = url.searchParams.get('state');
 
+        console.log('📊 Parsed params - account:', account, 'code:', code ? 'YES' : 'NO', 'state:', stateParam ? 'YES' : 'NO');
+
         if (!account || !code || !stateParam) {
-            console.log('❌ Missing OAuth params - account:', account, 'code:', code, 'state:', stateParam);
-            return redirect('/?error=missing_oauth_params', 302);
+            console.log('❌ Missing OAuth params - account:', account, 'code:', code ? code.substring(0, 10) + '...' : 'null', 'state:', stateParam ? stateParam.substring(0, 20) + '...' : 'null');
+            return redirect('/?error=missing_oauth_params&account=' + (account || 'none') + '&code=' + (code ? 'yes' : 'no') + '&state=' + (stateParam ? 'yes' : 'no'), 302);
         }
 
         // Parse state (format: "state:restaurantId")
