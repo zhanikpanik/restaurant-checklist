@@ -1,4 +1,5 @@
 import pool from '../../../../lib/db.js';
+import { env } from '../../../../lib/env.js';
 
 /**
  * OAuth Callback Endpoint
@@ -43,9 +44,9 @@ export async function GET({ request, redirect }) {
         }
 
         // Exchange authorization code for access token
-        const appId = process.env.POSTER_APP_ID || import.meta.env.POSTER_APP_ID;
-        const appSecret = process.env.POSTER_APP_SECRET || import.meta.env.POSTER_APP_SECRET;
-        const redirectUri = process.env.POSTER_REDIRECT_URI || import.meta.env.POSTER_REDIRECT_URI;
+        const appId = env.POSTER_APP_ID;
+        const appSecret = env.POSTER_APP_SECRET;
+        const redirectUri = env.POSTER_REDIRECT_URI;
 
         if (!appId || !appSecret || !redirectUri) {
             return redirect('/?error=oauth_config_missing', 302);

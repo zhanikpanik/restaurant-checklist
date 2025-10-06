@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import pool from '../../../../lib/db.js';
+import { env } from '../../../../lib/env.js';
 
 /**
  * OAuth Authorization Endpoint
@@ -27,8 +28,8 @@ export async function GET({ request, redirect }) {
         );
 
         // Get OAuth credentials from environment
-        const appId = process.env.POSTER_APP_ID || import.meta.env.POSTER_APP_ID;
-        const redirectUri = process.env.POSTER_REDIRECT_URI || import.meta.env.POSTER_REDIRECT_URI;
+        const appId = env.POSTER_APP_ID;
+        const redirectUri = env.POSTER_REDIRECT_URI;
 
         if (!appId || !redirectUri) {
             return new Response(JSON.stringify({

@@ -15,6 +15,9 @@ export default defineConfig({
     host: '0.0.0.0'
   },
   vite: {
+    server: {
+      allowedHosts: ['.ngrok-free.app', '.ngrok.io']
+    },
     ssr: {
       noExternal: ['xlsx']
     }
