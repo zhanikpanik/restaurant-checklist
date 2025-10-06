@@ -22,31 +22,27 @@ export async function GET({ request, redirect }) {
 
         const account = url.searchParams.get('account');
         const code = url.searchParams.get('code');
-        const stateParam = url.searchParams.get('state');
 
-        console.log('📊 Parsed params - account:', account, 'code:', code ? 'YES' : 'NO', 'state:', stateParam ? 'YES' : 'NO');
+        console.log('📊 Parsed params - account:', account, 'code:', code ? 'YES' : 'NO');
 
-        if (!account || !code || !stateParam) {
-            console.log('❌ Missing OAuth params - account:', account, 'code:', code ? code.substring(0, 10) + '...' : 'null', 'state:', stateParam ? stateParam.substring(0, 20) + '...' : 'null');
-            return redirect('/?error=missing_oauth_params&account=' + (account || 'none') + '&code=' + (code ? 'yes' : 'no') + '&state=' + (stateParam ? 'yes' : 'no'), 302);
+        if (!account || !code) {
+            console.log('❌ Missing OAuth params - account:', account, 'code:', code ? code.substring(0, 10) + '...' : 'null');
+            return redirect('/?error=missing_oauth_params&account=' + (account || 'none') + '&code=' + (code ? 'yes' : 'no'), 302);
         }
 
-        // Parse state (format: "state:restaurantId")
-        const [state, restaurantId] = stateParam.split(':');
-
-        if (!state || !restaurantId) {
-            return redirect('/?error=invalid_state', 302);
-        }
-
-        // Verify state to prevent CSRF
-        const stateCheck = await pool.query(
-            'SELECT oauth_state FROM restaurants WHERE id = $1',
-            [restaurantId]
+        // Poster doesn't return state, so we need to find the restaurant that initiated OAuth
+        // by looking for the most recent restaurant with an oauth_state set
+        const restaurantCheck = await pool.query(
+            'SELECT id, oauth_state FROM restaurants WHERE oauth_state IS NOT NULL ORDER BY updated_at DESC LIMIT 1'
         );
 
-        if (stateCheck.rows.length === 0 || stateCheck.rows[0].oauth_state !== state) {
-            return redirect('/?error=state_mismatch', 302);
+        if (restaurantCheck.rows.length === 0) {
+            console.log('❌ No restaurant found with pending OAuth state');
+            return redirect('/?error=no_pending_oauth', 302);
         }
+
+        const restaurantId = restaurantCheck.rows[0].id;
+        console.log('✅ Found restaurant with pending OAuth:', restaurantId);
 
         // Exchange authorization code for access token
         const appId = env.POSTER_APP_ID;
