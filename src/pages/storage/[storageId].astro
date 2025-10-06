@@ -102,21 +102,32 @@ const { storageId } = Astro.params;
 				// Store products globally
 				window.storageProducts = products;
 
-				// Initialize order mode
-				if (window.initializeOrderMode) {
-					window.initializeOrderMode();
-				}
+				// Wait for checklist.js to load before calling its functions
+				function initializeChecklist() {
+					// Initialize order mode
+					if (window.initializeOrderMode) {
+						window.initializeOrderMode();
+					}
 
-				// Load cart from localStorage
-				setTimeout(() => {
+					// Load cart from localStorage
 					if (window.checklist && window.checklist.loadCartFromLocalStorage) {
 						window.checklist.loadCartFromLocalStorage();
 					}
-				}, 500);
 
-				// Update floating button label
-				if (window.updateFloatingButtonLabel) {
-					window.updateFloatingButtonLabel();
+					// Update floating button label
+					if (window.updateFloatingButtonLabel) {
+						window.updateFloatingButtonLabel();
+					}
+				}
+
+				// Check if checklist.js is already loaded
+				if (typeof window.initializeOrderMode !== 'undefined') {
+					initializeChecklist();
+				} else {
+					// Wait for checklist.js to load
+					window.addEventListener('checklistLoaded', initializeChecklist);
+					// Fallback: try again after a short delay
+					setTimeout(initializeChecklist, 100);
 				}
 
 			} catch (error) {

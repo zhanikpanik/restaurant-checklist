@@ -3,6 +3,31 @@ import { getTenantId, getPosterConfig } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
+// In-memory cache for Poster API responses
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCacheKey(tenantId, endpoint, params = {}) {
+    const paramStr = JSON.stringify(params);
+    return `${tenantId}:${endpoint}:${paramStr}`;
+}
+
+function getFromCache(key) {
+    const cached = cache.get(key);
+    if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
+        return cached.data;
+    }
+    cache.delete(key); // Remove expired entry
+    return null;
+}
+
+function setCache(key, data) {
+    cache.set(key, {
+        data,
+        timestamp: Date.now()
+    });
+}
+
 /**
  * Get inventory for any storage from Poster
  * GET /api/storage-inventory?storage_id=123
@@ -43,56 +68,82 @@ export async function GET({ request }) {
         const token = posterConfig.token;
         const baseUrl = posterConfig.baseUrl;
 
-        // Fetch storage info
-        const storagesUrl = `${baseUrl}/storage.getStorages?token=${token}`;
+        // Try to get storages from cache
+        const storagesCacheKey = getCacheKey(tenantId, 'storage.getStorages');
+        let storages = getFromCache(storagesCacheKey);
 
-        const storagesResponse = await fetch(storagesUrl);
-        const storagesData = await storagesResponse.json();
+        if (!storages) {
+            // Fetch storage info from Poster
+            const storagesUrl = `${baseUrl}/storage.getStorages?token=${token}`;
+            const storagesResponse = await fetch(storagesUrl);
+            const storagesData = await storagesResponse.json();
 
-        if (storagesData.error) {
-            throw new Error(`Poster API error: ${storagesData.error.message || JSON.stringify(storagesData.error)}`);
+            if (storagesData.error) {
+                throw new Error(`Poster API error: ${storagesData.error.message || JSON.stringify(storagesData.error)}`);
+            }
+
+            storages = storagesData.response || [];
+            setCache(storagesCacheKey, storages);
         }
-
-        const storages = storagesData.response || [];
         const storage = storages.find(s => String(s.storage_id) === String(storageId));
 
         if (!storage) {
             throw new Error(`Storage with ID ${storageId} not found`);
         }
 
-        // Fetch all ingredients
-        const ingredientsUrl = `${baseUrl}/menu.getIngredients?token=${token}`;
+        // Try to get leftovers from cache
+        const leftoversCacheKey = getCacheKey(tenantId, 'storage.getStorageLeftovers', { storage_id: storageId });
+        let leftovers = getFromCache(leftoversCacheKey);
 
-        const ingredientsRes = await fetch(ingredientsUrl);
-        const ingredientsData = await ingredientsRes.json();
+        if (!leftovers) {
+            // Fetch leftovers from Poster
+            const leftoversUrl = `${baseUrl}/storage.getStorageLeftovers?token=${token}&storage_id=${storageId}`;
+            const leftoversRes = await fetch(leftoversUrl);
+            const leftoversData = await leftoversRes.json();
 
-        if (ingredientsData.error) {
-            throw new Error(`Poster API error: ${ingredientsData.error.message || JSON.stringify(ingredientsData.error)}`);
+            if (leftoversData.error) {
+                throw new Error(`Poster API error: ${leftoversData.error.message || JSON.stringify(leftoversData.error)}`);
+            }
+
+            leftovers = leftoversData.response || [];
+            setCache(leftoversCacheKey, leftovers);
         }
 
-        const ingredients = ingredientsData.response || [];
+        // Get unique ingredient IDs from leftovers
+        const ingredientIds = [...new Set(leftovers.map(l => l.ingredient_id))];
+
+        // Try to get ingredients from cache
+        const ingredientsCacheKey = getCacheKey(tenantId, 'menu.getIngredients');
+        let allIngredients = getFromCache(ingredientsCacheKey);
+
+        if (!allIngredients) {
+            // Fetch all ingredients from Poster
+            const ingredientsUrl = `${baseUrl}/menu.getIngredients?token=${token}`;
+            const ingredientsRes = await fetch(ingredientsUrl);
+            const ingredientsData = await ingredientsRes.json();
+
+            if (ingredientsData.error) {
+                throw new Error(`Poster API error: ${ingredientsData.error.message || JSON.stringify(ingredientsData.error)}`);
+            }
+
+            allIngredients = ingredientsData.response || [];
+            setCache(ingredientsCacheKey, allIngredients);
+        }
+
+        // Filter to only ingredients we need for this storage
+        const relevantIngredients = allIngredients.filter(ing =>
+            ingredientIds.includes(ing.ingredient_id)
+        );
 
         // Create ingredient map for quick lookup
         const ingredientMap = {};
-        ingredients.forEach(ing => {
+        relevantIngredients.forEach(ing => {
             ingredientMap[ing.ingredient_id] = {
                 id: ing.ingredient_id,
                 name: ing.ingredient_name,
                 unit: ing.unit
             };
         });
-
-        // Fetch leftovers for this storage
-        const leftoversUrl = `${baseUrl}/storage.getStorageLeftovers?token=${token}&storage_id=${storageId}`;
-
-        const leftoversRes = await fetch(leftoversUrl);
-        const leftoversData = await leftoversRes.json();
-
-        if (leftoversData.error) {
-            throw new Error(`Poster API error: ${leftoversData.error.message || JSON.stringify(leftoversData.error)}`);
-        }
-
-        const leftovers = leftoversData.response || [];
 
         // Combine ingredients with leftovers data
         const products = leftovers
