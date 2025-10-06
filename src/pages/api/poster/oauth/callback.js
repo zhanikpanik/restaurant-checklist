@@ -96,15 +96,43 @@ export async function GET({ request, redirect }) {
         console.log('💾 Storing token:', tokenToStore ? tokenToStore.substring(0, 15) + '...' : 'MISSING');
 
         // Store access token and account in database
-        await pool.query(
-            `UPDATE restaurants
-             SET poster_token = $1,
-                 poster_account_name = $2,
-                 oauth_state = NULL,
-                 updated_at = CURRENT_TIMESTAMP
-             WHERE id = $3`,
-            [tokenToStore, account, restaurantId]
-        );
+        const client = await pool.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            // Update restaurant info
+            await client.query(
+                `UPDATE restaurants
+                 SET poster_account_name = $1,
+                     oauth_state = NULL,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $2`,
+                [account, restaurantId]
+            );
+
+            // Deactivate old tokens
+            await client.query(
+                `UPDATE poster_tokens SET is_active = false WHERE restaurant_id = $1`,
+                [restaurantId]
+            );
+
+            // Insert new token
+            await client.query(
+                `INSERT INTO poster_tokens (restaurant_id, access_token, is_active)
+                 VALUES ($1, $2, true)`,
+                [restaurantId, tokenToStore]
+            );
+
+            await client.query('COMMIT');
+            console.log('✅ Token saved successfully');
+        } catch (error) {
+            await client.query('ROLLBACK');
+            console.error('❌ Error saving token:', error);
+            throw error;
+        } finally {
+            client.release();
+        }
 
         // Always sync departments from Poster storages on OAuth
         console.log(`📦 [${restaurantId}] Syncing departments from Poster storages...`);
@@ -137,17 +165,7 @@ export async function GET({ request, redirect }) {
                     return '📍';
                 };
 
-                // Deactivate all existing Poster-synced departments (ones with poster_storage_id)
-                const deactivated = await pool.query(
-                    `UPDATE departments
-                     SET is_active = false
-                     WHERE restaurant_id = $1 AND poster_storage_id IS NOT NULL
-                     RETURNING name`,
-                    [restaurantId]
-                );
-                console.log(`🔄 [${restaurantId}] Deactivated ${deactivated.rows.length} old departments:`, deactivated.rows.map(r => r.name));
-
-                // Create/reactivate departments from current Poster storages
+                // Create/update departments from current Poster storages
                 let created = 0;
                 let updated = 0;
 
@@ -155,27 +173,21 @@ export async function GET({ request, redirect }) {
                     const emoji = getEmojiForStorage(storage.storage_name);
                     console.log(`🔍 [${restaurantId}] Processing storage: ${storage.storage_name} (ID: ${storage.storage_id})`);
 
-                    // Try to reactivate existing department first
-                    const reactivated = await pool.query(
-                        `UPDATE departments
-                         SET is_active = true, name = $1, emoji = $2, updated_at = CURRENT_TIMESTAMP
-                         WHERE restaurant_id = $3 AND poster_storage_id = $4
-                         RETURNING id`,
-                        [storage.storage_name, emoji, restaurantId, storage.storage_id]
+                    // Upsert department
+                    const result = await pool.query(
+                        `INSERT INTO departments (name, emoji, poster_storage_id, restaurant_id, is_active)
+                         VALUES ($1, $2, $3, $4, true)
+                         ON CONFLICT (restaurant_id, poster_storage_id)
+                         DO UPDATE SET name = $1, emoji = $2, is_active = true, updated_at = CURRENT_TIMESTAMP
+                         RETURNING id, (xmax = 0) AS inserted`,
+                        [storage.storage_name, emoji, parseInt(storage.storage_id), restaurantId]
                     );
 
-                    if (reactivated.rows.length === 0) {
-                        // Create new department if it doesn't exist
-                        const inserted = await pool.query(
-                            `INSERT INTO departments (name, emoji, poster_storage_id, is_active, restaurant_id)
-                             VALUES ($1, $2, $3, true, $4)
-                             RETURNING id`,
-                            [storage.storage_name, emoji, storage.storage_id, restaurantId]
-                        );
-                        console.log(`✅ [${restaurantId}] Created department: ${storage.storage_name} (storage_id: ${storage.storage_id}, dept_id: ${inserted.rows[0].id})`);
+                    if (result.rows[0].inserted) {
+                        console.log(`✅ [${restaurantId}] Created department: ${storage.storage_name} (storage_id: ${storage.storage_id})`);
                         created++;
                     } else {
-                        console.log(`✅ [${restaurantId}] Updated department: ${storage.storage_name} (storage_id: ${storage.storage_id}, dept_id: ${reactivated.rows[0].id})`);
+                        console.log(`✅ [${restaurantId}] Updated department: ${storage.storage_name} (storage_id: ${storage.storage_id})`);
                         updated++;
                     }
                 }
