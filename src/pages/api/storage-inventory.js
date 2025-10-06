@@ -22,18 +22,29 @@ export async function GET({ request }) {
         }
 
         console.log(`📦 [${tenantId}] Fetching inventory for storage ${storageId}...`);
-        console.log(`📦 [${tenantId}] Request URL: ${request.url}`);
-        console.log(`📦 [${tenantId}] Cookies: ${request.headers.get('cookie')}`);
+
+        // Security: Verify this storage belongs to the current tenant
+        const ownershipCheck = await client.query(
+            `SELECT id FROM departments
+             WHERE poster_storage_id = $1
+             AND restaurant_id = $2
+             AND is_active = true`,
+            [storageId, tenantId]
+        );
+
+        if (ownershipCheck.rows.length === 0) {
+            console.warn(`🚫 [${tenantId}] Unauthorized access attempt to storage ${storageId}`);
+            throw new Error('Storage not found or access denied');
+        }
+
+        console.log(`✅ [${tenantId}] Storage ownership verified`);
 
         const posterConfig = await getPosterConfig(tenantId);
         const token = posterConfig.token;
         const baseUrl = posterConfig.baseUrl;
 
-        console.log(`🔗 [${tenantId}] Using baseUrl: ${baseUrl}`);
-
         // Fetch storage info
         const storagesUrl = `${baseUrl}/storage.getStorages?token=${token}`;
-        console.log(`📡 Fetching storages from: ${storagesUrl.replace(token, '***')}`);
 
         const storagesResponse = await fetch(storagesUrl);
         const storagesData = await storagesResponse.json();
@@ -49,11 +60,8 @@ export async function GET({ request }) {
             throw new Error(`Storage with ID ${storageId} not found`);
         }
 
-        console.log(`✅ Found storage: ${storage.storage_name}`);
-
         // Fetch all ingredients
         const ingredientsUrl = `${baseUrl}/menu.getIngredients?token=${token}`;
-        console.log(`📡 Fetching ingredients from: ${ingredientsUrl.replace(token, '***')}`);
 
         const ingredientsRes = await fetch(ingredientsUrl);
         const ingredientsData = await ingredientsRes.json();
@@ -63,7 +71,6 @@ export async function GET({ request }) {
         }
 
         const ingredients = ingredientsData.response || [];
-        console.log(`✅ Fetched ${ingredients.length} ingredients`);
 
         // Create ingredient map for quick lookup
         const ingredientMap = {};
@@ -77,7 +84,6 @@ export async function GET({ request }) {
 
         // Fetch leftovers for this storage
         const leftoversUrl = `${baseUrl}/storage.getStorageLeftovers?token=${token}&storage_id=${storageId}`;
-        console.log(`📡 Fetching leftovers from: ${leftoversUrl.replace(token, '***')}`);
 
         const leftoversRes = await fetch(leftoversUrl);
         const leftoversData = await leftoversRes.json();
@@ -87,7 +93,6 @@ export async function GET({ request }) {
         }
 
         const leftovers = leftoversData.response || [];
-        console.log(`✅ Fetched ${leftovers.length} leftovers for storage ${storageId}`);
 
         // Combine ingredients with leftovers data
         const products = leftovers
