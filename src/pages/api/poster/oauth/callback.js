@@ -91,6 +91,10 @@ export async function GET({ request, redirect }) {
 
         console.log('✅ OAuth token received for account:', account);
 
+        // Use new_access_token if available (format: account_number:token), otherwise use access_token
+        const tokenToStore = tokenData.new_access_token || tokenData.access_token;
+        console.log('💾 Storing token:', tokenToStore ? tokenToStore.substring(0, 15) + '...' : 'MISSING');
+
         // Store access token and account in database
         await pool.query(
             `UPDATE restaurants
@@ -99,7 +103,7 @@ export async function GET({ request, redirect }) {
                  oauth_state = NULL,
                  updated_at = CURRENT_TIMESTAMP
              WHERE id = $3`,
-            [tokenData.access_token, account, restaurantId]
+            [tokenToStore, account, restaurantId]
         );
 
         // Clear restaurant cache

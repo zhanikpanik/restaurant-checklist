@@ -43,11 +43,22 @@ export async function GET({ request }) {
     
     try {
         console.log(`🍽️ [${tenantId}] Fetching KITCHEN inventory and ingredient details from Poster...`);
+        console.log(`🔗 [${tenantId}] Using baseUrl: ${baseUrl}`);
+        console.log(`🔑 [${tenantId}] Token: ${token ? token.substring(0, 10) + '...' : 'MISSING'}`);
 
         // 1. Fetch all ingredient details (including categories)
-        const ingredientsDetailsRes = await fetch(`${baseUrl}/menu.getIngredients?token=${token}`);
+        const ingredientsUrl = `${baseUrl}/menu.getIngredients?token=${token}`;
+        console.log(`📡 [${tenantId}] Fetching ingredients from: ${ingredientsUrl.replace(token, '***')}`);
+
+        const ingredientsDetailsRes = await fetch(ingredientsUrl);
         const ingredientsDetailsData = await ingredientsDetailsRes.json();
-        if (ingredientsDetailsData.error) throw new Error(`Poster API error (getIngredients): ${ingredientsDetailsData.error.message}`);
+
+        console.log(`📊 [${tenantId}] Ingredients API response:`, ingredientsDetailsData);
+
+        if (ingredientsDetailsData.error) {
+            console.error(`❌ [${tenantId}] Poster API error:`, ingredientsDetailsData.error);
+            throw new Error(`Poster API error (getIngredients): ${ingredientsDetailsData.error.message || JSON.stringify(ingredientsDetailsData.error)}`);
+        }
 
         const allIngredients = ingredientsDetailsData.response;
         const ingredientMap = new Map(allIngredients.map(ing => [ing.ingredient_id, ing]));
