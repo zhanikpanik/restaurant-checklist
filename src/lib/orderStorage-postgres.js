@@ -47,16 +47,23 @@ export async function readOrders(department, tenantId = 'default') {
     const client = await pool.connect();
     try {
         const tenantFilter = getTenantFilter(tenantId);
-        
+
+        console.log(`🔍 [readOrders] Querying for department: "${department}", tenant: "${tenantFilter.restaurant_id}"`);
+
         const result = await client.query(
-            `SELECT id, order_data, status, created_at, sent_at, delivered_at 
-             FROM orders 
+            `SELECT id, order_data, status, created_at, sent_at, delivered_at
+             FROM orders
              WHERE restaurant_id = $1 AND (order_data->>'department' = $2)
-             ORDER BY created_at DESC 
+             ORDER BY created_at DESC
              LIMIT 50`,
             [tenantFilter.restaurant_id, department]
         );
-        
+
+        console.log(`📊 [readOrders] Query returned ${result.rows.length} rows`);
+        if (result.rows.length > 0) {
+            console.log(`📝 [readOrders] First order department:`, result.rows[0].order_data?.department);
+        }
+
         // Parse order_data JSON and add database fields
         const orders = result.rows.map(row => ({
             ...row.order_data,
@@ -66,7 +73,7 @@ export async function readOrders(department, tenantId = 'default') {
             db_sent_at: row.sent_at,
             db_delivered_at: row.delivered_at
         }));
-        
+
         console.log(`📊 Retrieved ${orders.length} orders for ${department} from PostgreSQL`);
         return orders;
         
@@ -102,8 +109,12 @@ export async function getAllOrders(tenantId = 'default') {
             db_sent_at: row.sent_at,
             db_delivered_at: row.delivered_at
         }));
-        
+
         console.log(`📊 Retrieved ${orders.length} total orders from PostgreSQL`);
+        if (orders.length > 0) {
+            const depts = orders.map(o => o.department);
+            console.log(`📝 [getAllOrders] Departments in orders:`, depts);
+        }
         return orders;
         
     } catch (error) {
