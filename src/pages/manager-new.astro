@@ -1,0 +1,215 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Менеджер - Панель управления">
+	<div class="min-h-screen bg-base-200">
+		<!-- Header with Drawer -->
+		<div class="drawer lg:drawer-open">
+			<input id="drawer-toggle" type="checkbox" class="drawer-toggle" />
+
+			<div class="drawer-content flex flex-col">
+				<!-- Navbar -->
+				<div class="navbar bg-primary text-primary-content sticky top-0 z-50 shadow-lg">
+					<div class="flex-none lg:hidden">
+						<label for="drawer-toggle" class="btn btn-square btn-ghost">
+							<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="inline-block w-6 h-6 stroke-current">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+							</svg>
+						</label>
+					</div>
+					<div class="flex-1">
+						<span class="text-2xl mr-2">👔</span>
+						<span class="text-xl font-bold">Менеджер</span>
+					</div>
+					<div class="flex-none">
+						<a href="/" class="btn btn-ghost btn-sm">
+							← Назад
+						</a>
+					</div>
+				</div>
+
+				<!-- Main Content -->
+				<main class="flex-1 p-4">
+					<div class="max-w-7xl mx-auto">
+						<!-- Tabs -->
+						<div role="tablist" class="tabs tabs-boxed bg-base-100 mb-6 flex-wrap gap-2">
+							<input type="radio" name="manager_tabs" role="tab" class="tab" aria-label="📋 Заказы" checked />
+							<div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+								<h3 class="text-2xl font-bold mb-4">📋 Заказы по категориям</h3>
+								<div id="ordersByCategory">
+									<div class="text-center text-gray-500 py-12">
+										<span class="loading loading-spinner loading-lg"></span>
+										<p class="mt-4">Загрузка заказов...</p>
+									</div>
+								</div>
+							</div>
+
+							<input type="radio" name="manager_tabs" role="tab" class="tab" aria-label="✅ Доставлено" />
+							<div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+								<div class="flex justify-between items-center mb-4">
+									<h3 class="text-2xl font-bold">✅ Доставленные заказы</h3>
+									<button onclick="exportAllDeliveredOrders()" class="btn btn-success btn-sm">
+										📄 Экспорт в Excel
+									</button>
+								</div>
+								<div id="deliveredOrders">
+									<div class="text-center text-gray-500 py-12">
+										<span class="loading loading-spinner loading-lg"></span>
+										<p class="mt-4">Загрузка доставленных заказов...</p>
+									</div>
+								</div>
+							</div>
+
+							<input type="radio" name="manager_tabs" role="tab" class="tab" aria-label="🏷️ Категории" />
+							<div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+								<div class="flex justify-between items-center mb-4">
+									<h3 class="text-2xl font-bold">🏷️ Категории и поставщики</h3>
+									<button onclick="addNewCategory()" class="btn btn-success btn-sm">
+										➕ Категория
+									</button>
+								</div>
+								<div id="categorySuppliers">
+									<div class="text-center text-gray-500 py-12">
+										<span class="loading loading-spinner loading-lg"></span>
+										<p class="mt-4">Загрузка категорий...</p>
+									</div>
+								</div>
+							</div>
+
+							<input type="radio" name="manager_tabs" role="tab" class="tab" aria-label="🏢 Поставщики" />
+							<div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+								<div class="flex justify-between items-center mb-4">
+									<h3 class="text-2xl font-bold">🏢 Поставщики</h3>
+									<button onclick="addNewSupplier()" class="btn btn-primary btn-sm">
+										➕ Добавить
+									</button>
+								</div>
+								<div id="suppliersList">
+									<div class="text-center text-gray-500 py-12">
+										<span class="loading loading-spinner loading-lg"></span>
+										<p class="mt-4">Загрузка поставщиков...</p>
+									</div>
+								</div>
+							</div>
+
+							<input type="radio" name="manager_tabs" role="tab" class="tab" aria-label="🏪 Отделы" />
+							<div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+								<div class="flex justify-between items-center mb-4">
+									<h3 class="text-2xl font-bold">🏪 Отделы</h3>
+									<div class="flex gap-2">
+										<button onclick="syncDepartmentsFromPoster()" class="btn btn-info btn-sm">
+											🔄 Синхронизация
+										</button>
+										<button onclick="addNewDepartment()" class="btn btn-success btn-sm">
+											➕ Добавить
+										</button>
+									</div>
+								</div>
+								<div id="departmentsList">
+									<div class="text-center text-gray-500 py-12">
+										<span class="loading loading-spinner loading-lg"></span>
+										<p class="mt-4">Загрузка отделов...</p>
+									</div>
+								</div>
+							</div>
+
+							<input type="radio" name="manager_tabs" role="tab" class="tab" aria-label="📦 Товары" />
+							<div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+								<div class="flex justify-between items-center mb-4">
+									<h3 class="text-2xl font-bold">📦 Товары</h3>
+									<button onclick="openAddProductModal()" class="btn btn-success btn-sm">
+										➕ Добавить товар
+									</button>
+								</div>
+								<div id="productsList">
+									<div class="text-center text-gray-500 py-12">
+										<span class="loading loading-spinner loading-lg"></span>
+										<p class="mt-4">Загрузка товаров...</p>
+									</div>
+								</div>
+							</div>
+
+							<input type="radio" name="manager_tabs" role="tab" class="tab" aria-label="⚙️ Настройки" />
+							<div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+								<h3 class="text-2xl font-bold mb-4">⚙️ Настройки</h3>
+								<div class="space-y-4">
+									<div class="card bg-base-100 shadow-xl">
+										<div class="card-body">
+											<h2 class="card-title">Интеграция Poster</h2>
+											<p>Настройте подключение к Poster POS системе</p>
+											<div class="card-actions justify-end">
+												<button class="btn btn-primary btn-sm">Настроить</button>
+											</div>
+										</div>
+									</div>
+									<div class="card bg-base-100 shadow-xl">
+										<div class="card-body">
+											<h2 class="card-title">Уведомления</h2>
+											<p>Настройте уведомления о заказах</p>
+											<div class="card-actions justify-end">
+												<button class="btn btn-primary btn-sm">Настроить</button>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</main>
+			</div>
+
+			<!-- Drawer Sidebar (Mobile) -->
+			<div class="drawer-side lg:hidden">
+				<label for="drawer-toggle" aria-label="close sidebar" class="drawer-overlay"></label>
+				<ul class="menu p-4 w-80 min-h-full bg-base-100 text-base-content">
+					<li class="menu-title">
+						<span class="text-lg font-bold">Менеджер</span>
+					</li>
+					<li><a>📋 Заказы</a></li>
+					<li><a>✅ Доставлено</a></li>
+					<li><a>🏷️ Категории</a></li>
+					<li><a>🏢 Поставщики</a></li>
+					<li><a>🏪 Отделы</a></li>
+					<li><a>📦 Товары</a></li>
+					<li><a>⚙️ Настройки</a></li>
+					<div class="divider"></div>
+					<li><a href="/">🏠 На главную</a></li>
+				</ul>
+			</div>
+		</div>
+	</div>
+
+	<script is:inline>
+		// Placeholder functions - will be implemented
+		function exportAllDeliveredOrders() {
+			console.log('Export delivered orders');
+		}
+
+		function addNewCategory() {
+			console.log('Add category');
+		}
+
+		function addNewSupplier() {
+			console.log('Add supplier');
+		}
+
+		function syncDepartmentsFromPoster() {
+			console.log('Sync departments');
+		}
+
+		function addNewDepartment() {
+			console.log('Add department');
+		}
+
+		function openAddProductModal() {
+			console.log('Add product');
+		}
+
+		// Load data on page load
+		document.addEventListener('DOMContentLoaded', () => {
+			console.log('Manager page loaded with DaisyUI');
+			// TODO: Load actual data
+		});
+	</script>
+</Layout>
