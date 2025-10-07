@@ -513,22 +513,29 @@ import Layout from "../layouts/Layout.astro";
 
         // New function to mark unified order as delivered
         async function markUnifiedDelivered(timestamp) {
+            console.log(`🚚 [Delivery] Marking unified order as delivered: ${timestamp}`);
             const departments = ['bar', 'kitchen', 'custom', 'storage'];
             let updatedOrders = [];
-            
+
             for (const department of departments) {
+                console.log(`🔍 [Delivery] Checking ${department} department...`);
                 const storageKey = `${department}OrderHistory`;
                 let orders = JSON.parse(localStorage.getItem(storageKey) || "[]");
                 let orderIndex = orders.findIndex((o) => o.timestamp === timestamp);
+                console.log(`  📦 [Delivery] localStorage has ${orders.length} orders, orderIndex: ${orderIndex}`);
 
                 // Fallback: if order not found locally, fetch from server
                 if (orderIndex === -1) {
+                    console.log(`  🌐 [Delivery] Order not in localStorage, fetching from server...`);
                     try {
                         const resp = await fetch(`/api/get-all-orders?department=${encodeURIComponent(department)}`, { cache: 'no-store' });
                         if (resp.ok) {
                             const result = await resp.json();
+                            console.log(`  ✅ [Delivery] Server returned ${result.data?.length || 0} orders`);
                             const serverOrder = (result.data || []).find((o) => o.timestamp === timestamp);
+                            console.log(`  🔍 [Delivery] Looking for timestamp ${timestamp}, found:`, serverOrder ? 'YES' : 'NO');
                             if (serverOrder) {
+                                console.log(`  📥 [Delivery] Adding server order to localStorage`);
                                 orders.unshift(serverOrder);
                                 orderIndex = 0;
                                 localStorage.setItem(storageKey, JSON.stringify(orders));
@@ -538,6 +545,8 @@ import Layout from "../layouts/Layout.astro";
                         console.warn('⚠️ Could not fetch order from server for delivery update:', e);
                     }
                 }
+
+                console.log(`  ➡️ [Delivery] Final orderIndex: ${orderIndex}`);
 
                 if (orderIndex !== -1) {
                     // Get saved quantities and prices
