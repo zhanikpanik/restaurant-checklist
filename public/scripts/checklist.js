@@ -452,19 +452,16 @@ function updateShoppingQuantity(productId, change) {
 function showQuantityControls(productId) {
   // Set initial quantity to 0.5
   setShoppingQuantity(productId, 0.5);
-  
+
   // Show quantity controls and hide add button
   const addBtn = document.getElementById(`addBtn-${productId}`);
   const quantityControls = document.getElementById(`quantityControls-${productId}`);
-  
+
   if (addBtn) addBtn.classList.add('hidden');
   if (quantityControls) quantityControls.classList.remove('hidden');
-  
-  // Focus on the input field
-  const input = document.querySelector(`.quantity-input[data-product-id="${productId}"]`);
-  if (input) {
-    setTimeout(() => input.focus(), 100);
-  }
+
+  // Don't auto-focus to avoid IMask.js conflicts causing stack overflow
+  // User can manually focus if needed
 }
 
 // Hide quantity controls and show add button when quantity becomes 0
@@ -539,7 +536,16 @@ async function autoSaveToCache() {
 
     // Determine department (default to 'bar' for backward compatibility)
     const department = window.currentDepartment || "bar";
-    const departmentName = department === "kitchen" ? "Кухня" : department === "custom" ? "Горничная" : "Бар";
+    console.log(`📍 Current department: ${department} (window.currentDepartment=${window.currentDepartment})`);
+
+    // Map department to display name
+    const departmentNames = {
+      'bar': 'Бар',
+      'kitchen': 'Кухня',
+      'custom': 'Горничная',
+      'storage': 'Склад'
+    };
+    const departmentName = departmentNames[department] || department;
 
     // Save to localStorage only (for offline compatibility)
     const cacheKey = `${department}ShoppingList`;
