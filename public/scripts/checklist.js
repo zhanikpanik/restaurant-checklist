@@ -1,6 +1,20 @@
 // Bar Inventory Checklist - Client-side JavaScript
 // Updated to use server-side API routes (fixes CORS issues)
 
+// Helper function to get cookie value
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
+
+// Helper function to get tenant ID from URL
+function getTenantFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('restaurant_id') || params.get('tenant_id');
+}
+
 // Product data structure
 let productData = [];
 let shoppingListData = [];
@@ -547,9 +561,13 @@ async function autoSaveToCache() {
     };
     const departmentName = departmentNames[department] || department;
 
-    // Save to localStorage only (for offline compatibility)
-    const cacheKey = `${department}ShoppingList`;
+    // Get tenant prefix (from URL, cookie, or default)
+    const tenantId = window.tenantId || getCookie('restaurant_id') || getTenantFromURL() || 'default';
+
+    // Save to localStorage with tenant prefix (for offline compatibility)
+    const cacheKey = `${tenantId}_${department}ShoppingList`;
     localStorage.setItem(cacheKey, JSON.stringify(itemsToOrder));
+    console.log(`💾 Saving to localStorage key: ${cacheKey}`);
 
     // Only log if there are items
     if (itemsToOrder.length > 0) {
@@ -566,8 +584,10 @@ async function autoSaveToCache() {
 function loadCartFromLocalStorage() {
   try {
     const department = window.currentDepartment || "bar";
-    const cacheKey = `${department}ShoppingList`;
+    const tenantId = window.tenantId || getCookie('restaurant_id') || getTenantFromURL() || 'default';
+    const cacheKey = `${tenantId}_${department}ShoppingList`;
     const cachedData = localStorage.getItem(cacheKey);
+    console.log(`📂 Loading from localStorage key: ${cacheKey}`);
     
     if (cachedData && shoppingListData) {
       const cachedItems = JSON.parse(cachedData);
@@ -1029,21 +1049,32 @@ function getAllDepartmentOrders() {
   };
 
   console.log(`🔍 Checking localStorage for ShoppingList keys. Total keys: ${localStorage.length}`);
+  console.log(`📍 Current tenant ID: ${window.tenantId || 'not set'}`);
 
-  // Find ALL localStorage keys ending with "ShoppingList"
+  // Find ALL localStorage keys ending with "ShoppingList" (with or without prefix)
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    console.log(`  🔑 localStorage key ${i}: ${key}`);
-    if (key && key.endsWith('ShoppingList')) {
+    // Check if key ends with ShoppingList OR contains _ShoppingList (for prefixed keys)
+    if (key && (key.endsWith('ShoppingList') || key.includes('_') && key.split('_')[1] === 'ShoppingList' || key.includes('ShoppingList'))) {
+      console.log(`  🔑 Found ShoppingList key: ${key}`);
       try {
         const orders = JSON.parse(localStorage.getItem(key) || '[]');
         const items = orders.filter(item => item.shoppingQuantity > 0);
-        console.log(`    ✓ Found ${items.length} items in ${key}`);
+        console.log(`    ✓ Contains ${items.length} items with shoppingQuantity > 0`);
 
         if (items.length > 0) {
-          // Extract department key from localStorage key (e.g., "barShoppingList" → "bar")
-          const deptKey = key.replace('ShoppingList', '');
+          // Extract department key from localStorage key
+          // Handle prefixed keys: "default_storageShoppingList" → "storage"
+          // Handle unprefixed keys: "barShoppingList" → "bar"
+          let deptKey = key.replace('ShoppingList', '');
+
+          // Remove common prefixes (tenant ID, domain, etc.)
+          if (deptKey.includes('_')) {
+            deptKey = deptKey.split('_').pop(); // Get last part after underscore
+          }
+
           const deptInfo = departmentMap[deptKey] || { name: deptKey, emoji: '📦' };
+          console.log(`    → Mapped "${key}" to department: "${deptKey}" (${deptInfo.name})`);
 
           items.forEach(item => {
             allItems.push({
