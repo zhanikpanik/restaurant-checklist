@@ -1,12 +1,14 @@
 import { getDbClient, safeRelease } from '../../lib/db-helper.js';
+import { getTenantId, getPosterConfig } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
 // GET: Get combined inventory (Poster + custom products) for a department
-export async function GET({ url }) {
+export async function GET({ request, url }) {
+    const tenantId = getTenantId(request);
     const searchParams = new URL(url).searchParams;
     const departmentName = searchParams.get('department'); // 'bar', 'kitchen', or custom department name
-    
+
     if (!departmentName) {
         return new Response(JSON.stringify({
             success: false,
@@ -22,28 +24,32 @@ export async function GET({ url }) {
 
     if (error) return error;
 
-    
+
     try {
-        // First, get the department info
+        // First, get the department info (tenant-specific)
         const deptResult = await client.query(
-            'SELECT id, name, emoji, poster_storage_id FROM departments WHERE LOWER(name) = LOWER($1) AND is_active = true',
-            [departmentName]
+            'SELECT id, name, emoji, poster_storage_id FROM departments WHERE LOWER(name) = LOWER($1) AND is_active = true AND restaurant_id = $2',
+            [departmentName, tenantId]
         );
-        
+
         if (deptResult.rows.length === 0) {
-            throw new Error(`Department "${departmentName}" not found`);
+            throw new Error(`Department "${departmentName}" not found for tenant ${tenantId}`);
         }
-        
+
         const department = deptResult.rows[0];
         const products = [];
 
         // Get Poster products if this department has a poster_storage_id
         if (department.poster_storage_id) {
             try {
-                const token = '305185:07928627ec76d09e589e1381710e55da';
-                const baseUrl = 'https://joinposter.com/api';
-                
-                console.log(`🔄 Fetching Poster inventory for ${department.name} (storage ${department.poster_storage_id})...`);
+                // Get tenant-specific Poster configuration
+                const posterConfig = await getPosterConfig(tenantId);
+                const token = posterConfig.token;
+                const baseUrl = posterConfig.baseUrl;
+
+                console.log(`🔄 [${tenantId}] Fetching Poster inventory for ${department.name} (storage ${department.poster_storage_id})...`);
+                console.log(`🔑 [${tenantId}] Using token: ${token.substring(0, 10)}...`);
+                console.log(`🌐 [${tenantId}] Using baseUrl: ${baseUrl}`);
 
                 // Fetch ingredient details
                 const ingredientsRes = await fetch(`${baseUrl}/menu.getIngredients?token=${token}`);
@@ -76,12 +82,12 @@ export async function GET({ url }) {
                     }
                 });
                 
-                // Save categories to DB
+                // Save categories to DB (tenant-specific)
                 for (const [categoryId, categoryName] of uniqueCategories) {
                     try {
                         await client.query(
-                            'INSERT INTO product_categories (name) VALUES ($1) ON CONFLICT (name) DO NOTHING',
-                            [categoryName]
+                            'INSERT INTO product_categories (name, restaurant_id) VALUES ($1, $2) ON CONFLICT (name, restaurant_id) DO NOTHING',
+                            [categoryName, tenantId]
                         );
                     } catch (e) {
                         console.log('Category save error (non-critical):', e.message);
@@ -114,9 +120,9 @@ export async function GET({ url }) {
             }
         }
 
-        // Get custom products for this department
+        // Get custom products for this department (tenant-specific)
         const customResult = await client.query(`
-            SELECT 
+            SELECT
                 cp.id,
                 cp.name,
                 cp.unit,
@@ -126,9 +132,9 @@ export async function GET({ url }) {
                 pc.name as category_name
             FROM custom_products cp
             LEFT JOIN product_categories pc ON cp.category_id = pc.id
-            WHERE cp.department_id = $1 AND cp.is_active = true
+            WHERE cp.department_id = $1 AND cp.is_active = true AND cp.restaurant_id = $2
             ORDER BY cp.name ASC
-        `, [department.id]);
+        `, [department.id, tenantId]);
 
         // Add custom products to the list
         customResult.rows.forEach(customProduct => {
