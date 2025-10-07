@@ -3896,115 +3896,49 @@ import Layout from '../layouts/Layout.astro';
 				try {
 					const departmentFilter = document.getElementById('departmentFilter')?.value || '';
 					console.log('🔍 Department filter:', departmentFilter);
-					
+
 					// Fetch all products from different sources
 					let allProductsList = [];
-					
-					// Load custom products FIRST
-					try {
-						const url = departmentFilter ? `/api/custom-products?department_id=${departmentFilter}` : '/api/custom-products';
-						console.log('📡 Loading custom products from:', url);
-						const customResponse = await fetch(url);
-						const customData = await customResponse.json();
-						if (customData.success && customData.data) {
-							const customProducts = customData.data.map(p => ({
-								...p,
-								source: 'custom'
-							}));
-							allProductsList = allProductsList.concat(customProducts);
-							console.log(`✅ Loaded ${customProducts.length} custom products`);
-						}
-					} catch (err) {
-						console.warn('Failed to load custom products:', err);
+
+					// Load departments first
+					const deptResponse = await fetch('/api/departments');
+					const deptData = await deptResponse.json();
+
+					if (!deptData.success || !deptData.data) {
+						throw new Error('Failed to load departments');
 					}
-					
-					// Load Poster products from bar and kitchen (only if no specific department filter or if it matches)
-					if (!departmentFilter) {
-						// Load all Poster products when no filter is selected
+
+					const departments = deptData.data;
+					console.log(`📋 Found ${departments.length} departments`);
+
+					// Filter departments if a specific one is selected
+					const departmentsToLoad = departmentFilter
+						? departments.filter(d => d.id == departmentFilter)
+						: departments;
+
+					console.log(`🎯 Loading products for ${departmentsToLoad.length} departments`);
+
+					// Load products from each department using combined-inventory API
+					for (const dept of departmentsToLoad) {
 						try {
-							const barResponse = await fetch('/api/bar-inventory');
-							const barData = await barResponse.json();
-							if (barData.success && barData.data) {
-								const barProducts = barData.data.map(p => ({
+							console.log(`📡 Loading products for department: ${dept.name}`);
+							const response = await fetch(`/api/combined-inventory?department=${encodeURIComponent(dept.name)}`);
+							const result = await response.json();
+
+							if (result.success && result.data) {
+								const deptProducts = result.data.map(p => ({
 									...p,
-									department_name: 'Бар',
-									source: 'poster'
+									department_id: dept.id,
+									department_name: dept.name
 								}));
-								allProductsList = allProductsList.concat(barProducts);
-								console.log(`✅ Loaded ${barProducts.length} bar products from Poster`);
+								allProductsList = allProductsList.concat(deptProducts);
+								console.log(`✅ Loaded ${deptProducts.length} products from ${dept.name} (${deptProducts.filter(p => p.source === 'poster').length} Poster, ${deptProducts.filter(p => p.source === 'custom').length} custom)`);
 							}
 						} catch (err) {
-							console.warn('Failed to load bar products:', err);
-						}
-						
-						try {
-							const kitchenResponse = await fetch('/api/kitchen-inventory');
-							const kitchenData = await kitchenResponse.json();
-							if (kitchenData.success && kitchenData.data) {
-								const kitchenProducts = kitchenData.data.map(p => ({
-									...p,
-									department_name: 'Кухня',
-									source: 'poster'
-								}));
-								allProductsList = allProductsList.concat(kitchenProducts);
-								console.log(`✅ Loaded ${kitchenProducts.length} kitchen products from Poster`);
-							}
-						} catch (err) {
-							console.warn('Failed to load kitchen products:', err);
-						}
-					} else {
-						// When a specific department is selected, try to load Poster products for that department
-						// We need to map department IDs to their names to determine which Poster API to call
-						try {
-							// Load departments to map ID to name
-							const deptResponse = await fetch('/api/departments');
-							const deptData = await deptResponse.json();
-							if (deptData.success && deptData.data) {
-								const selectedDept = deptData.data.find(d => d.id == departmentFilter);
-								if (selectedDept) {
-									console.log('🎯 Selected department:', selectedDept.name);
-									
-									// Load Poster products based on department name
-									if (selectedDept.name === 'Бар') {
-										try {
-											const barResponse = await fetch('/api/bar-inventory');
-											const barData = await barResponse.json();
-											if (barData.success && barData.data) {
-												const barProducts = barData.data.map(p => ({
-													...p,
-													department_name: 'Бар',
-													source: 'poster'
-												}));
-												allProductsList = allProductsList.concat(barProducts);
-												console.log(`✅ Loaded ${barProducts.length} bar products from Poster for filtered department`);
-											}
-										} catch (err) {
-											console.warn('Failed to load bar products for filtered department:', err);
-										}
-									} else if (selectedDept.name === 'Кухня') {
-										try {
-											const kitchenResponse = await fetch('/api/kitchen-inventory');
-											const kitchenData = await kitchenResponse.json();
-											if (kitchenData.success && kitchenData.data) {
-												const kitchenProducts = kitchenData.data.map(p => ({
-													...p,
-													department_name: 'Кухня',
-													source: 'poster'
-												}));
-												allProductsList = allProductsList.concat(kitchenProducts);
-												console.log(`✅ Loaded ${kitchenProducts.length} kitchen products from Poster for filtered department`);
-											}
-										} catch (err) {
-											console.warn('Failed to load kitchen products for filtered department:', err);
-										}
-									}
-								}
-							}
-						} catch (err) {
-							console.warn('Failed to load department info for Poster products:', err);
+							console.warn(`⚠️ Failed to load products for ${dept.name}:`, err);
 						}
 					}
-					
+
 					// Sort products: custom first, then Poster products, then by name
 					allProductsList.sort((a, b) => {
 						// Custom products first
@@ -4013,10 +3947,10 @@ import Layout from '../layouts/Layout.astro';
 						// Then sort by name
 						return a.name.localeCompare(b.name);
 					});
-					
+
 					console.log(`✅ Loaded ${allProductsList.length} total products (${allProductsList.filter(p => p.source === 'custom').length} custom, ${allProductsList.filter(p => p.source === 'poster').length} poster)`);
 					displayCustomProducts(allProductsList);
-					
+
 				} catch (error) {
 					console.error('❌ Error loading products:', error);
 					displayCustomProducts([]);
