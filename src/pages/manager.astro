@@ -970,9 +970,11 @@ import Layout from '../layouts/Layout.astro';
 						const allOrders = result.data;
 						const barOrders = allOrders.filter(o => o.department === 'bar');
 						const kitchenOrders = allOrders.filter(o => o.department === 'kitchen');
-						
-						// Load orders management with database data
-						loadOrdersManagement(barOrders, kitchenOrders);
+						const storageOrders = allOrders.filter(o => o.department === 'storage');
+						const customOrders = allOrders.filter(o => o.department === 'custom');
+
+						// Load orders management with database data (pass all department orders)
+						loadOrdersManagement(barOrders, kitchenOrders, storageOrders, customOrders);
 					} else {
 						console.error('❌ Failed to load orders from database:', result.error);
 						// Fallback to localStorage
@@ -985,15 +987,19 @@ import Layout from '../layouts/Layout.astro';
 			}
 
 			// Load orders management
-			function loadOrdersManagement(barOrders, kitchenOrders) {
+			function loadOrdersManagement(barOrders = [], kitchenOrders = [], storageOrders = [], customOrders = []) {
 				console.log('📋 Manager: Loading orders management with:', {
 					barOrders: barOrders.length,
-					kitchenOrders: kitchenOrders.length
+					kitchenOrders: kitchenOrders.length,
+					storageOrders: storageOrders.length,
+					customOrders: customOrders.length
 				});
 
 				const allOrders = [
 					...barOrders.map((o, i) => ({...o, department: 'bar', departmentName: 'Бар', departmentEmoji: '🍷', originalIndex: i})),
-					...kitchenOrders.map((o, i) => ({...o, department: 'kitchen', departmentName: 'Кухня', departmentEmoji: '🍳', originalIndex: i}))
+					...kitchenOrders.map((o, i) => ({...o, department: 'kitchen', departmentName: 'Кухня', departmentEmoji: '🍳', originalIndex: i})),
+					...storageOrders.map((o, i) => ({...o, department: 'storage', departmentName: 'Склад', departmentEmoji: '📦', originalIndex: i})),
+					...customOrders.map((o, i) => ({...o, department: 'custom', departmentName: 'Горничная', departmentEmoji: '🧹', originalIndex: i}))
 				];
 
 				console.log('📋 Manager: All orders combined:', allOrders.length, allOrders);

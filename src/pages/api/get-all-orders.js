@@ -1,23 +1,27 @@
 import { getAllOrders, readOrders } from '../../lib/orderStorage-postgres.js';
+import { getTenantId } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
-export async function GET({ url, locals }) {
+export async function GET({ url, request }) {
     try {
         console.log('📋 Fetching all orders from server storage...');
-        
+
         const searchParams = new URL(url).searchParams;
         const department = searchParams.get('department');
-        
-        const tenantId = locals.tenantId || 'default';
+
+        // Get tenant ID from request
+        const tenantId = getTenantId(request);
+        console.log(`🏢 Tenant ID: ${tenantId}`);
+
         let orders;
-        
-        if (department && ['bar', 'kitchen'].includes(department)) {
-            // Get orders for specific department
+
+        if (department) {
+            // Get orders for specific department (supports any department name)
             orders = await readOrders(department, tenantId);
             console.log(`✅ Retrieved ${orders.length} orders for ${department}`);
         } else {
-            // Get all orders from both departments
+            // Get all orders from all departments
             orders = await getAllOrders(tenantId);
             console.log(`✅ Retrieved ${orders.length} total orders`);
         }
