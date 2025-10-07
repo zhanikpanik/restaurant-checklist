@@ -146,12 +146,19 @@ export async function GET({ request }) {
         // Create ingredient map for quick lookup - use string keys
         const ingredientMap = {};
         relevantIngredients.forEach(ing => {
+            // Poster API may use different field names for unit
+            const unit = ing.unit || ing.ingredient_unit || ing.unit_name || 'шт';
+
             ingredientMap[String(ing.ingredient_id)] = {
                 id: ing.ingredient_id,
                 name: ing.ingredient_name,
-                unit: ing.unit
+                unit: unit
             };
         });
+
+        if (relevantIngredients.length > 0) {
+            console.log(`🔍 [${tenantId}] Sample ingredient unit field:`, Object.keys(relevantIngredients[0]).filter(k => k.includes('unit')));
+        }
 
         // Combine ingredients with leftovers data
         const products = leftovers
