@@ -15,7 +15,9 @@
       "Bash(railway run:*)",
       "Bash(git log:*)",
       "Bash(echo \"Then run: Object.keys(localStorage).filter(k => k.includes(''storage''))\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(railway up:*)",
+      "Bash(pnpm install:*)"
     ],
     "deny": [],
     "ask": []
