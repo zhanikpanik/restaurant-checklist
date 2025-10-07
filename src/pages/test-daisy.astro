@@ -1,0 +1,175 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="DaisyUI Test">
+	<div class="container mx-auto p-8">
+		<h1 class="text-4xl font-bold mb-8">🌼 DaisyUI Components Test</h1>
+
+		<!-- Buttons -->
+		<div class="mb-8">
+			<h2 class="text-2xl font-semibold mb-4">Buttons</h2>
+			<div class="flex gap-2 flex-wrap">
+				<button class="btn">Default</button>
+				<button class="btn btn-primary">Primary</button>
+				<button class="btn btn-secondary">Secondary</button>
+				<button class="btn btn-accent">Accent</button>
+				<button class="btn btn-success">Success</button>
+				<button class="btn btn-warning">Warning</button>
+				<button class="btn btn-error">Error</button>
+			</div>
+		</div>
+
+		<!-- Cards -->
+		<div class="mb-8">
+			<h2 class="text-2xl font-semibold mb-4">Cards</h2>
+			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+				<div class="card bg-base-100 shadow-xl">
+					<div class="card-body">
+						<h2 class="card-title">📦 Склад</h2>
+						<p>15 товаров</p>
+						<div class="card-actions justify-end">
+							<button class="btn btn-primary btn-sm">Открыть</button>
+						</div>
+					</div>
+				</div>
+				<div class="card bg-base-100 shadow-xl">
+					<div class="card-body">
+						<h2 class="card-title">🍳 Кухня</h2>
+						<p>23 товара</p>
+						<div class="card-actions justify-end">
+							<button class="btn btn-primary btn-sm">Открыть</button>
+						</div>
+					</div>
+				</div>
+				<div class="card bg-base-100 shadow-xl">
+					<div class="card-body">
+						<h2 class="card-title">🍷 Бар</h2>
+						<p>18 товаров</p>
+						<div class="card-actions justify-end">
+							<button class="btn btn-primary btn-sm">Открыть</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Tabs -->
+		<div class="mb-8">
+			<h2 class="text-2xl font-semibold mb-4">Tabs</h2>
+			<div role="tablist" class="tabs tabs-bordered">
+				<input type="radio" name="my_tabs" role="tab" class="tab" aria-label="Товары" checked />
+				<div role="tabpanel" class="tab-content p-10">Товары content</div>
+
+				<input type="radio" name="my_tabs" role="tab" class="tab" aria-label="Отделы" />
+				<div role="tabpanel" class="tab-content p-10">Отделы content</div>
+
+				<input type="radio" name="my_tabs" role="tab" class="tab" aria-label="Заказы" />
+				<div role="tabpanel" class="tab-content p-10">Заказы content</div>
+			</div>
+		</div>
+
+		<!-- Table -->
+		<div class="mb-8">
+			<h2 class="text-2xl font-semibold mb-4">Table</h2>
+			<div class="overflow-x-auto">
+				<table class="table">
+					<thead>
+						<tr>
+							<th>Товар</th>
+							<th>Количество</th>
+							<th>Статус</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr class="hover">
+							<td>Молоко</td>
+							<td>10 л</td>
+							<td><span class="badge badge-success">Доставлен</span></td>
+							<td><button class="btn btn-ghost btn-xs">Детали</button></td>
+						</tr>
+						<tr class="hover">
+							<td>Хлеб</td>
+							<td>5 шт</td>
+							<td><span class="badge badge-warning">Ожидает</span></td>
+							<td><button class="btn btn-ghost btn-xs">Детали</button></td>
+						</tr>
+						<tr class="hover">
+							<td>Сахар</td>
+							<td>2 кг</td>
+							<td><span class="badge badge-info">Отправлен</span></td>
+							<td><button class="btn btn-ghost btn-xs">Детали</button></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+
+		<!-- Badges -->
+		<div class="mb-8">
+			<h2 class="text-2xl font-semibold mb-4">Badges</h2>
+			<div class="flex gap-2 flex-wrap">
+				<span class="badge">Default</span>
+				<span class="badge badge-primary">Primary</span>
+				<span class="badge badge-secondary">Secondary</span>
+				<span class="badge badge-accent">Accent</span>
+				<span class="badge badge-success">Success</span>
+				<span class="badge badge-warning">Warning</span>
+				<span class="badge badge-error">Error</span>
+			</div>
+		</div>
+
+		<!-- Stats -->
+		<div class="mb-8">
+			<h2 class="text-2xl font-semibold mb-4">Stats</h2>
+			<div class="stats shadow">
+				<div class="stat">
+					<div class="stat-figure text-primary">
+						<span class="text-4xl">📦</span>
+					</div>
+					<div class="stat-title">Всего заказов</div>
+					<div class="stat-value text-primary">25</div>
+					<div class="stat-desc">За последний месяц</div>
+				</div>
+
+				<div class="stat">
+					<div class="stat-figure text-secondary">
+						<span class="text-4xl">✅</span>
+					</div>
+					<div class="stat-title">Доставлено</div>
+					<div class="stat-value text-secondary">18</div>
+					<div class="stat-desc">72% выполнено</div>
+				</div>
+
+				<div class="stat">
+					<div class="stat-figure text-accent">
+						<span class="text-4xl">⏳</span>
+					</div>
+					<div class="stat-title">В ожидании</div>
+					<div class="stat-value">7</div>
+					<div class="stat-desc">28% в процессе</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Alert -->
+		<div class="mb-8">
+			<h2 class="text-2xl font-semibold mb-4">Alerts</h2>
+			<div class="flex flex-col gap-4">
+				<div role="alert" class="alert">
+					<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-info shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+					<span>Новое обновление доступно!</span>
+				</div>
+				<div role="alert" class="alert alert-success">
+					<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+					<span>Заказ успешно создан!</span>
+				</div>
+				<div role="alert" class="alert alert-warning">
+					<svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+					<span>Низкий остаток товара на складе</span>
+				</div>
+			</div>
+		</div>
+	</div>
+</Layout>

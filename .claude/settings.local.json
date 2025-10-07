@@ -14,7 +14,8 @@
       "Bash(railway run psql:*)",
       "Bash(railway run:*)",
       "Bash(git log:*)",
-      "Bash(echo \"Then run: Object.keys(localStorage).filter(k => k.includes(''storage''))\")"
+      "Bash(echo \"Then run: Object.keys(localStorage).filter(k => k.includes(''storage''))\")",
+      "Bash(npm install:*)"
     ],
     "deny": [],
     "ask": []
