@@ -66,19 +66,19 @@ import Layout from '../layouts/Layout.astro';
 			}
 		}
 
-		// Load all departments and display them as sections
+		// Load all sections and display them
 		async function loadSections() {
 			try {
-				const response = await fetch('/api/departments');
+				const response = await fetch('/api/sections');
 				const data = await response.json();
 
-				console.log('📊 Departments API response:', data);
+				console.log('📊 Sections API response:', data);
 				console.log('🏢 Current tenant:', getCurrentTenant());
 
 				if (data.success) {
 					if (data.data.length === 0) {
-						console.warn('⚠️ No departments found for current tenant');
-						showNoDepartmentsMessage();
+						console.warn('⚠️ No sections found for current tenant');
+						showNoSectionsMessage();
 					} else {
 						displaySections(data.data);
 					}
@@ -91,24 +91,60 @@ import Layout from '../layouts/Layout.astro';
 			}
 		}
 
-		function showNoDepartmentsMessage() {
+		function showNoSectionsMessage() {
 			const container = document.getElementById('sectionsContainer');
 			container.innerHTML = `
 				<div class="col-span-full text-center py-8">
 					<div class="text-6xl mb-4">📭</div>
-					<h3 class="text-xl font-semibold text-gray-700 mb-2">Отделы не найдены</h3>
-					<p class="text-gray-600 mb-4">Для текущего ресторана отделы не настроены</p>
+					<h3 class="text-xl font-semibold text-gray-700 mb-2">Секции не найдены</h3>
+					<p class="text-gray-600 mb-4">Для текущего ресторана секции не настроены</p>
 					<div class="space-y-2">
-						<a href="/select-restaurant" class="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
-							Выбрать другой ресторан
-						</a>
+						<button onclick="syncSections()" class="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
+							Синхронизировать секции из Poster
+						</button>
 						<br>
-						<a href="/settings" class="inline-block bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg">
-							Настроить отделы
+						<a href="/select-restaurant" class="inline-block bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">
+							Выбрать другой ресторан
 						</a>
 					</div>
 				</div>
 			`;
+		}
+
+		async function syncSections() {
+			const container = document.getElementById('sectionsContainer');
+			container.innerHTML = `
+				<div class="col-span-full text-center py-8">
+					<div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
+					<p class="text-gray-600">Синхронизация секций...</p>
+				</div>
+			`;
+
+			try {
+				// Sync sections from Poster
+				const syncResponse = await fetch('/api/sync-sections');
+				const syncData = await syncResponse.json();
+
+				if (!syncData.success) {
+					throw new Error(syncData.error);
+				}
+
+				console.log('✅ Sections synced:', syncData.data);
+
+				// Sync products
+				const productsResponse = await fetch('/api/sync-section-products');
+				const productsData = await productsResponse.json();
+
+				if (!productsData.success) {
+					console.warn('⚠️ Products sync failed:', productsData.error);
+				}
+
+				// Reload sections
+				await loadSections();
+			} catch (error) {
+				console.error('❌ Error syncing sections:', error);
+				showErrorMessage(error.message);
+			}
 		}
 
 		function showErrorMessage(message) {
@@ -125,49 +161,29 @@ import Layout from '../layouts/Layout.astro';
 			`;
 		}
 		
-		function displaySections(departments) {
+		function displaySections(sections) {
 			const container = document.getElementById('sectionsContainer');
-			
-			// Add manager section first (special case)
-			let sectionsHtml = `
-				<button onclick="selectSection('manager')" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
-					<span class="text-3xl mr-4">👨‍💼</span>
-					<div class="text-left">
-						<div class="font-semibold text-lg">Менеджер</div>
-						<div class="text-sm opacity-90">Управление заказами и поставщиками</div>
-					</div>
-				</button>
-				
-				<button onclick="selectSection('delivery')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
-					<span class="text-3xl mr-4">🚚</span>
-					<div class="text-left">
-						<div class="font-semibold text-lg">Доставка</div>
-						<div class="text-sm opacity-90">Мои заказы и отслеживание</div>
-					</div>
-				</button>
-			`;
-			
-			// Add department sections
-			departments.forEach(dept => {
-				// Skip if it's manager (already added above)
-				if (dept.name.toLowerCase() === 'менеджер') return;
 
-				const colors = getSectionColors(dept.name);
-				const description = getSectionDescription(dept.name, dept.poster_storage_id);
-				const sectionKey = getSectionKey(dept.name);
-				const storageId = dept.poster_storage_id;
+			let sectionsHtml = '';
+
+			// Display all sections
+			sections.forEach(section => {
+				const colors = getSectionColors(section.name);
+				const description = getSectionDescription(section.name, section.poster_storage_id);
+				const sectionId = section.id;
+				const storageId = section.poster_storage_id;
 
 				sectionsHtml += `
-					<button onclick="selectSection('${sectionKey}', '${dept.name}', '${storageId || ''}')" class="w-full ${colors} text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
-						<span class="text-3xl mr-4">${dept.emoji}</span>
+					<button onclick="selectSection('${sectionId}', '${section.name}', '${storageId || ''}')" class="w-full ${colors} text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
+						<span class="text-3xl mr-4">${section.emoji}</span>
 						<div class="text-left">
-							<div class="font-semibold text-lg">${dept.name}</div>
-							<div class="text-sm opacity-90">${description}</div>
+							<div class="font-semibold text-lg">${section.name}</div>
+							<div class="text-sm opacity-90">${description} ${section.products_count ? '• ' + section.products_count + ' товаров' : ''}</div>
 						</div>
 					</button>
 				`;
 			});
-			
+
 			container.innerHTML = sectionsHtml;
 		}
 		
@@ -201,20 +217,16 @@ import Layout from '../layouts/Layout.astro';
 			return deptName.toLowerCase().replace(/[^a-zа-я0-9]/g, '');
 		}
 		
-		function selectSection(sectionKey, deptName = '', storageId = '') {
-			console.log(`Selected section: ${sectionKey}`, deptName, storageId);
+		function selectSection(sectionId, sectionName = '', storageId = '') {
+			console.log(`Selected section: ${sectionId}`, sectionName, storageId);
 
-			// Redirect to appropriate page
-			if (sectionKey === 'manager') {
-				window.location.href = '/manager';
-			} else if (sectionKey === 'delivery') {
-				window.location.href = '/delivery';
-			} else if (storageId && storageId !== 'null' && storageId !== '') {
-				// If department has a Poster storage ID, redirect to dynamic storage page
+			// Redirect to section page
+			if (storageId && storageId !== 'null' && storageId !== '') {
+				// If section has a Poster storage ID, redirect to dynamic storage page
 				window.location.href = `/storage/${storageId}`;
 			} else {
-				// For custom departments without storage ID, redirect to custom page
-				window.location.href = '/custom';
+				// For custom sections without storage ID, redirect to section page
+				window.location.href = `/section/${sectionId}`;
 			}
 		}
 		
