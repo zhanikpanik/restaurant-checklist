@@ -1008,52 +1008,49 @@ function deleteCustomItem(productId) {
 function getAllDepartmentOrders() {
   const allItems = [];
   const departments = [];
-  
-  // Get bar orders
-  const barOrders = JSON.parse(localStorage.getItem('barShoppingList') || '[]');
-  const barItems = barOrders.filter(item => item.shoppingQuantity > 0);
-  if (barItems.length > 0) {
-    barItems.forEach(item => {
-      allItems.push({
-        ...item,
-        department: 'bar',
-        departmentName: 'Бар',
-        departmentEmoji: '🍷'
-      });
-    });
-    departments.push({name: 'Бар', emoji: '🍷', count: barItems.length});
+
+  // Department emoji/name mapping
+  const departmentMap = {
+    'bar': { name: 'Бар', emoji: '🍷' },
+    'kitchen': { name: 'Кухня', emoji: '🍳' },
+    'custom': { name: 'Горничная', emoji: '🧹' },
+    'storage': { name: 'Склад', emoji: '📦' }
+  };
+
+  // Find ALL localStorage keys ending with "ShoppingList"
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.endsWith('ShoppingList')) {
+      try {
+        const orders = JSON.parse(localStorage.getItem(key) || '[]');
+        const items = orders.filter(item => item.shoppingQuantity > 0);
+
+        if (items.length > 0) {
+          // Extract department key from localStorage key (e.g., "barShoppingList" → "bar")
+          const deptKey = key.replace('ShoppingList', '');
+          const deptInfo = departmentMap[deptKey] || { name: deptKey, emoji: '📦' };
+
+          items.forEach(item => {
+            allItems.push({
+              ...item,
+              department: deptKey,
+              departmentName: deptInfo.name,
+              departmentEmoji: deptInfo.emoji
+            });
+          });
+
+          departments.push({
+            name: deptInfo.name,
+            emoji: deptInfo.emoji,
+            count: items.length
+          });
+        }
+      } catch (e) {
+        console.warn(`Failed to parse localStorage key: ${key}`, e);
+      }
+    }
   }
-  
-  // Get kitchen orders
-  const kitchenOrders = JSON.parse(localStorage.getItem('kitchenShoppingList') || '[]');
-  const kitchenItems = kitchenOrders.filter(item => item.shoppingQuantity > 0);
-  if (kitchenItems.length > 0) {
-    kitchenItems.forEach(item => {
-      allItems.push({
-        ...item,
-        department: 'kitchen',
-        departmentName: 'Кухня',
-        departmentEmoji: '🍳'
-      });
-    });
-    departments.push({name: 'Кухня', emoji: '🍳', count: kitchenItems.length});
-  }
-  
-  // Get custom/housekeeping orders
-  const customOrders = JSON.parse(localStorage.getItem('customShoppingList') || '[]');
-  const customItems = customOrders.filter(item => item.shoppingQuantity > 0);
-  if (customItems.length > 0) {
-    customItems.forEach(item => {
-      allItems.push({
-        ...item,
-        department: 'custom',
-        departmentName: 'Горничная',
-        departmentEmoji: '🧹'
-      });
-    });
-    departments.push({name: 'Горничная', emoji: '🧹', count: customItems.length});
-  }
-  
+
   return {
     allItems,
     departments,
