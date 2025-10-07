@@ -395,6 +395,8 @@ import Layout from '../layouts/Layout.astro';
 						departmentKey = 'kitchen';
 					} else if (dept.name === 'Горничная') {
 						departmentKey = 'custom';
+					} else if (dept.name === 'Склад') {
+						departmentKey = 'storage';
 					} else {
 						// For custom departments like Офис, use the actual name as key
 						departmentKey = dept.name.toLowerCase();
