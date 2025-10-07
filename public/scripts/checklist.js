@@ -1028,13 +1028,17 @@ function getAllDepartmentOrders() {
     'storage': { name: 'Склад', emoji: '📦' }
   };
 
+  console.log(`🔍 Checking localStorage for ShoppingList keys. Total keys: ${localStorage.length}`);
+
   // Find ALL localStorage keys ending with "ShoppingList"
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
+    console.log(`  🔑 localStorage key ${i}: ${key}`);
     if (key && key.endsWith('ShoppingList')) {
       try {
         const orders = JSON.parse(localStorage.getItem(key) || '[]');
         const items = orders.filter(item => item.shoppingQuantity > 0);
+        console.log(`    ✓ Found ${items.length} items in ${key}`);
 
         if (items.length > 0) {
           // Extract department key from localStorage key (e.g., "barShoppingList" → "bar")
