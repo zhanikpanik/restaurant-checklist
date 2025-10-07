@@ -109,11 +109,11 @@ export async function GET({ request }) {
             setCache(leftoversCacheKey, leftovers);
         }
 
-        console.log(`📊 [${tenantId}] Found ${leftovers.length} leftovers for storage ${storageId}`);
+        console.log(`📊 [${tenantId}] [v2] Found ${leftovers.length} leftovers for storage ${storageId}`);
 
         // Get unique ingredient IDs from leftovers - convert to strings for consistent comparison
         const ingredientIds = [...new Set(leftovers.map(l => String(l.ingredient_id)))];
-        console.log(`🔢 [${tenantId}] Unique ingredient IDs: ${ingredientIds.length}`, ingredientIds.slice(0, 5));
+        console.log(`🔢 [${tenantId}] [v2] Unique ingredient IDs: ${ingredientIds.length}`, ingredientIds.slice(0, 5));
 
         // Try to get ingredients from cache
         const ingredientsCacheKey = getCacheKey(tenantId, 'menu.getIngredients');
