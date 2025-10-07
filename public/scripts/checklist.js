@@ -25,7 +25,7 @@ function initializeProductData() {
 
 function updateProductDataFromGlobal() {
   // Use global product data set by the API calls
-  const globalProducts = window.barProducts || window.kitchenProducts || [];
+  const globalProducts = window.barProducts || window.kitchenProducts || window.storageProducts || [];
 
   if (globalProducts.length === 0) {
     console.warn(
