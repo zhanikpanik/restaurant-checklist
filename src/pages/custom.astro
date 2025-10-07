@@ -188,13 +188,26 @@ import Layout from '../layouts/Layout.astro';
 				window.currentDepartment = deptKey;
 				window.currentDepartmentName = deptName;
 				
-				// Update page title and header if it's a custom department
-				if (deptName !== 'Горничная') {
-					document.title = `${deptName} - Товары`;
+				// Update page title and header based on department
+				document.title = `${deptName} - Товары`;
+
+				// Fetch department info to get emoji
+				try {
+					const deptResponse = await fetch('/api/departments');
+					const deptData = await deptResponse.json();
+					if (deptData.success) {
+						const department = deptData.data.find(d => d.name === deptName);
+						if (department) {
+							const headerTitle = document.querySelector('h1');
+							if (headerTitle) {
+								headerTitle.textContent = `${department.emoji || '📦'} ${deptName}`;
+							}
+						}
+					}
+				} catch (e) {
+					console.warn('Could not fetch department emoji:', e);
 					const headerTitle = document.querySelector('h1');
-					if (headerTitle) headerTitle.textContent = deptName;
-					const headerDesc = document.querySelector('.text-right .font-medium');
-					if (headerDesc) headerDesc.textContent = 'Товары отдела';
+					if (headerTitle) headerTitle.textContent = `📦 ${deptName}`;
 				}
 				
 				// First check if we need to migrate from localStorage (only for Горничная)

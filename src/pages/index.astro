@@ -238,13 +238,13 @@ import Layout from '../layouts/Layout.astro';
 		function selectSection(sectionId, sectionName = '', storageId = '') {
 			console.log(`Selected section: ${sectionId}`, sectionName, storageId);
 
-			// Redirect to section page
+			// Redirect to appropriate page
 			if (storageId && storageId !== 'null' && storageId !== '') {
-				// If section has a Poster storage ID, redirect to dynamic storage page
+				// If department has a Poster storage ID, redirect to dynamic storage page
 				window.location.href = `/storage/${storageId}`;
 			} else {
-				// For custom sections without storage ID, redirect to section page
-				window.location.href = `/section/${sectionId}`;
+				// For custom departments without storage ID, redirect to custom page with dept parameter
+				window.location.href = `/custom?dept=${encodeURIComponent(sectionName)}`;
 			}
 		}
 		
