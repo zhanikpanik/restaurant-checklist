@@ -644,11 +644,16 @@ function updateAllQuantityInputs() {
 // Update floating button label with unified order count from all departments
 function updateFloatingButtonLabel() {
   const sendBtn = document.getElementById("sendWhatsAppBtn");
-  if (!sendBtn) return;
+  if (!sendBtn) {
+    console.warn('⚠️ sendWhatsAppBtn not found in DOM');
+    return;
+  }
 
   // Get total items from all departments
   const allOrders = getAllDepartmentOrders();
   const totalItems = allOrders.totalItems;
+
+  console.log(`🔄 Updating cart button: ${totalItems} items from ${allOrders.departments.length} departments`, allOrders);
 
   if (totalItems > 0) {
     let label = `В корзину (${totalItems})`;
