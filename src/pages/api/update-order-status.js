@@ -1,11 +1,13 @@
 import { updateOrderStatus, updateOrderWithDelivery } from '../../lib/orderStorage-postgres.js';
+import { getTenantId } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
-export async function POST({ request, locals }) {
+export async function POST({ request }) {
     try {
         const { orderId, status, deliveredItems } = await request.json();
-        const tenantId = locals.tenantId || 'default';
+        const tenantId = getTenantId(request);
+        console.log(`🏢 Tenant ID: ${tenantId}`);
         
         if (!orderId || !status) {
             throw new Error('Order ID and status are required');
