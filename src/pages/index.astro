@@ -66,18 +66,18 @@ import Layout from '../layouts/Layout.astro';
 			}
 		}
 
-		// Load all sections and display them
+		// Load all departments and display them
 		async function loadSections() {
 			try {
-				const response = await fetch('/api/sections');
+				const response = await fetch('/api/departments');
 				const data = await response.json();
 
-				console.log('📊 Sections API response:', data);
+				console.log('📊 Departments API response:', data);
 				console.log('🏢 Current tenant:', getCurrentTenant());
 
 				if (data.success) {
 					if (data.data.length === 0) {
-						console.warn('⚠️ No sections found for current tenant');
+						console.warn('⚠️ No departments found for current tenant');
 						showNoSectionsMessage();
 					} else {
 						displaySections(data.data);
@@ -86,7 +86,7 @@ import Layout from '../layouts/Layout.astro';
 					throw new Error(data.error);
 				}
 			} catch (error) {
-				console.error('❌ Error loading sections:', error);
+				console.error('❌ Error loading departments:', error);
 				showErrorMessage(error.message);
 			}
 		}
@@ -96,11 +96,11 @@ import Layout from '../layouts/Layout.astro';
 			container.innerHTML = `
 				<div class="col-span-full text-center py-8">
 					<div class="text-6xl mb-4">📭</div>
-					<h3 class="text-xl font-semibold text-gray-700 mb-2">Секции не найдены</h3>
-					<p class="text-gray-600 mb-4">Для текущего ресторана секции не настроены</p>
+					<h3 class="text-xl font-semibold text-gray-700 mb-2">Отделы не найдены</h3>
+					<p class="text-gray-600 mb-4">Для текущего ресторана отделы не настроены</p>
 					<div class="space-y-2">
 						<button onclick="syncSections()" class="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
-							Синхронизировать секции из Poster
+							Синхронизировать отделы из Poster
 						</button>
 						<br>
 						<a href="/select-restaurant" class="inline-block bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg">
@@ -116,33 +116,25 @@ import Layout from '../layouts/Layout.astro';
 			container.innerHTML = `
 				<div class="col-span-full text-center py-8">
 					<div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
-					<p class="text-gray-600">Синхронизация секций...</p>
+					<p class="text-gray-600">Синхронизация отделов из Poster...</p>
 				</div>
 			`;
 
 			try {
-				// Sync sections from Poster
-				const syncResponse = await fetch('/api/sync-sections');
+				// Sync departments from Poster
+				const syncResponse = await fetch('/api/sync-departments-from-poster');
 				const syncData = await syncResponse.json();
 
 				if (!syncData.success) {
 					throw new Error(syncData.error);
 				}
 
-				console.log('✅ Sections synced:', syncData.data);
+				console.log('✅ Departments synced:', syncData.data);
 
-				// Sync products
-				const productsResponse = await fetch('/api/sync-section-products');
-				const productsData = await productsResponse.json();
-
-				if (!productsData.success) {
-					console.warn('⚠️ Products sync failed:', productsData.error);
-				}
-
-				// Reload sections
+				// Reload departments
 				await loadSections();
 			} catch (error) {
-				console.error('❌ Error syncing sections:', error);
+				console.error('❌ Error syncing departments:', error);
 				showErrorMessage(error.message);
 			}
 		}
@@ -195,7 +187,7 @@ import Layout from '../layouts/Layout.astro';
 						<span class="text-3xl mr-4">${section.emoji}</span>
 						<div class="text-left">
 							<div class="font-semibold text-lg">${section.name}</div>
-							<div class="text-sm opacity-90">${description} ${section.products_count ? '• ' + section.products_count + ' товаров' : ''}</div>
+							<div class="text-sm opacity-90">${description} ${section.custom_products_count ? '• ' + section.custom_products_count + ' товаров' : ''}</div>
 						</div>
 					</button>
 				`;
