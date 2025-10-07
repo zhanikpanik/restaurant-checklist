@@ -1,4 +1,5 @@
 import { getDbClient, safeRelease } from '../../lib/db-helper.js';
+import { getTenantId } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
@@ -9,6 +10,7 @@ function getDepartmentDisplayName(department) {
         'kitchen': 'Кухня',
         'housekeeping': 'Горничная',
         'custom': 'Горничная',
+        'storage': 'Склад',
         'офис': 'Офис',
         'office': 'Офис'
     };
@@ -21,6 +23,7 @@ function getDepartmentEmoji(department) {
         'kitchen': '🍳',
         'housekeeping': '🧹',
         'custom': '🧹',
+        'storage': '📦',
         'офис': '🏢',
         'office': '🏢'
     };
@@ -28,13 +31,14 @@ function getDepartmentEmoji(department) {
 }
 
 // GET: Get all orders grouped by categories with supplier information
-export async function GET() {
+export async function GET({ request }) {
     const { client, error } = await getDbClient();
 
     if (error) return error;
 
     try {
-        const restaurantId = 'default';
+        const restaurantId = getTenantId(request);
+        console.log(`🏢 [orders-by-category] Tenant ID: ${restaurantId}`);
         
         // Check if orders table has restaurant_id column
         const ordersTableCheck = await client.query(`
