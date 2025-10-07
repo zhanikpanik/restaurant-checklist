@@ -111,9 +111,9 @@ export async function GET({ request }) {
 
         console.log(`📊 [${tenantId}] Found ${leftovers.length} leftovers for storage ${storageId}`);
 
-        // Get unique ingredient IDs from leftovers
-        const ingredientIds = [...new Set(leftovers.map(l => l.ingredient_id))];
-        console.log(`🔢 [${tenantId}] Unique ingredient IDs: ${ingredientIds.length}`);
+        // Get unique ingredient IDs from leftovers - convert to strings for consistent comparison
+        const ingredientIds = [...new Set(leftovers.map(l => String(l.ingredient_id)))];
+        console.log(`🔢 [${tenantId}] Unique ingredient IDs: ${ingredientIds.length}`, ingredientIds.slice(0, 5));
 
         // Try to get ingredients from cache
         const ingredientsCacheKey = getCacheKey(tenantId, 'menu.getIngredients');
@@ -133,17 +133,20 @@ export async function GET({ request }) {
             setCache(ingredientsCacheKey, allIngredients);
         }
 
-        // Filter to only ingredients we need for this storage
+        // Filter to only ingredients we need for this storage - convert IDs to strings for comparison
         const relevantIngredients = allIngredients.filter(ing =>
-            ingredientIds.includes(ing.ingredient_id)
+            ingredientIds.includes(String(ing.ingredient_id))
         );
 
         console.log(`🔍 [${tenantId}] Total ingredients from Poster: ${allIngredients.length}, Relevant: ${relevantIngredients.length}`);
+        if (relevantIngredients.length > 0) {
+            console.log(`📝 [${tenantId}] Sample relevant ingredients:`, relevantIngredients.slice(0, 3).map(i => ({ id: i.ingredient_id, name: i.ingredient_name })));
+        }
 
-        // Create ingredient map for quick lookup
+        // Create ingredient map for quick lookup - use string keys
         const ingredientMap = {};
         relevantIngredients.forEach(ing => {
-            ingredientMap[ing.ingredient_id] = {
+            ingredientMap[String(ing.ingredient_id)] = {
                 id: ing.ingredient_id,
                 name: ing.ingredient_name,
                 unit: ing.unit
@@ -153,9 +156,9 @@ export async function GET({ request }) {
         // Combine ingredients with leftovers data
         const products = leftovers
             .map(leftover => {
-                const ingredient = ingredientMap[leftover.ingredient_id];
+                const ingredient = ingredientMap[String(leftover.ingredient_id)];
                 if (!ingredient) {
-                    console.warn(`⚠️ [${tenantId}] Leftover ingredient ${leftover.ingredient_id} not found in ingredientMap`);
+                    console.warn(`⚠️ [${tenantId}] Leftover ingredient ${leftover.ingredient_id} (${typeof leftover.ingredient_id}) not found in ingredientMap`);
                     return null;
                 }
 
