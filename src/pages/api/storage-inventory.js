@@ -109,8 +109,11 @@ export async function GET({ request }) {
             setCache(leftoversCacheKey, leftovers);
         }
 
+        console.log(`📊 [${tenantId}] Found ${leftovers.length} leftovers for storage ${storageId}`);
+
         // Get unique ingredient IDs from leftovers
         const ingredientIds = [...new Set(leftovers.map(l => l.ingredient_id))];
+        console.log(`🔢 [${tenantId}] Unique ingredient IDs: ${ingredientIds.length}`);
 
         // Try to get ingredients from cache
         const ingredientsCacheKey = getCacheKey(tenantId, 'menu.getIngredients');
@@ -135,6 +138,8 @@ export async function GET({ request }) {
             ingredientIds.includes(ing.ingredient_id)
         );
 
+        console.log(`🔍 [${tenantId}] Total ingredients from Poster: ${allIngredients.length}, Relevant: ${relevantIngredients.length}`);
+
         // Create ingredient map for quick lookup
         const ingredientMap = {};
         relevantIngredients.forEach(ing => {
@@ -149,19 +154,25 @@ export async function GET({ request }) {
         const products = leftovers
             .map(leftover => {
                 const ingredient = ingredientMap[leftover.ingredient_id];
-                if (!ingredient) return null;
+                if (!ingredient) {
+                    console.warn(`⚠️ [${tenantId}] Leftover ingredient ${leftover.ingredient_id} not found in ingredientMap`);
+                    return null;
+                }
+
+                // Poster API returns different field names for quantity
+                const quantity = parseFloat(leftover.ingredient_left || leftover.storage_ingredient_left || leftover.quantity) || 0;
 
                 return {
                     product_id: leftover.ingredient_id,
                     product_name: ingredient.name,
                     unit: ingredient.unit,
-                    quantity: parseFloat(leftover.quantity) || 0,
+                    quantity: quantity,
                     is_poster_product: true
                 };
             })
             .filter(p => p !== null);
 
-        console.log(`✅ [${tenantId}] Returning ${products.length} products for storage ${storageId}`);
+        console.log(`✅ [${tenantId}] Returning ${products.length} products for storage ${storageId} (filtered from ${leftovers.length} leftovers)`);
 
         return new Response(JSON.stringify({
             success: true,
