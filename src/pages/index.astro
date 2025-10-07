@@ -164,7 +164,24 @@ import Layout from '../layouts/Layout.astro';
 		function displaySections(sections) {
 			const container = document.getElementById('sectionsContainer');
 
-			let sectionsHtml = '';
+			// Add manager and delivery sections first (special cases)
+			let sectionsHtml = `
+				<button onclick="selectSpecialSection('manager')" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
+					<span class="text-3xl mr-4">👨‍💼</span>
+					<div class="text-left">
+						<div class="font-semibold text-lg">Менеджер</div>
+						<div class="text-sm opacity-90">Управление заказами и поставщиками</div>
+					</div>
+				</button>
+
+				<button onclick="selectSpecialSection('delivery')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
+					<span class="text-3xl mr-4">🚚</span>
+					<div class="text-left">
+						<div class="font-semibold text-lg">Доставка</div>
+						<div class="text-sm opacity-90">Мои заказы и отслеживание</div>
+					</div>
+				</button>
+			`;
 
 			// Display all sections
 			sections.forEach(section => {
@@ -217,6 +234,15 @@ import Layout from '../layouts/Layout.astro';
 			return deptName.toLowerCase().replace(/[^a-zа-я0-9]/g, '');
 		}
 		
+		function selectSpecialSection(type) {
+			console.log(`Selected special section: ${type}`);
+			if (type === 'manager') {
+				window.location.href = '/manager';
+			} else if (type === 'delivery') {
+				window.location.href = '/delivery';
+			}
+		}
+
 		function selectSection(sectionId, sectionName = '', storageId = '') {
 			console.log(`Selected section: ${sectionId}`, sectionName, storageId);
 
