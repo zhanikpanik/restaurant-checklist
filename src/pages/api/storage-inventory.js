@@ -166,10 +166,11 @@ export async function GET({ request }) {
                 const quantity = parseFloat(leftover.ingredient_left || leftover.storage_ingredient_left || leftover.quantity) || 0;
 
                 return {
-                    product_id: leftover.ingredient_id,
-                    product_name: ingredient.name,
+                    id: leftover.ingredient_id,
+                    name: ingredient.name,
                     unit: ingredient.unit,
                     quantity: quantity,
+                    minQuantity: 0,
                     is_poster_product: true
                 };
             })
