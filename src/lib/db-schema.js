@@ -187,6 +187,48 @@ export async function setupDatabaseSchema() {
             );
         `);
 
+        // Create sections table (Poster storages as default sections)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS sections (
+                id SERIAL PRIMARY KEY,
+                restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+                name VARCHAR(255) NOT NULL,
+                emoji VARCHAR(10) DEFAULT '📦',
+                poster_storage_id INTEGER UNIQUE,
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(restaurant_id, poster_storage_id)
+            );
+        `);
+
+        // Create section_products table (Products/Ingredients in each section)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS section_products (
+                id SERIAL PRIMARY KEY,
+                section_id INTEGER NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+                poster_ingredient_id VARCHAR(100) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                unit VARCHAR(50),
+                is_active BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(section_id, poster_ingredient_id)
+            );
+        `);
+
+        // Create section_leftovers table (Inventory for each section)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS section_leftovers (
+                id SERIAL PRIMARY KEY,
+                section_id INTEGER NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+                section_product_id INTEGER NOT NULL REFERENCES section_products(id) ON DELETE CASCADE,
+                quantity NUMERIC(10, 3) DEFAULT 0,
+                last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(section_id, section_product_id)
+            );
+        `);
+
         // Create indexes for better performance
         await client.query(`
             CREATE INDEX IF NOT EXISTS idx_suppliers_restaurant_id ON suppliers(restaurant_id);
@@ -204,6 +246,13 @@ export async function setupDatabaseSchema() {
             CREATE INDEX IF NOT EXISTS idx_custom_products_department ON custom_products(department_id);
             CREATE INDEX IF NOT EXISTS idx_custom_products_category ON custom_products(category_id);
             CREATE INDEX IF NOT EXISTS idx_departments_active ON departments(is_active);
+            CREATE INDEX IF NOT EXISTS idx_sections_restaurant_id ON sections(restaurant_id);
+            CREATE INDEX IF NOT EXISTS idx_sections_poster_storage_id ON sections(poster_storage_id) WHERE poster_storage_id IS NOT NULL;
+            CREATE INDEX IF NOT EXISTS idx_sections_active ON sections(restaurant_id, is_active);
+            CREATE INDEX IF NOT EXISTS idx_section_products_section_id ON section_products(section_id);
+            CREATE INDEX IF NOT EXISTS idx_section_products_ingredient_id ON section_products(poster_ingredient_id);
+            CREATE INDEX IF NOT EXISTS idx_section_leftovers_section_id ON section_leftovers(section_id);
+            CREATE INDEX IF NOT EXISTS idx_section_leftovers_product_id ON section_leftovers(section_product_id);
         `);
 
         console.log('✅ Database schema setup complete (including custom products and departments)');
