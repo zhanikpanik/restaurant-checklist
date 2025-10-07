@@ -513,7 +513,7 @@ import Layout from "../layouts/Layout.astro";
 
         // New function to mark unified order as delivered
         async function markUnifiedDelivered(timestamp) {
-            const departments = ['bar', 'kitchen', 'custom'];
+            const departments = ['bar', 'kitchen', 'custom', 'storage'];
             let updatedOrders = [];
             
             for (const department of departments) {
@@ -610,7 +610,7 @@ import Layout from "../layouts/Layout.astro";
                 return;
             }
 
-            const departments = ['bar', 'kitchen', 'custom'];
+            const departments = ['bar', 'kitchen', 'custom', 'storage'];
             let deletedCount = 0;
 
             for (const department of departments) {
