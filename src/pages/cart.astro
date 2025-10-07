@@ -520,47 +520,64 @@ import Layout from '../layouts/Layout.astro';
 		function getAllDepartmentOrders() {
 			const allItems = [];
 			const departments = [];
-			
-			// Check all possible localStorage keys for shopping lists
-			const storageKeys = [
-				{ key: 'barShoppingList', dept: 'bar', name: 'Бар', emoji: '🍷' },
-				{ key: 'kitchenShoppingList', dept: 'kitchen', name: 'Кухня', emoji: '🍳' },
-				{ key: 'customShoppingList', dept: 'custom', name: 'Горничная', emoji: '🧹' }
-			];
-			
-			// Also check for dynamic department names from window variables
-			if (window.currentDepartmentName && window.currentDepartment) {
-				const deptName = window.currentDepartmentName;
-				const deptKey = window.currentDepartment;
-				
-				// Only add if it's not already in the standard list
-				if (!storageKeys.find(s => s.dept === deptKey)) {
-					storageKeys.push({
-						key: 'customShoppingList', // Custom departments use customShoppingList
-						dept: deptKey,
-						name: deptName,
-						emoji: getDepartmentEmoji(deptName)
-					});
+
+			// Department emoji/name mapping
+			const departmentMap = {
+				'bar': { name: 'Бар', emoji: '🍷' },
+				'kitchen': { name: 'Кухня', emoji: '🍳' },
+				'custom': { name: 'Горничная', emoji: '🧹' },
+				'storage': { name: 'Склад', emoji: '📦' }
+			};
+
+			console.log(`🔍 [Cart] Checking localStorage for ShoppingList keys. Total keys: ${localStorage.length}`);
+
+			// Find ALL localStorage keys ending with "ShoppingList" (with or without prefix)
+			for (let i = 0; i < localStorage.length; i++) {
+				const key = localStorage.key(i);
+				// Check if key ends with ShoppingList OR contains ShoppingList
+				if (key && key.includes('ShoppingList')) {
+					console.log(`  🔑 [Cart] Found ShoppingList key: ${key}`);
+					try {
+						const orders = JSON.parse(localStorage.getItem(key) || '[]');
+						const items = orders.filter(item => item.shoppingQuantity > 0);
+						console.log(`    ✓ [Cart] Contains ${items.length} items with shoppingQuantity > 0`);
+
+						if (items.length > 0) {
+							// Extract department key from localStorage key
+							// Handle prefixed keys: "default_storageShoppingList" → "storage"
+							// Handle unprefixed keys: "barShoppingList" → "bar"
+							let deptKey = key.replace('ShoppingList', '');
+
+							// Remove common prefixes (tenant ID, domain, etc.)
+							if (deptKey.includes('_')) {
+								deptKey = deptKey.split('_').pop(); // Get last part after underscore
+							}
+
+							const deptInfo = departmentMap[deptKey] || { name: deptKey, emoji: '📦' };
+							console.log(`    → [Cart] Mapped "${key}" to department: "${deptKey}" (${deptInfo.name})`);
+
+							items.forEach(item => {
+								allItems.push({
+									...item,
+									department: deptKey,
+									departmentName: deptInfo.name,
+									departmentEmoji: deptInfo.emoji
+								});
+							});
+
+							departments.push({
+								name: deptInfo.name,
+								emoji: deptInfo.emoji,
+								count: items.length
+							});
+						}
+					} catch (error) {
+						console.error(`❌ [Cart] Error parsing localStorage key "${key}":`, error);
+					}
 				}
 			}
-			
-			storageKeys.forEach(({ key, dept, name, emoji }) => {
-				const orders = JSON.parse(localStorage.getItem(key) || '[]');
-				const items = orders.filter(item => item.shoppingQuantity > 0);
-				
-				if (items.length > 0) {
-					items.forEach(item => {
-						allItems.push({
-							...item, 
-							department: dept, 
-							departmentName: name, 
-							departmentEmoji: emoji
-						});
-					});
-					departments.push({name: name, emoji: emoji, count: items.length});
-				}
-			});
-			
+
+			console.log(`📊 [Cart] Total items: ${allItems.length}, Departments: ${departments.length}`);
 			return {allItems, departments, totalItems: allItems.length};
 		}
 		
