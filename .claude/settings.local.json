@@ -12,7 +12,8 @@
       "Bash(curl:*)",
       "Bash(railway logs:*)",
       "Bash(railway run psql:*)",
-      "Bash(railway run:*)"
+      "Bash(railway run:*)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []
