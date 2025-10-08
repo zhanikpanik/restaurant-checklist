@@ -163,6 +163,7 @@ import Layout from '../layouts/Layout.astro';
 	</div>
 
 	<script>
+		import { mount } from 'svelte';
 		import OrderCard from '../lib/components/OrderCard.svelte';
 
 		// Load orders by category
@@ -213,7 +214,7 @@ import Layout from '../layouts/Layout.astro';
 				const target = document.createElement('div');
 				cardsContainer.appendChild(target);
 
-				new OrderCard({
+				mount(OrderCard, {
 					target,
 					props: { order }
 				});
@@ -274,7 +275,7 @@ import Layout from '../layouts/Layout.astro';
 						const target = document.createElement('div');
 						cardsContainer.appendChild(target);
 
-						new OrderCard({
+						mount(OrderCard, {
 							target,
 							props: { order }
 						});
