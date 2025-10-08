@@ -17,7 +17,9 @@
       "Bash(echo \"Then run: Object.keys(localStorage).filter(k => k.includes(''storage''))\")",
       "Bash(npm install:*)",
       "Bash(railway up:*)",
-      "Bash(pnpm install:*)"
+      "Bash(pnpm install:*)",
+      "Bash(npx astro add:*)",
+      "Bash(npx:*)"
     ],
     "deny": [],
     "ask": []
