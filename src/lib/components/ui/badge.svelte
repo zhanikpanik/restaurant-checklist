@@ -19,11 +19,15 @@
 
 	type Variant = VariantProps<typeof badgeVariants>["variant"];
 
-	export let variant: Variant = "default";
-	let className: string | undefined = undefined;
-	export { className as class };
+	interface Props {
+		variant?: Variant;
+		class?: string;
+		[key: string]: any;
+	}
+
+	let { variant = "default", class: className, ...restProps }: Props = $props();
 </script>
 
-<div class={cn(badgeVariants({ variant, className }))} {...$$restProps}>
+<div class={cn(badgeVariants({ variant, className }))} {...restProps}>
 	<slot />
 </div>

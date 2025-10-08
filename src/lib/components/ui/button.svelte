@@ -29,12 +29,16 @@
 	type Variant = VariantProps<typeof buttonVariants>["variant"];
 	type Size = VariantProps<typeof buttonVariants>["size"];
 
-	export let variant: Variant = "default";
-	export let size: Size = "default";
-	let className: string | undefined = undefined;
-	export { className as class };
+	interface Props {
+		variant?: Variant;
+		size?: Size;
+		class?: string;
+		[key: string]: any;
+	}
+
+	let { variant = "default", size = "default", class: className, ...restProps }: Props = $props();
 </script>
 
-<button class={cn(buttonVariants({ variant, size, className }))} {...$$restProps}>
+<button class={cn(buttonVariants({ variant, size, className }))} {...restProps}>
 	<slot />
 </button>

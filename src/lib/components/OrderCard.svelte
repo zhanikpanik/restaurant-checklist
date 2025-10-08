@@ -4,14 +4,18 @@
 	import Badge from './ui/badge.svelte';
 	import { cn } from '$lib/utils/cn';
 
-	export let order: any;
+	interface Props {
+		order: any;
+	}
 
-	const statusVariant = order.status === 'pending' ? 'secondary' :
-	                      order.status === 'sent' ? 'default' : 'outline';
-	const statusText = order.status === 'pending' ? 'Ожидает' :
-	                   order.status === 'sent' ? 'Отправлен' : 'Доставлен';
+	let { order }: Props = $props();
 
-	let expanded = false;
+	const statusVariant = $derived(order.status === 'pending' ? 'secondary' :
+	                      order.status === 'sent' ? 'default' : 'outline');
+	const statusText = $derived(order.status === 'pending' ? 'Ожидает' :
+	                   order.status === 'sent' ? 'Отправлен' : 'Доставлен');
+
+	let expanded = $state(false);
 </script>
 
 <Card class="p-4 space-y-4">
