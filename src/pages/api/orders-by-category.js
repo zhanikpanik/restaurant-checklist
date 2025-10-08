@@ -49,26 +49,36 @@ export async function GET({ request }) {
         
         const orderColumns = ordersTableCheck.rows.map(row => row.column_name);
         const ordersHasRestaurantId = orderColumns.includes('restaurant_id');
-        
+
+        // Get active sections first to filter orders (sections replaced departments)
+        const activeSectionsResult = await client.query(`
+            SELECT name, poster_storage_id
+            FROM sections
+            WHERE is_active = true AND restaurant_id = $1
+        `, [restaurantId]);
+
+        const activeSectionNames = new Set(activeSectionsResult.rows.map(s => s.name.toLowerCase()));
+        console.log('Active sections:', Array.from(activeSectionNames));
+
         // Get all orders from database
         let ordersQuery, ordersParams;
         if (ordersHasRestaurantId) {
             ordersQuery = `
-                SELECT 
+                SELECT
                     o.id as order_id,
                     o.order_data,
                     o.status,
                     o.created_at,
                     o.created_by_role
                 FROM orders o
-                WHERE o.restaurant_id = $1 
+                WHERE o.restaurant_id = $1
                 AND o.status IN ('pending', 'sent')
                 ORDER BY o.created_at DESC
             `;
             ordersParams = [restaurantId];
         } else {
             ordersQuery = `
-                SELECT 
+                SELECT
                     o.id as order_id,
                     o.order_data,
                     o.status,
@@ -211,9 +221,18 @@ export async function GET({ request }) {
         orders.forEach(order => {
             const orderData = order.order_data;
             const items = orderData.items || [];
-            
+
             if (items.length === 0) return; // Skip empty orders
-            
+
+            // Get section/department from order
+            const orderSection = (orderData.department || order.created_by_role || '').toLowerCase();
+
+            // Skip orders from inactive/non-existent sections
+            if (!activeSectionNames.has(orderSection)) {
+                console.log(`Skipping order ${order.order_id} from inactive section: ${orderSection}`);
+                return;
+            }
+
             // Create individual order object
             const individualOrder = {
                 orderId: order.order_id,
