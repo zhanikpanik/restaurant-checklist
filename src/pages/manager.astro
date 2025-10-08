@@ -23,38 +23,139 @@ import Layout from '../layouts/Layout.astro';
 			<div class="mb-6">
 				<div class="border-b">
 					<nav class="flex gap-4 -mb-px">
-						<button class="tab-active border-b-2 border-primary px-4 py-2 text-sm font-medium">
+						<button data-tab="orders" class="tab-button border-b-2 border-primary px-4 py-2 text-sm font-medium">
 							📋 Заказы
 						</button>
-						<button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="delivered" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
 							✅ Доставлено
 						</button>
-						<button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="categories" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
 							🏷️ Категории
 						</button>
-						<button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="suppliers" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
 							🏢 Поставщики
 						</button>
-						<button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="departments" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
 							🏪 Отделы
 						</button>
-						<button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="products" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
 							📦 Товары
 						</button>
-						<button class="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="settings" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
 							⚙️ Настройки
 						</button>
 					</nav>
 				</div>
 			</div>
 
-			<!-- Orders Tab Content -->
-			<div>
+			<!-- Orders Tab -->
+			<div id="tab-orders" class="tab-content">
 				<h3 class="text-2xl font-bold mb-4">📋 Заказы по категориям</h3>
 				<div id="ordersByCategory">
 					<div class="text-center text-muted-foreground py-12">
 						<div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
 						<p class="mt-4">Загрузка заказов...</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Delivered Tab -->
+			<div id="tab-delivered" class="tab-content hidden">
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="text-2xl font-bold">✅ Доставленные заказы</h3>
+					<button onclick="exportAllDeliveredOrders()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
+						📄 Экспорт в Excel
+					</button>
+				</div>
+				<div id="deliveredOrders">
+					<div class="text-center text-muted-foreground py-12">
+						<p>Загрузка...</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Categories Tab -->
+			<div id="tab-categories" class="tab-content hidden">
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="text-2xl font-bold">🏷️ Категории и поставщики</h3>
+					<button onclick="addNewCategory()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
+						➕ Категория
+					</button>
+				</div>
+				<div id="categorySuppliers">
+					<div class="text-center text-muted-foreground py-12">
+						<p>В разработке</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Suppliers Tab -->
+			<div id="tab-suppliers" class="tab-content hidden">
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="text-2xl font-bold">🏢 Поставщики</h3>
+					<button onclick="addNewSupplier()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
+						➕ Добавить
+					</button>
+				</div>
+				<div id="suppliersList">
+					<div class="text-center text-muted-foreground py-12">
+						<p>В разработке</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Departments Tab -->
+			<div id="tab-departments" class="tab-content hidden">
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="text-2xl font-bold">🏪 Отделы</h3>
+					<div class="flex gap-2">
+						<button onclick="syncDepartmentsFromPoster()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground">
+							🔄 Синхронизация
+						</button>
+						<button onclick="addNewDepartment()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
+							➕ Добавить
+						</button>
+					</div>
+				</div>
+				<div id="departmentsList">
+					<div class="text-center text-muted-foreground py-12">
+						<p>В разработке</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Products Tab -->
+			<div id="tab-products" class="tab-content hidden">
+				<div class="flex justify-between items-center mb-4">
+					<h3 class="text-2xl font-bold">📦 Товары</h3>
+					<button onclick="openAddProductModal()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
+						➕ Добавить товар
+					</button>
+				</div>
+				<div id="productsList">
+					<div class="text-center text-muted-foreground py-12">
+						<p>В разработке</p>
+					</div>
+				</div>
+			</div>
+
+			<!-- Settings Tab -->
+			<div id="tab-settings" class="tab-content hidden">
+				<h3 class="text-2xl font-bold mb-4">⚙️ Настройки</h3>
+				<div class="space-y-4">
+					<div class="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+						<h2 class="text-xl font-semibold mb-2">Интеграция Poster</h2>
+						<p class="text-sm text-muted-foreground mb-4">Настройте подключение к Poster POS системе</p>
+						<button class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
+							Настроить
+						</button>
+					</div>
+					<div class="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+						<h2 class="text-xl font-semibold mb-2">Уведомления</h2>
+						<p class="text-sm text-muted-foreground mb-4">Настройте уведомления о заказах</p>
+						<button class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
+							Настроить
+						</button>
 					</div>
 				</div>
 			</div>
@@ -119,9 +220,126 @@ import Layout from '../layouts/Layout.astro';
 			});
 		}
 
+		// Tab switching
+		function switchTab(tabName) {
+			// Hide all tabs
+			document.querySelectorAll('.tab-content').forEach(tab => {
+				tab.classList.add('hidden');
+			});
+
+			// Remove active state from all buttons
+			document.querySelectorAll('.tab-button').forEach(btn => {
+				btn.classList.remove('border-b-2', 'border-primary');
+				btn.classList.add('text-muted-foreground');
+			});
+
+			// Show selected tab
+			const selectedTab = document.getElementById(`tab-${tabName}`);
+			if (selectedTab) {
+				selectedTab.classList.remove('hidden');
+			}
+
+			// Add active state to selected button
+			const selectedButton = document.querySelector(`[data-tab="${tabName}"]`);
+			if (selectedButton) {
+				selectedButton.classList.add('border-b-2', 'border-primary');
+				selectedButton.classList.remove('text-muted-foreground');
+			}
+
+			// Load data for specific tabs
+			if (tabName === 'delivered') {
+				loadDeliveredOrders();
+			}
+		}
+
+		// Load delivered orders
+		async function loadDeliveredOrders() {
+			const container = document.getElementById('deliveredOrders');
+			if (!container) return;
+
+			container.innerHTML = '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
+
+			try {
+				const response = await fetch('/api/orders-by-category?status=delivered');
+				const data = await response.json();
+
+				if (data.success && data.data && data.data.length > 0) {
+					// Reuse the same display function
+					container.innerHTML = '';
+					const cardsContainer = document.createElement('div');
+					cardsContainer.className = 'space-y-4';
+					container.appendChild(cardsContainer);
+
+					data.data.forEach((order: any) => {
+						const target = document.createElement('div');
+						cardsContainer.appendChild(target);
+
+						new OrderCard({
+							target,
+							props: { order }
+						});
+					});
+				} else {
+					container.innerHTML = `
+						<div class="text-center py-12">
+							<div class="text-6xl mb-4">✅</div>
+							<p class="text-xl font-semibold mb-2">Нет доставленных заказов</p>
+							<p class="text-muted-foreground">Доставленные заказы появятся здесь</p>
+						</div>
+					`;
+				}
+			} catch (error) {
+				console.error('Error loading delivered orders:', error);
+				container.innerHTML = '<div class="text-center text-error py-12"><p>Ошибка загрузки</p></div>';
+			}
+		}
+
+		// Placeholder functions
+		function exportAllDeliveredOrders() {
+			alert('Экспорт в разработке');
+		}
+
+		function addNewCategory() {
+			alert('Добавление категории в разработке');
+		}
+
+		function addNewSupplier() {
+			alert('Добавление поставщика в разработке');
+		}
+
+		async function syncDepartmentsFromPoster() {
+			try {
+				const response = await fetch('/api/sync-departments-from-poster');
+				const result = await response.json();
+				alert(result.success ? '✅ Синхронизация завершена!' : '❌ Ошибка: ' + result.error);
+			} catch (error) {
+				alert('❌ Ошибка: ' + error.message);
+			}
+		}
+
+		function addNewDepartment() {
+			alert('Добавление отдела в разработке');
+		}
+
+		function openAddProductModal() {
+			alert('Добавление товара в разработке');
+		}
+
 		// Load data on page load
 		document.addEventListener('DOMContentLoaded', () => {
 			console.log('📱 Manager page loaded with shadcn-svelte');
+
+			// Setup tab switching
+			document.querySelectorAll('.tab-button').forEach(button => {
+				button.addEventListener('click', () => {
+					const tabName = button.getAttribute('data-tab');
+					if (tabName) {
+						switchTab(tabName);
+					}
+				});
+			});
+
+			// Load initial data
 			loadOrdersByCategory();
 			setInterval(loadOrdersByCategory, 30000);
 		});
