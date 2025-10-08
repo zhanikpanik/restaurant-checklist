@@ -19,7 +19,9 @@
       "Bash(railway up:*)",
       "Bash(pnpm install:*)",
       "Bash(npx astro add:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "Bash(railway status:*)",
+      "Bash(pnpm remove:*)"
     ],
     "deny": [],
     "ask": []

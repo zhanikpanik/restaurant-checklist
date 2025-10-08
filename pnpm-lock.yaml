@@ -45,9 +45,6 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
-      daisyui:
-        specifier: ^5.1.29
-        version: 5.1.29
       svelte-preprocess:
         specifier: ^6.0.3
         version: 6.0.3(postcss-load-config@4.0.2(postcss@8.5.6))(postcss@8.5.6)(svelte@5.39.10)(typescript@5.9.2)
@@ -864,9 +861,6 @@ packages:
     resolution: {integrity: sha512-/Tb/JcjK111nNScGob5MNtsntNM1aCNUDipB/TkwZFhyDrrE47SOx/18wF2bbjgc3ZzCSKW1T5nt5EbFoAz/Vg==}
     engines: {node: '>=4'}
     hasBin: true
-
-  daisyui@5.1.29:
-    resolution: {integrity: sha512-4eZhqCXO7CJVNGytTZEIQYJz3fah2gPleuqp4qUD4fD8WoEQIYzKwlOewi8nPaz6NX7vvSLZ+YSjt5Z5zqacGw==}
 
   data-uri-to-buffer@4.0.1:
     resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
@@ -3023,8 +3017,6 @@ snapshots:
       source-map-js: 1.2.1
 
   cssesc@3.0.0: {}
-
-  daisyui@5.1.29: {}
 
   data-uri-to-buffer@4.0.1: {}
 
