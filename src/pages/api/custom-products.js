@@ -88,15 +88,18 @@ export async function GET({ url, request }) {
 // POST: Create new custom product
 export async function POST({ request }) {
     const tenantId = getTenantId(request);
-    const { name, unit, departmentId, categoryId, minQuantity, currentQuantity } = await request.json();
+    const { name, unit, departmentId, category_id, categoryId, minQuantity, currentQuantity } = await request.json();
     const { client, error } = await getDbClient();
 
     if (error) return error;
 
+    // Support both category_id and categoryId for flexibility
+    const finalCategoryId = category_id || categoryId || null;
+
 
     try {
-        if (!name || name.trim() === '' || !departmentId) {
-            throw new Error('Product name and department are required');
+        if (!name || name.trim() === '') {
+            throw new Error('Product name is required');
         }
 
         await client.query('BEGIN');
@@ -108,8 +111,8 @@ export async function POST({ request }) {
             [
                 name.trim(),
                 unit || 'шт',
-                departmentId,
-                categoryId || null,
+                departmentId || null,
+                finalCategoryId,
                 minQuantity || 1,
                 currentQuantity || 0,
                 tenantId

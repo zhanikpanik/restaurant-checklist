@@ -21,7 +21,13 @@
       "Bash(npx astro add:*)",
       "Bash(npx:*)",
       "Bash(railway status:*)",
-      "Bash(pnpm remove:*)"
+      "Bash(pnpm remove:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(findstr:*)",
+      "Bash(echo $env:ANTHROPIC_API_KEY)",
+      "Bash(timeout:*)",
+      "Bash(railway shell:*)"
     ],
     "deny": [],
     "ask": []

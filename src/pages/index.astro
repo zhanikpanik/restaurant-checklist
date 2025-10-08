@@ -66,18 +66,18 @@ import Layout from '../layouts/Layout.astro';
 			}
 		}
 
-		// Load all departments and display them
+		// Load all sections and display them
 		async function loadSections() {
 			try {
-				const response = await fetch('/api/departments');
+				const response = await fetch('/api/sections');
 				const data = await response.json();
 
-				console.log('📊 Departments API response:', data);
+				console.log('📊 Sections API response:', data);
 				console.log('🏢 Current tenant:', getCurrentTenant());
 
 				if (data.success) {
 					if (data.data.length === 0) {
-						console.warn('⚠️ No departments found for current tenant');
+						console.warn('⚠️ No sections found for current tenant');
 						showNoSectionsMessage();
 					} else {
 						displaySections(data.data);
@@ -86,7 +86,7 @@ import Layout from '../layouts/Layout.astro';
 					throw new Error(data.error);
 				}
 			} catch (error) {
-				console.error('❌ Error loading departments:', error);
+				console.error('❌ Error loading sections:', error);
 				showErrorMessage(error.message);
 			}
 		}
@@ -116,25 +116,25 @@ import Layout from '../layouts/Layout.astro';
 			container.innerHTML = `
 				<div class="col-span-full text-center py-8">
 					<div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
-					<p class="text-gray-600">Синхронизация отделов из Poster...</p>
+					<p class="text-gray-600">Синхронизация секций из Poster...</p>
 				</div>
 			`;
 
 			try {
-				// Sync departments from Poster
-				const syncResponse = await fetch('/api/sync-departments-from-poster');
+				// Sync sections from Poster
+				const syncResponse = await fetch('/api/sync-sections');
 				const syncData = await syncResponse.json();
 
 				if (!syncData.success) {
 					throw new Error(syncData.error);
 				}
 
-				console.log('✅ Departments synced:', syncData.data);
+				console.log('✅ Sections synced:', syncData.data);
 
-				// Reload departments
+				// Reload sections
 				await loadSections();
 			} catch (error) {
-				console.error('❌ Error syncing departments:', error);
+				console.error('❌ Error syncing sections:', error);
 				showErrorMessage(error.message);
 			}
 		}

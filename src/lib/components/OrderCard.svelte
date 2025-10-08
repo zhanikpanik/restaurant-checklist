@@ -96,10 +96,7 @@
 
 	<!-- Actions -->
 	<div class="flex justify-end gap-2">
-		{#if order.status === 'pending'}
-			<Button size="sm">📤 Отправить</Button>
-		{/if}
-		<Button variant="outline" size="sm">👁️ Детали</Button>
+		<Button variant="outline" size="sm" onclick={() => window.location.href = `/order-details?orderId=${order.orderId}`}>👁️ Детали</Button>
 		<Button variant="ghost" size="sm">📄 Excel</Button>
 	</div>
 </Card>

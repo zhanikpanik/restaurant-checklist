@@ -178,6 +178,7 @@ export async function setupDatabaseSchema() {
                 unit VARCHAR(50) DEFAULT 'шт',
                 category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
                 department_id INTEGER REFERENCES departments(id) ON DELETE CASCADE,
+                restaurant_id VARCHAR(50) REFERENCES restaurants(id) ON DELETE CASCADE,
                 min_quantity INTEGER DEFAULT 1,
                 current_quantity INTEGER DEFAULT 0,
                 is_active BOOLEAN DEFAULT true,
@@ -186,6 +187,17 @@ export async function setupDatabaseSchema() {
                 UNIQUE(name, department_id)
             );
         `);
+
+        // Migration: Add restaurant_id column to custom_products if it doesn't exist
+        try {
+            await client.query(`
+                ALTER TABLE custom_products
+                ADD COLUMN IF NOT EXISTS restaurant_id VARCHAR(50) REFERENCES restaurants(id) ON DELETE CASCADE;
+            `);
+            console.log('✅ custom_products restaurant_id column migration complete');
+        } catch (migrationError) {
+            console.log('ℹ️ custom_products migration skipped (already up to date)');
+        }
 
         // Create sections table (Poster storages as default sections)
         await client.query(`
@@ -210,12 +222,24 @@ export async function setupDatabaseSchema() {
                 poster_ingredient_id VARCHAR(100) NOT NULL,
                 name VARCHAR(255) NOT NULL,
                 unit VARCHAR(50),
+                category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
                 is_active BOOLEAN DEFAULT true,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(section_id, poster_ingredient_id)
             );
         `);
+
+        // Migration: Add category_id column to section_products if it doesn't exist
+        try {
+            await client.query(`
+                ALTER TABLE section_products
+                ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL;
+            `);
+            console.log('✅ section_products category_id column migration complete');
+        } catch (migrationError) {
+            console.log('ℹ️ section_products migration skipped (already up to date)');
+        }
 
         // Create section_leftovers table (Inventory for each section)
         await client.query(`

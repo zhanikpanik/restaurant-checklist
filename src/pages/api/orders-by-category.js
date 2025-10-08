@@ -57,8 +57,14 @@ export async function GET({ request }) {
             WHERE is_active = true AND restaurant_id = $1
         `, [restaurantId]);
 
-        const activeSectionNames = new Set(activeSectionsResult.rows.map(s => s.name.toLowerCase()));
-        console.log('Active sections:', Array.from(activeSectionNames));
+        const activeSections = activeSectionsResult.rows.map(s => ({
+            name: s.name,
+            nameLower: s.name.toLowerCase()
+        }));
+        console.log('📍 Active sections:', activeSections.map(s => s.name));
+
+        // If no sections exist, we won't filter orders (backward compatibility)
+        const shouldFilterBySections = activeSections.length > 0;
 
         // Get all orders from database
         let ordersQuery, ordersParams;
@@ -225,12 +231,50 @@ export async function GET({ request }) {
             if (items.length === 0) return; // Skip empty orders
 
             // Get section/department from order
-            const orderSection = (orderData.department || order.created_by_role || '').toLowerCase();
+            const orderDept = (orderData.department || order.created_by_role || '').toLowerCase();
 
-            // Skip orders from inactive/non-existent sections
-            if (!activeSectionNames.has(orderSection)) {
-                console.log(`Skipping order ${order.order_id} from inactive section: ${orderSection}`);
-                return;
+            console.log(`🔍 Checking order ${order.order_id} with department: "${orderDept}"`);
+
+            // Only filter by sections if we have active sections
+            if (shouldFilterBySections) {
+                // Map English department names to Russian keywords
+                const deptKeywords = {
+                    'storage': ['склад', 'storage', 'warehouse'],
+                    'kitchen': ['кухн', 'kitchen'],
+                    'bar': ['бар', 'bar'],
+                    'office': ['офис', 'office'],
+                    'housekeeping': ['горничн', 'housekeeping'],
+                    'custom': ['склад', 'custom'] // Map custom to storage
+                };
+
+                // Get keywords for this order's department
+                const keywords = deptKeywords[orderDept] || [orderDept];
+
+                // Match order department with active sections
+                const matchingSection = activeSections.find(s => {
+                    const sectionName = s.nameLower;
+
+                    // Check if any keyword matches the section name
+                    return keywords.some(keyword => {
+                        // Exact match
+                        if (sectionName === keyword) return true;
+                        // Section name contains keyword (e.g., "Склад 1" contains "склад")
+                        if (sectionName.includes(keyword)) return true;
+                        // Keyword contains section name
+                        if (keyword.includes(sectionName)) return true;
+                        return false;
+                    });
+                });
+
+                // Skip orders from inactive/non-existent sections
+                if (!matchingSection) {
+                    console.log(`⏭️  Skipping order ${order.order_id} - no matching section for: "${orderDept}"`);
+                    return;
+                }
+
+                console.log(`✅ Order ${order.order_id} matched to section: ${matchingSection.name}`);
+            } else {
+                console.log(`✅ Order ${order.order_id} included (no section filtering)`);
             }
 
             // Create individual order object
