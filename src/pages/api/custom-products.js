@@ -17,7 +17,7 @@ export async function GET({ url, request }) {
         let query, params;
 
         if (departmentId) {
-            // Get products for specific department (tenant-specific)
+            // Get products for specific section (tenant-specific)
             query = `
                 SELECT
                     cp.id,
@@ -26,15 +26,15 @@ export async function GET({ url, request }) {
                     cp.min_quantity,
                     cp.current_quantity,
                     cp.category_id,
-                    cp.department_id,
+                    cp.section_id,
                     cp.created_at,
                     pc.name as category_name,
-                    d.name as department_name,
-                    d.emoji as department_emoji
+                    s.name as section_name,
+                    s.emoji as section_emoji
                 FROM custom_products cp
                 LEFT JOIN product_categories pc ON cp.category_id = pc.id
-                LEFT JOIN departments d ON cp.department_id = d.id
-                WHERE cp.department_id = $1 AND cp.is_active = true AND cp.restaurant_id = $2
+                LEFT JOIN sections s ON cp.section_id = s.id
+                WHERE cp.section_id = $1 AND cp.is_active = true AND cp.restaurant_id = $2
                 ORDER BY cp.name ASC
             `;
             params = [departmentId, tenantId];
@@ -48,16 +48,16 @@ export async function GET({ url, request }) {
                     cp.min_quantity,
                     cp.current_quantity,
                     cp.category_id,
-                    cp.department_id,
+                    cp.section_id,
                     cp.created_at,
                     pc.name as category_name,
-                    d.name as department_name,
-                    d.emoji as department_emoji
+                    s.name as section_name,
+                    s.emoji as section_emoji
                 FROM custom_products cp
                 LEFT JOIN product_categories pc ON cp.category_id = pc.id
-                LEFT JOIN departments d ON cp.department_id = d.id
+                LEFT JOIN sections s ON cp.section_id = s.id
                 WHERE cp.is_active = true AND cp.restaurant_id = $1
-                ORDER BY d.name ASC, cp.name ASC
+                ORDER BY s.name ASC, cp.name ASC
             `;
             params = [tenantId];
         }
@@ -88,13 +88,14 @@ export async function GET({ url, request }) {
 // POST: Create new custom product
 export async function POST({ request }) {
     const tenantId = getTenantId(request);
-    const { name, unit, departmentId, category_id, categoryId, minQuantity, currentQuantity } = await request.json();
+    const { name, unit, departmentId, sectionId, section_id, category_id, categoryId, minQuantity, currentQuantity } = await request.json();
     const { client, error } = await getDbClient();
 
     if (error) return error;
 
     // Support both category_id and categoryId for flexibility
     const finalCategoryId = category_id || categoryId || null;
+    const finalSectionId = section_id || sectionId || null;
 
 
     try {
@@ -105,22 +106,22 @@ export async function POST({ request }) {
         await client.query('BEGIN');
 
         const result = await client.query(
-            `INSERT INTO custom_products (name, unit, department_id, category_id, min_quantity, current_quantity, is_active, restaurant_id)
+            `INSERT INTO custom_products (name, unit, section_id, category_id, min_quantity, current_quantity, is_active, restaurant_id)
              VALUES ($1, $2, $3, $4, $5, $6, true, $7)
-             RETURNING id, name, unit, department_id, category_id, min_quantity, current_quantity, created_at`,
+             RETURNING id, name, unit, section_id, category_id, min_quantity, current_quantity, created_at`,
             [
                 name.trim(),
                 unit || 'шт',
-                departmentId || null,
+                finalSectionId,
                 finalCategoryId,
                 minQuantity || 1,
                 currentQuantity || 0,
                 tenantId
             ]
         );
-        
+
         await client.query('COMMIT');
-        
+
         return new Response(JSON.stringify({
             success: true,
             message: 'Custom product created successfully',

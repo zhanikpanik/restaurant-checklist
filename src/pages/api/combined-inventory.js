@@ -1,179 +1,119 @@
 import { getDbClient, safeRelease } from '../../lib/db-helper.js';
-import { getTenantId, getPosterConfig } from '../../lib/tenant-manager.js';
+import { getTenantId } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
-// GET: Get combined inventory (Poster + custom products) for a department
+/**
+ * Combined Inventory API
+ * Returns products for a specific section (department name)
+ * Combines section_products and custom_products
+ */
 export async function GET({ request, url }) {
     const tenantId = getTenantId(request);
-    const searchParams = new URL(url).searchParams;
-    const departmentName = searchParams.get('department'); // 'bar', 'kitchen', or custom department name
-
-    if (!departmentName) {
-        return new Response(JSON.stringify({
-            success: false,
-            error: 'Department parameter is required'
-        }), {
-            status: 400,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    }
-
     const { client, error } = await getDbClient();
-
 
     if (error) return error;
 
-
     try {
-        // First, get the department info (tenant-specific)
-        const deptResult = await client.query(
-            'SELECT id, name, emoji, poster_storage_id FROM departments WHERE LOWER(name) = LOWER($1) AND is_active = true AND restaurant_id = $2',
-            [departmentName, tenantId]
+        const searchParams = new URL(url).searchParams;
+        const departmentName = searchParams.get('department');
+
+        if (!departmentName) {
+            throw new Error('Department parameter is required');
+        }
+
+        console.log(`📦 Loading inventory for section: "${departmentName}"`);
+
+        // Find the section by name
+        const sectionResult = await client.query(
+            `SELECT id, name, emoji, poster_storage_id
+             FROM sections
+             WHERE restaurant_id = $1 AND name = $2 AND is_active = true
+             LIMIT 1`,
+            [tenantId, departmentName]
         );
 
-        if (deptResult.rows.length === 0) {
-            throw new Error(`Department "${departmentName}" not found for tenant ${tenantId}`);
+        if (sectionResult.rows.length === 0) {
+            console.log(`⚠️ Section "${departmentName}" not found, returning empty array`);
+            return new Response(JSON.stringify({
+                success: true,
+                data: []
+            }), {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' }
+            });
         }
 
-        const department = deptResult.rows[0];
-        const products = [];
+        const section = sectionResult.rows[0];
+        const sectionId = section.id;
 
-        // Get Poster products if this department has a poster_storage_id
-        if (department.poster_storage_id) {
-            try {
-                // Get tenant-specific Poster configuration
-                const posterConfig = await getPosterConfig(tenantId);
-                const token = posterConfig.token;
-                const baseUrl = posterConfig.baseUrl;
+        // Get section products (from Poster)
+        const sectionProductsResult = await client.query(
+            `SELECT
+                sp.id,
+                sp.name,
+                sp.unit,
+                sp.poster_ingredient_id,
+                pc.name as category_name,
+                'section' as source
+            FROM section_products sp
+            LEFT JOIN product_categories pc ON sp.category_id = pc.id
+            WHERE sp.section_id = $1 AND sp.is_active = true
+            ORDER BY sp.name ASC`,
+            [sectionId]
+        );
 
-                console.log(`🔄 [${tenantId}] Fetching Poster inventory for ${department.name} (storage ${department.poster_storage_id})...`);
-                console.log(`🔑 [${tenantId}] Using token: ${token.substring(0, 10)}...`);
-                console.log(`🌐 [${tenantId}] Using baseUrl: ${baseUrl}`);
-
-                // Fetch ingredient details
-                const ingredientsRes = await fetch(`${baseUrl}/menu.getIngredients?token=${token}`);
-                const ingredientsData = await ingredientsRes.json();
-                if (ingredientsData.error) throw new Error(`Poster API error: ${ingredientsData.error.message}`);
-                
-                const allIngredients = ingredientsData.response;
-                const ingredientMap = new Map(allIngredients.map(ing => [ing.ingredient_id, ing]));
-
-                // Fetch inventory leftovers for this storage
-                const leftoversRes = await fetch(`${baseUrl}/storage.getStorageLeftovers?token=${token}&storage_id=${department.poster_storage_id}`);
-                const leftoversData = await leftoversRes.json();
-                if (leftoversData.error) throw new Error(`Poster API error: ${leftoversData.error.message}`);
-                
-                const leftovers = leftoversData.response || [];
-                console.log(`✅ Loaded ${leftovers.length} Poster products for ${department.name}`);
-
-                // Unit translation map
-                const unitTranslation = {
-                    'pcs': 'шт',
-                    'l': 'л', 'литр': 'л', 'ml': 'мл', 'миллилитр': 'мл', 'bottle': 'бут', 'бутылка': 'бут',
-                    'pack': 'упак', 'упаковка': 'упак', 'can': 'банка', 'box': 'коробка'
-                };
-
-                // Save categories to database
-                const uniqueCategories = new Map();
-                allIngredients.forEach(ing => {
-                    if (ing.category_id && ing.category_name) {
-                        uniqueCategories.set(ing.category_id, ing.category_name);
-                    }
-                });
-                
-                // Save categories to DB (tenant-specific)
-                for (const [categoryId, categoryName] of uniqueCategories) {
-                    try {
-                        await client.query(
-                            'INSERT INTO product_categories (name, restaurant_id) VALUES ($1, $2) ON CONFLICT (name, restaurant_id) DO NOTHING',
-                            [categoryName, tenantId]
-                        );
-                    } catch (e) {
-                        console.log('Category save error (non-critical):', e.message);
-                    }
-                }
-
-                // Process Poster products
-                leftovers.forEach(leftover => {
-                    const detail = ingredientMap.get(leftover.ingredient_id);
-                    const originalUnit = leftover.ingredient_unit || 'шт';
-                    const translatedUnit = unitTranslation[originalUnit.toLowerCase()] || originalUnit;
-                    
-                    products.push({
-                        id: parseInt(leftover.ingredient_id),
-                        name: leftover.ingredient_name,
-                        quantity: parseFloat(leftover.ingredient_left || leftover.storage_ingredient_left) || 0,
-                        unit: translatedUnit,
-                        minQuantity: 1,
-                        category_id: detail ? parseInt(detail.category_id) : null,
-                        category_name: detail ? detail.category_name : 'Без категории',
-                        source: 'poster',
-                        department_id: department.id,
-                        department_name: department.name
-                    });
-                });
-
-            } catch (posterError) {
-                console.error(`⚠️ Failed to load Poster products for ${department.name}:`, posterError.message);
-                // Continue with custom products even if Poster fails
-            }
-        }
-
-        // Get custom products for this department (tenant-specific)
-        const customResult = await client.query(`
-            SELECT
+        // Get custom products for this section
+        const customProductsResult = await client.query(
+            `SELECT
                 cp.id,
                 cp.name,
                 cp.unit,
                 cp.min_quantity,
-                cp.current_quantity as quantity,
-                cp.category_id,
-                pc.name as category_name
+                cp.current_quantity,
+                pc.name as category_name,
+                'custom' as source
             FROM custom_products cp
             LEFT JOIN product_categories pc ON cp.category_id = pc.id
-            WHERE cp.department_id = $1 AND cp.is_active = true AND cp.restaurant_id = $2
-            ORDER BY cp.name ASC
-        `, [department.id, tenantId]);
+            WHERE cp.restaurant_id = $1 AND cp.section_id = $2 AND cp.is_active = true
+            ORDER BY cp.name ASC`,
+            [tenantId, sectionId]
+        );
 
-        // Add custom products to the list
-        customResult.rows.forEach(customProduct => {
-            products.push({
-                id: `custom_${customProduct.id}`, // Prefix to avoid ID conflicts with Poster
-                name: customProduct.name,
-                quantity: customProduct.quantity || 0,
-                unit: customProduct.unit,
-                minQuantity: customProduct.min_quantity,
-                category_id: customProduct.category_id,
-                category_name: customProduct.category_name || 'Без категории',
-                source: 'custom',
-                custom_product_id: customProduct.id,
-                department_id: department.id,
-                department_name: department.name
-            });
-        });
+        // Combine both sets of products
+        const allProducts = [
+            ...sectionProductsResult.rows.map(p => ({
+                id: p.id,
+                name: p.name,
+                unit: p.unit || 'шт',
+                quantity: 0,
+                minQuantity: 1,
+                category_name: p.category_name,
+                source: 'section'
+            })),
+            ...customProductsResult.rows.map(p => ({
+                id: p.id,
+                name: p.name,
+                unit: p.unit || 'шт',
+                quantity: p.current_quantity || 0,
+                minQuantity: p.min_quantity || 1,
+                category_name: p.category_name,
+                source: 'custom'
+            }))
+        ];
 
-        console.log(`✅ Combined inventory for ${department.name}: ${products.length} total products (${products.filter(p => p.source === 'poster').length} from Poster, ${products.filter(p => p.source === 'custom').length} custom)`);
+        console.log(`✅ Loaded ${allProducts.length} products (${sectionProductsResult.rows.length} section + ${customProductsResult.rows.length} custom)`);
 
         return new Response(JSON.stringify({
             success: true,
-            data: products,
-            department: {
-                id: department.id,
-                name: department.name,
-                emoji: department.emoji,
-                poster_storage_id: department.poster_storage_id,
-                total_products: products.length,
-                poster_products: products.filter(p => p.source === 'poster').length,
-                custom_products: products.filter(p => p.source === 'custom').length
-            }
+            data: allProducts
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
         });
 
     } catch (error) {
-        console.error('Error getting combined inventory:', error);
+        console.error('Error loading combined inventory:', error);
         return new Response(JSON.stringify({
             success: false,
             error: error.message,

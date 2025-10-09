@@ -3,53 +3,46 @@ import { getTenantId } from '../../lib/tenant-manager.js';
 
 export const prerender = false;
 
-// GET: Get all departments for a tenant
+/**
+ * Departments API - Wrapper around sections for backward compatibility
+ * This allows the custom.astro page to continue working with the new sections system
+ */
+
+// GET: Get all departments (returns sections)
 export async function GET({ request }) {
     const tenantId = getTenantId(request);
     const { client, error } = await getDbClient();
 
     if (error) return error;
 
-    console.log(`📋 [${tenantId}] Fetching departments...`);
-
     try {
-        const result = await client.query(`
-            SELECT
-                d.id,
-                d.name,
-                d.emoji,
-                d.poster_storage_id,
-                d.is_active,
-                d.created_at,
-                COUNT(cp.id) as custom_products_count
-            FROM departments d
-            LEFT JOIN custom_products cp ON d.id = cp.department_id AND cp.is_active = true AND cp.restaurant_id = $1
-            WHERE d.is_active = true AND d.restaurant_id = $1
-            GROUP BY d.id, d.name, d.emoji, d.poster_storage_id, d.is_active, d.created_at
-            ORDER BY d.created_at ASC
-        `, [tenantId]);
-
-        console.log(`✅ [${tenantId}] Found ${result.rows.length} departments:`, result.rows.map(d => `${d.name} (storage_id: ${d.poster_storage_id})`));
+        // Return sections as "departments" for backward compatibility
+        const result = await client.query(
+            `SELECT
+                id,
+                name,
+                emoji,
+                is_active,
+                restaurant_id,
+                created_at
+            FROM sections
+            WHERE restaurant_id = $1 AND is_active = true
+            ORDER BY name ASC`,
+            [tenantId]
+        );
 
         return new Response(JSON.stringify({
             success: true,
-            data: result.rows,
-            debug: {
-                tenantId: tenantId,
-                count: result.rows.length
-            }
+            data: result.rows
         }), {
             status: 200,
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        console.error(`❌ [${tenantId}] Error getting departments:`, error);
+        console.error('Error getting departments:', error);
         return new Response(JSON.stringify({
             success: false,
-            error: error.message,
-            debug: {
-                tenantId: tenantId
-            }
+            error: error.message
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
@@ -59,7 +52,7 @@ export async function GET({ request }) {
     }
 }
 
-// POST: Create new department
+// POST: Create new department (creates section)
 export async function POST({ request }) {
     const tenantId = getTenantId(request);
     const { name, emoji } = await request.json();
@@ -67,23 +60,19 @@ export async function POST({ request }) {
 
     if (error) return error;
 
-
     try {
         if (!name || name.trim() === '') {
             throw new Error('Department name is required');
         }
 
-        await client.query('BEGIN');
-
+        // Create section instead of department
         const result = await client.query(
-            `INSERT INTO departments (name, emoji, poster_storage_id, is_active, restaurant_id)
-             VALUES ($1, $2, NULL, true, $3)
-             RETURNING id, name, emoji, is_active, created_at`,
+            `INSERT INTO sections (name, emoji, is_active, restaurant_id)
+             VALUES ($1, $2, true, $3)
+             RETURNING id, name, emoji, is_active, restaurant_id, created_at`,
             [name.trim(), emoji || '📦', tenantId]
         );
-        
-        await client.query('COMMIT');
-        
+
         return new Response(JSON.stringify({
             success: true,
             message: 'Department created successfully',
@@ -93,7 +82,6 @@ export async function POST({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        await client.query('ROLLBACK');
         console.error('Error creating department:', error);
         return new Response(JSON.stringify({
             success: false,
@@ -107,7 +95,7 @@ export async function POST({ request }) {
     }
 }
 
-// PUT: Update department
+// PUT: Update department (updates section)
 export async function PUT({ request }) {
     const tenantId = getTenantId(request);
     const { id, name, emoji } = await request.json();
@@ -115,28 +103,24 @@ export async function PUT({ request }) {
 
     if (error) return error;
 
-
     try {
         if (!id || !name || name.trim() === '') {
             throw new Error('Department ID and name are required');
         }
 
-        await client.query('BEGIN');
-
+        // Update section instead of department
         const result = await client.query(
-            `UPDATE departments
+            `UPDATE sections
              SET name = $1, emoji = $2, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $3 AND is_active = true AND restaurant_id = $4
-             RETURNING id, name, emoji, is_active, created_at`,
+             WHERE id = $3 AND restaurant_id = $4 AND is_active = true
+             RETURNING id, name, emoji, is_active, restaurant_id`,
             [name.trim(), emoji || '📦', id, tenantId]
         );
-        
+
         if (result.rows.length === 0) {
-            throw new Error('Department not found or inactive');
+            throw new Error('Department not found');
         }
-        
-        await client.query('COMMIT');
-        
+
         return new Response(JSON.stringify({
             success: true,
             message: 'Department updated successfully',
@@ -146,7 +130,6 @@ export async function PUT({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        await client.query('ROLLBACK');
         console.error('Error updating department:', error);
         return new Response(JSON.stringify({
             success: false,
@@ -160,7 +143,7 @@ export async function PUT({ request }) {
     }
 }
 
-// DELETE: Soft delete department (mark as inactive)
+// DELETE: Soft delete department (deactivates section)
 export async function DELETE({ request }) {
     const tenantId = getTenantId(request);
     const { id } = await request.json();
@@ -168,38 +151,24 @@ export async function DELETE({ request }) {
 
     if (error) return error;
 
-
     try {
         if (!id) {
             throw new Error('Department ID is required');
         }
 
-        await client.query('BEGIN');
-
-        // Check if department has custom products (tenant-specific)
-        const productsCheck = await client.query(
-            'SELECT COUNT(*) as count FROM custom_products WHERE department_id = $1 AND is_active = true AND restaurant_id = $2',
-            [id, tenantId]
-        );
-
-        if (parseInt(productsCheck.rows[0].count) > 0) {
-            throw new Error('Cannot delete department with active custom products');
-        }
-
+        // Soft delete section instead of department
         const result = await client.query(
-            `UPDATE departments
+            `UPDATE sections
              SET is_active = false, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $1 AND is_active = true AND restaurant_id = $2
+             WHERE id = $1 AND restaurant_id = $2
              RETURNING id, name`,
             [id, tenantId]
         );
-        
+
         if (result.rows.length === 0) {
-            throw new Error('Department not found or already inactive');
+            throw new Error('Department not found');
         }
-        
-        await client.query('COMMIT');
-        
+
         return new Response(JSON.stringify({
             success: true,
             message: `Department "${result.rows[0].name}" deleted successfully`
@@ -208,7 +177,6 @@ export async function DELETE({ request }) {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error) {
-        await client.query('ROLLBACK');
         console.error('Error deleting department:', error);
         return new Response(JSON.stringify({
             success: false,

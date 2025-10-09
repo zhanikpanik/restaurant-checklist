@@ -206,9 +206,14 @@ import Layout from '../layouts/Layout.astro';
 			<div id="tab-products" class="tab-content hidden">
 				<div class="flex justify-between items-center mb-4">
 					<h3 class="text-2xl font-bold">📦 Товары</h3>
-					<button onclick="openAddProductModal()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
-						➕ Добавить товар
-					</button>
+					<div class="flex gap-2">
+						<button onclick="syncProducts()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground">
+							🔄 Синхронизировать
+						</button>
+						<button onclick="openAddProductModal()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
+							➕ Добавить товар
+						</button>
+					</div>
 				</div>
 
 				<!-- Search and Filters -->
@@ -378,6 +383,12 @@ import Layout from '../layouts/Layout.astro';
 						value="шт"
 						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
 					/>
+				</div>
+				<div>
+					<label class="block text-sm font-medium mb-2">Секция</label>
+					<select id="productSectionSelect" class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary">
+						<option value="">-- Выберите секцию --</option>
+					</select>
 				</div>
 				<div>
 					<label class="block text-sm font-medium mb-2">Категория (опционально)</label>
@@ -1211,6 +1222,7 @@ import Layout from '../layouts/Layout.astro';
 							<div class="flex justify-between items-start mb-2">
 								<div class="flex-1">
 									<div class="font-medium">${product.name || product.product_name}</div>
+									<div class="text-sm text-muted-foreground">${product.section_name || 'Без секции'}</div>
 								</div>
 								<div class="text-sm font-medium text-muted-foreground">${product.unit || 'шт'}</div>
 							</div>
@@ -1301,6 +1313,28 @@ import Layout from '../layouts/Layout.astro';
 			}
 		};
 
+		// Sync products from Poster
+		window.syncProducts = async function() {
+			if (!confirm('🔄 Синхронизировать товары из Poster?\n\nЭто обновит список товаров на основе данных из Poster.')) {
+				return;
+			}
+
+			try {
+				const response = await fetch('/api/sync-section-products');
+				const data = await response.json();
+
+				if (data.success) {
+					alert(`✅ Синхронизация завершена!\n\nСоздано: ${data.data.created}\nОбновлено: ${data.data.updated}\nПропущено: ${data.data.skipped}`);
+					loadProducts(); // Reload products list
+				} else {
+					alert('❌ Ошибка: ' + data.error);
+				}
+			} catch (error) {
+				console.error('Error syncing products:', error);
+				alert('❌ Ошибка при синхронизации');
+			}
+		};
+
 		// Placeholder functions
 		window.exportAllDeliveredOrders = function() {
 			alert('Экспорт в разработке');
@@ -1314,20 +1348,35 @@ import Layout from '../layouts/Layout.astro';
 			const modal = document.getElementById('addProductModal');
 			modal.classList.remove('hidden');
 
-			// Load categories for the dropdown
+			// Load sections and categories for the dropdowns
 			try {
-				const response = await fetch('/api/categories');
-				const data = await response.json();
+				const [sectionsResponse, categoriesResponse] = await Promise.all([
+					fetch('/api/sections'),
+					fetch('/api/categories')
+				]);
 
-				if (data.success) {
-					const select = document.getElementById('productCategorySelect');
-					select.innerHTML = '<option value="">-- Без категории --</option>';
-					data.data.forEach(cat => {
-						select.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+				const sectionsData = await sectionsResponse.json();
+				const categoriesData = await categoriesResponse.json();
+
+				// Populate sections
+				if (sectionsData.success) {
+					const sectionSelect = document.getElementById('productSectionSelect');
+					sectionSelect.innerHTML = '<option value="">-- Выберите секцию --</option>';
+					sectionsData.data.forEach(section => {
+						sectionSelect.innerHTML += `<option value="${section.id}">${section.emoji || '📦'} ${section.name}</option>`;
+					});
+				}
+
+				// Populate categories
+				if (categoriesData.success) {
+					const categorySelect = document.getElementById('productCategorySelect');
+					categorySelect.innerHTML = '<option value="">-- Без категории --</option>';
+					categoriesData.data.forEach(cat => {
+						categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
 					});
 				}
 			} catch (error) {
-				console.error('Error loading categories:', error);
+				console.error('Error loading data:', error);
 			}
 		};
 
@@ -1337,12 +1386,14 @@ import Layout from '../layouts/Layout.astro';
 			// Clear inputs
 			document.getElementById('productNameInput').value = '';
 			document.getElementById('productUnitInput').value = 'шт';
+			document.getElementById('productSectionSelect').value = '';
 			document.getElementById('productCategorySelect').value = '';
 		};
 
 		window.submitAddProduct = async function() {
 			const name = document.getElementById('productNameInput').value.trim();
 			const unit = document.getElementById('productUnitInput').value.trim() || 'шт';
+			const sectionId = document.getElementById('productSectionSelect').value || null;
 			const categoryId = document.getElementById('productCategorySelect').value || null;
 
 			if (!name) {
@@ -1350,11 +1401,16 @@ import Layout from '../layouts/Layout.astro';
 				return;
 			}
 
+			if (!sectionId) {
+				alert('Пожалуйста, выберите секцию');
+				return;
+			}
+
 			try {
 				const response = await fetch('/api/custom-products', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ name, unit, category_id: categoryId })
+					body: JSON.stringify({ name, unit, section_id: sectionId, category_id: categoryId })
 				});
 
 				const data = await response.json();

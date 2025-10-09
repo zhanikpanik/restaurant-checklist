@@ -130,49 +130,10 @@ import Layout from '../layouts/Layout.astro';
 		window.currentDepartment = 'custom';
 		
 		// Custom products storage
+		// Products loaded from database
 		let customProducts = [];
 		let filteredProducts = [];
 		let selectedProducts = [];
-
-		// Default products list
-		const defaultProducts = [
-			{ name: 'шампунь', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'лосьон для тела', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'кондиционер', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'гигиен набор', unit: 'шт', quantity: 0, minQuantity: 5, isDefault: true },
-			{ name: 'зубная щетка', unit: 'шт', quantity: 0, minQuantity: 10, isDefault: true },
-			{ name: 'тапочки', unit: 'шт', quantity: 0, minQuantity: 10, isDefault: true },
-			{ name: 'салфетки на стол', unit: 'упак', quantity: 0, minQuantity: 5, isDefault: true },
-			{ name: 'зубочистки', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
-			{ name: 'сахар стики', unit: 'упак', quantity: 0, minQuantity: 5, isDefault: true },
-			{ name: 'пакет чай черный', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
-			{ name: 'пакет чай зеленый', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
-			{ name: 'диспенсерные салфетки', unit: 'упак', quantity: 0, minQuantity: 5, isDefault: true },
-			{ name: 'туалет бумага', unit: 'упак', quantity: 0, minQuantity: 10, isDefault: true },
-			{ name: 'освежитель воздуха', unit: 'шт', quantity: 0, minQuantity: 3, isDefault: true },
-			{ name: 'вонючки', unit: 'шт', quantity: 0, minQuantity: 5, isDefault: true },
-			{ name: 'крем мыло', unit: 'шт', quantity: 0, minQuantity: 5, isDefault: true },
-			{ name: 'средство для посуды', unit: 'шт', quantity: 0, minQuantity: 3, isDefault: true },
-			{ name: 'комет', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'сиф', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'крот', unit: 'шт', quantity: 0, minQuantity: 1, isDefault: true },
-			{ name: 'азелит', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'мистер пропер', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'железная губка', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
-			{ name: 'мусор пакет большой', unit: 'упак', quantity: 0, minQuantity: 5, isDefault: true },
-			{ name: 'доместос', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'стеклоочиститель', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'белизна', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'ваниш', unit: 'шт', quantity: 0, minQuantity: 1, isDefault: true },
-			{ name: 'кондиционер для белья', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'постельное белье', unit: 'комплект', quantity: 0, minQuantity: 5, isDefault: true },
-			{ name: 'мусор пакет большие', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
-			{ name: 'мусор пакет маленькие', unit: 'упак', quantity: 0, minQuantity: 3, isDefault: true },
-			{ name: 'пледы', unit: 'шт', quantity: 0, minQuantity: 10, isDefault: true },
-			{ name: 'сушилки', unit: 'шт', quantity: 0, minQuantity: 3, isDefault: true },
-			{ name: 'доп двуспалки', unit: 'шт', quantity: 0, minQuantity: 2, isDefault: true },
-			{ name: 'доп односпалки', unit: 'шт', quantity: 0, minQuantity: 3, isDefault: true }
-		];
 
 		// Load custom products from database
 		async function loadCustomProducts() {
