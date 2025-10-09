@@ -3,7 +3,7 @@ import Layout from '../layouts/Layout.astro';
 ---
 
 <style>
-	/* Hide scrollbar for mobile tabs */
+	/* Native app styling */
 	.scrollbar-hide {
 		-ms-overflow-style: none;
 		scrollbar-width: none;
@@ -12,15 +12,65 @@ import Layout from '../layouts/Layout.astro';
 		display: none;
 	}
 
-	/* Smooth scroll for tabs */
 	.overflow-x-auto {
 		scroll-behavior: smooth;
 	}
 
-	/* Mobile-friendly tap targets */
 	.tab-button {
 		-webkit-tap-highlight-color: transparent;
 		touch-action: manipulation;
+	}
+
+	/* Native card style */
+	.native-card {
+		background: var(--card);
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		overflow: hidden;
+		transition: all 0.2s;
+	}
+
+	.native-card:active {
+		transform: scale(0.98);
+	}
+
+	/* Pull to refresh hint */
+	@keyframes slideDown {
+		from { transform: translateY(-100%); opacity: 0; }
+		to { transform: translateY(0); opacity: 1; }
+	}
+
+	.slide-down {
+		animation: slideDown 0.3s ease-out;
+	}
+
+	/* Safe area for mobile */
+	@supports (padding-bottom: env(safe-area-inset-bottom)) {
+		.bottom-nav {
+			padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+		}
+	}
+
+	/* iOS style lists */
+	.native-list {
+		background: var(--background);
+		border-radius: 12px;
+		overflow: hidden;
+	}
+
+	.native-list-item {
+		background: var(--card);
+		border-bottom: 1px solid var(--border);
+		padding: 1rem;
+		transition: background 0.2s;
+	}
+
+	.native-list-item:last-child {
+		border-bottom: none;
+	}
+
+	.native-list-item:active {
+		background: var(--accent);
 	}
 </style>
 
@@ -389,6 +439,67 @@ import Layout from '../layouts/Layout.astro';
 		</div>
 	</div>
 
+	<!-- Edit Supplier Modal -->
+	<div id="editSupplierModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
+		<div class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4">
+			<div class="p-6 border-b">
+				<div class="flex justify-between items-center">
+					<h3 class="text-lg font-semibold">Изменить поставщика</h3>
+					<button onclick="closeEditSupplierModal()" class="text-muted-foreground hover:text-foreground">✕</button>
+				</div>
+			</div>
+
+			<div class="p-6 space-y-4">
+				<input type="hidden" id="editSupplierId">
+
+				<div>
+					<label class="block text-sm font-medium mb-2">Название</label>
+					<input
+						id="editSupplierName"
+						type="text"
+						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+						placeholder="Название поставщика"
+					>
+				</div>
+
+				<div>
+					<label class="block text-sm font-medium mb-2">Телефон</label>
+					<input
+						id="editSupplierPhone"
+						type="tel"
+						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+						placeholder="+996XXXXXXXXX"
+					>
+				</div>
+
+				<div>
+					<label class="block text-sm font-medium mb-2">Контактная информация (опционально)</label>
+					<textarea
+						id="editSupplierContact"
+						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+						placeholder="Дополнительная информация"
+						rows="2"
+					></textarea>
+				</div>
+			</div>
+
+			<div class="p-6 border-t flex gap-3">
+				<button
+					onclick="submitEditSupplier()"
+					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+				>
+					Сохранить
+				</button>
+				<button
+					onclick="closeEditSupplierModal()"
+					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+				>
+					Отмена
+				</button>
+			</div>
+		</div>
+	</div>
+
 	<script>
 		import { mount } from 'svelte';
 		import OrderCard from '../lib/components/OrderCard.svelte';
@@ -541,13 +652,14 @@ import Layout from '../layouts/Layout.astro';
 
 				if (data.success && data.data && data.data.length > 0) {
 					container.innerHTML = '';
-					const grid = document.createElement('div');
-					grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3';
+					const list = document.createElement('div');
+					list.className = 'space-y-2';
 
 					data.data.forEach(category => {
 						const card = document.createElement('div');
-						card.className = 'rounded-lg border bg-card p-3';
+						card.className = 'native-card';
 						card.innerHTML = `
+							<div class="p-4">
 							<div class="flex items-center justify-between gap-2">
 								<div class="flex-1 min-w-0">
 									<h4 class="font-medium text-base truncate">🏷️ ${category.name}</h4>
@@ -560,16 +672,17 @@ import Layout from '../layouts/Layout.astro';
 								</div>
 								<button
 									onclick="assignSupplierToCategory(${category.id}, '${category.name}')"
-									class="flex-shrink-0 inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3 border border-input bg-background hover:bg-accent active:scale-95 transition-transform"
+									class="flex-shrink-0 inline-flex items-center justify-center rounded-full text-xs font-medium h-8 px-4 bg-secondary hover:bg-secondary/80 active:scale-95 transition-all"
 								>
 									${category.supplier_name ? 'Изменить' : 'Назначить'}
 								</button>
 							</div>
+							</div>
 						`;
-						grid.appendChild(card);
+						list.appendChild(card);
 					});
 
-					container.appendChild(grid);
+					container.appendChild(list);
 				} else {
 					container.innerHTML = `
 						<div class="text-center py-12">
@@ -596,20 +709,21 @@ import Layout from '../layouts/Layout.astro';
 
 				if (data.success && data.data && data.data.length > 0) {
 					container.innerHTML = '';
-					const grid = document.createElement('div');
-					grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3';
+					const list = document.createElement('div');
+					list.className = 'space-y-2';
 
 					data.data.forEach(supplier => {
 						const card = document.createElement('div');
-						card.className = 'rounded-lg border bg-card p-3';
+						card.className = 'native-card';
 						card.innerHTML = `
+							<div class="p-4">
 							<div class="flex items-start justify-between gap-2">
 								<div class="flex-1 min-w-0">
 									<h4 class="font-medium text-base truncate">🏢 ${supplier.name}</h4>
 									<div class="text-xs text-muted-foreground mt-0.5 space-y-0.5">
 										${supplier.phone ?
 											`<div>📱 ${supplier.phone}</div>` :
-											''
+											'<div class="text-destructive">⚠️ Нет телефона</div>'
 										}
 										${supplier.contact_info ?
 											`<div class="truncate">${supplier.contact_info}</div>` :
@@ -617,12 +731,19 @@ import Layout from '../layouts/Layout.astro';
 										}
 									</div>
 								</div>
+								<button
+									onclick="openEditSupplierModal(${supplier.id}, '${supplier.name.replace(/'/g, "\\'")}', '${supplier.phone || ''}', '${supplier.contact_info ? supplier.contact_info.replace(/'/g, "\\'") : ''}')"
+									class="flex-shrink-0 h-8 px-4 text-xs rounded-full bg-secondary hover:bg-secondary/80 active:scale-95 transition-all"
+								>
+									✏️ Изменить
+								</button>
+							</div>
 							</div>
 						`;
-						grid.appendChild(card);
+						list.appendChild(card);
 					});
 
-					container.appendChild(grid);
+					container.appendChild(list);
 				} else {
 					container.innerHTML = `
 						<div class="text-center py-12">
@@ -715,11 +836,57 @@ import Layout from '../layouts/Layout.astro';
 			}
 		};
 
-		// Edit supplier
-		function editSupplier(id, name, phone, contactInfo) {
-			alert(`Функция редактирования поставщика "${name}" в разработке`);
-			// TODO: Open modal to edit supplier
-		}
+		// Edit supplier modal functions
+		window.openEditSupplierModal = function(id, name, phone, contactInfo) {
+			document.getElementById('editSupplierId').value = id;
+			document.getElementById('editSupplierName').value = name;
+			document.getElementById('editSupplierPhone').value = phone || '';
+			document.getElementById('editSupplierContact').value = contactInfo || '';
+			document.getElementById('editSupplierModal').classList.remove('hidden');
+		};
+
+		window.closeEditSupplierModal = function() {
+			document.getElementById('editSupplierModal').classList.add('hidden');
+		};
+
+		window.submitEditSupplier = async function() {
+			const id = document.getElementById('editSupplierId').value;
+			const name = document.getElementById('editSupplierName').value.trim();
+			const phone = document.getElementById('editSupplierPhone').value.trim();
+			const contact_info = document.getElementById('editSupplierContact').value.trim();
+
+			if (!name) {
+				alert('⚠️ Название поставщика обязательно');
+				return;
+			}
+
+			try {
+				const response = await fetch('/api/suppliers', {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						id: parseInt(id),
+						name: name,
+						phone: phone || null,
+						contact_info: contact_info || null
+					})
+				});
+
+				const data = await response.json();
+
+				if (data.success) {
+					alert('✅ Поставщик успешно обновлен!');
+					closeEditSupplierModal();
+					loadSuppliers(); // Refresh the list
+					loadCategories(); // Also refresh categories to update supplier info there
+				} else {
+					alert('❌ Ошибка: ' + data.error);
+				}
+			} catch (error) {
+				console.error('Error updating supplier:', error);
+				alert('❌ Ошибка при обновлении поставщика');
+			}
+		};
 
 		// Run auto-categorization
 		window.runAutoCategorization = async function() {

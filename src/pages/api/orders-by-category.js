@@ -176,49 +176,26 @@ export async function GET({ request }) {
             categories.set(cat.id, cat);
         });
         
-        // Get all products with their categories (handle missing restaurant_id)
-        let productsQuery, productsParams;
-        
-        // Check if products table has restaurant_id column
-        const productsTableCheck = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
-            WHERE table_name = 'products'
-        `);
-        
-        const productColumns = productsTableCheck.rows.map(row => row.column_name);
-        const productsHasRestaurantId = productColumns.includes('restaurant_id');
-        
-        if (productsHasRestaurantId) {
-            productsQuery = `
-                SELECT 
-                    p.id as product_id,
-                    p.name as product_name,
-                    p.category_id,
-                    pc.name as category_name
-                FROM products p
-                LEFT JOIN product_categories pc ON p.category_id = pc.id
-                WHERE p.restaurant_id = $1
-            `;
-            productsParams = [restaurantId];
-        } else {
-            productsQuery = `
-                SELECT 
-                    p.id as product_id,
-                    p.name as product_name,
-                    p.category_id,
-                    pc.name as category_name
-                FROM products p
-                LEFT JOIN product_categories pc ON p.category_id = pc.id
-            `;
-            productsParams = [];
-        }
-        
-        const productsResult = await client.query(productsQuery, productsParams);
-        
+        // Get all products with their categories from section_products (Poster products)
+        const sectionProductsQuery = `
+            SELECT
+                sp.id as product_id,
+                sp.name as product_name,
+                sp.category_id,
+                pc.name as category_name
+            FROM section_products sp
+            LEFT JOIN product_categories pc ON sp.category_id = pc.id
+            LEFT JOIN sections s ON sp.section_id = s.id
+            WHERE s.restaurant_id = $1 AND sp.is_active = true
+        `;
+
+        const sectionProductsResult = await client.query(sectionProductsQuery, [restaurantId]);
+
         const products = new Map();
-        productsResult.rows.forEach(prod => {
+        sectionProductsResult.rows.forEach(prod => {
             products.set(prod.product_id, prod);
+            // Also index by name for easier lookup
+            products.set(prod.product_name.toLowerCase(), prod);
         });
         
         // Process orders as individual orders (no grouping by date)
@@ -300,20 +277,17 @@ export async function GET({ request }) {
             items.forEach(item => {
                 // Try to find product by name (since orders might not have product IDs)
                 let categoryInfo = null;
-                
-                // First, try to find exact product match
-                for (const [productId, productData] of products) {
-                    if (productData.product_name.toLowerCase() === item.name.toLowerCase()) {
-                        categoryInfo = {
-                            categoryId: productData.category_id,
-                            categoryName: productData.category_name || 'Без категории'
-                        };
-                        break;
-                    }
-                }
-                
-                // If no exact match, assign to "Без категории"
-                if (!categoryInfo) {
+
+                // Look up product by name (we indexed by lowercase name)
+                const productData = products.get(item.name.toLowerCase());
+
+                if (productData && productData.category_id) {
+                    categoryInfo = {
+                        categoryId: productData.category_id,
+                        categoryName: productData.category_name || 'Без категории'
+                    };
+                } else {
+                    // If no match, assign to "Без категории"
                     categoryInfo = {
                         categoryId: null,
                         categoryName: 'Без категории'

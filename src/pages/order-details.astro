@@ -2,54 +2,109 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
+<style>
+	/* Native app styling */
+	.native-card {
+		background: var(--card);
+		border: 1px solid var(--border);
+		border-radius: 12px;
+		overflow: hidden;
+		transition: all 0.2s;
+	}
+
+	.native-card:active {
+		transform: scale(0.98);
+	}
+
+	.status-badge {
+		padding: 0.375rem 0.875rem;
+		border-radius: 999px;
+		font-size: 0.875rem;
+		font-weight: 500;
+	}
+
+	.btn-native {
+		border-radius: 12px;
+		padding: 1rem 1.5rem;
+		font-weight: 500;
+		transition: all 0.2s;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.btn-native:active {
+		transform: scale(0.97);
+	}
+
+	.btn-native-sm {
+		border-radius: 10px;
+		padding: 0.625rem 1.25rem;
+		font-weight: 500;
+		transition: all 0.2s;
+		-webkit-tap-highlight-color: transparent;
+	}
+
+	.btn-native-sm:active {
+		transform: scale(0.97);
+	}
+</style>
+
 <Layout title="Order Details - Restaurant System">
-	<div class="min-h-screen bg-gray-50">
-		<!-- Header -->
-		<div class="bg-white shadow-sm border-b border-gray-200">
-			<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div class="flex justify-between items-center py-4">
-					<div class="flex items-center space-x-4">
-						<a href="/manager" class="text-gray-600 hover:text-gray-900 font-medium">
-							← Назад к заказам
-						</a>
-						<div class="h-6 w-px bg-gray-300"></div>
-						<h1 class="text-xl font-semibold text-gray-900" id="orderTitle">
-							📋 Загрузка заказа...
-						</h1>
-					</div>
-					<div class="flex items-center space-x-3">
-						<span id="orderStatus" class="px-3 py-1 rounded-full text-sm font-medium">
-							<!-- Status will be populated -->
-						</span>
-					</div>
-				</div>
+	<div class="min-h-screen bg-background">
+		<!-- Native Mobile Header -->
+		<div class="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b">
+			<div class="flex items-center h-14 px-4">
+				<a href="/manager" class="flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-accent transition-colors">
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+					</svg>
+				</a>
+				<h1 class="flex-1 text-lg font-semibold ml-2" id="orderTitle">
+					Загрузка...
+				</h1>
+				<span id="orderStatus" class="status-badge">
+					<!-- Status will be populated -->
+				</span>
 			</div>
 		</div>
 
 		<!-- Main Content -->
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+		<div class="px-4 py-4">
 			<!-- Loading State -->
 			<div id="loadingState" class="text-center py-12">
-				<div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
-				<p class="text-gray-600">Загрузка заказа...</p>
+				<div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
+				<p class="mt-4 text-muted-foreground">Загрузка заказа...</p>
 			</div>
 
 			<!-- Error State -->
 			<div id="errorState" class="hidden text-center py-12">
-				<div class="text-red-500 text-4xl mb-4">❌</div>
-				<h3 class="text-lg font-medium text-gray-900 mb-2">Заказ не найден</h3>
-				<p class="text-gray-600 mb-4">Заказ не существует или был удален</p>
-				<a href="/manager" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">
+				<div class="text-4xl mb-4">❌</div>
+				<h3 class="text-lg font-semibold mb-2">Заказ не найден</h3>
+				<p class="text-muted-foreground mb-4">Заказ не существует или был удален</p>
+				<a href="/manager" class="inline-flex items-center btn-native bg-primary text-primary-foreground hover:bg-primary/90">
 					← Вернуться к заказам
 				</a>
 			</div>
 
 			<!-- Order Content -->
-			<div id="orderContent" class="hidden">
-			<!-- Suppliers Section -->
-				<div class="space-y-6">
-					<div id="supplierGroups">
-						<!-- Supplier groups will be populated here -->
+			<div id="orderContent" class="hidden space-y-3">
+				<!-- Order Info Card -->
+				<div class="native-card p-4">
+					<div class="grid grid-cols-2 gap-4">
+						<div>
+							<div class="text-xs text-muted-foreground mb-1">Время заказа</div>
+							<div class="text-base font-semibold" id="orderTime">-</div>
+						</div>
+						<div class="text-right">
+							<div class="text-xs text-muted-foreground mb-1">Всего товаров</div>
+							<div class="text-base font-semibold" id="orderTotalItems">-</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Categories Section -->
+				<div class="space-y-2">
+					<div id="categoryGroups">
+						<!-- Category groups will be populated here -->
 					</div>
 				</div>
 			</div>
@@ -180,166 +235,142 @@ import Layout from '../layouts/Layout.astro';
 		// Display order details
 		function displayOrderDetails(orderData) {
 			// Update title
-			document.getElementById('orderTitle').textContent = `${orderData.departmentEmoji} Заказ #${orderData.orderId} - ${orderData.departmentName}`;
-			
+			document.getElementById('orderTitle').textContent = `${orderData.departmentEmoji} #${orderData.orderId}`;
+
 			// Update status
 			const statusEl = document.getElementById('orderStatus');
-			const statusColor = orderData.status === 'pending' ? 'yellow' : orderData.status === 'sent' ? 'blue' : 'green';
+			const statusColors = {
+				'pending': 'bg-yellow-100 text-yellow-800',
+				'sent': 'bg-blue-100 text-blue-800',
+				'delivered': 'bg-green-100 text-green-800'
+			};
 			const statusText = orderData.status === 'pending' ? 'Ожидает' : orderData.status === 'sent' ? 'Отправлен' : 'Доставлен';
-			
-			statusEl.textContent = statusText;
-			statusEl.className = `px-3 py-1 rounded-full text-sm font-medium bg-${statusColor}-100 text-${statusColor}-800`;
 
-			// Display supplier groups
-			displaySupplierGroups(orderData);
+			statusEl.textContent = statusText;
+			statusEl.className = `status-badge ${statusColors[orderData.status] || 'bg-gray-100 text-gray-800'}`;
+
+			// Update order time and total items
+			document.getElementById('orderTime').textContent = orderData.displayDate;
+			document.getElementById('orderTotalItems').textContent = orderData.totalItems;
+
+			// Display category groups
+			displayCategoryGroups(orderData);
 		}
 
-		// Display supplier groups
-		function displaySupplierGroups(orderData) {
-			const container = document.getElementById('supplierGroups');
-			
-			// Group categories by supplier
-			const supplierGroups = {};
-			orderData.categories.forEach(category => {
-				const hasSupplier = category.supplier && category.supplier.name;
-				const supplierKey = hasSupplier ? category.supplier.id : 'no-supplier';
-				
-				if (!supplierGroups[supplierKey]) {
-					supplierGroups[supplierKey] = {
-						supplier: hasSupplier ? category.supplier : null,
-						categories: [],
-						totalItems: 0
-					};
-				}
-				
-				supplierGroups[supplierKey].categories.push(category);
-				supplierGroups[supplierKey].totalItems += category.items.length;
-			});
+		// Display category groups
+		function displayCategoryGroups(orderData) {
+			const container = document.getElementById('categoryGroups');
 
 			let html = '';
-			Object.values(supplierGroups).forEach(supplierGroup => {
-				const hasSupplier = supplierGroup.supplier !== null;
-				const supplierInfo = supplierGroup.supplier;
+
+			// Display each category separately
+			orderData.categories.forEach(category => {
+				const hasSupplier = category.supplier && category.supplier.name;
+				const supplierInfo = category.supplier || {};
 				const hasPhone = hasSupplier && supplierInfo.phone;
-				const allCategoryIds = supplierGroup.categories.map(cat => cat.categoryId);
-				const allItems = supplierGroup.categories.flatMap(cat => cat.items);
-				
+
 				html += `
-					<div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-						<!-- Supplier Header -->
-						<div class="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-4">
-							<div>
-								${hasSupplier ? `
-									<h3 class="text-lg font-semibold text-gray-900 mb-1">📦 ${supplierInfo.name}</h3>
-									${hasPhone ? `
-										<div class="text-sm text-gray-600">📱 ${supplierInfo.phone}</div>
-									` : `
-										<div class="text-sm text-red-500">⚠️ Нет телефона</div>
-									`}
-								` : `
-									<h3 class="text-lg font-semibold text-red-600 mb-1">⚠️ Без поставщика</h3>
-									<div class="text-sm text-gray-600">Категории без назначенного поставщика</div>
-								`}
-							</div>
-						</div>
-						
-						<!-- Categories and Items -->
-						<div class="space-y-4 mb-6">
-							${supplierGroup.categories.map(category => `
-								<div class="border-l-4 border-gray-300 pl-4">
-									<h4 class="font-medium text-gray-800 mb-2">${category.categoryName}</h4>
-									<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-										${category.items.map(item => `
-											<div class="flex justify-between items-center bg-gray-50 rounded px-3 py-2">
-												<span class="text-sm text-gray-700">${item.name}</span>
-												<span class="text-sm font-medium text-gray-900">${item.quantity} ${item.unit}</span>
-											</div>
-										`).join('')}
+					<div class="native-card">
+						<div class="p-4 space-y-3">
+							<!-- Category Header -->
+							<div class="flex items-start justify-between gap-2">
+								<div class="flex-1 min-w-0">
+									<h3 class="font-semibold text-base mb-1">🏷️ ${category.categoryName}</h3>
+									<div class="text-xs text-muted-foreground">
+										${hasSupplier ? `
+											📦 ${supplierInfo.name}${hasPhone ? ` • 📱 ${supplierInfo.phone}` : ' • <span class="text-destructive">⚠️ Нет телефона</span>'}
+										` : `
+											<span class="text-destructive">⚠️ Без поставщика</span>
+										`}
 									</div>
 								</div>
-							`).join('')}
-						</div>
-						
-						<!-- Action Buttons -->
-						<div class="flex flex-col sm:flex-row gap-3">
-							${hasSupplier ? `
-								<button 
-									onclick="sendSupplierOrder('${orderData.date}', [${allCategoryIds.join(',')}], '${supplierInfo.name}', ${supplierInfo.id})"
-									${!hasPhone ? 'disabled' : ''}
-									class="flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${hasPhone ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}"
-								>
-									📱 Отправить поставщику
-								</button>
-							` : `
-								<div class="flex-1 flex flex-wrap gap-2">
-									${supplierGroup.categories.map(category => `
-										<button 
-											onclick="assignSupplierToCategory(${category.categoryId}, '${category.categoryName}')"
-											class="px-3 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm rounded transition-colors"
-										>
-											Назначить поставщика: ${category.categoryName}
-										</button>
-									`).join('')}
+								<div class="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-full">
+									${category.items.length} ${category.items.length === 1 ? 'товар' : category.items.length < 5 ? 'товара' : 'товаров'}
 								</div>
-							`}
-							
+							</div>
+
+							<!-- Items -->
+							<div class="space-y-1">
+								${category.items.map(item => `
+									<div class="flex justify-between items-center bg-secondary/50 rounded-lg px-3 py-2">
+										<span class="text-sm truncate mr-2">${item.name}</span>
+										<span class="text-sm font-medium whitespace-nowrap">${item.quantity} ${item.unit}</span>
+									</div>
+								`).join('')}
+							</div>
+
+							<!-- Action Buttons -->
+							<div class="flex gap-2">
+								${hasSupplier && hasPhone ? `
+									<button
+										onclick="sendSupplierOrder('${orderData.orderId}', [${category.categoryId}], '${supplierInfo.name}', ${supplierInfo.id})"
+										class="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl py-3 px-5 transition-all active:scale-95"
+									>
+										📱 Отправить поставщику
+									</button>
+								` : hasSupplier && !hasPhone ? `
+									<button
+										disabled
+										class="flex-1 bg-secondary text-muted-foreground cursor-not-allowed text-sm font-medium rounded-xl py-3 px-5"
+									>
+										📱 Нет телефона
+									</button>
+								` : `
+									<button
+										onclick="assignSupplierToCategory(${category.categoryId}, '${category.categoryName}')"
+										class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium rounded-xl py-3 px-5 transition-all active:scale-95"
+									>
+										Назначить поставщика
+									</button>
+								`}
+							</div>
 						</div>
 					</div>
 				`;
 			});
-			
-			// Add missing products button after all supplier groups
+
+			// Add missing products button after all categories
 			html += `
-				<div class="mt-6 text-center">
-					<button 
+				<div class="text-center pt-2">
+					<button
 						id="addMissingProductsBtn"
-						onclick="openAddMissingProductsModal()" 
-						class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors"
+						onclick="openAddMissingProductsModal()"
+						class="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium rounded-xl py-4 px-6 transition-all active:scale-95"
 					>
 						➕ Добавить недостающие товары
 					</button>
 				</div>
 			`;
-			
+
 			container.innerHTML = html;
 		}
 
 		// Send order to supplier
-		async function sendSupplierOrder(orderDate, categoryIds, supplierName, supplierId) {
-			console.log(`📤 Sending order to supplier: ${supplierName} for date: ${orderDate}`);
-			
+		async function sendSupplierOrder(orderId, categoryIds, supplierName, supplierId) {
+			console.log(`📤 Sending order to supplier: ${supplierName} for order: ${orderId}`);
+
 			try {
-				// First, get the order data to create WhatsApp message
-				const response = await fetch('/api/orders-by-category');
-				const data = await response.json();
-				
-				if (!data.success) {
-					throw new Error('Failed to load category data');
+				if (!currentOrderData) {
+					throw new Error('Order data not loaded');
 				}
-				
-				// Find the specific date group
-				const dateGroup = data.data.find(d => d.date === orderDate);
-				if (!dateGroup) {
-					throw new Error('Order date not found');
-				}
-				
+
 				// Find all categories for this supplier
-				const categories = dateGroup.categories.filter(cat => categoryIds.includes(cat.categoryId));
-				
+				const categories = currentOrderData.categories.filter(cat => categoryIds.includes(cat.categoryId));
+
 				if (categories.length === 0) {
 					throw new Error('No categories found');
 				}
-				
+
 				// Get supplier phone from first category
 				const supplierPhone = categories[0].supplier?.phone;
 				if (!supplierPhone) {
 					throw new Error('Supplier phone number not found');
 				}
-				
+
 				// Generate consolidated WhatsApp message
-				let message = `📋 Заказ товаров - ${dateGroup.displayDate}\n\n`;
+				let message = `📋 Заказ товаров - ${currentOrderData.displayDate}\n\n`;
 				message += `📦 Поставщик: ${supplierName}\n\n`;
-				
+
 				categories.forEach(category => {
 					message += `🏪 ${category.categoryName}:\n`;
 					category.items.forEach(item => {
@@ -347,24 +378,24 @@ import Layout from '../layouts/Layout.astro';
 					});
 					message += `\n`;
 				});
-				
+
 				const totalItems = categories.reduce((sum, cat) => sum + cat.items.length, 0);
-				message += `📊 Итого: ${totalItems} товаров из ${categories.length} категорий`;
-				
+				message += `📊 Итого: ${totalItems} товаров из ${categories.length} ${categories.length === 1 ? 'категории' : 'категорий'}`;
+
 				// Send via WhatsApp
 				const encodedMessage = encodeURIComponent(message);
 				const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-				
+
 				let whatsappUrl;
 				if (isMobile) {
 					whatsappUrl = `whatsapp://send?phone=${supplierPhone}&text=${encodedMessage}`;
 				} else {
 					whatsappUrl = `https://web.whatsapp.com/send?phone=${supplierPhone}&text=${encodedMessage}`;
 				}
-				
+
 				// Try to open WhatsApp
 				const whatsappWindow = window.open(whatsappUrl, '_blank');
-				
+
 				// If popup was blocked, show manual instructions
 				if (!whatsappWindow || whatsappWindow.closed || typeof whatsappWindow.closed === 'undefined') {
 					const copyMessage = confirm(
@@ -372,7 +403,7 @@ import Layout from '../layouts/Layout.astro';
 						`Телефон: ${supplierPhone}\n\n` +
 						'Нажмите OK, чтобы скопировать текст заказа в буфер обмена.'
 					);
-					
+
 					if (copyMessage) {
 						navigator.clipboard.writeText(message).then(() => {
 							alert(`✅ Текст заказа скопирован!\n\nОткройте WhatsApp вручную и отправьте на номер:\n${supplierPhone}`);
@@ -381,9 +412,9 @@ import Layout from '../layouts/Layout.astro';
 						});
 					}
 				}
-				
+
 				// Update database for all categories
-				const promises = categoryIds.map(categoryId => 
+				const promises = categoryIds.map(categoryId =>
 					fetch('/api/send-category-to-supplier', {
 						method: 'POST',
 						headers: {
@@ -395,22 +426,22 @@ import Layout from '../layouts/Layout.astro';
 						})
 					})
 				);
-				
+
 				const responses = await Promise.all(promises);
 				const results = await Promise.all(responses.map(r => r.json()));
-				
+
 				const successCount = results.filter(r => r.success).length;
 				const failCount = results.filter(r => !r.success).length;
-				
+
 				if (successCount > 0) {
-					alert(`✅ Отправлено ${successCount} категорий через WhatsApp: ${supplierName}`);
+					alert(`✅ Отправлено ${successCount} ${successCount === 1 ? 'категория' : 'категорий'} через WhatsApp: ${supplierName}`);
 					loadOrderDetails(); // Refresh the display
 				}
-				
+
 				if (failCount > 0) {
-					alert(`⚠️ ${failCount} категорий не удалось обновить в БД`);
+					alert(`⚠️ ${failCount} ${failCount === 1 ? 'категорию' : 'категорий'} не удалось обновить в БД`);
 				}
-				
+
 			} catch (error) {
 				console.error('❌ Error sending order:', error);
 				alert('Ошибка при отправке заказа поставщику: ' + error.message);
