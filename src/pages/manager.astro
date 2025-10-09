@@ -2,55 +2,77 @@
 import Layout from '../layouts/Layout.astro';
 ---
 
+<style>
+	/* Hide scrollbar for mobile tabs */
+	.scrollbar-hide {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
+	.scrollbar-hide::-webkit-scrollbar {
+		display: none;
+	}
+
+	/* Smooth scroll for tabs */
+	.overflow-x-auto {
+		scroll-behavior: smooth;
+	}
+
+	/* Mobile-friendly tap targets */
+	.tab-button {
+		-webkit-tap-highlight-color: transparent;
+		touch-action: manipulation;
+	}
+</style>
+
 <Layout title="Менеджер - Панель управления">
-	<div class="min-h-screen bg-background">
-		<!-- Navbar -->
-		<div class="border-b sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-			<div class="container flex h-14 items-center justify-between mx-auto px-4">
-				<div class="flex items-center gap-2">
-					<span class="text-2xl">👔</span>
-					<span class="text-xl font-bold">Менеджер</span>
-				</div>
-				<a href="/" class="text-sm text-muted-foreground hover:text-foreground">
-					← Назад
+	<div class="min-h-screen bg-background pb-20">
+		<!-- Mobile Native Header -->
+		<div class="sticky top-0 z-50 bg-background border-b">
+			<div class="flex items-center h-14 px-4">
+				<a href="/" class="flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-accent transition-colors">
+					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+					</svg>
 				</a>
+				<h1 class="flex-1 text-lg font-semibold ml-2">Панель менеджера</h1>
 			</div>
 		</div>
 
 		<!-- Main Content -->
-		<main class="container mx-auto p-4">
-			<!-- Tabs -->
-			<div class="mb-6">
-				<div class="border-b">
-					<nav class="flex gap-4 -mb-px">
-						<button data-tab="orders" class="tab-button border-b-2 border-primary px-4 py-2 text-sm font-medium">
+		<main>
+			<!-- Mobile Tabs - Horizontal Scroll -->
+			<div class="sticky top-14 z-40 bg-background border-b">
+				<div class="overflow-x-auto scrollbar-hide">
+					<nav class="flex gap-1 px-4 py-2 min-w-max">
+						<button data-tab="orders" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-primary text-primary-foreground">
 							📋 Заказы
 						</button>
-						<button data-tab="delivered" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="delivered" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
 							✅ Доставлено
 						</button>
-						<button data-tab="categories" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="categories" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
 							🏷️ Категории
 						</button>
-						<button data-tab="suppliers" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="suppliers" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
 							🏢 Поставщики
 						</button>
-						<button data-tab="departments" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="departments" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
 							🏪 Отделы
 						</button>
-						<button data-tab="products" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="products" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
 							📦 Товары
 						</button>
-						<button data-tab="settings" class="tab-button px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+						<button data-tab="settings" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
 							⚙️ Настройки
 						</button>
 					</nav>
 				</div>
 			</div>
 
+			<div class="p-4">
+
 			<!-- Orders Tab -->
 			<div id="tab-orders" class="tab-content">
-				<h3 class="text-2xl font-bold mb-4">📋 Заказы по категориям</h3>
 				<div id="ordersByCategory">
 					<div class="text-center text-muted-foreground py-12">
 						<div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
@@ -62,9 +84,11 @@ import Layout from '../layouts/Layout.astro';
 			<!-- Delivered Tab -->
 			<div id="tab-delivered" class="tab-content hidden">
 				<div class="flex justify-between items-center mb-4">
-					<h3 class="text-2xl font-bold">✅ Доставленные заказы</h3>
-					<button onclick="exportAllDeliveredOrders()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
-						📄 Экспорт в Excel
+					<button onclick="exportAllDeliveredOrders()" class="ml-auto inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
+						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+						</svg>
+						Экспорт в Excel
 					</button>
 				</div>
 				<div id="deliveredOrders">
@@ -77,7 +101,6 @@ import Layout from '../layouts/Layout.astro';
 			<!-- Categories Tab -->
 			<div id="tab-categories" class="tab-content hidden">
 				<div class="flex justify-between items-center mb-4">
-					<h3 class="text-2xl font-bold">🏷️ Категории и поставщики</h3>
 					<div class="flex gap-2">
 						<button onclick="runAutoCategorization()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground">
 							🤖 Авто-категоризация
@@ -434,8 +457,8 @@ import Layout from '../layouts/Layout.astro';
 
 			// Remove active state from all buttons
 			document.querySelectorAll('.tab-button').forEach(btn => {
-				btn.classList.remove('border-b-2', 'border-primary');
-				btn.classList.add('text-muted-foreground');
+				btn.classList.remove('bg-primary', 'text-primary-foreground');
+				btn.classList.add('bg-secondary', 'text-secondary-foreground');
 			});
 
 			// Show selected tab
@@ -447,8 +470,8 @@ import Layout from '../layouts/Layout.astro';
 			// Add active state to selected button
 			const selectedButton = document.querySelector(`[data-tab="${tabName}"]`);
 			if (selectedButton) {
-				selectedButton.classList.add('border-b-2', 'border-primary');
-				selectedButton.classList.remove('text-muted-foreground');
+				selectedButton.classList.remove('bg-secondary', 'text-secondary-foreground');
+				selectedButton.classList.add('bg-primary', 'text-primary-foreground');
 			}
 
 			// Load data for specific tabs
@@ -519,29 +542,29 @@ import Layout from '../layouts/Layout.astro';
 				if (data.success && data.data && data.data.length > 0) {
 					container.innerHTML = '';
 					const grid = document.createElement('div');
-					grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+					grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3';
 
 					data.data.forEach(category => {
 						const card = document.createElement('div');
-						card.className = 'rounded-lg border bg-card text-card-foreground shadow-sm p-4';
+						card.className = 'rounded-lg border bg-card p-3';
 						card.innerHTML = `
-							<div class="flex justify-between items-start mb-2">
-								<h4 class="font-semibold text-lg">🏷️ ${category.name}</h4>
+							<div class="flex items-center justify-between gap-2">
+								<div class="flex-1 min-w-0">
+									<h4 class="font-medium text-base truncate">🏷️ ${category.name}</h4>
+									<div class="text-xs text-muted-foreground mt-0.5">
+										${category.supplier_name ?
+											`📦 ${category.supplier_name}` :
+											'<span class="text-destructive">Нет поставщика</span>'
+										}
+									</div>
+								</div>
+								<button
+									onclick="assignSupplierToCategory(${category.id}, '${category.name}')"
+									class="flex-shrink-0 inline-flex items-center justify-center rounded-md text-xs font-medium h-8 px-3 border border-input bg-background hover:bg-accent active:scale-95 transition-transform"
+								>
+									${category.supplier_name ? 'Изменить' : 'Назначить'}
+								</button>
 							</div>
-							<div class="text-sm text-muted-foreground mb-3">
-								${category.supplier_name ?
-									`<div class="flex items-center gap-2">
-										<span>📦 ${category.supplier_name}</span>
-									</div>` :
-									'<span class="text-destructive">⚠️ Нет поставщика</span>'
-								}
-							</div>
-							<button
-								onclick="assignSupplierToCategory(${category.id}, '${category.name}')"
-								class="w-full inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-							>
-								${category.supplier_name ? 'Изменить поставщика' : 'Назначить поставщика'}
-							</button>
 						`;
 						grid.appendChild(card);
 					});
@@ -574,33 +597,27 @@ import Layout from '../layouts/Layout.astro';
 				if (data.success && data.data && data.data.length > 0) {
 					container.innerHTML = '';
 					const grid = document.createElement('div');
-					grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+					grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3';
 
 					data.data.forEach(supplier => {
 						const card = document.createElement('div');
-						card.className = 'rounded-lg border bg-card text-card-foreground shadow-sm p-4';
+						card.className = 'rounded-lg border bg-card p-3';
 						card.innerHTML = `
-							<div class="mb-3">
-								<h4 class="font-semibold text-lg mb-1">🏢 ${supplier.name}</h4>
-								${supplier.phone ?
-									`<div class="text-sm text-muted-foreground flex items-center gap-2">
-										<span>📱 ${supplier.phone}</span>
-									</div>` :
-									''
-								}
-								${supplier.contact_info ?
-									`<div class="text-sm text-muted-foreground mt-1">
-										${supplier.contact_info}
-									</div>` :
-									''
-								}
+							<div class="flex items-start justify-between gap-2">
+								<div class="flex-1 min-w-0">
+									<h4 class="font-medium text-base truncate">🏢 ${supplier.name}</h4>
+									<div class="text-xs text-muted-foreground mt-0.5 space-y-0.5">
+										${supplier.phone ?
+											`<div>📱 ${supplier.phone}</div>` :
+											''
+										}
+										${supplier.contact_info ?
+											`<div class="truncate">${supplier.contact_info}</div>` :
+											''
+										}
+									</div>
+								</div>
 							</div>
-							<button
-								onclick="editSupplier(${supplier.id}, '${supplier.name}', '${supplier.phone || ''}', '${supplier.contact_info || ''}')"
-								class="w-full inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-							>
-								Редактировать
-							</button>
 						`;
 						grid.appendChild(card);
 					});
@@ -813,25 +830,26 @@ import Layout from '../layouts/Layout.astro';
 				if (data.success && data.data && data.data.length > 0) {
 					container.innerHTML = '';
 					const grid = document.createElement('div');
-					grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+					grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3';
 
 					data.data.forEach(section => {
 						const card = document.createElement('div');
-						card.className = 'rounded-lg border bg-card text-card-foreground shadow-sm p-4';
+						card.className = 'rounded-lg border bg-card p-3';
 						card.innerHTML = `
-							<div class="mb-3">
-								<h4 class="font-semibold text-lg">${section.emoji || '📦'} ${section.name}</h4>
-								${section.poster_storage_id ?
-									`<div class="text-sm text-muted-foreground mt-1">
-										🔗 Связано с Poster (ID: ${section.poster_storage_id})
-									</div>` :
-									`<div class="text-sm text-muted-foreground mt-1">
-										📝 Кастомная секция
-									</div>`
-								}
+							<div class="flex items-start justify-between gap-2">
+								<div class="flex-1 min-w-0">
+									<h4 class="font-medium text-base truncate">${section.emoji || '📦'} ${section.name}</h4>
+									<div class="text-xs text-muted-foreground mt-0.5">
+										${section.poster_storage_id ?
+											`🔗 Poster` :
+											`📝 Кастомная`
+										}
+									</div>
+								</div>
 								${section.products_count ?
-									`<div class="text-sm text-muted-foreground mt-1">
-										📦 Товаров: ${section.products_count}
+									`<div class="flex-shrink-0 text-right">
+										<div class="text-lg font-semibold">${section.products_count}</div>
+										<div class="text-[10px] text-muted-foreground">товаров</div>
 									</div>` :
 									''
 								}

@@ -27,7 +27,10 @@
       "Bash(findstr:*)",
       "Bash(echo $env:ANTHROPIC_API_KEY)",
       "Bash(timeout:*)",
-      "Bash(railway shell:*)"
+      "Bash(railway shell:*)",
+      "Bash(echo $env:DATABASE_URL)",
+      "Bash(Get-Content .env)",
+      "Bash(Select-String \"DATABASE_URL\")"
     ],
     "deny": [],
     "ask": []
