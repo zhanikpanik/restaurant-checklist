@@ -1,284 +1,370 @@
-import pool from './db.js';
-import { getTenantFilter } from './tenant.js';
+import pool from "./db.js";
+import { getTenantFilter } from "./tenant.js";
 
 // PostgreSQL-based order storage (replaces JSON file storage)
 
 // Add a new order to PostgreSQL
-export async function addOrder(department, orderData, tenantId = 'default') {
-    const client = await pool.connect();
-    try {
-        const tenantFilter = getTenantFilter(tenantId);
-        
-        // Prepare order data for database storage
-        const dbOrderData = {
-            ...orderData,
-            department: department,
-            timestamp: orderData.timestamp || new Date().toISOString()
-        };
-        
-        console.log(`💾 Saving order to PostgreSQL for ${department}:`, dbOrderData);
-        
-        const result = await client.query(
-            `INSERT INTO orders (restaurant_id, order_data, status, created_by_role, created_at) 
-             VALUES ($1, $2, $3, $4, $5) 
+export async function addOrder(department, orderData, tenantId = "default") {
+  const client = await pool.connect();
+  try {
+    const tenantFilter = getTenantFilter(tenantId);
+
+    // Prepare order data for database storage
+    const dbOrderData = {
+      ...orderData,
+      department: department,
+      timestamp: orderData.timestamp || new Date().toISOString(),
+    };
+
+    console.log(
+      `💾 Saving order to PostgreSQL for ${department}:`,
+      dbOrderData,
+    );
+
+    const result = await client.query(
+      `INSERT INTO orders (restaurant_id, order_data, status, created_by_role, created_at)
+             VALUES ($1, $2, $3, $4, $5)
              RETURNING id, created_at`,
-            [
-                tenantFilter.restaurant_id,
-                JSON.stringify(dbOrderData),
-                orderData.status || 'pending',
-                orderData.created_by_role || department,
-                new Date(dbOrderData.timestamp)
-            ]
-        );
-        
-        console.log(`✅ Order saved to PostgreSQL with ID: ${result.rows[0].id}`);
-        return true;
-        
-    } catch (error) {
-        console.error(`❌ Failed to save order to PostgreSQL:`, error);
-        return false;
-    } finally {
-        client.release();
-    }
+      [
+        tenantFilter.restaurant_id,
+        JSON.stringify(dbOrderData),
+        orderData.status || "pending",
+        orderData.created_by_role || department,
+        new Date(dbOrderData.timestamp),
+      ],
+    );
+
+    console.log(`✅ Order saved to PostgreSQL with ID: ${result.rows[0].id}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Failed to save order to PostgreSQL:`, error);
+    return false;
+  } finally {
+    client.release();
+  }
 }
 
 // Read orders from PostgreSQL for specific department
-export async function readOrders(department, tenantId = 'default') {
-    const client = await pool.connect();
-    try {
-        const tenantFilter = getTenantFilter(tenantId);
+export async function readOrders(department, tenantId = "default") {
+  const client = await pool.connect();
+  try {
+    const tenantFilter = getTenantFilter(tenantId);
 
-        console.log(`🔍 [readOrders] Querying for department: "${department}", tenant: "${tenantFilter.restaurant_id}"`);
+    console.log(
+      `🔍 [readOrders] Querying for department: "${department}", tenant: "${tenantFilter.restaurant_id}"`,
+    );
 
-        const result = await client.query(
-            `SELECT id, order_data, status, created_at, sent_at, delivered_at
+    const result = await client.query(
+      `SELECT id, order_data, status, created_at, sent_at, delivered_at
              FROM orders
              WHERE restaurant_id = $1 AND (order_data->>'department' = $2)
              ORDER BY created_at DESC
              LIMIT 50`,
-            [tenantFilter.restaurant_id, department]
-        );
+      [tenantFilter.restaurant_id, department],
+    );
 
-        console.log(`📊 [readOrders] Query returned ${result.rows.length} rows`);
-        if (result.rows.length > 0) {
-            console.log(`📝 [readOrders] First order department:`, result.rows[0].order_data?.department);
-        }
-
-        // Parse order_data JSON and add database fields
-        const orders = result.rows.map(row => ({
-            ...row.order_data,
-            db_id: row.id,
-            db_status: row.status,
-            db_created_at: row.created_at,
-            db_sent_at: row.sent_at,
-            db_delivered_at: row.delivered_at
-        }));
-
-        console.log(`📊 Retrieved ${orders.length} orders for ${department} from PostgreSQL`);
-        return orders;
-        
-    } catch (error) {
-        console.error(`❌ Failed to read orders from PostgreSQL:`, error);
-        return [];
-    } finally {
-        client.release();
+    console.log(`📊 [readOrders] Query returned ${result.rows.length} rows`);
+    if (result.rows.length > 0) {
+      console.log(
+        `📝 [readOrders] First order department:`,
+        result.rows[0].order_data?.department,
+      );
     }
+
+    // Parse order_data JSON and add database fields
+    const orders = result.rows.map((row) => ({
+      ...row.order_data,
+      db_id: row.id,
+      db_status: row.status,
+      db_created_at: row.created_at,
+      db_sent_at: row.sent_at,
+      db_delivered_at: row.delivered_at,
+    }));
+
+    console.log(
+      `📊 Retrieved ${orders.length} orders for ${department} from PostgreSQL`,
+    );
+    return orders;
+  } catch (error) {
+    console.error(`❌ Failed to read orders from PostgreSQL:`, error);
+    return [];
+  } finally {
+    client.release();
+  }
 }
 
 // Get all orders from PostgreSQL (both departments)
-export async function getAllOrders(tenantId = 'default') {
-    const client = await pool.connect();
-    try {
-        const tenantFilter = getTenantFilter(tenantId);
-        
-        const result = await client.query(
-            `SELECT id, order_data, status, created_at, sent_at, delivered_at 
-             FROM orders 
-             WHERE restaurant_id = $1 
-             ORDER BY created_at DESC 
-             LIMIT 100`,
-            [tenantFilter.restaurant_id]
-        );
-        
-        // Parse order_data JSON and add database fields
-        const orders = result.rows.map(row => ({
-            ...row.order_data,
-            db_id: row.id,
-            db_status: row.status,
-            db_created_at: row.created_at,
-            db_sent_at: row.sent_at,
-            db_delivered_at: row.delivered_at
-        }));
+export async function getAllOrders(tenantId = "default") {
+  const client = await pool.connect();
+  try {
+    const tenantFilter = getTenantFilter(tenantId);
 
-        console.log(`📊 Retrieved ${orders.length} total orders from PostgreSQL`);
-        if (orders.length > 0) {
-            const depts = orders.map(o => o.department);
-            console.log(`📝 [getAllOrders] Departments in orders:`, depts);
-        }
-        return orders;
-        
-    } catch (error) {
-        console.error(`❌ Failed to read all orders from PostgreSQL:`, error);
-        return [];
-    } finally {
-        client.release();
+    const result = await client.query(
+      `SELECT id, order_data, status, created_at, sent_at, delivered_at
+             FROM orders
+             WHERE restaurant_id = $1
+             ORDER BY created_at DESC
+             LIMIT 100`,
+      [tenantFilter.restaurant_id],
+    );
+
+    // Parse order_data JSON and add database fields
+    const orders = result.rows.map((row) => ({
+      ...row.order_data,
+      db_id: row.id,
+      db_status: row.status,
+      db_created_at: row.created_at,
+      db_sent_at: row.sent_at,
+      db_delivered_at: row.delivered_at,
+    }));
+
+    console.log(`📊 Retrieved ${orders.length} total orders from PostgreSQL`);
+    if (orders.length > 0) {
+      const depts = orders.map((o) => o.department);
+      console.log(`📝 [getAllOrders] Departments in orders:`, depts);
     }
+    return orders;
+  } catch (error) {
+    console.error(`❌ Failed to read all orders from PostgreSQL:`, error);
+    return [];
+  } finally {
+    client.release();
+  }
 }
 
 // Update order status in PostgreSQL
-export async function updateOrderStatus(orderId, status, tenantId = 'default') {
-    const client = await pool.connect();
-    try {
-        const tenantFilter = getTenantFilter(tenantId);
-        
-        let updateFields = ['status = $2'];
-        let values = [tenantFilter.restaurant_id, status];
-        
-        // Add timestamp fields based on status
-        if (status === 'sent') {
-            updateFields.push('sent_at = $3');
-            values.push(new Date());
-        } else if (status === 'delivered') {
-            updateFields.push('delivered_at = $3');
-            values.push(new Date());
-        }
-        
-        const query = `
-            UPDATE orders 
-            SET ${updateFields.join(', ')} 
+export async function updateOrderStatus(orderId, status, tenantId = "default") {
+  const client = await pool.connect();
+  try {
+    const tenantFilter = getTenantFilter(tenantId);
+
+    let updateFields = ["status = $2"];
+    let values = [tenantFilter.restaurant_id, status];
+
+    // Add timestamp fields based on status
+    if (status === "sent") {
+      updateFields.push("sent_at = $3");
+      values.push(new Date());
+    } else if (status === "delivered") {
+      updateFields.push("delivered_at = $3");
+      values.push(new Date());
+    }
+
+    const query = `
+            UPDATE orders
+            SET ${updateFields.join(", ")}
             WHERE restaurant_id = $1 AND id = $${values.length + 1}
             RETURNING id, status
         `;
-        values.push(orderId);
-        
-        const result = await client.query(query, values);
-        
-        if (result.rows.length > 0) {
-            console.log(`✅ Updated order ${orderId} status to ${status}`);
-            return true;
-        } else {
-            console.log(`⚠️ Order ${orderId} not found or not updated`);
-            return false;
-        }
-        
-    } catch (error) {
-        console.error(`❌ Failed to update order status:`, error);
-        return false;
-    } finally {
-        client.release();
+    values.push(orderId);
+
+    const result = await client.query(query, values);
+
+    if (result.rows.length > 0) {
+      console.log(`✅ Updated order ${orderId} status to ${status}`);
+      return true;
+    } else {
+      console.log(`⚠️ Order ${orderId} not found or not updated`);
+      return false;
     }
+  } catch (error) {
+    console.error(`❌ Failed to update order status:`, error);
+    return false;
+  } finally {
+    client.release();
+  }
 }
 
 // Update order with delivery information (status + adjusted quantities)
-export async function updateOrderWithDelivery(orderId, deliveredItems, tenantId = 'default') {
-    const client = await pool.connect();
-    try {
-        const tenantFilter = getTenantFilter(tenantId);
-        
-        // First, fetch the current order
-        const fetchQuery = 'SELECT order_data FROM orders WHERE restaurant_id = $1 AND id = $2';
-        const fetchResult = await client.query(fetchQuery, [tenantFilter.restaurant_id, orderId]);
-        
-        if (fetchResult.rows.length === 0) {
-            console.log(`⚠️ Order ${orderId} not found`);
-            return false;
-        }
-        
-        const orderData = fetchResult.rows[0].order_data;
-        
-        // Update items with delivered quantities
-        const updatedItems = orderData.items.map(item => {
-            const deliveredItem = deliveredItems.find(d => d.id == item.id);
-            if (deliveredItem) {
-                return {
-                    ...item,
-                    orderedQuantity: item.shoppingQuantity || item.quantity, // Save original ordered amount
-                    deliveredQuantity: deliveredItem.deliveredQuantity, // Save delivered amount
-                    quantity: deliveredItem.deliveredQuantity, // Update main quantity field
-                    shoppingQuantity: deliveredItem.deliveredQuantity
-                };
-            }
-            return item;
-        });
-        
-        // Update order_data with new items and status
-        const updatedOrderData = {
-            ...orderData,
-            items: updatedItems,
-            status: 'delivered'
+export async function updateOrderWithDelivery(
+  orderId,
+  deliveredItems,
+  tenantId = "default",
+) {
+  const client = await pool.connect();
+  try {
+    const tenantFilter = getTenantFilter(tenantId);
+
+    // First, fetch the current order
+    const fetchQuery =
+      "SELECT order_data FROM orders WHERE restaurant_id = $1 AND id = $2";
+    const fetchResult = await client.query(fetchQuery, [
+      tenantFilter.restaurant_id,
+      orderId,
+    ]);
+
+    if (fetchResult.rows.length === 0) {
+      console.log(`⚠️ Order ${orderId} not found`);
+      return false;
+    }
+
+    const orderData = fetchResult.rows[0].order_data;
+
+    // Update items with delivered quantities
+    const updatedItems = orderData.items.map((item) => {
+      const deliveredItem = deliveredItems.find((d) => d.id == item.id);
+      if (deliveredItem) {
+        return {
+          ...item,
+          orderedQuantity: item.shoppingQuantity || item.quantity, // Save original ordered amount
+          deliveredQuantity: deliveredItem.deliveredQuantity, // Save delivered amount
+          quantity: deliveredItem.deliveredQuantity, // Update main quantity field
+          shoppingQuantity: deliveredItem.deliveredQuantity,
         };
-        
-        // Update the order in database
-        const updateQuery = `
-            UPDATE orders 
-            SET order_data = $2, 
-                status = 'delivered', 
-                delivered_at = $3 
+      }
+      return item;
+    });
+
+    // Update order_data with new items and status
+    const updatedOrderData = {
+      ...orderData,
+      items: updatedItems,
+      status: "delivered",
+    };
+
+    // Update the order in database
+    const updateQuery = `
+            UPDATE orders
+            SET order_data = $2,
+                status = 'delivered',
+                delivered_at = $3
             WHERE restaurant_id = $1 AND id = $4
             RETURNING id, status
         `;
-        
-        const result = await client.query(updateQuery, [
-            tenantFilter.restaurant_id,
-            updatedOrderData,
-            new Date(),
-            orderId
-        ]);
-        
-        if (result.rows.length > 0) {
-            console.log(`✅ Order ${orderId} marked as delivered with updated quantities`);
-            return true;
-        } else {
-            console.log(`⚠️ Order ${orderId} not updated`);
-            return false;
-        }
-        
-    } catch (error) {
-        console.error(`❌ Failed to update order with delivery:`, error);
-        return false;
-    } finally {
-        client.release();
+
+    const result = await client.query(updateQuery, [
+      tenantFilter.restaurant_id,
+      updatedOrderData,
+      new Date(),
+      orderId,
+    ]);
+
+    if (result.rows.length > 0) {
+      console.log(
+        `✅ Order ${orderId} marked as delivered with updated quantities`,
+      );
+      return true;
+    } else {
+      console.log(`⚠️ Order ${orderId} not updated`);
+      return false;
     }
+  } catch (error) {
+    console.error(`❌ Failed to update order with delivery:`, error);
+    return false;
+  } finally {
+    client.release();
+  }
+}
+
+// Get a single order by ID
+export async function getOrderById(orderId, tenantId = "default") {
+  const client = await pool.connect();
+  try {
+    const tenantFilter = getTenantFilter(tenantId);
+
+    const result = await client.query(
+      `SELECT id, order_data, status, created_at, sent_at, delivered_at
+             FROM orders
+             WHERE restaurant_id = $1 AND id = $2`,
+      [tenantFilter.restaurant_id, orderId],
+    );
+
+    if (result.rows.length > 0) {
+      const row = result.rows[0];
+      return {
+        ...row.order_data,
+        db_id: row.id,
+        db_status: row.status,
+        db_created_at: row.created_at,
+        db_sent_at: row.sent_at,
+        db_delivered_at: row.delivered_at,
+        order_data: row.order_data, // Keep original order_data structure
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error(`❌ Failed to get order by ID:`, error);
+    return null;
+  } finally {
+    client.release();
+  }
 }
 
 // Delete old orders (cleanup function)
-export async function deleteOldOrders(daysOld = 30, tenantId = 'default') {
-    const client = await pool.connect();
-    try {
-        const tenantFilter = getTenantFilter(tenantId);
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-        
-        const result = await client.query(
-            `DELETE FROM orders 
+export async function deleteOrder(orderId, tenantId = "default") {
+  const client = await pool.connect();
+  try {
+    const tenantFilter = getTenantFilter(tenantId);
+
+    const result = await client.query(
+      `DELETE FROM orders
+             WHERE restaurant_id = $1 AND id = $2
+             RETURNING id`,
+      [tenantFilter.restaurant_id, orderId],
+    );
+
+    if (result.rows.length > 0) {
+      console.log(`🗑️ Deleted order #${orderId}`);
+      return true;
+    } else {
+      console.log(`⚠️ Order #${orderId} not found`);
+      return false;
+    }
+  } catch (error) {
+    console.error(`❌ Failed to delete order #${orderId}:`, error);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deleteOldOrders(daysOld = 30, tenantId = "default") {
+  const client = await pool.connect();
+  try {
+    const tenantFilter = getTenantFilter(tenantId);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+    const result = await client.query(
+      `DELETE FROM orders
              WHERE restaurant_id = $1 AND created_at < $2
              RETURNING id`,
-            [tenantFilter.restaurant_id, cutoffDate]
-        );
-        
-        console.log(`🗑️ Deleted ${result.rows.length} old orders (older than ${daysOld} days)`);
-        return result.rows.length;
-        
-    } catch (error) {
-        console.error(`❌ Failed to delete old orders:`, error);
-        return 0;
-    } finally {
-        client.release();
-    }
+      [tenantFilter.restaurant_id, cutoffDate],
+    );
+
+    console.log(
+      `🗑️ Deleted ${result.rows.length} old orders (older than ${daysOld} days)`,
+    );
+    return result.rows.length;
+  } catch (error) {
+    console.error(`❌ Failed to delete old orders:`, error);
+    return 0;
+  } finally {
+    client.release();
+  }
 }
 
 // Migrate localStorage orders to PostgreSQL
-export async function migrateLocalStorageOrders(localStorageOrders, department, tenantId = 'default') {
-    console.log(`🔄 Migrating ${localStorageOrders.length} orders from localStorage to PostgreSQL...`);
-    
-    let migratedCount = 0;
-    for (const order of localStorageOrders) {
-        const success = await addOrder(department, order, tenantId);
-        if (success) {
-            migratedCount++;
-        }
+export async function migrateLocalStorageOrders(
+  localStorageOrders,
+  department,
+  tenantId = "default",
+) {
+  console.log(
+    `🔄 Migrating ${localStorageOrders.length} orders from localStorage to PostgreSQL...`,
+  );
+
+  let migratedCount = 0;
+  for (const order of localStorageOrders) {
+    const success = await addOrder(department, order, tenantId);
+    if (success) {
+      migratedCount++;
     }
-    
-    console.log(`✅ Migrated ${migratedCount}/${localStorageOrders.length} orders to PostgreSQL`);
-    return migratedCount;
+  }
+
+  console.log(
+    `✅ Migrated ${migratedCount}/${localStorageOrders.length} orders to PostgreSQL`,
+  );
+  return migratedCount;
 }

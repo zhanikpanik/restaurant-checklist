@@ -6,9 +6,10 @@
 
 	interface Props {
 		order: any;
+		onDelete?: (orderId: string) => void;
 	}
 
-	let { order }: Props = $props();
+	let { order, onDelete }: Props = $props();
 
 	const statusVariant = $derived(order.status === 'pending' ? 'secondary' :
 	                      order.status === 'sent' ? 'default' : 'outline');
@@ -16,6 +17,28 @@
 	                   order.status === 'sent' ? 'Отправлен' : 'Доставлен');
 
 	let expanded = $state(false);
+
+	async function handleDelete() {
+		if (!confirm(`Удалить заказ #${order.orderId}?`)) return;
+
+		try {
+			const response = await fetch('/api/delete-order', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ orderId: order.orderId })
+			});
+
+			const result = await response.json();
+			if (result.success) {
+				onDelete?.(order.orderId);
+			} else {
+				alert(`Ошибка: ${result.error}`);
+			}
+		} catch (error) {
+			alert('Ошибка при удалении заказа');
+			console.error(error);
+		}
+	}
 </script>
 
 <Card class="p-3 space-y-3">
@@ -106,6 +129,9 @@
 		</Button>
 		<Button variant="ghost" size="sm" class="flex-1 h-9 text-xs">
 			📄 Excel
+		</Button>
+		<Button variant="destructive" size="sm" class="h-9 text-xs px-3" onclick={handleDelete}>
+			🗑️
 		</Button>
 	</div>
 </Card>

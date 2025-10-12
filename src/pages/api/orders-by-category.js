@@ -39,14 +39,19 @@ export async function GET({ request }) {
     try {
         const restaurantId = getTenantId(request);
         console.log(`🏢 [orders-by-category] Tenant ID: ${restaurantId}`);
-        
+
+        // Get status filter from query params
+        const url = new URL(request.url);
+        const statusFilter = url.searchParams.get('status');
+        console.log(`🔍 [orders-by-category] Status filter: ${statusFilter || 'pending/sent (default)'}`);
+
         // Check if orders table has restaurant_id column
         const ordersTableCheck = await client.query(`
-            SELECT column_name 
-            FROM information_schema.columns 
+            SELECT column_name
+            FROM information_schema.columns
             WHERE table_name = 'orders'
         `);
-        
+
         const orderColumns = ordersTableCheck.rows.map(row => row.column_name);
         const ordersHasRestaurantId = orderColumns.includes('restaurant_id');
 
@@ -66,6 +71,15 @@ export async function GET({ request }) {
         // If no sections exist, we won't filter orders (backward compatibility)
         const shouldFilterBySections = activeSections.length > 0;
 
+        // Build status condition based on filter
+        let statusCondition;
+        if (statusFilter === 'delivered') {
+            statusCondition = "o.status = 'delivered'";
+        } else {
+            // Default: show pending and sent orders
+            statusCondition = "o.status IN ('pending', 'sent')";
+        }
+
         // Get all orders from database
         let ordersQuery, ordersParams;
         if (ordersHasRestaurantId) {
@@ -78,7 +92,7 @@ export async function GET({ request }) {
                     o.created_by_role
                 FROM orders o
                 WHERE o.restaurant_id = $1
-                AND o.status IN ('pending', 'sent')
+                AND ${statusCondition}
                 ORDER BY o.created_at DESC
             `;
             ordersParams = [restaurantId];
@@ -91,7 +105,7 @@ export async function GET({ request }) {
                     o.created_at,
                     o.created_by_role
                 FROM orders o
-                WHERE o.status IN ('pending', 'sent')
+                WHERE ${statusCondition}
                 ORDER BY o.created_at DESC
             `;
             ordersParams = [];

@@ -1,0 +1,960 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Корзина">
+    <div class="min-h-screen bg-gray-50 pb-40">
+        <!-- Header -->
+        <header
+            class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-5 sticky top-0 z-10 shadow-lg"
+        >
+            <div class="max-w-2xl mx-auto">
+                <div class="flex items-center justify-between">
+                    <button
+                        id="backBtn"
+                        class="text-blue-100 hover:text-white transition-colors"
+                    >
+                        <svg
+                            class="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </button>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl">🛒</span>
+                        <h1 class="text-xl font-bold">Корзина</h1>
+                    </div>
+                    <button
+                        id="clearAllBtn"
+                        class="text-blue-100 hover:text-white transition-colors"
+                    >
+                        <svg
+                            class="w-6 h-6"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            ></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-2xl mx-auto px-4 py-6">
+            <!-- Loading State -->
+            <div id="loadingState" class="text-center py-12">
+                <div
+                    class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"
+                >
+                </div>
+                <p class="text-gray-600">Загрузка...</p>
+            </div>
+
+            <!-- Empty Cart State -->
+            <div id="emptyCartState" class="hidden text-center py-12">
+                <div class="text-6xl mb-4">🛒</div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">
+                    Корзина пуста
+                </h2>
+                <p class="text-gray-600 mb-8">
+                    Добавьте товары из любого отдела
+                </p>
+                <div class="flex flex-wrap gap-3 justify-center">
+                    <a
+                        href="/bar"
+                        class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                        🍷 Бар
+                    </a>
+                    <a
+                        href="/kitchen"
+                        class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                        🍳 Кухня
+                    </a>
+                    <a
+                        href="/custom"
+                        class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                    >
+                        🧹 Горничная
+                    </a>
+                </div>
+            </div>
+
+            <!-- Cart Content -->
+            <div id="cartContent" class="hidden space-y-4">
+                <!-- Cart Items -->
+                <div id="cartItems" class="space-y-4">
+                    <!-- Items will be populated by JavaScript -->
+                </div>
+
+                <!-- Poster Supply Settings -->
+                <div
+                    id="posterSettings"
+                    class="bg-blue-50 rounded-xl shadow-sm border border-blue-200 p-4 space-y-3"
+                >
+                    <div
+                        class="flex items-center space-x-2 text-blue-700 font-medium"
+                    >
+                        <span class="text-xl">📦</span>
+                        <span>Настройки для Poster</span>
+                    </div>
+
+                    <div class="space-y-2">
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Поставщик</label
+                            >
+                            <select
+                                id="supplierSelect"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            >
+                                <option value=""
+                                    >-- Выберите поставщика --</option
+                                >
+                            </select>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-1"
+                                >Склад</label
+                            >
+                            <select
+                                id="storageSelect"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            >
+                                <option value="">-- Выберите склад --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="text-xs text-gray-600">
+                        💡 При создании заказа автоматически создастся поставка
+                        в Poster (если настроено)
+                    </div>
+                </div>
+
+                <!-- Add Missed Products Button -->
+                <div
+                    class="bg-white rounded-xl shadow-sm border border-gray-200 p-4"
+                >
+                    <button
+                        id="addMoreBtn"
+                        class="w-full flex items-center justify-center space-x-2 text-blue-600 hover:text-blue-700 font-medium py-2 transition-colors"
+                    >
+                        <svg
+                            class="w-5 h-5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span>Добавить пропущенные товары</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Fixed Bottom Action Bar -->
+        <div
+            id="actionBar"
+            class="hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-2xl"
+        >
+            <div class="max-w-2xl mx-auto px-4 py-4">
+                <div class="space-y-3">
+                    <!-- Order Summary -->
+                    <div
+                        id="orderSummary"
+                        class="text-center text-sm text-gray-600 font-medium"
+                    >
+                        <!-- Will be populated by JS -->
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <!-- Copy to WhatsApp Button -->
+                        <button
+                            id="copyWhatsAppBtn"
+                            class="flex items-center justify-center space-x-2 bg-green-600 hover:bg-green-700 text-white font-medium py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                        >
+                            <span class="text-xl">📋</span>
+                            <span>Копировать</span>
+                        </button>
+
+                        <!-- Create Order Button -->
+                        <button
+                            id="createOrderBtn"
+                            class="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+                        >
+                            <span class="text-xl">✅</span>
+                            <span>Создать</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Missed Products Modal -->
+        <div
+            id="addProductModal"
+            class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center"
+        >
+            <div
+                class="bg-white rounded-t-3xl sm:rounded-2xl w-full sm:max-w-md max-h-[80vh] flex flex-col"
+            >
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-gray-900">
+                            Добавить товар
+                        </h3>
+                        <button
+                            id="closeModalBtn"
+                            class="text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <svg
+                                class="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6 overflow-y-auto">
+                    <div class="space-y-4">
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >Название товара</label
+                            >
+                            <input
+                                type="text"
+                                id="productName"
+                                placeholder="Например: Молоко"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                    >Количество</label
+                                >
+                                <input
+                                    type="number"
+                                    id="productQuantity"
+                                    value="1"
+                                    min="0.1"
+                                    step="0.1"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            <div>
+                                <label
+                                    class="block text-sm font-medium text-gray-700 mb-2"
+                                    >Единица</label
+                                >
+                                <select
+                                    id="productUnit"
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                    <option value="шт">шт</option>
+                                    <option value="л">л</option>
+                                    <option value="кг">кг</option>
+                                    <option value="г">г</option>
+                                    <option value="п">п</option>
+                                    <option value="уп">уп</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label
+                                class="block text-sm font-medium text-gray-700 mb-2"
+                                >Отдел</label
+                            >
+                            <select
+                                id="productDepartment"
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="bar">🍷 Бар</option>
+                                <option value="kitchen">🍳 Кухня</option>
+                                <option value="custom">🧹 Горничная</option>
+                            </select>
+                        </div>
+
+                        <button
+                            id="addProductBtn"
+                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-4 rounded-lg transition-colors duration-200"
+                        >
+                            Добавить товар
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script is:inline>
+        // Helper to get raw localStorage value when we already have the full key with tenant prefix
+        function getRawLocalStorageItem(fullKey) {
+            // Access the actual localStorage storage directly without going through the wrapped getItem
+            try {
+                return window.localStorage[fullKey];
+            } catch {
+                return null;
+            }
+        }
+
+        // Helper to remove raw localStorage item when we already have the full key with tenant prefix
+        function removeRawLocalStorageItem(fullKey) {
+            try {
+                delete window.localStorage[fullKey];
+            } catch {
+                // Fallback to removeItem
+                window.localStorage.removeItem(fullKey);
+            }
+        }
+
+        // Load suppliers and storages for Poster
+        async function loadPosterSettings() {
+            try {
+                // Load suppliers
+                const suppliersResponse = await fetch("/api/suppliers");
+                const suppliersData = await suppliersResponse.json();
+
+                const supplierSelect =
+                    document.getElementById("supplierSelect");
+                if (
+                    suppliersData.success &&
+                    suppliersData.data &&
+                    suppliersData.data.length > 0
+                ) {
+                    suppliersData.data.forEach((supplier) => {
+                        const option = document.createElement("option");
+                        option.value = supplier.id;
+                        option.textContent = supplier.name;
+                        supplierSelect.appendChild(option);
+                    });
+                }
+
+                // Load Poster storages
+                const storagesResponse = await fetch("/api/poster-storages");
+                const storagesData = await storagesResponse.json();
+
+                const storageSelect = document.getElementById("storageSelect");
+                if (
+                    storagesData.success &&
+                    storagesData.data &&
+                    storagesData.data.length > 0
+                ) {
+                    storagesData.data.forEach((storage) => {
+                        const option = document.createElement("option");
+                        option.value = storage.id;
+                        option.textContent = storage.name;
+                        storageSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error("⚠️ Failed to load Poster settings:", error);
+                // Don't show error to user, just log it
+            }
+        }
+
+        // Load cart data and display
+        function loadCartData() {
+            const loadingState = document.getElementById("loadingState");
+            const emptyCartState = document.getElementById("emptyCartState");
+            const cartContent = document.getElementById("cartContent");
+            const actionBar = document.getElementById("actionBar");
+
+            // Get all orders from departments
+            const allOrders = getAllDepartmentOrders();
+
+            // Hide loading
+            loadingState.style.display = "none";
+
+            if (allOrders.totalItems === 0) {
+                emptyCartState.classList.remove("hidden");
+                return;
+            }
+
+            // Show cart content and action bar
+            cartContent.classList.remove("hidden");
+            actionBar.classList.remove("hidden");
+
+            // Populate cart items
+            populateCartItems(allOrders);
+
+            // Update order summary
+            updateOrderSummary(allOrders);
+
+            // Load Poster settings (suppliers and storages)
+            loadPosterSettings();
+        }
+
+        // Populate cart items grouped by department
+        function populateCartItems(allOrders) {
+            const cartItems = document.getElementById("cartItems");
+            let itemsHtml = "";
+
+            allOrders.departments.forEach((dept) => {
+                const deptItems = allOrders.allItems.filter(
+                    (item) => item.departmentName === dept.name,
+                );
+
+                itemsHtml += `
+					<div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+						<div class="bg-gradient-to-r ${getDepartmentGradient(dept.name)} px-4 py-3 flex items-center justify-between">
+							<h3 class="font-semibold text-white flex items-center space-x-2">
+								<span>${dept.emoji}</span>
+								<span>${dept.name}</span>
+								<span class="text-xs bg-white bg-opacity-30 px-2 py-0.5 rounded-full">${dept.count}</span>
+							</h3>
+						</div>
+						<div class="divide-y divide-gray-100">
+				`;
+
+                deptItems.forEach((item) => {
+                    itemsHtml += `
+						<div class="p-4 hover:bg-gray-50 transition-colors">
+							<div class="flex items-center justify-between gap-3">
+								<div class="flex-1 min-w-0">
+									<div class="font-medium text-gray-900 truncate">${item.name}</div>
+									${item.department !== "custom" && item.quantity ? `<div class="text-xs text-gray-500 mt-0.5">Остаток: ${item.quantity} ${item.unit}</div>` : ""}
+								</div>
+								<div class="flex items-center space-x-2 flex-shrink-0">
+									<button
+										onclick="updateItemQuantity('${item.id}', '${item.department}', ${item.shoppingQuantity - 1})"
+										class="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-lg flex items-center justify-center text-gray-700 font-bold transition-colors"
+									>
+										−
+									</button>
+									<div class="w-16 text-center">
+										<div class="font-bold text-lg text-gray-900">${item.shoppingQuantity}</div>
+										<div class="text-xs text-gray-500">${item.unit}</div>
+									</div>
+									<button
+										onclick="updateItemQuantity('${item.id}', '${item.department}', ${item.shoppingQuantity + 1})"
+										class="w-9 h-9 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center justify-center text-white font-bold transition-colors"
+									>
+										+
+									</button>
+									<button
+										onclick="removeItem('${item.id}', '${item.department}')"
+										class="w-9 h-9 text-red-600 hover:bg-red-50 rounded-lg flex items-center justify-center transition-colors"
+										title="Удалить"
+									>
+										<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+										</svg>
+									</button>
+								</div>
+							</div>
+						</div>
+					`;
+                });
+
+                itemsHtml += `
+						</div>
+					</div>
+				`;
+            });
+
+            cartItems.innerHTML = itemsHtml;
+        }
+
+        // Get department gradient color
+        function getDepartmentGradient(deptName) {
+            if (deptName === "Бар") return "from-purple-600 to-purple-700";
+            if (deptName === "Кухня") return "from-orange-600 to-orange-700";
+            if (deptName === "Горничная") return "from-green-600 to-green-700";
+            return "from-blue-600 to-blue-700";
+        }
+
+        // Update order summary in bottom bar
+        function updateOrderSummary(allOrders) {
+            const orderSummary = document.getElementById("orderSummary");
+            orderSummary.innerHTML = `<strong>${allOrders.totalItems}</strong> товар${getItemEnding(allOrders.totalItems)} из ${allOrders.departments.length} отдел${getDepartmentEnding(allOrders.departments.length)}`;
+        }
+
+        // Update item quantity
+        function updateItemQuantity(itemId, department, newQuantity) {
+            if (newQuantity < 0) return;
+
+            const storageKey = `${department}ShoppingList`;
+            const items = JSON.parse(localStorage.getItem(storageKey) || "[]");
+
+            const itemIndex = items.findIndex((item) => item.id == itemId);
+            if (itemIndex !== -1) {
+                if (newQuantity === 0) {
+                    items.splice(itemIndex, 1);
+                } else {
+                    items[itemIndex].shoppingQuantity = newQuantity;
+                }
+
+                if (items.length > 0) {
+                    localStorage.setItem(storageKey, JSON.stringify(items));
+                } else {
+                    localStorage.removeItem(storageKey);
+                }
+            }
+
+            // Reload cart to reflect changes
+            loadCartData();
+        }
+
+        // Remove item completely
+        function removeItem(itemId, department) {
+            if (confirm("Удалить товар из корзины?")) {
+                updateItemQuantity(itemId, department, 0);
+            }
+        }
+
+        // Clear all items
+        function clearAll() {
+            if (confirm("Очистить всю корзину?")) {
+                // Clear all shopping lists (including dynamic department ones)
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.includes("ShoppingList")) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach((key) => removeRawLocalStorageItem(key));
+                location.reload();
+            }
+        }
+
+        // Copy to WhatsApp
+        function copyToWhatsApp() {
+            const allOrders = getAllDepartmentOrders();
+            if (allOrders.totalItems === 0) return;
+
+            const message = generateWhatsAppMessage(allOrders);
+
+            // Copy to clipboard
+            navigator.clipboard
+                .writeText(message)
+                .then(() => {
+                    const btn = document.getElementById("copyWhatsAppBtn");
+                    const originalHTML = btn.innerHTML;
+                    btn.innerHTML =
+                        '<span class="text-xl">✅</span><span>Скопировано!</span>';
+                    btn.classList.remove("bg-green-600", "hover:bg-green-700");
+                    btn.classList.add("bg-gray-600");
+
+                    setTimeout(() => {
+                        btn.innerHTML = originalHTML;
+                        btn.classList.remove("bg-gray-600");
+                        btn.classList.add("bg-green-600", "hover:bg-green-700");
+                    }, 2000);
+                })
+                .catch((err) => {
+                    console.error("Failed to copy:", err);
+                    alert("Не удалось скопировать. Попробуйте еще раз.");
+                });
+        }
+
+        // Create order and save to database
+        async function createOrder() {
+            const btn = document.getElementById("createOrderBtn");
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML =
+                '<span class="animate-spin">⏳</span><span>Сохранение...</span>';
+
+            const allOrders = getAllDepartmentOrders();
+
+            if (allOrders.totalItems === 0) {
+                alert("Корзина пуста!");
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                return;
+            }
+
+            try {
+                // Save each department's order separately
+                const savePromises = [];
+
+                allOrders.departments.forEach((dept) => {
+                    const deptItems = allOrders.allItems.filter(
+                        (item) => item.departmentName === dept.name,
+                    );
+                    // Use the department key from the first item (already extracted from localStorage key)
+                    const departmentKey =
+                        deptItems[0]?.department || dept.name.toLowerCase();
+
+                    // Save all departments to database (not just bar, kitchen, custom)
+                    if (true) {
+                        // Save all departments
+                        // Clean up items - use shoppingQuantity as the main quantity
+                        const cleanedItems = deptItems.map((item) => ({
+                            ...item,
+                            quantity: item.shoppingQuantity, // Use ordered amount, not Poster leftover
+                            shoppingQuantity: item.shoppingQuantity,
+                        }));
+
+                        // Get selected supplier and storage IDs
+                        const supplierSelect =
+                            document.getElementById("supplierSelect");
+                        const storageSelect =
+                            document.getElementById("storageSelect");
+                        const supplierId = supplierSelect?.value
+                            ? parseInt(supplierSelect.value)
+                            : null;
+                        const storageId = storageSelect?.value
+                            ? parseInt(storageSelect.value)
+                            : null;
+
+                        const orderData = {
+                            timestamp: new Date().toISOString(),
+                            department: departmentKey,
+                            departmentName: dept.name,
+                            departmentEmoji: dept.emoji,
+                            items: cleanedItems,
+                            totalItems: cleanedItems.length,
+                            totalQuantity: cleanedItems.reduce(
+                                (sum, item) => sum + item.shoppingQuantity,
+                                0,
+                            ),
+                            status: "pending",
+                            isPartOfUnified: allOrders.departments.length > 1,
+                            source: "internal",
+                            supplier: "Internal Order",
+                            supplier_id: supplierId,
+                            storage_id: storageId,
+                            section_id: storageId, // Also set section_id as alias
+                        };
+
+                        console.log("📤 Sending order data:", {
+                            department: departmentKey,
+                            departmentName: dept.name,
+                            itemCount: cleanedItems.length,
+                        });
+
+                        savePromises.push(
+                            fetch("/api/save-internal-order", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(orderData),
+                            }),
+                        );
+                    }
+                });
+
+                // Wait for all saves to complete
+                const results = await Promise.all(savePromises);
+
+                // Check if all succeeded and log details
+                const allSucceeded = results.every((r) => r.ok);
+                if (!allSucceeded) {
+                    // Log failed responses
+                    for (let i = 0; i < results.length; i++) {
+                        if (!results[i].ok) {
+                            const errorData = await results[i].json();
+                            console.error(`❌ Order ${i} failed:`, errorData);
+                        }
+                    }
+                    throw new Error("Some orders failed to save");
+                }
+
+                // Clear all shopping lists (including dynamic department ones)
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.includes("ShoppingList")) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach((key) => removeRawLocalStorageItem(key));
+
+                // Show success message
+                btn.innerHTML =
+                    '<span class="text-xl">✅</span><span>Готово!</span>';
+                btn.classList.remove("bg-blue-600", "hover:bg-blue-700");
+                btn.classList.add("bg-green-600");
+
+                // Redirect to home after 1 second
+                setTimeout(() => {
+                    window.location.href = "/";
+                }, 1000);
+            } catch (error) {
+                console.error("❌ Error saving order:", error);
+                alert(`Ошибка при сохранении заказа: ${error.message}`);
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        }
+
+        // Open add product modal
+        function openAddProductModal() {
+            document
+                .getElementById("addProductModal")
+                .classList.remove("hidden");
+            document.getElementById("productName").focus();
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById("addProductModal").classList.add("hidden");
+            // Reset form
+            document.getElementById("productName").value = "";
+            document.getElementById("productQuantity").value = "1";
+        }
+
+        // Add missed product
+        function addMissedProduct() {
+            const name = document.getElementById("productName").value.trim();
+            const quantity = parseFloat(
+                document.getElementById("productQuantity").value,
+            );
+            const unit = document.getElementById("productUnit").value;
+            const department =
+                document.getElementById("productDepartment").value;
+
+            if (!name) {
+                alert("Введите название товара");
+                return;
+            }
+
+            if (quantity <= 0 || isNaN(quantity)) {
+                alert("Введите корректное количество");
+                return;
+            }
+
+            // Create custom product
+            const newProduct = {
+                id: "custom_" + Date.now(),
+                name: name,
+                quantity: 0,
+                unit: unit,
+                shoppingQuantity: quantity,
+                department: department,
+            };
+
+            // Add to localStorage
+            const storageKey = `${department}ShoppingList`;
+            const items = JSON.parse(localStorage.getItem(storageKey) || "[]");
+            items.push(newProduct);
+            localStorage.setItem(storageKey, JSON.stringify(items));
+
+            // Close modal and reload
+            closeModal();
+            loadCartData();
+        }
+
+        // Get all department orders
+        function getAllDepartmentOrders() {
+            const allItems = [];
+            const departments = [];
+
+            // Department emoji/name mapping
+            const departmentMap = {
+                bar: { name: "Бар", emoji: "🍷" },
+                kitchen: { name: "Кухня", emoji: "🍳" },
+                custom: { name: "Горничная", emoji: "🧹" },
+                storage: { name: "Склад", emoji: "📦" },
+            };
+
+            console.log(
+                `🔍 [Cart] Checking localStorage for ShoppingList keys. Total keys: ${localStorage.length}`,
+            );
+
+            // Find ALL localStorage keys ending with "ShoppingList" (with or without prefix)
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                // Check if key ends with ShoppingList OR contains ShoppingList
+                if (key && key.includes("ShoppingList")) {
+                    console.log(`  🔑 [Cart] Found ShoppingList key: ${key}`);
+                    try {
+                        // Use raw access since key already has tenant prefix
+                        const rawData = getRawLocalStorageItem(key);
+                        const orders = JSON.parse(rawData || "[]");
+                        const items = orders.filter(
+                            (item) => item.shoppingQuantity > 0,
+                        );
+                        console.log(
+                            `    ✓ [Cart] Contains ${items.length} items with shoppingQuantity > 0`,
+                        );
+
+                        if (items.length > 0) {
+                            // Extract department key from localStorage key
+                            // Handle prefixed keys: "default_storageShoppingList" → "storage"
+                            // Handle unprefixed keys: "barShoppingList" → "bar"
+                            let deptKey = key.replace("ShoppingList", "");
+
+                            // Remove common prefixes (tenant ID, domain, etc.)
+                            if (deptKey.includes("_")) {
+                                deptKey = deptKey.split("_").pop(); // Get last part after underscore
+                            }
+
+                            // Get department info from map or use smart defaults
+                            let deptInfo = departmentMap[deptKey];
+                            if (!deptInfo) {
+                                // Try to get name from first item if it has departmentName property
+                                const firstItemDeptName =
+                                    items[0]?.departmentName;
+                                const displayName =
+                                    firstItemDeptName || deptKey;
+                                const emoji = getDepartmentEmoji(displayName);
+                                deptInfo = { name: displayName, emoji: emoji };
+                            }
+                            console.log(
+                                `    → [Cart] Mapped "${key}" to department: "${deptKey}" (${deptInfo.name})`,
+                            );
+
+                            items.forEach((item) => {
+                                allItems.push({
+                                    ...item,
+                                    department: deptKey,
+                                    departmentName: deptInfo.name,
+                                    departmentEmoji: deptInfo.emoji,
+                                });
+                            });
+
+                            departments.push({
+                                name: deptInfo.name,
+                                emoji: deptInfo.emoji,
+                                count: items.length,
+                            });
+                        }
+                    } catch (error) {
+                        console.error(
+                            `❌ [Cart] Error parsing localStorage key "${key}":`,
+                            error,
+                        );
+                    }
+                }
+            }
+
+            console.log(
+                `📊 [Cart] Total items: ${allItems.length}, Departments: ${departments.length}`,
+            );
+            return { allItems, departments, totalItems: allItems.length };
+        }
+
+        // Get emoji for department name
+        function getDepartmentEmoji(deptName) {
+            const name = deptName.toLowerCase();
+            if (name.includes("офис")) return "🏢";
+            if (name.includes("горничная")) return "🧹";
+            if (name.includes("склад")) return "📦";
+            if (name.includes("ресепшн")) return "🏨";
+            if (name.includes("бар")) return "🍷";
+            if (name.includes("кухня")) return "🍳";
+            return "📋"; // Default
+        }
+
+        // Generate WhatsApp message
+        function generateWhatsAppMessage(allOrders) {
+            const date = new Date().toLocaleDateString("ru-RU");
+            let message = `📋 Заказ от ${date}\n\n`;
+
+            allOrders.departments.forEach((dept) => {
+                const deptItems = allOrders.allItems.filter(
+                    (item) => item.departmentName === dept.name,
+                );
+                message += `${dept.emoji} ${dept.name}:\n`;
+                deptItems.forEach((item) => {
+                    message += `• ${item.name} — ${item.shoppingQuantity} ${item.unit}\n`;
+                });
+                message += "\n";
+            });
+
+            return message;
+        }
+
+        // Helper functions
+        function getItemEnding(count) {
+            if (count % 10 === 1 && count % 100 !== 11) return "";
+            if (
+                [2, 3, 4].includes(count % 10) &&
+                ![12, 13, 14].includes(count % 100)
+            )
+                return "а";
+            return "ов";
+        }
+
+        function getDepartmentEnding(count) {
+            if (count === 1) return "а";
+            if (count >= 2 && count <= 4) return "ов";
+            return "ов";
+        }
+
+        // Event listeners
+        document.addEventListener("DOMContentLoaded", function () {
+            loadCartData();
+
+            document
+                .getElementById("backBtn")
+                .addEventListener("click", () => window.history.back());
+            document
+                .getElementById("clearAllBtn")
+                .addEventListener("click", clearAll);
+            document
+                .getElementById("copyWhatsAppBtn")
+                .addEventListener("click", copyToWhatsApp);
+            document
+                .getElementById("createOrderBtn")
+                .addEventListener("click", createOrder);
+            document
+                .getElementById("addMoreBtn")
+                .addEventListener("click", openAddProductModal);
+            document
+                .getElementById("closeModalBtn")
+                .addEventListener("click", closeModal);
+            document
+                .getElementById("addProductBtn")
+                .addEventListener("click", addMissedProduct);
+
+            // Close modal on backdrop click
+            document
+                .getElementById("addProductModal")
+                .addEventListener("click", function (e) {
+                    if (e.target === this) closeModal();
+                });
+
+            // Submit form on Enter in product name
+            document
+                .getElementById("productName")
+                .addEventListener("keypress", function (e) {
+                    if (e.key === "Enter") {
+                        e.preventDefault();
+                        addMissedProduct();
+                    }
+                });
+        });
+    </script>
+</Layout>

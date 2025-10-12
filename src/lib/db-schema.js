@@ -1,18 +1,18 @@
-import pool from './db.js';
+import pool from "./db.js";
 
 export async function setupDatabaseSchema() {
-    if (!pool) {
-        console.error('❌ Cannot setup database schema: pool is not initialized');
-        throw new Error('Database pool not initialized');
-    }
-    
-    const client = await pool.connect();
-    
-    try {
-        console.log('🔧 Setting up database schema...');
-        
-        // Create restaurants table first (for tenant management)
-        await client.query(`
+  if (!pool) {
+    console.error("❌ Cannot setup database schema: pool is not initialized");
+    throw new Error("Database pool not initialized");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    console.log("🔧 Setting up database schema...");
+
+    // Create restaurants table first (for tenant management)
+    await client.query(`
             CREATE TABLE IF NOT EXISTS restaurants (
                 id VARCHAR(50) PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
@@ -24,11 +24,11 @@ export async function setupDatabaseSchema() {
                 is_active BOOLEAN DEFAULT true
             );
         `);
-        
-        // Restaurants will be created via OAuth callback
 
-        // Create poster_tokens table
-        await client.query(`
+    // Restaurants will be created via OAuth callback
+
+    // Create poster_tokens table
+    await client.query(`
             CREATE TABLE IF NOT EXISTS poster_tokens (
                 id SERIAL PRIMARY KEY,
                 restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -41,18 +41,20 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Add poster_account_name column to restaurants if it doesn't exist
-        try {
-            await client.query(`
+    // Add poster_account_name column to restaurants if it doesn't exist
+    try {
+      await client.query(`
                 ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS poster_account_name VARCHAR(255);
             `);
-            console.log('✅ Restaurants poster_account_name column migration complete');
-        } catch (migrationError) {
-            console.log('ℹ️ Restaurants migration skipped (already up to date)');
-        }
+      console.log(
+        "✅ Restaurants poster_account_name column migration complete",
+      );
+    } catch (migrationError) {
+      console.log("ℹ️ Restaurants migration skipped (already up to date)");
+    }
 
-        // Create suppliers table with restaurant_id
-        await client.query(`
+    // Create suppliers table with restaurant_id
+    await client.query(`
             CREATE TABLE IF NOT EXISTS suppliers (
                 id SERIAL PRIMARY KEY,
                 restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -65,18 +67,21 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Migrate existing suppliers table if needed (add contact_info column if it doesn't exist)
-        try {
-            await client.query(`
+    // Migrate existing suppliers table if needed (add contact_info and poster_supplier_id columns if they don't exist)
+    try {
+      await client.query(`
                 ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS contact_info TEXT;
             `);
-            console.log('✅ Suppliers table migration complete');
-        } catch (migrationError) {
-            console.log('ℹ️ Suppliers table migration skipped (already up to date)');
-        }
+      await client.query(`
+                ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS poster_supplier_id INTEGER;
+            `);
+      console.log("✅ Suppliers table migration complete");
+    } catch (migrationError) {
+      console.log("ℹ️ Suppliers table migration skipped (already up to date)");
+    }
 
-        // Create product_categories table with restaurant_id
-        await client.query(`
+    // Create product_categories table with restaurant_id
+    await client.query(`
             CREATE TABLE IF NOT EXISTS product_categories (
                 id SERIAL PRIMARY KEY,
                 restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -88,19 +93,23 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Migration: Add supplier_id column if it doesn't exist
-        try {
-            await client.query(`
-                ALTER TABLE product_categories 
+    // Migration: Add supplier_id column if it doesn't exist
+    try {
+      await client.query(`
+                ALTER TABLE product_categories
                 ADD COLUMN IF NOT EXISTS supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
             `);
-            console.log('✅ Product categories supplier_id column migration complete');
-        } catch (migrationError) {
-            console.log('ℹ️ Product categories migration skipped (already up to date)');
-        }
+      console.log(
+        "✅ Product categories supplier_id column migration complete",
+      );
+    } catch (migrationError) {
+      console.log(
+        "ℹ️ Product categories migration skipped (already up to date)",
+      );
+    }
 
-        // Create products table with restaurant_id
-        await client.query(`
+    // Create products table with restaurant_id
+    await client.query(`
             CREATE TABLE IF NOT EXISTS products (
                 id SERIAL PRIMARY KEY,
                 restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -116,8 +125,8 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Create orders table with restaurant_id
-        await client.query(`
+    // Create orders table with restaurant_id
+    await client.query(`
             CREATE TABLE IF NOT EXISTS orders (
                 id SERIAL PRIMARY KEY,
                 restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -130,8 +139,8 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Create departments table for custom sections
-        await client.query(`
+    // Create departments table for custom sections
+    await client.query(`
             CREATE TABLE IF NOT EXISTS departments (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
@@ -145,33 +154,33 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Add restaurant_id column if it doesn't exist (migration)
-        try {
-            await client.query(`
+    // Add restaurant_id column if it doesn't exist (migration)
+    try {
+      await client.query(`
                 ALTER TABLE departments ADD COLUMN IF NOT EXISTS restaurant_id VARCHAR(50) REFERENCES restaurants(id) ON DELETE CASCADE;
             `);
 
-            // Drop old unique constraint on name if exists
-            await client.query(`
+      // Drop old unique constraint on name if exists
+      await client.query(`
                 ALTER TABLE departments DROP CONSTRAINT IF EXISTS departments_name_key;
             `);
 
-            // Add new unique constraint on restaurant_id + poster_storage_id
-            await client.query(`
+      // Add new unique constraint on restaurant_id + poster_storage_id
+      await client.query(`
                 ALTER TABLE departments DROP CONSTRAINT IF EXISTS departments_restaurant_id_poster_storage_id_key;
                 ALTER TABLE departments ADD CONSTRAINT departments_restaurant_id_poster_storage_id_key
                     UNIQUE(restaurant_id, poster_storage_id);
             `);
 
-            console.log('✅ Departments table migration complete');
-        } catch (migrationError) {
-            console.log('ℹ️ Departments migration skipped (already up to date)');
-        }
+      console.log("✅ Departments table migration complete");
+    } catch (migrationError) {
+      console.log("ℹ️ Departments migration skipped (already up to date)");
+    }
 
-        // Departments will be created via OAuth callback or manual sync
+    // Departments will be created via OAuth callback or manual sync
 
-        // Create custom_products table
-        await client.query(`
+    // Create custom_products table
+    await client.query(`
             CREATE TABLE IF NOT EXISTS custom_products (
                 id SERIAL PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
@@ -188,19 +197,19 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Migration: Add restaurant_id column to custom_products if it doesn't exist
-        try {
-            await client.query(`
+    // Migration: Add restaurant_id column to custom_products if it doesn't exist
+    try {
+      await client.query(`
                 ALTER TABLE custom_products
                 ADD COLUMN IF NOT EXISTS restaurant_id VARCHAR(50) REFERENCES restaurants(id) ON DELETE CASCADE;
             `);
-            console.log('✅ custom_products restaurant_id column migration complete');
-        } catch (migrationError) {
-            console.log('ℹ️ custom_products migration skipped (already up to date)');
-        }
+      console.log("✅ custom_products restaurant_id column migration complete");
+    } catch (migrationError) {
+      console.log("ℹ️ custom_products migration skipped (already up to date)");
+    }
 
-        // Create sections table (Poster storages as default sections)
-        await client.query(`
+    // Create sections table (Poster storages as default sections)
+    await client.query(`
             CREATE TABLE IF NOT EXISTS sections (
                 id SERIAL PRIMARY KEY,
                 restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
@@ -214,8 +223,8 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Create section_products table (Products/Ingredients in each section)
-        await client.query(`
+    // Create section_products table (Products/Ingredients in each section)
+    await client.query(`
             CREATE TABLE IF NOT EXISTS section_products (
                 id SERIAL PRIMARY KEY,
                 section_id INTEGER NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
@@ -230,19 +239,19 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Migration: Add category_id column to section_products if it doesn't exist
-        try {
-            await client.query(`
+    // Migration: Add category_id column to section_products if it doesn't exist
+    try {
+      await client.query(`
                 ALTER TABLE section_products
                 ADD COLUMN IF NOT EXISTS category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL;
             `);
-            console.log('✅ section_products category_id column migration complete');
-        } catch (migrationError) {
-            console.log('ℹ️ section_products migration skipped (already up to date)');
-        }
+      console.log("✅ section_products category_id column migration complete");
+    } catch (migrationError) {
+      console.log("ℹ️ section_products migration skipped (already up to date)");
+    }
 
-        // Create section_leftovers table (Inventory for each section)
-        await client.query(`
+    // Create section_leftovers table (Inventory for each section)
+    await client.query(`
             CREATE TABLE IF NOT EXISTS section_leftovers (
                 id SERIAL PRIMARY KEY,
                 section_id INTEGER NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
@@ -253,8 +262,8 @@ export async function setupDatabaseSchema() {
             );
         `);
 
-        // Create indexes for better performance
-        await client.query(`
+    // Create indexes for better performance
+    await client.query(`
             CREATE INDEX IF NOT EXISTS idx_suppliers_restaurant_id ON suppliers(restaurant_id);
             CREATE INDEX IF NOT EXISTS idx_categories_restaurant_id ON product_categories(restaurant_id);
             CREATE INDEX IF NOT EXISTS idx_products_restaurant_id ON products(restaurant_id);
@@ -279,12 +288,13 @@ export async function setupDatabaseSchema() {
             CREATE INDEX IF NOT EXISTS idx_section_leftovers_product_id ON section_leftovers(section_product_id);
         `);
 
-        console.log('✅ Database schema setup complete (including custom products and departments)');
-        
-    } catch (error) {
-        console.error('❌ Error setting up database schema:', error);
-        throw error;
-    } finally {
-        client.release();
-    }
+    console.log(
+      "✅ Database schema setup complete (including custom products and departments)",
+    );
+  } catch (error) {
+    console.error("❌ Error setting up database schema:", error);
+    throw error;
+  } finally {
+    client.release();
+  }
 }

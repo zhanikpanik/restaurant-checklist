@@ -1,1196 +1,1801 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
 ---
 
 <style>
-	/* Native app styling */
-	.scrollbar-hide {
-		-ms-overflow-style: none;
-		scrollbar-width: none;
-	}
-	.scrollbar-hide::-webkit-scrollbar {
-		display: none;
-	}
+    /* Native app styling */
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
 
-	.overflow-x-auto {
-		scroll-behavior: smooth;
-	}
+    .overflow-x-auto {
+        scroll-behavior: smooth;
+    }
 
-	.tab-button {
-		-webkit-tap-highlight-color: transparent;
-		touch-action: manipulation;
-	}
+    .tab-button {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
 
-	/* Native card style */
-	.native-card {
-		background: var(--card);
-		border: 1px solid var(--border);
-		border-radius: 12px;
-		overflow: hidden;
-		transition: all 0.2s;
-	}
+    /* Native card style */
+    .native-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.2s;
+    }
 
-	.native-card:active {
-		transform: scale(0.98);
-	}
+    .native-card:active {
+        transform: scale(0.98);
+    }
 
-	/* Pull to refresh hint */
-	@keyframes slideDown {
-		from { transform: translateY(-100%); opacity: 0; }
-		to { transform: translateY(0); opacity: 1; }
-	}
+    /* Pull to refresh hint */
+    @keyframes slideDown {
+        from {
+            transform: translateY(-100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
 
-	.slide-down {
-		animation: slideDown 0.3s ease-out;
-	}
+    .slide-down {
+        animation: slideDown 0.3s ease-out;
+    }
 
-	/* Safe area for mobile */
-	@supports (padding-bottom: env(safe-area-inset-bottom)) {
-		.bottom-nav {
-			padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
-		}
-	}
+    /* Safe area for mobile */
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {
+        .bottom-nav {
+            padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+        }
+    }
 
-	/* iOS style lists */
-	.native-list {
-		background: var(--background);
-		border-radius: 12px;
-		overflow: hidden;
-	}
+    /* iOS style lists */
+    .native-list {
+        background: var(--background);
+        border-radius: 12px;
+        overflow: hidden;
+    }
 
-	.native-list-item {
-		background: var(--card);
-		border-bottom: 1px solid var(--border);
-		padding: 1rem;
-		transition: background 0.2s;
-	}
+    .native-list-item {
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+        padding: 1rem;
+        transition: background 0.2s;
+    }
 
-	.native-list-item:last-child {
-		border-bottom: none;
-	}
+    .native-list-item:last-child {
+        border-bottom: none;
+    }
 
-	.native-list-item:active {
-		background: var(--accent);
-	}
+    .native-list-item:active {
+        background: var(--accent);
+    }
 </style>
 
 <Layout title="Менеджер - Панель управления">
-	<div class="min-h-screen bg-background pb-20">
-		<!-- Mobile Native Header -->
-		<div class="sticky top-0 z-50 bg-background border-b">
-			<div class="flex items-center h-14 px-4">
-				<a href="/" class="flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-accent transition-colors">
-					<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-					</svg>
-				</a>
-				<h1 class="flex-1 text-lg font-semibold ml-2">Панель менеджера</h1>
-			</div>
-		</div>
+    <div class="min-h-screen bg-background pb-20">
+        <!-- Mobile Native Header -->
+        <div class="sticky top-0 z-50 bg-background border-b">
+            <div class="flex items-center h-14 px-4">
+                <a
+                    href="/"
+                    class="flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-accent transition-colors"
+                >
+                    <svg
+                        class="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                </a>
+                <h1 class="flex-1 text-lg font-semibold ml-2">
+                    Панель менеджера
+                </h1>
+                <div
+                    id="tenantIndicator"
+                    class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium"
+                >
+                    🏢 <span id="tenantId">...</span>
+                </div>
+            </div>
+        </div>
 
-		<!-- Main Content -->
-		<main>
-			<!-- Mobile Tabs - Horizontal Scroll -->
-			<div class="sticky top-14 z-40 bg-background border-b">
-				<div class="overflow-x-auto scrollbar-hide">
-					<nav class="flex gap-1 px-4 py-2 min-w-max">
-						<button data-tab="orders" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-primary text-primary-foreground">
-							📋 Заказы
-						</button>
-						<button data-tab="delivered" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
-							✅ Доставлено
-						</button>
-						<button data-tab="categories" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
-							🏷️ Категории
-						</button>
-						<button data-tab="suppliers" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
-							🏢 Поставщики
-						</button>
-						<button data-tab="departments" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
-							🏪 Отделы
-						</button>
-						<button data-tab="products" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
-							📦 Товары
-						</button>
-						<button data-tab="settings" class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground">
-							⚙️ Настройки
-						</button>
-					</nav>
-				</div>
-			</div>
+        <!-- Main Content -->
+        <main>
+            <!-- Mobile Tabs - Horizontal Scroll -->
+            <div class="sticky top-14 z-40 bg-background border-b">
+                <div class="overflow-x-auto scrollbar-hide">
+                    <nav class="flex gap-1 px-4 py-2 min-w-max">
+                        <button
+                            data-tab="orders"
+                            class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-primary text-primary-foreground"
+                        >
+                            📋 Заказы
+                        </button>
+                        <button
+                            data-tab="delivered"
+                            class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground"
+                        >
+                            ✅ Доставлено
+                        </button>
+                        <button
+                            data-tab="categories"
+                            class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground"
+                        >
+                            🏷️ Категории
+                        </button>
+                        <button
+                            data-tab="suppliers"
+                            class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground"
+                        >
+                            🏢 Поставщики
+                        </button>
+                        <button
+                            data-tab="departments"
+                            class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground"
+                        >
+                            🏪 Отделы
+                        </button>
+                        <button
+                            data-tab="products"
+                            class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground"
+                        >
+                            📦 Товары
+                        </button>
+                        <button
+                            data-tab="settings"
+                            class="tab-button flex-shrink-0 px-4 py-2 text-sm font-medium rounded-full bg-secondary text-secondary-foreground"
+                        >
+                            ⚙️ Настройки
+                        </button>
+                    </nav>
+                </div>
+            </div>
 
-			<div class="p-4">
+            <div class="p-4">
+                <!-- Orders Tab -->
+                <div id="tab-orders" class="tab-content">
+                    <div id="ordersByCategory">
+                        <div class="text-center text-muted-foreground py-12">
+                            <div
+                                class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"
+                            >
+                            </div>
+                            <p class="mt-4">Загрузка заказов...</p>
+                        </div>
+                    </div>
+                </div>
 
-			<!-- Orders Tab -->
-			<div id="tab-orders" class="tab-content">
-				<div id="ordersByCategory">
-					<div class="text-center text-muted-foreground py-12">
-						<div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"></div>
-						<p class="mt-4">Загрузка заказов...</p>
-					</div>
-				</div>
-			</div>
+                <!-- Delivered Tab -->
+                <div id="tab-delivered" class="tab-content hidden">
+                    <div id="deliveredOrders">
+                        <div class="text-center text-muted-foreground py-12">
+                            <p>Загрузка...</p>
+                        </div>
+                    </div>
+                </div>
 
-			<!-- Delivered Tab -->
-			<div id="tab-delivered" class="tab-content hidden">
-				<div class="flex justify-between items-center mb-4">
-					<button onclick="exportAllDeliveredOrders()" class="ml-auto inline-flex items-center justify-center rounded-lg text-sm font-medium h-10 px-4 bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm">
-						<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-						</svg>
-						Экспорт в Excel
-					</button>
-				</div>
-				<div id="deliveredOrders">
-					<div class="text-center text-muted-foreground py-12">
-						<p>Загрузка...</p>
-					</div>
-				</div>
-			</div>
+                <!-- Categories Tab -->
+                <div id="tab-categories" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex gap-2">
+                            <button
+                                onclick="runAutoCategorization()"
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                            >
+                                🤖 Авто-категоризация
+                            </button>
+                            <button
+                                onclick="addNewCategory()"
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                                ➕ Категория
+                            </button>
+                        </div>
+                    </div>
+                    <div id="categorySuppliers">
+                        <div class="text-center text-muted-foreground py-12">
+                            <p>В разработке</p>
+                        </div>
+                    </div>
+                </div>
 
-			<!-- Categories Tab -->
-			<div id="tab-categories" class="tab-content hidden">
-				<div class="flex justify-between items-center mb-4">
-					<div class="flex gap-2">
-						<button onclick="runAutoCategorization()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground">
-							🤖 Авто-категоризация
-						</button>
-						<button onclick="addNewCategory()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
-							➕ Категория
-						</button>
-					</div>
-				</div>
-				<div id="categorySuppliers">
-					<div class="text-center text-muted-foreground py-12">
-						<p>В разработке</p>
-					</div>
-				</div>
-			</div>
+                <!-- Suppliers Tab -->
+                <div id="tab-suppliers" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold">🏢 Поставщики</h3>
+                        <div class="flex gap-2">
+                            <button
+                                onclick="syncSuppliersFromPoster()"
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                            >
+                                🔄 Синхронизация с Poster
+                            </button>
+                            <button
+                                onclick="addNewSupplier()"
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                                ➕ Добавить
+                            </button>
+                        </div>
+                    </div>
+                    <div id="suppliersList">
+                        <div class="text-center text-muted-foreground py-12">
+                            <p>В разработке</p>
+                        </div>
+                    </div>
+                </div>
 
-			<!-- Suppliers Tab -->
-			<div id="tab-suppliers" class="tab-content hidden">
-				<div class="flex justify-between items-center mb-4">
-					<h3 class="text-2xl font-bold">🏢 Поставщики</h3>
-					<button onclick="addNewSupplier()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
-						➕ Добавить
-					</button>
-				</div>
-				<div id="suppliersList">
-					<div class="text-center text-muted-foreground py-12">
-						<p>В разработке</p>
-					</div>
-				</div>
-			</div>
+                <!-- Sections Tab (previously Departments) -->
+                <div id="tab-departments" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold">🏪 Секции</h3>
+                        <div class="flex gap-2">
+                            <button
+                                onclick="syncSectionsFromPoster()"
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                            >
+                                🔄 Синхронизация с Poster
+                            </button>
+                            <button
+                                onclick="addNewSection()"
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                                ➕ Добавить секцию
+                            </button>
+                        </div>
+                    </div>
+                    <div id="sectionsList">
+                        <div class="text-center text-muted-foreground py-12">
+                            <p>Загрузка...</p>
+                        </div>
+                    </div>
+                </div>
 
-			<!-- Sections Tab (previously Departments) -->
-			<div id="tab-departments" class="tab-content hidden">
-				<div class="flex justify-between items-center mb-4">
-					<h3 class="text-2xl font-bold">🏪 Секции</h3>
-					<div class="flex gap-2">
-						<button onclick="syncSectionsFromPoster()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground">
-							🔄 Синхронизация с Poster
-						</button>
-						<button onclick="addNewSection()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
-							➕ Добавить секцию
-						</button>
-					</div>
-				</div>
-				<div id="sectionsList">
-					<div class="text-center text-muted-foreground py-12">
-						<p>Загрузка...</p>
-					</div>
-				</div>
-			</div>
+                <!-- Products Tab -->
+                <div id="tab-products" class="tab-content hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold">📦 Товары</h3>
+                        <div class="flex gap-2">
+                            <button
+                                onclick="syncProducts()"
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                            >
+                                🔄 Синхронизировать
+                            </button>
+                            <button
+                                onclick="openAddProductModal()"
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                                ➕ Добавить товар
+                            </button>
+                        </div>
+                    </div>
 
-			<!-- Products Tab -->
-			<div id="tab-products" class="tab-content hidden">
-				<div class="flex justify-between items-center mb-4">
-					<h3 class="text-2xl font-bold">📦 Товары</h3>
-					<div class="flex gap-2">
-						<button onclick="syncProducts()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground">
-							🔄 Синхронизировать
-						</button>
-						<button onclick="openAddProductModal()" class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
-							➕ Добавить товар
-						</button>
-					</div>
-				</div>
+                    <!-- Search and Filters -->
+                    <div class="mb-4 flex gap-3">
+                        <input
+                            type="text"
+                            id="productSearchInput"
+                            placeholder="🔍 Поиск товаров..."
+                            oninput="filterProducts()"
+                            class="flex-1 px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                        <select
+                            id="categoryFilterSelect"
+                            onchange="filterProducts()"
+                            class="px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">Все категории</option>
+                        </select>
+                    </div>
 
-				<!-- Search and Filters -->
-				<div class="mb-4 flex gap-3">
-					<input
-						type="text"
-						id="productSearchInput"
-						placeholder="🔍 Поиск товаров..."
-						oninput="filterProducts()"
-						class="flex-1 px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-					/>
-					<select id="categoryFilterSelect" onchange="filterProducts()" class="px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-						<option value="">Все категории</option>
-					</select>
-				</div>
+                    <div id="productsList">
+                        <div class="text-center text-muted-foreground py-12">
+                            <p>Загрузка...</p>
+                        </div>
+                    </div>
+                </div>
 
-				<div id="productsList">
-					<div class="text-center text-muted-foreground py-12">
-						<p>Загрузка...</p>
-					</div>
-				</div>
-			</div>
+                <!-- Settings Tab -->
+                <div id="tab-settings" class="tab-content hidden">
+                    <h3 class="text-2xl font-bold mb-4">⚙️ Настройки</h3>
+                    <div class="space-y-4">
+                        <div
+                            class="rounded-lg border bg-card text-card-foreground shadow-sm p-6"
+                        >
+                            <h2 class="text-xl font-semibold mb-2">
+                                Интеграция Poster
+                            </h2>
+                            <p class="text-sm text-muted-foreground mb-4">
+                                Настройте подключение к Poster POS системе
+                            </p>
+                            <button
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                                Настроить
+                            </button>
+                        </div>
+                        <div
+                            class="rounded-lg border bg-card text-card-foreground shadow-sm p-6"
+                        >
+                            <h2 class="text-xl font-semibold mb-2">
+                                Уведомления
+                            </h2>
+                            <p class="text-sm text-muted-foreground mb-4">
+                                Настройте уведомления о заказах
+                            </p>
+                            <button
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                            >
+                                Настроить
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
 
-			<!-- Settings Tab -->
-			<div id="tab-settings" class="tab-content hidden">
-				<h3 class="text-2xl font-bold mb-4">⚙️ Настройки</h3>
-				<div class="space-y-4">
-					<div class="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
-						<h2 class="text-xl font-semibold mb-2">Интеграция Poster</h2>
-						<p class="text-sm text-muted-foreground mb-4">Настройте подключение к Poster POS системе</p>
-						<button class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
-							Настроить
-						</button>
-					</div>
-					<div class="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
-						<h2 class="text-xl font-semibold mb-2">Уведомления</h2>
-						<p class="text-sm text-muted-foreground mb-4">Настройте уведомления о заказах</p>
-						<button class="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90">
-							Настроить
-						</button>
-					</div>
-				</div>
-			</div>
-		</main>
-	</div>
+        <!-- Add Section Modal -->
+        <div
+            id="addSectionModal"
+            class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center"
+        >
+            <div
+                class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4"
+            >
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">Добавить секцию</h3>
+                        <button
+                            onclick="closeAddSectionModal()"
+                            class="text-muted-foreground hover:text-foreground"
+                            >✕</button
+                        >
+                    </div>
+                </div>
 
-	<!-- Add Section Modal -->
-	<div id="addSectionModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-		<div class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4">
-			<div class="p-6 border-b">
-				<div class="flex justify-between items-center">
-					<h3 class="text-lg font-semibold">Добавить секцию</h3>
-					<button onclick="closeAddSectionModal()" class="text-muted-foreground hover:text-foreground">✕</button>
-				</div>
-			</div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Название секции</label
+                        >
+                        <input
+                            type="text"
+                            id="sectionNameInput"
+                            placeholder="Например: Склад 2"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Эмодзи (опционально)</label
+                        >
+                        <input
+                            type="text"
+                            id="sectionEmojiInput"
+                            placeholder="📦"
+                            maxlength="2"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+                </div>
 
-			<div class="p-6 space-y-4">
-				<div>
-					<label class="block text-sm font-medium mb-2">Название секции</label>
-					<input
-						type="text"
-						id="sectionNameInput"
-						placeholder="Например: Склад 2"
-						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-					/>
-				</div>
-				<div>
-					<label class="block text-sm font-medium mb-2">Эмодзи (опционально)</label>
-					<input
-						type="text"
-						id="sectionEmojiInput"
-						placeholder="📦"
-						maxlength="2"
-						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-					/>
-				</div>
-			</div>
+                <div class="p-6 border-t flex gap-3">
+                    <button
+                        onclick="submitAddSection()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                        Создать
+                    </button>
+                    <button
+                        onclick="closeAddSectionModal()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    >
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
 
-			<div class="p-6 border-t flex gap-3">
-				<button
-					onclick="submitAddSection()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
-				>
-					Создать
-				</button>
-				<button
-					onclick="closeAddSectionModal()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-				>
-					Отмена
-				</button>
-			</div>
-		</div>
-	</div>
+        <!-- Add Category Modal -->
+        <div
+            id="addCategoryModal"
+            class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center"
+        >
+            <div
+                class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4"
+            >
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">
+                            Добавить категорию
+                        </h3>
+                        <button
+                            onclick="closeAddCategoryModal()"
+                            class="text-muted-foreground hover:text-foreground"
+                            >✕</button
+                        >
+                    </div>
+                </div>
 
-	<!-- Add Category Modal -->
-	<div id="addCategoryModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-		<div class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4">
-			<div class="p-6 border-b">
-				<div class="flex justify-between items-center">
-					<h3 class="text-lg font-semibold">Добавить категорию</h3>
-					<button onclick="closeAddCategoryModal()" class="text-muted-foreground hover:text-foreground">✕</button>
-				</div>
-			</div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Название категории</label
+                        >
+                        <input
+                            type="text"
+                            id="categoryNameInput"
+                            placeholder="Например: Мясо и птица"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Поставщик (опционально)</label
+                        >
+                        <select
+                            id="categorySupplierSelect"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">-- Выберите поставщика --</option>
+                        </select>
+                    </div>
+                </div>
 
-			<div class="p-6 space-y-4">
-				<div>
-					<label class="block text-sm font-medium mb-2">Название категории</label>
-					<input
-						type="text"
-						id="categoryNameInput"
-						placeholder="Например: Мясо и птица"
-						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-					/>
-				</div>
-				<div>
-					<label class="block text-sm font-medium mb-2">Поставщик (опционально)</label>
-					<select id="categorySupplierSelect" class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-						<option value="">-- Выберите поставщика --</option>
-					</select>
-				</div>
-			</div>
+                <div class="p-6 border-t flex gap-3">
+                    <button
+                        onclick="submitAddCategory()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                        Создать
+                    </button>
+                    <button
+                        onclick="closeAddCategoryModal()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    >
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
 
-			<div class="p-6 border-t flex gap-3">
-				<button
-					onclick="submitAddCategory()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
-				>
-					Создать
-				</button>
-				<button
-					onclick="closeAddCategoryModal()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-				>
-					Отмена
-				</button>
-			</div>
-		</div>
-	</div>
+        <!-- Add Product Modal -->
+        <div
+            id="addProductModal"
+            class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center"
+        >
+            <div
+                class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4"
+            >
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">Добавить товар</h3>
+                        <button
+                            onclick="closeAddProductModal()"
+                            class="text-muted-foreground hover:text-foreground"
+                            >✕</button
+                        >
+                    </div>
+                </div>
 
-	<!-- Add Product Modal -->
-	<div id="addProductModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-		<div class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4">
-			<div class="p-6 border-b">
-				<div class="flex justify-between items-center">
-					<h3 class="text-lg font-semibold">Добавить товар</h3>
-					<button onclick="closeAddProductModal()" class="text-muted-foreground hover:text-foreground">✕</button>
-				</div>
-			</div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Название товара</label
+                        >
+                        <input
+                            type="text"
+                            id="productNameInput"
+                            placeholder="Например: Помидоры"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Единица измерения</label
+                        >
+                        <input
+                            type="text"
+                            id="productUnitInput"
+                            placeholder="Например: кг, шт, л"
+                            value="шт"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Секция</label
+                        >
+                        <select
+                            id="productSectionSelect"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">-- Выберите секцию --</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Категория (опционально)</label
+                        >
+                        <select
+                            id="productCategorySelect"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">-- Без категории --</option>
+                        </select>
+                    </div>
+                </div>
 
-			<div class="p-6 space-y-4">
-				<div>
-					<label class="block text-sm font-medium mb-2">Название товара</label>
-					<input
-						type="text"
-						id="productNameInput"
-						placeholder="Например: Помидоры"
-						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-					/>
-				</div>
-				<div>
-					<label class="block text-sm font-medium mb-2">Единица измерения</label>
-					<input
-						type="text"
-						id="productUnitInput"
-						placeholder="Например: кг, шт, л"
-						value="шт"
-						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-					/>
-				</div>
-				<div>
-					<label class="block text-sm font-medium mb-2">Секция</label>
-					<select id="productSectionSelect" class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-						<option value="">-- Выберите секцию --</option>
-					</select>
-				</div>
-				<div>
-					<label class="block text-sm font-medium mb-2">Категория (опционально)</label>
-					<select id="productCategorySelect" class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-						<option value="">-- Без категории --</option>
-					</select>
-				</div>
-			</div>
+                <div class="p-6 border-t flex gap-3">
+                    <button
+                        onclick="submitAddProduct()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                        Создать
+                    </button>
+                    <button
+                        onclick="closeAddProductModal()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    >
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
 
-			<div class="p-6 border-t flex gap-3">
-				<button
-					onclick="submitAddProduct()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
-				>
-					Создать
-				</button>
-				<button
-					onclick="closeAddProductModal()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-				>
-					Отмена
-				</button>
-			</div>
-		</div>
-	</div>
+        <!-- Assign Supplier Modal -->
+        <div
+            id="assignSupplierModal"
+            class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center"
+        >
+            <div
+                class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4"
+            >
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">
+                            Назначить поставщика
+                        </h3>
+                        <button
+                            onclick="closeAssignSupplierModal()"
+                            class="text-muted-foreground hover:text-foreground"
+                            >✕</button
+                        >
+                    </div>
+                    <p
+                        class="text-sm text-muted-foreground mt-2"
+                        id="assignSupplierCategoryName"
+                    >
+                        Категория:
+                    </p>
+                </div>
 
-	<!-- Assign Supplier Modal -->
-	<div id="assignSupplierModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-		<div class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4">
-			<div class="p-6 border-b">
-				<div class="flex justify-between items-center">
-					<h3 class="text-lg font-semibold">Назначить поставщика</h3>
-					<button onclick="closeAssignSupplierModal()" class="text-muted-foreground hover:text-foreground">✕</button>
-				</div>
-				<p class="text-sm text-muted-foreground mt-2" id="assignSupplierCategoryName">Категория: </p>
-			</div>
+                <div class="p-6">
+                    <label class="block text-sm font-medium mb-2"
+                        >Выберите поставщика</label
+                    >
+                    <select
+                        id="supplierSelect"
+                        class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                        <option value="">Загрузка...</option>
+                    </select>
+                </div>
 
-			<div class="p-6">
-				<label class="block text-sm font-medium mb-2">Выберите поставщика</label>
-				<select id="supplierSelect" class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-					<option value="">Загрузка...</option>
-				</select>
-			</div>
+                <div class="p-6 border-t flex gap-3">
+                    <button
+                        onclick="submitAssignSupplier()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                        Назначить
+                    </button>
+                    <button
+                        onclick="closeAssignSupplierModal()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    >
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
 
-			<div class="p-6 border-t flex gap-3">
-				<button
-					onclick="submitAssignSupplier()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
-				>
-					Назначить
-				</button>
-				<button
-					onclick="closeAssignSupplierModal()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-				>
-					Отмена
-				</button>
-			</div>
-		</div>
-	</div>
+        <!-- Edit Supplier Modal -->
+        <div
+            id="editSupplierModal"
+            class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center"
+        >
+            <div
+                class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4"
+            >
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">
+                            Изменить поставщика
+                        </h3>
+                        <button
+                            onclick="closeEditSupplierModal()"
+                            class="text-muted-foreground hover:text-foreground"
+                            >✕</button
+                        >
+                    </div>
+                </div>
 
-	<!-- Edit Supplier Modal -->
-	<div id="editSupplierModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center">
-		<div class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4">
-			<div class="p-6 border-b">
-				<div class="flex justify-between items-center">
-					<h3 class="text-lg font-semibold">Изменить поставщика</h3>
-					<button onclick="closeEditSupplierModal()" class="text-muted-foreground hover:text-foreground">✕</button>
-				</div>
-			</div>
+                <div class="p-6 space-y-4">
+                    <input type="hidden" id="editSupplierId" />
 
-			<div class="p-6 space-y-4">
-				<input type="hidden" id="editSupplierId">
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Название</label
+                        >
+                        <input
+                            id="editSupplierName"
+                            type="text"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="Название поставщика"
+                        />
+                    </div>
 
-				<div>
-					<label class="block text-sm font-medium mb-2">Название</label>
-					<input
-						id="editSupplierName"
-						type="text"
-						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-						placeholder="Название поставщика"
-					>
-				</div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Телефон</label
+                        >
+                        <input
+                            id="editSupplierPhone"
+                            type="tel"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="+996XXXXXXXXX"
+                        />
+                    </div>
 
-				<div>
-					<label class="block text-sm font-medium mb-2">Телефон</label>
-					<input
-						id="editSupplierPhone"
-						type="tel"
-						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-						placeholder="+996XXXXXXXXX"
-					>
-				</div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Контактная информация (опционально)</label
+                        >
+                        <textarea
+                            id="editSupplierContact"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="Дополнительная информация"
+                            rows="2"></textarea>
+                    </div>
 
-				<div>
-					<label class="block text-sm font-medium mb-2">Контактная информация (опционально)</label>
-					<textarea
-						id="editSupplierContact"
-						class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-						placeholder="Дополнительная информация"
-						rows="2"
-					></textarea>
-				</div>
-			</div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Poster поставщик (для автосоздания поставок)</label
+                        >
+                        <select
+                            id="editSupplierPosterMapping"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">-- Не связан с Poster --</option>
+                        </select>
+                        <p class="text-xs text-muted-foreground mt-1">
+                            Выберите поставщика из Poster для автоматического
+                            создания поставок
+                        </p>
+                    </div>
+                </div>
 
-			<div class="p-6 border-t flex gap-3">
-				<button
-					onclick="submitEditSupplier()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
-				>
-					Сохранить
-				</button>
-				<button
-					onclick="closeEditSupplierModal()"
-					class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-				>
-					Отмена
-				</button>
-			</div>
-		</div>
-	</div>
+                <div class="p-6 border-t flex gap-3">
+                    <button
+                        onclick="submitEditSupplier()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                        Сохранить
+                    </button>
+                    <button
+                        onclick="closeEditSupplierModal()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    >
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
 
-	<script>
-		import { mount } from 'svelte';
-		import OrderCard from '../lib/components/OrderCard.svelte';
+        <!-- Add Supplier Modal -->
+        <div
+            id="addSupplierModal"
+            class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center"
+        >
+            <div
+                class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4"
+            >
+                <div class="p-6 border-b">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">
+                            Добавить поставщика
+                        </h3>
+                        <button
+                            onclick="closeAddSupplierModal()"
+                            class="text-muted-foreground hover:text-foreground"
+                            >✕</button
+                        >
+                    </div>
+                </div>
 
-		// Load orders by category
-		async function loadOrdersByCategory() {
-			console.log('📋 Loading orders by category...');
-			try {
-				const response = await fetch('/api/orders-by-category');
-				const data = await response.json();
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Название <span class="text-destructive">*</span
+                            ></label
+                        >
+                        <input
+                            id="addSupplierName"
+                            type="text"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="Название поставщика"
+                        />
+                    </div>
 
-				if (data.success) {
-					displayOrdersByCategory(data.data);
-				} else {
-					console.error('❌ Failed to load orders:', data.error);
-					displayOrdersByCategory([]);
-				}
-			} catch (error) {
-				console.error('❌ Error loading orders:', error);
-				displayOrdersByCategory([]);
-			}
-		}
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Телефон</label
+                        >
+                        <input
+                            id="addSupplierPhone"
+                            type="tel"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="+996XXXXXXXXX"
+                        />
+                    </div>
 
-		// Display orders using Svelte components
-		function displayOrdersByCategory(orders: any[]) {
-			const container = document.getElementById('ordersByCategory');
-			if (!container) return;
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Контактная информация</label
+                        >
+                        <textarea
+                            id="addSupplierContact"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                            placeholder="Дополнительная информация"
+                            rows="2"></textarea>
+                    </div>
 
-			if (!orders || orders.length === 0) {
-				container.innerHTML = `
+                    <div>
+                        <label class="block text-sm font-medium mb-2"
+                            >Poster поставщик (опционально)</label
+                        >
+                        <select
+                            id="addSupplierPosterMapping"
+                            class="w-full px-3 py-2 border rounded-md bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                        >
+                            <option value="">-- Не связан с Poster --</option>
+                        </select>
+                        <p class="text-xs text-muted-foreground mt-1">
+                            Выберите поставщика из Poster для автоматического
+                            создания поставок
+                        </p>
+                    </div>
+                </div>
+
+                <div class="p-6 border-t flex gap-3">
+                    <button
+                        onclick="submitAddSupplier()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                        Создать
+                    </button>
+                    <button
+                        onclick="closeAddSupplierModal()"
+                        class="flex-1 inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-3 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
+                    >
+                        Отмена
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            import { mount } from "svelte";
+            import OrderCard from "../lib/components/OrderCard.svelte";
+
+            // Load orders by category
+            async function loadOrdersByCategory() {
+                console.log("📋 Loading orders by category...");
+                try {
+                    const response = await fetch("/api/orders-by-category");
+                    const data = await response.json();
+
+                    if (data.success) {
+                        displayOrdersByCategory(data.data);
+                    } else {
+                        console.error("❌ Failed to load orders:", data.error);
+                        displayOrdersByCategory([]);
+                    }
+                } catch (error) {
+                    console.error("❌ Error loading orders:", error);
+                    displayOrdersByCategory([]);
+                }
+            }
+
+            // Display orders using Svelte components
+            function displayOrdersByCategory(orders: any[]) {
+                const container = document.getElementById("ordersByCategory");
+                if (!container) return;
+
+                if (!orders || orders.length === 0) {
+                    container.innerHTML = `
 					<div class="text-center py-12">
 						<div class="text-6xl mb-4">📋</div>
 						<p class="text-xl font-semibold mb-2">Нет заказов</p>
 						<p class="text-muted-foreground">Заказы появятся здесь после создания</p>
 					</div>
 				`;
-				return;
-			}
+                    return;
+                }
 
-			// Clear container
-			container.innerHTML = '';
+                // Clear container
+                container.innerHTML = "";
 
-			// Create container for cards
-			const cardsContainer = document.createElement('div');
-			cardsContainer.className = 'space-y-4';
-			container.appendChild(cardsContainer);
+                // Create container for cards
+                const cardsContainer = document.createElement("div");
+                cardsContainer.className = "space-y-4";
+                container.appendChild(cardsContainer);
 
-			// Create Svelte component for each order
-			orders.forEach((order: any) => {
-				const target = document.createElement('div');
-				cardsContainer.appendChild(target);
+                // Create Svelte component for each order
+                orders.forEach((order: any) => {
+                    const target = document.createElement("div");
+                    cardsContainer.appendChild(target);
 
-				mount(OrderCard, {
-					target,
-					props: { order }
-				});
-			});
-		}
+                    mount(OrderCard, {
+                        target,
+                        props: {
+                            order,
+                            onDelete: (orderId: string) => {
+                                // Remove the card from DOM
+                                target.remove();
+                            },
+                        },
+                    });
+                });
+            }
 
-		// Tab switching
-		function switchTab(tabName) {
-			// Hide all tabs
-			document.querySelectorAll('.tab-content').forEach(tab => {
-				tab.classList.add('hidden');
-			});
+            // Tab switching
+            function switchTab(tabName) {
+                // Hide all tabs
+                document.querySelectorAll(".tab-content").forEach((tab) => {
+                    tab.classList.add("hidden");
+                });
 
-			// Remove active state from all buttons
-			document.querySelectorAll('.tab-button').forEach(btn => {
-				btn.classList.remove('bg-primary', 'text-primary-foreground');
-				btn.classList.add('bg-secondary', 'text-secondary-foreground');
-			});
+                // Remove active state from all buttons
+                document.querySelectorAll(".tab-button").forEach((btn) => {
+                    btn.classList.remove(
+                        "bg-primary",
+                        "text-primary-foreground",
+                    );
+                    btn.classList.add(
+                        "bg-secondary",
+                        "text-secondary-foreground",
+                    );
+                });
 
-			// Show selected tab
-			const selectedTab = document.getElementById(`tab-${tabName}`);
-			if (selectedTab) {
-				selectedTab.classList.remove('hidden');
-			}
+                // Show selected tab
+                const selectedTab = document.getElementById(`tab-${tabName}`);
+                if (selectedTab) {
+                    selectedTab.classList.remove("hidden");
+                }
 
-			// Add active state to selected button
-			const selectedButton = document.querySelector(`[data-tab="${tabName}"]`);
-			if (selectedButton) {
-				selectedButton.classList.remove('bg-secondary', 'text-secondary-foreground');
-				selectedButton.classList.add('bg-primary', 'text-primary-foreground');
-			}
+                // Add active state to selected button
+                const selectedButton = document.querySelector(
+                    `[data-tab="${tabName}"]`,
+                );
+                if (selectedButton) {
+                    selectedButton.classList.remove(
+                        "bg-secondary",
+                        "text-secondary-foreground",
+                    );
+                    selectedButton.classList.add(
+                        "bg-primary",
+                        "text-primary-foreground",
+                    );
+                }
 
-			// Load data for specific tabs
-			if (tabName === 'delivered') {
-				loadDeliveredOrders();
-			} else if (tabName === 'categories') {
-				loadCategories();
-			} else if (tabName === 'suppliers') {
-				loadSuppliers();
-			} else if (tabName === 'departments') {
-				loadSections();
-			} else if (tabName === 'products') {
-				loadProducts();
-			}
-		}
+                // Load data for specific tabs
+                if (tabName === "delivered") {
+                    loadDeliveredOrders();
+                } else if (tabName === "categories") {
+                    loadCategories();
+                } else if (tabName === "suppliers") {
+                    loadSuppliers();
+                } else if (tabName === "departments") {
+                    loadSections();
+                } else if (tabName === "products") {
+                    loadProducts();
+                }
+            }
 
-		// Load delivered orders
-		async function loadDeliveredOrders() {
-			const container = document.getElementById('deliveredOrders');
-			if (!container) return;
+            // Load delivered orders
+            async function loadDeliveredOrders() {
+                const container = document.getElementById("deliveredOrders");
+                if (!container) return;
 
-			container.innerHTML = '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
+                container.innerHTML =
+                    '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
 
-			try {
-				const response = await fetch('/api/orders-by-category?status=delivered');
-				const data = await response.json();
+                try {
+                    const response = await fetch(
+                        "/api/orders-by-category?status=delivered",
+                        { cache: "no-store" },
+                    );
+                    const data = await response.json();
 
-				if (data.success && data.data && data.data.length > 0) {
-					// Reuse the same display function
-					container.innerHTML = '';
-					const cardsContainer = document.createElement('div');
-					cardsContainer.className = 'space-y-4';
-					container.appendChild(cardsContainer);
+                    if (data.success && data.data && data.data.length > 0) {
+                        // Reuse the same display function
+                        container.innerHTML = "";
+                        const cardsContainer = document.createElement("div");
+                        cardsContainer.className = "space-y-4";
+                        container.appendChild(cardsContainer);
 
-					data.data.forEach((order: any) => {
-						const target = document.createElement('div');
-						cardsContainer.appendChild(target);
+                        data.data.forEach((order: any) => {
+                            const target = document.createElement("div");
+                            cardsContainer.appendChild(target);
 
-						mount(OrderCard, {
-							target,
-							props: { order }
-						});
-					});
-				} else {
-					container.innerHTML = `
+                            mount(OrderCard, {
+                                target,
+                                props: {
+                                    order,
+                                    onDelete: (orderId: string) => {
+                                        // Remove the card from DOM
+                                        target.remove();
+                                    },
+                                },
+                            });
+                        });
+                    } else {
+                        container.innerHTML = `
 						<div class="text-center py-12">
 							<div class="text-6xl mb-4">✅</div>
 							<p class="text-xl font-semibold mb-2">Нет доставленных заказов</p>
 							<p class="text-muted-foreground">Доставленные заказы появятся здесь</p>
 						</div>
 					`;
-				}
-			} catch (error) {
-				console.error('Error loading delivered orders:', error);
-				container.innerHTML = '<div class="text-center text-error py-12"><p>Ошибка загрузки</p></div>';
-			}
-		}
+                    }
+                } catch (error) {
+                    console.error("Error loading delivered orders:", error);
+                    container.innerHTML =
+                        '<div class="text-center text-error py-12"><p>Ошибка загрузки</p></div>';
+                }
+            }
 
-		// Load categories with suppliers
-		async function loadCategories() {
-			const container = document.getElementById('categorySuppliers');
-			container.innerHTML = '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
+            // Load categories with suppliers
+            async function loadCategories() {
+                const container = document.getElementById("categorySuppliers");
+                container.innerHTML =
+                    '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
 
-			try {
-				const response = await fetch('/api/categories');
-				const data = await response.json();
+                try {
+                    const response = await fetch("/api/categories");
+                    const data = await response.json();
 
-				if (data.success && data.data && data.data.length > 0) {
-					container.innerHTML = '';
-					const list = document.createElement('div');
-					list.className = 'space-y-2';
+                    if (data.success && data.data && data.data.length > 0) {
+                        container.innerHTML = "";
+                        const list = document.createElement("div");
+                        list.className = "space-y-2";
 
-					data.data.forEach(category => {
-						const card = document.createElement('div');
-						card.className = 'native-card';
-						card.innerHTML = `
+                        data.data.forEach((category) => {
+                            const card = document.createElement("div");
+                            card.className = "native-card";
+                            card.innerHTML = `
 							<div class="p-4">
 							<div class="flex items-center justify-between gap-2">
 								<div class="flex-1 min-w-0">
 									<h4 class="font-medium text-base truncate">🏷️ ${category.name}</h4>
 									<div class="text-xs text-muted-foreground mt-0.5">
-										${category.supplier_name ?
-											`📦 ${category.supplier_name}` :
-											'<span class="text-destructive">Нет поставщика</span>'
-										}
+										${
+                                            category.supplier_name
+                                                ? `📦 ${category.supplier_name}`
+                                                : '<span class="text-destructive">Нет поставщика</span>'
+                                        }
 									</div>
 								</div>
-								<button
-									onclick="assignSupplierToCategory(${category.id}, '${category.name}')"
-									class="flex-shrink-0 inline-flex items-center justify-center rounded-full text-xs font-medium h-8 px-4 bg-secondary hover:bg-secondary/80 active:scale-95 transition-all"
-								>
-									${category.supplier_name ? 'Изменить' : 'Назначить'}
-								</button>
+								<div class="flex gap-2">
+									<button
+										onclick="assignSupplierToCategory(${category.id}, '${category.name}')"
+										class="flex-shrink-0 inline-flex items-center justify-center rounded-full text-xs font-medium h-8 px-4 bg-secondary hover:bg-secondary/80 active:scale-95 transition-all"
+									>
+										${category.supplier_name ? "Изменить" : "Назначить"}
+									</button>
+									<button
+										onclick="deleteCategory(${category.id}, '${category.name.replace(/'/g, "\\'")}', this)"
+										class="flex-shrink-0 inline-flex items-center justify-center rounded-full text-xs font-medium h-8 px-3 bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 transition-all"
+									>
+										🗑️
+									</button>
+								</div>
 							</div>
 							</div>
 						`;
-						list.appendChild(card);
-					});
+                            list.appendChild(card);
+                        });
 
-					container.appendChild(list);
-				} else {
-					container.innerHTML = `
+                        container.appendChild(list);
+                    } else {
+                        container.innerHTML = `
 						<div class="text-center py-12">
 							<div class="text-6xl mb-4">🏷️</div>
 							<p class="text-xl font-semibold mb-2">Нет категорий</p>
 							<p class="text-muted-foreground">Категории появятся здесь после создания</p>
 						</div>
 					`;
-				}
-			} catch (error) {
-				console.error('Error loading categories:', error);
-				container.innerHTML = '<div class="text-center text-destructive py-12"><p>Ошибка загрузки</p></div>';
-			}
-		}
+                    }
+                } catch (error) {
+                    console.error("Error loading categories:", error);
+                    container.innerHTML =
+                        '<div class="text-center text-destructive py-12"><p>Ошибка загрузки</p></div>';
+                }
+            }
 
-		// Load suppliers
-		async function loadSuppliers() {
-			const container = document.getElementById('suppliersList');
-			container.innerHTML = '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
+            // Load suppliers
+            async function loadSuppliers() {
+                const container = document.getElementById("suppliersList");
+                container.innerHTML =
+                    '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
 
-			try {
-				const response = await fetch('/api/suppliers');
-				const data = await response.json();
+                try {
+                    const response = await fetch("/api/suppliers");
+                    const data = await response.json();
 
-				if (data.success && data.data && data.data.length > 0) {
-					container.innerHTML = '';
-					const list = document.createElement('div');
-					list.className = 'space-y-2';
+                    if (data.success && data.data && data.data.length > 0) {
+                        container.innerHTML = "";
+                        const list = document.createElement("div");
+                        list.className = "space-y-2";
 
-					data.data.forEach(supplier => {
-						const card = document.createElement('div');
-						card.className = 'native-card';
-						card.innerHTML = `
+                        data.data.forEach((supplier) => {
+                            const card = document.createElement("div");
+                            card.className = "native-card";
+                            card.innerHTML = `
 							<div class="p-4">
 							<div class="flex items-start justify-between gap-2">
 								<div class="flex-1 min-w-0">
-									<h4 class="font-medium text-base truncate">🏢 ${supplier.name}</h4>
+									<h4 class="font-medium text-base truncate">
+                                        🏢 ${supplier.name}
+                                        ${supplier.poster_supplier_id ? '<span class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">🔗 Poster</span>' : ""}
+                                    </h4>
 									<div class="text-xs text-muted-foreground mt-0.5 space-y-0.5">
-										${supplier.phone ?
-											`<div>📱 ${supplier.phone}</div>` :
-											'<div class="text-destructive">⚠️ Нет телефона</div>'
-										}
-										${supplier.contact_info ?
-											`<div class="truncate">${supplier.contact_info}</div>` :
-											''
-										}
+										${
+                                            supplier.phone
+                                                ? `<div>📱 ${supplier.phone}</div>`
+                                                : '<div class="text-destructive">⚠️ Нет телефона</div>'
+                                        }
+										${
+                                            supplier.contact_info
+                                                ? `<div class="truncate">${supplier.contact_info}</div>`
+                                                : ""
+                                        }
+                                        ${
+                                            supplier.poster_supplier_id
+                                                ? `<div class="text-blue-600">Poster ID: ${supplier.poster_supplier_id}</div>`
+                                                : '<div class="text-amber-600">⚠️ Не связан с Poster</div>'
+                                        }
 									</div>
 								</div>
-								<button
-									onclick="openEditSupplierModal(${supplier.id}, '${supplier.name.replace(/'/g, "\\'")}', '${supplier.phone || ''}', '${supplier.contact_info ? supplier.contact_info.replace(/'/g, "\\'") : ''}')"
-									class="flex-shrink-0 h-8 px-4 text-xs rounded-full bg-secondary hover:bg-secondary/80 active:scale-95 transition-all"
-								>
-									✏️ Изменить
-								</button>
+								<div class="flex gap-2">
+									<button
+										onclick="openEditSupplierModal(${supplier.id}, '${supplier.name.replace(/'/g, "\\'")}', '${supplier.phone || ""}', '${supplier.contact_info ? supplier.contact_info.replace(/'/g, "\\'") : ""}', ${supplier.poster_supplier_id || "null"})"
+										class="flex-shrink-0 h-8 px-4 text-xs rounded-full bg-secondary hover:bg-secondary/80 active:scale-95 transition-all"
+									>
+										✏️ Изменить
+									</button>
+									<button
+										onclick="deleteSupplier(${supplier.id}, '${supplier.name.replace(/'/g, "\\'")}', this)"
+										class="flex-shrink-0 h-8 px-3 text-xs rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 transition-all"
+									>
+										🗑️
+									</button>
+								</div>
 							</div>
 							</div>
 						`;
-						list.appendChild(card);
-					});
+                            list.appendChild(card);
+                        });
 
-					container.appendChild(list);
-				} else {
-					container.innerHTML = `
+                        container.appendChild(list);
+                    } else {
+                        container.innerHTML = `
 						<div class="text-center py-12">
 							<div class="text-6xl mb-4">🏢</div>
 							<p class="text-xl font-semibold mb-2">Нет поставщиков</p>
 							<p class="text-muted-foreground">Добавьте поставщиков для управления заказами</p>
 						</div>
 					`;
-				}
-			} catch (error) {
-				console.error('Error loading suppliers:', error);
-				container.innerHTML = '<div class="text-center text-destructive py-12"><p>Ошибка загрузки</p></div>';
-			}
-		}
+                    }
+                } catch (error) {
+                    console.error("Error loading suppliers:", error);
+                    container.innerHTML =
+                        '<div class="text-center text-destructive py-12"><p>Ошибка загрузки</p></div>';
+                }
+            }
 
-		// Assign supplier to category
-		let currentCategoryId = null;
-		let currentCategoryName = null;
+            // Assign supplier to category
+            let currentCategoryId = null;
+            let currentCategoryName = null;
 
-		window.assignSupplierToCategory = async function(categoryId, categoryName) {
-			currentCategoryId = categoryId;
-			currentCategoryName = categoryName;
+            window.assignSupplierToCategory = async function (
+                categoryId,
+                categoryName,
+            ) {
+                currentCategoryId = categoryId;
+                currentCategoryName = categoryName;
 
-			// Update modal title
-			document.getElementById('assignSupplierCategoryName').textContent = `Категория: ${categoryName}`;
+                // Update modal title
+                document.getElementById(
+                    "assignSupplierCategoryName",
+                ).textContent = `Категория: ${categoryName}`;
 
-			// Load suppliers
-			try {
-				const response = await fetch('/api/suppliers');
-				const data = await response.json();
+                // Load suppliers
+                try {
+                    const response = await fetch("/api/suppliers");
+                    const data = await response.json();
 
-				const select = document.getElementById('supplierSelect');
+                    const select = document.getElementById("supplierSelect");
 
-				if (data.success && data.data && data.data.length > 0) {
-					select.innerHTML = '<option value="">-- Выберите поставщика --</option>';
-					data.data.forEach(supplier => {
-						const option = document.createElement('option');
-						option.value = supplier.id;
-						option.textContent = supplier.name;
-						select.appendChild(option);
-					});
-				} else {
-					select.innerHTML = '<option value="">Нет поставщиков</option>';
-				}
+                    if (data.success && data.data && data.data.length > 0) {
+                        select.innerHTML =
+                            '<option value="">-- Выберите поставщика --</option>';
+                        data.data.forEach((supplier) => {
+                            const option = document.createElement("option");
+                            option.value = supplier.id;
+                            option.textContent = supplier.name;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        select.innerHTML =
+                            '<option value="">Нет поставщиков</option>';
+                    }
 
-				// Show modal
-				document.getElementById('assignSupplierModal').classList.remove('hidden');
-			} catch (error) {
-				console.error('Error loading suppliers:', error);
-				alert('Ошибка загрузки списка поставщиков');
-			}
-		};
+                    // Show modal
+                    document
+                        .getElementById("assignSupplierModal")
+                        .classList.remove("hidden");
+                } catch (error) {
+                    console.error("Error loading suppliers:", error);
+                    alert("Ошибка загрузки списка поставщиков");
+                }
+            };
 
-		window.closeAssignSupplierModal = function() {
-			document.getElementById('assignSupplierModal').classList.add('hidden');
-			currentCategoryId = null;
-			currentCategoryName = null;
-		};
+            window.closeAssignSupplierModal = function () {
+                document
+                    .getElementById("assignSupplierModal")
+                    .classList.add("hidden");
+                currentCategoryId = null;
+                currentCategoryName = null;
+            };
 
-		window.submitAssignSupplier = async function() {
-			const supplierId = document.getElementById('supplierSelect').value;
+            window.submitAssignSupplier = async function () {
+                const supplierId =
+                    document.getElementById("supplierSelect").value;
 
-			if (!supplierId) {
-				alert('Пожалуйста, выберите поставщика');
-				return;
-			}
+                if (!supplierId) {
+                    alert("Пожалуйста, выберите поставщика");
+                    return;
+                }
 
-			try {
-				const response = await fetch('/api/categories', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						category_id: currentCategoryId,
-						supplier_id: parseInt(supplierId)
-					})
-				});
+                try {
+                    const response = await fetch("/api/categories", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            category_id: currentCategoryId,
+                            supplier_id: parseInt(supplierId),
+                        }),
+                    });
 
-				const data = await response.json();
+                    const data = await response.json();
 
-				if (data.success) {
-					alert('✅ Поставщик успешно назначен!');
-					closeAssignSupplierModal();
-					loadCategories(); // Refresh the list
-				} else {
-					alert('❌ Ошибка: ' + data.error);
-				}
-			} catch (error) {
-				console.error('Error assigning supplier:', error);
-				alert('❌ Ошибка при назначении поставщика');
-			}
-		};
+                    if (data.success) {
+                        alert("✅ Поставщик успешно назначен!");
+                        closeAssignSupplierModal();
+                        loadCategories(); // Refresh the list
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error assigning supplier:", error);
+                    alert("❌ Ошибка при назначении поставщика");
+                }
+            };
 
-		// Edit supplier modal functions
-		window.openEditSupplierModal = function(id, name, phone, contactInfo) {
-			document.getElementById('editSupplierId').value = id;
-			document.getElementById('editSupplierName').value = name;
-			document.getElementById('editSupplierPhone').value = phone || '';
-			document.getElementById('editSupplierContact').value = contactInfo || '';
-			document.getElementById('editSupplierModal').classList.remove('hidden');
-		};
+            // Edit supplier modal functions
+            window.openEditSupplierModal = async function (
+                id,
+                name,
+                phone,
+                contactInfo,
+                posterSupplierId,
+            ) {
+                document.getElementById("editSupplierId").value = id;
+                document.getElementById("editSupplierName").value = name;
+                document.getElementById("editSupplierPhone").value =
+                    phone || "";
+                document.getElementById("editSupplierContact").value =
+                    contactInfo || "";
 
-		window.closeEditSupplierModal = function() {
-			document.getElementById('editSupplierModal').classList.add('hidden');
-		};
+                // Load Poster suppliers for mapping
+                const posterSelect = document.getElementById(
+                    "editSupplierPosterMapping",
+                );
+                posterSelect.innerHTML =
+                    '<option value="">-- Не связан с Poster --</option>';
 
-		window.submitEditSupplier = async function() {
-			const id = document.getElementById('editSupplierId').value;
-			const name = document.getElementById('editSupplierName').value.trim();
-			const phone = document.getElementById('editSupplierPhone').value.trim();
-			const contact_info = document.getElementById('editSupplierContact').value.trim();
+                try {
+                    const response = await fetch("/api/poster-suppliers");
+                    const data = await response.json();
 
-			if (!name) {
-				alert('⚠️ Название поставщика обязательно');
-				return;
-			}
+                    if (data.success && data.data && data.data.length > 0) {
+                        data.data.forEach((supplier) => {
+                            const option = document.createElement("option");
+                            option.value = supplier.id;
+                            option.textContent = supplier.name;
+                            if (
+                                posterSupplierId &&
+                                supplier.id == posterSupplierId
+                            ) {
+                                option.selected = true;
+                            }
+                            posterSelect.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Failed to load Poster suppliers:", error);
+                }
 
-			try {
-				const response = await fetch('/api/suppliers', {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						id: parseInt(id),
-						name: name,
-						phone: phone || null,
-						contact_info: contact_info || null
-					})
-				});
+                document
+                    .getElementById("editSupplierModal")
+                    .classList.remove("hidden");
+            };
 
-				const data = await response.json();
+            window.closeEditSupplierModal = function () {
+                document
+                    .getElementById("editSupplierModal")
+                    .classList.add("hidden");
+            };
 
-				if (data.success) {
-					alert('✅ Поставщик успешно обновлен!');
-					closeEditSupplierModal();
-					loadSuppliers(); // Refresh the list
-					loadCategories(); // Also refresh categories to update supplier info there
-				} else {
-					alert('❌ Ошибка: ' + data.error);
-				}
-			} catch (error) {
-				console.error('Error updating supplier:', error);
-				alert('❌ Ошибка при обновлении поставщика');
-			}
-		};
+            window.submitEditSupplier = async function () {
+                const id = document.getElementById("editSupplierId").value;
+                const name = document
+                    .getElementById("editSupplierName")
+                    .value.trim();
+                const phone = document
+                    .getElementById("editSupplierPhone")
+                    .value.trim();
+                const contact_info = document
+                    .getElementById("editSupplierContact")
+                    .value.trim();
+                const poster_supplier_id = document.getElementById(
+                    "editSupplierPosterMapping",
+                ).value;
 
-		// Run auto-categorization
-		window.runAutoCategorization = async function() {
-			if (!confirm('🤖 Запустить автоматическую категоризацию товаров?\n\nЭто создаст стандартные категории и назначит товары на основе их названий.')) {
-				return;
-			}
+                if (!name) {
+                    alert("⚠️ Название поставщика обязательно");
+                    return;
+                }
 
-			try {
-				const response = await fetch('/api/auto-categorize-products', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' }
-				});
+                try {
+                    const response = await fetch("/api/suppliers", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            id: parseInt(id),
+                            name: name,
+                            phone: phone || null,
+                            contact_info: contact_info || null,
+                            poster_supplier_id: poster_supplier_id
+                                ? parseInt(poster_supplier_id)
+                                : null,
+                        }),
+                    });
 
-				const data = await response.json();
+                    const data = await response.json();
 
-				if (data.success) {
-					alert(`✅ Авто-категоризация завершена!\n\n` +
-						`Создано категорий: ${data.data.categoriesCreated}\n` +
-						`Категоризировано товаров: ${data.data.categorized}\n` +
-						`Не категоризировано: ${data.data.uncategorized}`);
-					loadCategories(); // Refresh the display
-				} else {
-					alert('❌ Ошибка: ' + data.error);
-				}
-			} catch (error) {
-				console.error('Error running auto-categorization:', error);
-				alert('❌ Ошибка при запуске авто-категоризации');
-			}
-		};
+                    if (data.success) {
+                        alert("✅ Поставщик успешно обновлен!");
+                        closeEditSupplierModal();
+                        loadSuppliers(); // Refresh the list
+                        loadCategories(); // Also refresh categories to update supplier info there
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error updating supplier:", error);
+                    alert("❌ Ошибка при обновлении поставщика");
+                }
+            };
 
-		// Add new category
-		window.addNewCategory = async function() {
-			// Load suppliers for the dropdown
-			try {
-				const response = await fetch('/api/suppliers');
-				const data = await response.json();
+            // Delete supplier
+            window.deleteSupplier = async function (
+                supplierId,
+                supplierName,
+                buttonElement,
+            ) {
+                if (
+                    !confirm(
+                        `Удалить поставщика "${supplierName}"?\n\nПримечание: Поставщик не будет удален, если он используется категориями.`,
+                    )
+                ) {
+                    return;
+                }
 
-				const select = document.getElementById('categorySupplierSelect');
+                try {
+                    const response = await fetch("/api/suppliers", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: supplierId }),
+                    });
 
-				if (data.success && data.data && data.data.length > 0) {
-					select.innerHTML = '<option value="">-- Без поставщика --</option>';
-					data.data.forEach(supplier => {
-						const option = document.createElement('option');
-						option.value = supplier.id;
-						option.textContent = supplier.name;
-						select.appendChild(option);
-					});
-				} else {
-					select.innerHTML = '<option value="">Нет поставщиков</option>';
-				}
+                    const data = await response.json();
 
-				// Clear input and show modal
-				document.getElementById('categoryNameInput').value = '';
-				document.getElementById('addCategoryModal').classList.remove('hidden');
-			} catch (error) {
-				console.error('Error loading suppliers:', error);
-				alert('Ошибка загрузки списка поставщиков');
-			}
-		};
+                    if (data.success) {
+                        // Remove the card from DOM
+                        const card = buttonElement.closest(".native-card");
+                        if (card) {
+                            card.remove();
+                        }
+                    } else {
+                        alert(`❌ Ошибка: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error("Error deleting supplier:", error);
+                    alert("❌ Ошибка при удалении поставщика");
+                }
+            };
 
-		window.closeAddCategoryModal = function() {
-			document.getElementById('addCategoryModal').classList.add('hidden');
-		};
+            // Run auto-categorization
+            window.runAutoCategorization = async function () {
+                if (
+                    !confirm(
+                        "🤖 Запустить автоматическую категоризацию товаров?\n\nЭто создаст стандартные категории и назначит товары на основе их названий.",
+                    )
+                ) {
+                    return;
+                }
 
-		window.submitAddCategory = async function() {
-			const categoryName = document.getElementById('categoryNameInput').value.trim();
-			const supplierId = document.getElementById('categorySupplierSelect').value;
+                try {
+                    const response = await fetch(
+                        "/api/auto-categorize-products",
+                        {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                        },
+                    );
 
-			if (!categoryName) {
-				alert('Пожалуйста, введите название категории');
-				return;
-			}
+                    const data = await response.json();
 
-			try {
-				const response = await fetch('/api/categories', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						name: categoryName,
-						supplier_id: supplierId ? parseInt(supplierId) : null
-					})
-				});
+                    if (data.success) {
+                        alert(
+                            `✅ Авто-категоризация завершена!\n\n` +
+                                `Создано категорий: ${data.data.categoriesCreated}\n` +
+                                `Категоризировано товаров: ${data.data.categorized}\n` +
+                                `Не категоризировано: ${data.data.uncategorized}`,
+                        );
+                        loadCategories(); // Refresh the display
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error running auto-categorization:", error);
+                    alert("❌ Ошибка при запуске авто-категоризации");
+                }
+            };
 
-				const data = await response.json();
+            // Add new category
+            window.addNewCategory = async function () {
+                // Load suppliers for the dropdown
+                try {
+                    const response = await fetch("/api/suppliers");
+                    const data = await response.json();
 
-				if (data.success) {
-					alert('✅ Категория успешно создана!');
-					closeAddCategoryModal();
-					loadCategories(); // Refresh the list
-				} else {
-					alert('❌ Ошибка: ' + data.error);
-				}
-			} catch (error) {
-				console.error('Error creating category:', error);
-				alert('❌ Ошибка при создании категории');
-			}
-		};
+                    const select = document.getElementById(
+                        "categorySupplierSelect",
+                    );
 
-		// Load sections
-		async function loadSections() {
-			const container = document.getElementById('sectionsList');
-			container.innerHTML = '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
+                    if (data.success && data.data && data.data.length > 0) {
+                        select.innerHTML =
+                            '<option value="">-- Без поставщика --</option>';
+                        data.data.forEach((supplier) => {
+                            const option = document.createElement("option");
+                            option.value = supplier.id;
+                            option.textContent = supplier.name;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        select.innerHTML =
+                            '<option value="">Нет поставщиков</option>';
+                    }
 
-			try {
-				const response = await fetch('/api/sections');
-				const data = await response.json();
+                    // Clear input and show modal
+                    document.getElementById("categoryNameInput").value = "";
+                    document
+                        .getElementById("addCategoryModal")
+                        .classList.remove("hidden");
+                } catch (error) {
+                    console.error("Error loading suppliers:", error);
+                    alert("Ошибка загрузки списка поставщиков");
+                }
+            };
 
-				if (data.success && data.data && data.data.length > 0) {
-					container.innerHTML = '';
-					const grid = document.createElement('div');
-					grid.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3';
+            window.closeAddCategoryModal = function () {
+                document
+                    .getElementById("addCategoryModal")
+                    .classList.add("hidden");
+            };
 
-					data.data.forEach(section => {
-						const card = document.createElement('div');
-						card.className = 'rounded-lg border bg-card p-3';
-						card.innerHTML = `
-							<div class="flex items-start justify-between gap-2">
-								<div class="flex-1 min-w-0">
-									<h4 class="font-medium text-base truncate">${section.emoji || '📦'} ${section.name}</h4>
-									<div class="text-xs text-muted-foreground mt-0.5">
-										${section.poster_storage_id ?
-											`🔗 Poster` :
-											`📝 Кастомная`
-										}
+            window.submitAddCategory = async function () {
+                const categoryName = document
+                    .getElementById("categoryNameInput")
+                    .value.trim();
+                const supplierId = document.getElementById(
+                    "categorySupplierSelect",
+                ).value;
+
+                if (!categoryName) {
+                    alert("Пожалуйста, введите название категории");
+                    return;
+                }
+
+                try {
+                    const response = await fetch("/api/categories", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: categoryName,
+                            supplier_id: supplierId
+                                ? parseInt(supplierId)
+                                : null,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert("✅ Категория успешно создана!");
+                        closeAddCategoryModal();
+                        loadCategories(); // Refresh the list
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error creating category:", error);
+                    alert("❌ Ошибка при создании категории");
+                }
+            };
+
+            // Delete category
+            window.deleteCategory = async function (
+                categoryId,
+                categoryName,
+                buttonElement,
+            ) {
+                if (
+                    !confirm(
+                        `Удалить категорию "${categoryName}"?\n\nПримечание: Категория не будет удалена, если она используется товарами.`,
+                    )
+                ) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch("/api/categories", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: categoryId }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        // Remove the card from DOM
+                        const card = buttonElement.closest(".native-card");
+                        if (card) {
+                            card.remove();
+                        }
+                    } else {
+                        alert(`❌ Ошибка: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error("Error deleting category:", error);
+                    alert("❌ Ошибка при удалении категории");
+                }
+            };
+
+            // Load sections
+            async function loadSections() {
+                const container = document.getElementById("sectionsList");
+                container.innerHTML =
+                    '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
+
+                try {
+                    const response = await fetch("/api/sections");
+                    const data = await response.json();
+
+                    if (data.success && data.data && data.data.length > 0) {
+                        container.innerHTML = "";
+                        const grid = document.createElement("div");
+                        grid.className =
+                            "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3";
+
+                        data.data.forEach((section) => {
+                            const card = document.createElement("div");
+                            card.className = "rounded-lg border bg-card p-3";
+                            const isFromPoster = section.poster_storage_id;
+
+                            card.innerHTML = `
+							<div class="space-y-2">
+								<div class="flex items-start justify-between gap-2">
+									<div class="flex-1 min-w-0">
+										<h4 class="font-medium text-base truncate">${section.emoji || "📦"} ${section.name}</h4>
+										<div class="text-xs text-muted-foreground mt-0.5">
+											${isFromPoster ? `🔗 Poster` : `📝 Кастомная`}
+										</div>
 									</div>
+									${
+                                        section.products_count
+                                            ? `<div class="flex-shrink-0 text-right">
+											<div class="text-lg font-semibold">${section.products_count}</div>
+											<div class="text-[10px] text-muted-foreground">товаров</div>
+										</div>`
+                                            : ""
+                                    }
 								</div>
-								${section.products_count ?
-									`<div class="flex-shrink-0 text-right">
-										<div class="text-lg font-semibold">${section.products_count}</div>
-										<div class="text-[10px] text-muted-foreground">товаров</div>
-									</div>` :
-									''
-								}
+								${
+                                    !isFromPoster
+                                        ? `
+									<button
+										onclick="deleteSection(${section.id}, '${section.name.replace(/'/g, "\\'")}', this)"
+										class="w-full h-8 text-xs rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 transition-all"
+									>
+										🗑️ Удалить
+									</button>
+								`
+                                        : ""
+                                }
 							</div>
 						`;
-						grid.appendChild(card);
-					});
+                            grid.appendChild(card);
+                        });
 
-					container.appendChild(grid);
-				} else {
-					container.innerHTML = `
+                        container.appendChild(grid);
+                    } else {
+                        container.innerHTML = `
 						<div class="text-center py-12">
 							<div class="text-6xl mb-4">🏪</div>
 							<p class="text-xl font-semibold mb-2">Нет секций</p>
 							<p class="text-muted-foreground">Синхронизируйте с Poster или добавьте вручную</p>
 						</div>
 					`;
-				}
-			} catch (error) {
-				console.error('Error loading sections:', error);
-				container.innerHTML = '<div class="text-center text-destructive py-12"><p>Ошибка загрузки</p></div>';
-			}
-		}
+                    }
+                } catch (error) {
+                    console.error("Error loading sections:", error);
+                    container.innerHTML =
+                        '<div class="text-center text-destructive py-12"><p>Ошибка загрузки</p></div>';
+                }
+            }
 
-		// Add new section
-		window.addNewSection = function() {
-			document.getElementById('sectionNameInput').value = '';
-			document.getElementById('sectionEmojiInput').value = '';
-			document.getElementById('addSectionModal').classList.remove('hidden');
-		};
+            // Add new section
+            window.addNewSection = function () {
+                document.getElementById("sectionNameInput").value = "";
+                document.getElementById("sectionEmojiInput").value = "";
+                document
+                    .getElementById("addSectionModal")
+                    .classList.remove("hidden");
+            };
 
-		window.closeAddSectionModal = function() {
-			document.getElementById('addSectionModal').classList.add('hidden');
-		};
+            window.closeAddSectionModal = function () {
+                document
+                    .getElementById("addSectionModal")
+                    .classList.add("hidden");
+            };
 
-		window.submitAddSection = async function() {
-			const name = document.getElementById('sectionNameInput').value.trim();
-			const emoji = document.getElementById('sectionEmojiInput').value.trim() || '📦';
+            window.submitAddSection = async function () {
+                const name = document
+                    .getElementById("sectionNameInput")
+                    .value.trim();
+                const emoji =
+                    document.getElementById("sectionEmojiInput").value.trim() ||
+                    "📦";
 
-			if (!name) {
-				alert('Пожалуйста, введите название секции');
-				return;
-			}
+                if (!name) {
+                    alert("Пожалуйста, введите название секции");
+                    return;
+                }
 
-			try {
-				const response = await fetch('/api/sections', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ name, emoji })
-				});
+                try {
+                    const response = await fetch("/api/sections", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ name, emoji }),
+                    });
 
-				const data = await response.json();
+                    const data = await response.json();
 
-				if (data.success) {
-					alert('✅ Секция успешно создана!');
-					closeAddSectionModal();
-					loadSections();
-				} else {
-					alert('❌ Ошибка: ' + data.error);
-				}
-			} catch (error) {
-				console.error('Error creating section:', error);
-				alert('❌ Ошибка при создании секции');
-			}
-		};
+                    if (data.success) {
+                        alert("✅ Секция успешно создана!");
+                        closeAddSectionModal();
+                        loadSections();
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error creating section:", error);
+                    alert("❌ Ошибка при создании секции");
+                }
+            };
 
-		// Sync sections from Poster
-		window.syncSectionsFromPoster = async function() {
-			if (!confirm('🔄 Синхронизировать секции из Poster?\n\nЭто обновит список секций на основе складов Poster.')) {
-				return;
-			}
+            // Delete section
+            window.deleteSection = async function (
+                sectionId,
+                sectionName,
+                buttonElement,
+            ) {
+                if (
+                    !confirm(
+                        `Удалить секцию "${sectionName}"?\n\nПримечание: Секция не будет удалена, если она содержит активные товары.`,
+                    )
+                ) {
+                    return;
+                }
 
-			try {
-				const response = await fetch('/api/sync-sections');
-				const data = await response.json();
+                try {
+                    const response = await fetch("/api/sections", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: sectionId }),
+                    });
 
-				if (data.success) {
-					alert(`✅ Синхронизация завершена!\n\nСоздано: ${data.data.created}\nОбновлено: ${data.data.updated}\nПропущено: ${data.data.skipped}`);
-					loadSections();
-				} else {
-					alert('❌ Ошибка: ' + data.error);
-				}
-			} catch (error) {
-				console.error('Error syncing sections:', error);
-				alert('❌ Ошибка при синхронизации');
-			}
-		};
+                    const data = await response.json();
 
-		// Store products globally for filtering
-		let allProducts = [];
+                    if (data.success) {
+                        // Remove the card from DOM
+                        const card = buttonElement.closest(".rounded-lg");
+                        if (card) {
+                            card.remove();
+                        }
+                    } else {
+                        alert(`❌ Ошибка: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error("Error deleting section:", error);
+                    alert("❌ Ошибка при удалении секции");
+                }
+            };
 
-		// Load products (from sections and custom)
-		async function loadProducts() {
-			const container = document.getElementById('productsList');
-			container.innerHTML = '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
+            // Sync sections from Poster
+            window.syncSectionsFromPoster = async function () {
+                if (
+                    !confirm(
+                        "🔄 Синхронизировать секции из Poster?\n\nЭто обновит список секций на основе складов Poster.",
+                    )
+                ) {
+                    return;
+                }
 
-			try {
-				// Load section products, custom products, and categories in parallel
-				const [sectionsRes, customRes, categoriesRes] = await Promise.all([
-					fetch('/api/section-products'),
-					fetch('/api/custom-products'),
-					fetch('/api/categories')
-				]);
+                try {
+                    const response = await fetch("/api/sync-sections");
+                    const data = await response.json();
 
-				const sectionsData = await sectionsRes.json();
-				const customData = await customRes.json();
-				const categoriesData = await categoriesRes.json();
+                    if (data.success) {
+                        alert(
+                            `✅ Синхронизация завершена!\n\nСоздано: ${data.data.created}\nОбновлено: ${data.data.updated}\nПропущено: ${data.data.skipped}`,
+                        );
+                        loadSections();
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error syncing sections:", error);
+                    alert("❌ Ошибка при синхронизации");
+                }
+            };
 
-				const sectionProducts = sectionsData.success ? sectionsData.data.map(p => ({ ...p, type: 'section' })) : [];
-				const customProducts = customData.success ? customData.data.map(p => ({ ...p, type: 'custom' })) : [];
-				const categories = categoriesData.success ? categoriesData.data : [];
+            // Store products globally for filtering
+            let allProducts = [];
 
-				// Store products globally
-				allProducts = [...sectionProducts, ...customProducts];
+            // Load products (from sections and custom)
+            async function loadProducts() {
+                const container = document.getElementById("productsList");
+                container.innerHTML =
+                    '<div class="text-center text-muted-foreground py-12"><p>Загрузка...</p></div>';
 
-				// Populate category filter dropdown
-				const categoryFilter = document.getElementById('categoryFilterSelect');
-				categoryFilter.innerHTML = '<option value="">Все категории</option>';
-				categories.forEach(cat => {
-					categoryFilter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
-				});
+                try {
+                    // Load section products, custom products, and categories in parallel
+                    const [sectionsRes, customRes, categoriesRes] =
+                        await Promise.all([
+                            fetch("/api/section-products"),
+                            fetch("/api/custom-products"),
+                            fetch("/api/categories"),
+                        ]);
 
-				displayProducts(allProducts, categories);
+                    const sectionsData = await sectionsRes.json();
+                    const customData = await customRes.json();
+                    const categoriesData = await categoriesRes.json();
 
-			} catch (error) {
-				console.error('Error loading products:', error);
-				container.innerHTML = '<div class="text-center text-destructive py-12"><p>Ошибка загрузки</p></div>';
-			}
-		}
+                    const sectionProducts = sectionsData.success
+                        ? sectionsData.data.map((p) => ({
+                              ...p,
+                              type: "section",
+                          }))
+                        : [];
+                    const customProducts = customData.success
+                        ? customData.data.map((p) => ({ ...p, type: "custom" }))
+                        : [];
+                    const categories = categoriesData.success
+                        ? categoriesData.data
+                        : [];
 
-		// Display products
-		function displayProducts(products, categories) {
-			const container = document.getElementById('productsList');
+                    // Store products globally
+                    allProducts = [...sectionProducts, ...customProducts];
 
-			if (products.length === 0) {
-				container.innerHTML = `
+                    // Populate category filter dropdown
+                    const categoryFilter = document.getElementById(
+                        "categoryFilterSelect",
+                    );
+                    categoryFilter.innerHTML =
+                        '<option value="">Все категории</option>';
+                    categories.forEach((cat) => {
+                        categoryFilter.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                    });
+
+                    displayProducts(allProducts, categories);
+                } catch (error) {
+                    console.error("Error loading products:", error);
+                    container.innerHTML =
+                        '<div class="text-center text-destructive py-12"><p>Ошибка загрузки</p></div>';
+                }
+            }
+
+            // Display products
+            function displayProducts(products, categories) {
+                const container = document.getElementById("productsList");
+
+                if (products.length === 0) {
+                    container.innerHTML = `
 					<div class="text-center py-12">
 						<div class="text-6xl mb-4">📦</div>
 						<p class="text-xl font-semibold mb-2">Нет товаров</p>
 						<p class="text-muted-foreground">Синхронизируйте секции из Poster или добавьте товары вручную</p>
 					</div>
 				`;
-				return;
-			}
+                    return;
+                }
 
-			const sectionProducts = products.filter(p => p.type === 'section');
-			const customProducts = products.filter(p => p.type === 'custom');
+                const sectionProducts = products.filter(
+                    (p) => p.type === "section",
+                );
+                const customProducts = products.filter(
+                    (p) => p.type === "custom",
+                );
 
-			let html = '';
+                let html = "";
 
-			if (sectionProducts.length > 0) {
-				html += '<div class="mb-6"><h4 class="text-lg font-semibold mb-3">📦 Товары из секций Poster</h4>';
-				html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
+                if (sectionProducts.length > 0) {
+                    html +=
+                        '<div class="mb-6"><h4 class="text-lg font-semibold mb-3">📦 Товары из секций Poster</h4>';
+                    html +=
+                        '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
 
-				sectionProducts.forEach(product => {
-					html += `
-						<div class="rounded-lg border bg-card p-3">
+                    sectionProducts.forEach((product) => {
+                        html += `
+						<div class="rounded-lg border bg-card p-3" data-product-id="${product.id}" data-product-type="section">
 							<div class="flex justify-between items-start mb-2">
 								<div class="flex-1">
 									<div class="font-medium">${product.name}</div>
-									<div class="text-sm text-muted-foreground">${product.section_name || 'Без секции'}</div>
+									<div class="text-sm text-muted-foreground">${product.section_name || "Без секции"}</div>
 								</div>
-								<div class="text-sm font-medium text-muted-foreground">${product.unit || 'шт'}</div>
+								<div class="text-sm font-medium text-muted-foreground">${product.unit || "шт"}</div>
 							</div>
 							<div class="flex items-center gap-2">
 								<select
@@ -1198,253 +1803,484 @@ import Layout from '../layouts/Layout.astro';
 									class="flex-1 text-xs px-2 py-1 border rounded bg-background"
 								>
 									<option value="">Без категории</option>
-									${categories.map(cat => `
-										<option value="${cat.id}" ${product.category_id == cat.id ? 'selected' : ''}>
+									${categories
+                                        .map(
+                                            (cat) => `
+										<option value="${cat.id}" ${product.category_id == cat.id ? "selected" : ""}>
 											${cat.name}
 										</option>
-									`).join('')}
+									`,
+                                        )
+                                        .join("")}
 								</select>
 							</div>
 						</div>
 					`;
-				});
+                    });
 
-				html += '</div></div>';
-			}
+                    html += "</div></div>";
+                }
 
-			if (customProducts.length > 0) {
-				html += '<div class="mb-6"><h4 class="text-lg font-semibold mb-3">📝 Кастомные товары</h4>';
-				html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
+                if (customProducts.length > 0) {
+                    html +=
+                        '<div class="mb-6"><h4 class="text-lg font-semibold mb-3">📝 Кастомные товары</h4>';
+                    html +=
+                        '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
 
-				customProducts.forEach(product => {
-					html += `
-						<div class="rounded-lg border bg-card p-3">
+                    customProducts.forEach((product) => {
+                        html += `
+						<div class="rounded-lg border bg-card p-3" data-product-id="${product.id}" data-product-type="custom">
 							<div class="flex justify-between items-start mb-2">
 								<div class="flex-1">
 									<div class="font-medium">${product.name || product.product_name}</div>
-									<div class="text-sm text-muted-foreground">${product.section_name || 'Без секции'}</div>
+									<div class="text-sm text-muted-foreground">${product.section_name || "Без секции"}</div>
 								</div>
-								<div class="text-sm font-medium text-muted-foreground">${product.unit || 'шт'}</div>
+								<div class="text-sm font-medium text-muted-foreground">${product.unit || "шт"}</div>
 							</div>
-							<div class="flex items-center gap-2">
+							<div class="space-y-2">
 								<select
 									onchange="updateProductCategory('${product.id}', this.value, 'custom')"
-									class="flex-1 text-xs px-2 py-1 border rounded bg-background"
+									class="w-full text-xs px-2 py-1 border rounded bg-background"
 								>
 									<option value="">Без категории</option>
-									${categories.map(cat => `
-										<option value="${cat.id}" ${product.category_id == cat.id ? 'selected' : ''}>
+									${categories
+                                        .map(
+                                            (cat) => `
+										<option value="${cat.id}" ${product.category_id == cat.id ? "selected" : ""}>
 											${cat.name}
 										</option>
-									`).join('')}
+									`,
+                                        )
+                                        .join("")}
 								</select>
+								<button
+									onclick="deleteProduct('${product.id}', '${(product.name || product.product_name).replace(/'/g, "\\'")}', 'custom', this)"
+									class="w-full h-7 text-xs rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 transition-all"
+								>
+									🗑️ Удалить
+								</button>
 							</div>
 						</div>
 					`;
-				});
+                    });
 
-				html += '</div></div>';
-			}
+                    html += "</div></div>";
+                }
 
-			container.innerHTML = html;
-		}
+                container.innerHTML = html;
+            }
 
-		// Filter products based on search and category
-		window.filterProducts = async function() {
-			const searchTerm = document.getElementById('productSearchInput').value.toLowerCase();
-			const categoryId = document.getElementById('categoryFilterSelect').value;
+            // Filter products based on search and category
+            window.filterProducts = async function () {
+                const searchTerm = document
+                    .getElementById("productSearchInput")
+                    .value.toLowerCase();
+                const categoryId = document.getElementById(
+                    "categoryFilterSelect",
+                ).value;
 
-			let filtered = allProducts;
+                let filtered = allProducts;
 
-			// Filter by search term
-			if (searchTerm) {
-				filtered = filtered.filter(p => {
-					const name = (p.name || p.product_name || '').toLowerCase();
-					const sectionName = (p.section_name || '').toLowerCase();
-					return name.includes(searchTerm) || sectionName.includes(searchTerm);
-				});
-			}
+                // Filter by search term
+                if (searchTerm) {
+                    filtered = filtered.filter((p) => {
+                        const name = (
+                            p.name ||
+                            p.product_name ||
+                            ""
+                        ).toLowerCase();
+                        const sectionName = (
+                            p.section_name || ""
+                        ).toLowerCase();
+                        return (
+                            name.includes(searchTerm) ||
+                            sectionName.includes(searchTerm)
+                        );
+                    });
+                }
 
-			// Filter by category
-			if (categoryId) {
-				filtered = filtered.filter(p => p.category_id == categoryId);
-			}
+                // Filter by category
+                if (categoryId) {
+                    filtered = filtered.filter(
+                        (p) => p.category_id == categoryId,
+                    );
+                }
 
-			// Re-fetch categories for display
-			try {
-				const categoriesRes = await fetch('/api/categories');
-				const categoriesData = await categoriesRes.json();
-				const categories = categoriesData.success ? categoriesData.data : [];
-				displayProducts(filtered, categories);
-			} catch (error) {
-				console.error('Error filtering products:', error);
-			}
-		};
+                // Re-fetch categories for display
+                try {
+                    const categoriesRes = await fetch("/api/categories");
+                    const categoriesData = await categoriesRes.json();
+                    const categories = categoriesData.success
+                        ? categoriesData.data
+                        : [];
+                    displayProducts(filtered, categories);
+                } catch (error) {
+                    console.error("Error filtering products:", error);
+                }
+            };
 
-		// Update product category
-		window.updateProductCategory = async function(productId, categoryId, productType) {
-			try {
-				const response = await fetch('/api/update-product-category', {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						productId,
-						categoryId: categoryId || null,
-						productType
-					})
-				});
+            // Update product category
+            window.updateProductCategory = async function (
+                productId,
+                categoryId,
+                productType,
+            ) {
+                try {
+                    const response = await fetch(
+                        "/api/update-product-category",
+                        {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                productId,
+                                categoryId: categoryId || null,
+                                productType,
+                            }),
+                        },
+                    );
 
-				const data = await response.json();
+                    const data = await response.json();
 
-				if (data.success) {
-					// Update local data
-					const product = allProducts.find(p => p.id === productId && p.type === productType);
-					if (product) {
-						product.category_id = categoryId || null;
-					}
-					console.log('✅ Category updated');
-				} else {
-					console.error('❌ Error:', data.error);
-					alert('Ошибка: ' + data.error);
-				}
-			} catch (error) {
-				console.error('Error updating category:', error);
-				alert('Ошибка при обновлении категории');
-			}
-		};
+                    if (data.success) {
+                        // Update local data
+                        const product = allProducts.find(
+                            (p) => p.id === productId && p.type === productType,
+                        );
+                        if (product) {
+                            product.category_id = categoryId || null;
+                        }
+                        console.log("✅ Category updated");
+                    } else {
+                        console.error("❌ Error:", data.error);
+                        alert("Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error updating category:", error);
+                    alert("Ошибка при обновлении категории");
+                }
+            };
 
-		// Sync products from Poster
-		window.syncProducts = async function() {
-			if (!confirm('🔄 Синхронизировать товары из Poster?\n\nЭто обновит список товаров на основе данных из Poster.')) {
-				return;
-			}
+            // Delete product (custom products only)
+            window.deleteProduct = async function (
+                productId,
+                productName,
+                productType,
+                buttonElement,
+            ) {
+                if (!confirm(`Удалить товар "${productName}"?`)) {
+                    return;
+                }
 
-			try {
-				const response = await fetch('/api/sync-section-products');
-				const data = await response.json();
+                try {
+                    const response = await fetch("/api/custom-products", {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ id: productId }),
+                    });
 
-				if (data.success) {
-					alert(`✅ Синхронизация завершена!\n\nСоздано: ${data.data.created}\nОбновлено: ${data.data.updated}\nПропущено: ${data.data.skipped}`);
-					loadProducts(); // Reload products list
-				} else {
-					alert('❌ Ошибка: ' + data.error);
-				}
-			} catch (error) {
-				console.error('Error syncing products:', error);
-				alert('❌ Ошибка при синхронизации');
-			}
-		};
+                    const data = await response.json();
 
-		// Placeholder functions
-		window.exportAllDeliveredOrders = function() {
-			alert('Экспорт в разработке');
-		};
+                    if (data.success) {
+                        // Remove the card from DOM
+                        const card = buttonElement.closest(".rounded-lg");
+                        if (card) {
+                            card.remove();
+                        }
 
-		window.addNewSupplier = function() {
-			alert('Добавление поставщика в разработке');
-		};
+                        // Remove from local data
+                        allProducts = allProducts.filter(
+                            (p) =>
+                                !(p.id === productId && p.type === productType),
+                        );
+                    } else {
+                        alert(`❌ Ошибка: ${data.error}`);
+                    }
+                } catch (error) {
+                    console.error("Error deleting product:", error);
+                    alert("❌ Ошибка при удалении товара");
+                }
+            };
 
-		window.openAddProductModal = async function() {
-			const modal = document.getElementById('addProductModal');
-			modal.classList.remove('hidden');
+            // Sync products from Poster
+            window.syncProducts = async function () {
+                if (
+                    !confirm(
+                        "🔄 Синхронизировать товары из Poster?\n\nЭто обновит список товаров на основе данных из Poster.",
+                    )
+                ) {
+                    return;
+                }
 
-			// Load sections and categories for the dropdowns
-			try {
-				const [sectionsResponse, categoriesResponse] = await Promise.all([
-					fetch('/api/sections'),
-					fetch('/api/categories')
-				]);
+                try {
+                    const response = await fetch("/api/sync-section-products");
+                    const data = await response.json();
 
-				const sectionsData = await sectionsResponse.json();
-				const categoriesData = await categoriesResponse.json();
+                    if (data.success) {
+                        alert(
+                            `✅ Синхронизация завершена!\n\nСоздано: ${data.data.created}\nОбновлено: ${data.data.updated}\nПропущено: ${data.data.skipped}`,
+                        );
+                        loadProducts(); // Reload products list
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error syncing products:", error);
+                    alert("❌ Ошибка при синхронизации");
+                }
+            };
 
-				// Populate sections
-				if (sectionsData.success) {
-					const sectionSelect = document.getElementById('productSectionSelect');
-					sectionSelect.innerHTML = '<option value="">-- Выберите секцию --</option>';
-					sectionsData.data.forEach(section => {
-						sectionSelect.innerHTML += `<option value="${section.id}">${section.emoji || '📦'} ${section.name}</option>`;
-					});
-				}
+            // Placeholder functions
+            window.exportAllDeliveredOrders = function () {
+                alert("Экспорт в разработке");
+            };
 
-				// Populate categories
-				if (categoriesData.success) {
-					const categorySelect = document.getElementById('productCategorySelect');
-					categorySelect.innerHTML = '<option value="">-- Без категории --</option>';
-					categoriesData.data.forEach(cat => {
-						categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
-					});
-				}
-			} catch (error) {
-				console.error('Error loading data:', error);
-			}
-		};
+            // Sync suppliers from Poster
+            window.syncSuppliersFromPoster = async function () {
+                if (
+                    !confirm(
+                        "🔄 Синхронизировать поставщиков из Poster?\n\nЭто импортирует всех поставщиков из вашего аккаунта Poster.",
+                    )
+                ) {
+                    return;
+                }
 
-		window.closeAddProductModal = function() {
-			const modal = document.getElementById('addProductModal');
-			modal.classList.add('hidden');
-			// Clear inputs
-			document.getElementById('productNameInput').value = '';
-			document.getElementById('productUnitInput').value = 'шт';
-			document.getElementById('productSectionSelect').value = '';
-			document.getElementById('productCategorySelect').value = '';
-		};
+                try {
+                    const response = await fetch("/api/sync-suppliers", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                    });
 
-		window.submitAddProduct = async function() {
-			const name = document.getElementById('productNameInput').value.trim();
-			const unit = document.getElementById('productUnitInput').value.trim() || 'шт';
-			const sectionId = document.getElementById('productSectionSelect').value || null;
-			const categoryId = document.getElementById('productCategorySelect').value || null;
+                    const data = await response.json();
 
-			if (!name) {
-				alert('Пожалуйста, введите название товара');
-				return;
-			}
+                    if (data.success) {
+                        alert(
+                            `✅ Синхронизация завершена!\n\n` +
+                                `Создано: ${data.data.created}\n` +
+                                `Обновлено: ${data.data.updated}\n` +
+                                `Пропущено: ${data.data.skipped}\n` +
+                                `Всего: ${data.data.total}`,
+                        );
+                        loadSuppliers(); // Refresh the list
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error syncing suppliers:", error);
+                    alert("❌ Ошибка при синхронизации поставщиков");
+                }
+            };
 
-			if (!sectionId) {
-				alert('Пожалуйста, выберите секцию');
-				return;
-			}
+            window.addNewSupplier = async function () {
+                // Clear form
+                document.getElementById("addSupplierName").value = "";
+                document.getElementById("addSupplierPhone").value = "";
+                document.getElementById("addSupplierContact").value = "";
 
-			try {
-				const response = await fetch('/api/custom-products', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ name, unit, section_id: sectionId, category_id: categoryId })
-				});
+                // Load Poster suppliers for mapping
+                const posterSelect = document.getElementById(
+                    "addSupplierPosterMapping",
+                );
+                posterSelect.innerHTML =
+                    '<option value="">-- Не связан с Poster --</option>';
 
-				const data = await response.json();
+                try {
+                    const response = await fetch("/api/poster-suppliers");
+                    const data = await response.json();
 
-				if (data.success) {
-					alert('✅ Товар успешно создан!');
-					closeAddProductModal();
-					loadProducts(); // Reload products list
-				} else {
-					alert('❌ Ошибка: ' + data.error);
-				}
-			} catch (error) {
-				console.error('Error creating product:', error);
-				alert('❌ Ошибка при создании товара');
-			}
-		};
+                    if (data.success && data.data && data.data.length > 0) {
+                        data.data.forEach((supplier) => {
+                            const option = document.createElement("option");
+                            option.value = supplier.id;
+                            option.textContent = supplier.name;
+                            posterSelect.appendChild(option);
+                        });
+                    }
+                } catch (error) {
+                    console.error("Failed to load Poster suppliers:", error);
+                }
 
-		// Load data on page load
-		document.addEventListener('DOMContentLoaded', () => {
-			console.log('📱 Manager page loaded with shadcn-svelte');
+                // Show modal
+                document
+                    .getElementById("addSupplierModal")
+                    .classList.remove("hidden");
+            };
 
-			// Setup tab switching
-			document.querySelectorAll('.tab-button').forEach(button => {
-				button.addEventListener('click', () => {
-					const tabName = button.getAttribute('data-tab');
-					if (tabName) {
-						switchTab(tabName);
-					}
-				});
-			});
+            window.closeAddSupplierModal = function () {
+                document
+                    .getElementById("addSupplierModal")
+                    .classList.add("hidden");
+            };
 
-			// Load initial data
-			loadOrdersByCategory();
-			setInterval(loadOrdersByCategory, 30000);
-		});
-	</script>
+            window.submitAddSupplier = async function () {
+                const name = document
+                    .getElementById("addSupplierName")
+                    .value.trim();
+                const phone = document
+                    .getElementById("addSupplierPhone")
+                    .value.trim();
+                const contact_info = document
+                    .getElementById("addSupplierContact")
+                    .value.trim();
+                const poster_supplier_id = document.getElementById(
+                    "addSupplierPosterMapping",
+                ).value;
+
+                if (!name) {
+                    alert("⚠️ Название поставщика обязательно");
+                    return;
+                }
+
+                try {
+                    const response = await fetch("/api/suppliers", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name: name,
+                            phone: phone || null,
+                            contact_info: contact_info || null,
+                            poster_supplier_id: poster_supplier_id
+                                ? parseInt(poster_supplier_id)
+                                : null,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert("✅ Поставщик успешно создан!");
+                        closeAddSupplierModal();
+                        loadSuppliers(); // Refresh the list
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error creating supplier:", error);
+                    alert("❌ Ошибка при создании поставщика");
+                }
+            };
+
+            window.openAddProductModal = async function () {
+                const modal = document.getElementById("addProductModal");
+                modal.classList.remove("hidden");
+
+                // Load sections and categories for the dropdowns
+                try {
+                    const [sectionsResponse, categoriesResponse] =
+                        await Promise.all([
+                            fetch("/api/sections"),
+                            fetch("/api/categories"),
+                        ]);
+
+                    const sectionsData = await sectionsResponse.json();
+                    const categoriesData = await categoriesResponse.json();
+
+                    // Populate sections
+                    if (sectionsData.success) {
+                        const sectionSelect = document.getElementById(
+                            "productSectionSelect",
+                        );
+                        sectionSelect.innerHTML =
+                            '<option value="">-- Выберите секцию --</option>';
+                        sectionsData.data.forEach((section) => {
+                            sectionSelect.innerHTML += `<option value="${section.id}">${section.emoji || "📦"} ${section.name}</option>`;
+                        });
+                    }
+
+                    // Populate categories
+                    if (categoriesData.success) {
+                        const categorySelect = document.getElementById(
+                            "productCategorySelect",
+                        );
+                        categorySelect.innerHTML =
+                            '<option value="">-- Без категории --</option>';
+                        categoriesData.data.forEach((cat) => {
+                            categorySelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error loading data:", error);
+                }
+            };
+
+            window.closeAddProductModal = function () {
+                const modal = document.getElementById("addProductModal");
+                modal.classList.add("hidden");
+                // Clear inputs
+                document.getElementById("productNameInput").value = "";
+                document.getElementById("productUnitInput").value = "шт";
+                document.getElementById("productSectionSelect").value = "";
+                document.getElementById("productCategorySelect").value = "";
+            };
+
+            window.submitAddProduct = async function () {
+                const name = document
+                    .getElementById("productNameInput")
+                    .value.trim();
+                const unit =
+                    document.getElementById("productUnitInput").value.trim() ||
+                    "шт";
+                const sectionId =
+                    document.getElementById("productSectionSelect").value ||
+                    null;
+                const categoryId =
+                    document.getElementById("productCategorySelect").value ||
+                    null;
+
+                if (!name) {
+                    alert("Пожалуйста, введите название товара");
+                    return;
+                }
+
+                if (!sectionId) {
+                    alert("Пожалуйста, выберите секцию");
+                    return;
+                }
+
+                try {
+                    const response = await fetch("/api/custom-products", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            name,
+                            unit,
+                            section_id: sectionId,
+                            category_id: categoryId,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        alert("✅ Товар успешно создан!");
+                        closeAddProductModal();
+                        loadProducts(); // Reload products list
+                    } else {
+                        alert("❌ Ошибка: " + data.error);
+                    }
+                } catch (error) {
+                    console.error("Error creating product:", error);
+                    alert("❌ Ошибка при создании товара");
+                }
+            };
+
+            // Load data on page load
+            document.addEventListener("DOMContentLoaded", () => {
+                console.log("📱 Manager page loaded with shadcn-svelte");
+
+                // Setup tab switching
+                document.querySelectorAll(".tab-button").forEach((button) => {
+                    button.addEventListener("click", () => {
+                        const tabName = button.getAttribute("data-tab");
+                        if (tabName) {
+                            switchTab(tabName);
+                        }
+                    });
+                });
+
+                // Load initial data
+                loadOrdersByCategory();
+                setInterval(loadOrdersByCategory, 30000);
+            });
+        </script>
+    </div>
 </Layout>

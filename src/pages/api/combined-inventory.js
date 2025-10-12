@@ -1,5 +1,5 @@
-import { getDbClient, safeRelease } from '../../lib/db-helper.js';
-import { getTenantId } from '../../lib/tenant-manager.js';
+import { getDbClient, safeRelease } from "../../lib/db-helper.js";
+import { getTenantId } from "../../lib/tenant-manager.js";
 
 export const prerender = false;
 
@@ -9,47 +9,52 @@ export const prerender = false;
  * Combines section_products and custom_products
  */
 export async function GET({ request, url }) {
-    const tenantId = getTenantId(request);
-    const { client, error } = await getDbClient();
+  const tenantId = getTenantId(request);
+  const { client, error } = await getDbClient();
 
-    if (error) return error;
+  if (error) return error;
 
-    try {
-        const searchParams = new URL(url).searchParams;
-        const departmentName = searchParams.get('department');
+  try {
+    const searchParams = new URL(url).searchParams;
+    const departmentName = searchParams.get("department");
 
-        if (!departmentName) {
-            throw new Error('Department parameter is required');
-        }
+    if (!departmentName) {
+      throw new Error("Department parameter is required");
+    }
 
-        console.log(`📦 Loading inventory for section: "${departmentName}"`);
+    console.log(`📦 Loading inventory for section: "${departmentName}"`);
 
-        // Find the section by name
-        const sectionResult = await client.query(
-            `SELECT id, name, emoji, poster_storage_id
+    // Find the section by name
+    const sectionResult = await client.query(
+      `SELECT id, name, emoji, poster_storage_id
              FROM sections
              WHERE restaurant_id = $1 AND name = $2 AND is_active = true
              LIMIT 1`,
-            [tenantId, departmentName]
-        );
+      [tenantId, departmentName],
+    );
 
-        if (sectionResult.rows.length === 0) {
-            console.log(`⚠️ Section "${departmentName}" not found, returning empty array`);
-            return new Response(JSON.stringify({
-                success: true,
-                data: []
-            }), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' }
-            });
-        }
+    if (sectionResult.rows.length === 0) {
+      console.log(
+        `⚠️ Section "${departmentName}" not found, returning empty array`,
+      );
+      return new Response(
+        JSON.stringify({
+          success: true,
+          data: [],
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
 
-        const section = sectionResult.rows[0];
-        const sectionId = section.id;
+    const section = sectionResult.rows[0];
+    const sectionId = section.id;
 
-        // Get section products (from Poster)
-        const sectionProductsResult = await client.query(
-            `SELECT
+    // Get section products (from Poster)
+    const sectionProductsResult = await client.query(
+      `SELECT
                 sp.id,
                 sp.name,
                 sp.unit,
@@ -60,12 +65,12 @@ export async function GET({ request, url }) {
             LEFT JOIN product_categories pc ON sp.category_id = pc.id
             WHERE sp.section_id = $1 AND sp.is_active = true
             ORDER BY sp.name ASC`,
-            [sectionId]
-        );
+      [sectionId],
+    );
 
-        // Get custom products for this section
-        const customProductsResult = await client.query(
-            `SELECT
+    // Get custom products for this section
+    const customProductsResult = await client.query(
+      `SELECT
                 cp.id,
                 cp.name,
                 cp.unit,
@@ -77,52 +82,60 @@ export async function GET({ request, url }) {
             LEFT JOIN product_categories pc ON cp.category_id = pc.id
             WHERE cp.restaurant_id = $1 AND cp.section_id = $2 AND cp.is_active = true
             ORDER BY cp.name ASC`,
-            [tenantId, sectionId]
-        );
+      [tenantId, sectionId],
+    );
 
-        // Combine both sets of products
-        const allProducts = [
-            ...sectionProductsResult.rows.map(p => ({
-                id: p.id,
-                name: p.name,
-                unit: p.unit || 'шт',
-                quantity: 0,
-                minQuantity: 1,
-                category_name: p.category_name,
-                source: 'section'
-            })),
-            ...customProductsResult.rows.map(p => ({
-                id: p.id,
-                name: p.name,
-                unit: p.unit || 'шт',
-                quantity: p.current_quantity || 0,
-                minQuantity: p.min_quantity || 1,
-                category_name: p.category_name,
-                source: 'custom'
-            }))
-        ];
+    // Combine both sets of products
+    const allProducts = [
+      ...sectionProductsResult.rows.map((p) => ({
+        id: p.id,
+        name: p.name,
+        unit: p.unit || "шт",
+        quantity: 0,
+        minQuantity: 1,
+        category_name: p.category_name,
+        poster_ingredient_id: p.poster_ingredient_id, // Include for Poster supply creation
+        source: "section",
+      })),
+      ...customProductsResult.rows.map((p) => ({
+        id: p.id,
+        name: p.name,
+        unit: p.unit || "шт",
+        quantity: p.current_quantity || 0,
+        minQuantity: p.min_quantity || 1,
+        category_name: p.category_name,
+        source: "custom",
+      })),
+    ];
 
-        console.log(`✅ Loaded ${allProducts.length} products (${sectionProductsResult.rows.length} section + ${customProductsResult.rows.length} custom)`);
+    console.log(
+      `✅ Loaded ${allProducts.length} products (${sectionProductsResult.rows.length} section + ${customProductsResult.rows.length} custom)`,
+    );
 
-        return new Response(JSON.stringify({
-            success: true,
-            data: allProducts
-        }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-        });
-
-    } catch (error) {
-        console.error('Error loading combined inventory:', error);
-        return new Response(JSON.stringify({
-            success: false,
-            error: error.message,
-            data: []
-        }), {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-        });
-    } finally {
-        safeRelease(client);
-    }
+    return new Response(
+      JSON.stringify({
+        success: true,
+        data: allProducts,
+      }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    console.error("Error loading combined inventory:", error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error.message,
+        data: [],
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  } finally {
+    safeRelease(client);
+  }
 }

@@ -173,7 +173,7 @@ export async function PUT({ request }) {
     }
 }
 
-// DELETE: Soft delete section (mark as inactive)
+// DELETE: Soft delete section (mark as inactive) - only custom sections
 export async function DELETE({ request }) {
     const tenantId = getTenantId(request);
     const { id } = await request.json();
@@ -187,6 +187,20 @@ export async function DELETE({ request }) {
         }
 
         await client.query('BEGIN');
+
+        // Check if section is from Poster (cannot be deleted)
+        const sectionCheck = await client.query(
+            'SELECT id, name, poster_storage_id FROM sections WHERE id = $1 AND restaurant_id = $2',
+            [id, tenantId]
+        );
+
+        if (sectionCheck.rows.length === 0) {
+            throw new Error('Section not found');
+        }
+
+        if (sectionCheck.rows[0].poster_storage_id) {
+            throw new Error('Cannot delete sections from Poster. Delete them in Poster app.');
+        }
 
         // Check if section has products
         const productsCheck = await client.query(
@@ -212,7 +226,7 @@ export async function DELETE({ request }) {
 
         await client.query('COMMIT');
 
-        console.log(`✅ [${tenantId}] Deleted section: ${result.rows[0].name}`);
+        console.log(`✅ [${tenantId}] Deleted custom section: ${result.rows[0].name}`);
 
         return new Response(JSON.stringify({
             success: true,
