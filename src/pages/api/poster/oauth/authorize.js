@@ -18,9 +18,10 @@ export async function GET({ redirect }) {
   }
 
   // Build the OAuth authorization URL
-  // Poster requires application_id and redirect_uri as query params
-  const authUrl = new URL("https://joinposter.com/api/v2/auth/manage");
-  authUrl.searchParams.set("application_id", posterAppId);
+  // Poster uses standard OAuth parameters: client_id, redirect_uri, response_type
+  const authUrl = new URL("https://joinposter.com/api/auth");
+  authUrl.searchParams.set("response_type", "code");
+  authUrl.searchParams.set("client_id", posterAppId);
   authUrl.searchParams.set("redirect_uri", redirectUri);
 
   console.log("🔗 Redirecting to:", authUrl.toString());
