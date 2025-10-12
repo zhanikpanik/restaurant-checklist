@@ -59,14 +59,14 @@ export async function GET({ request }) {
 
       try {
         // Use INSERT ... ON CONFLICT to handle duplicates gracefully
+        // ON CONFLICT uses (restaurant_id, poster_storage_id) composite key
         const result = await client.query(
           `INSERT INTO sections (restaurant_id, name, emoji, poster_storage_id, is_active)
            VALUES ($1, $2, $3, $4, true)
-           ON CONFLICT (poster_storage_id)
+           ON CONFLICT (restaurant_id, poster_storage_id)
            DO UPDATE SET
              name = EXCLUDED.name,
              emoji = EXCLUDED.emoji,
-             restaurant_id = EXCLUDED.restaurant_id,
              updated_at = CURRENT_TIMESTAMP
            RETURNING (xmax = 0) AS inserted`,
           [tenantId, storage.storage_name, emoji, storage.storage_id],
