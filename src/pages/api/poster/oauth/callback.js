@@ -133,8 +133,17 @@ export async function GET({ url, redirect }) {
 
       await client.query("COMMIT");
 
-      // Redirect to manager page with tenant set
-      return redirect(`/manager?tenant=${restaurantId}&success=oauth`);
+      // Set tenant cookie to persist the tenant across page navigation
+      const response = new Response(null, {
+        status: 302,
+        headers: {
+          Location: `/manager?tenant=${restaurantId}&success=oauth`,
+          "Set-Cookie": `tenant=${restaurantId}; Path=/; Max-Age=31536000; SameSite=Lax`,
+        },
+      });
+
+      console.log(`✅ OAuth complete, redirecting to tenant: ${restaurantId}`);
+      return response;
     } catch (dbError) {
       await client.query("ROLLBACK");
       console.error("❌ Database error:", dbError);
