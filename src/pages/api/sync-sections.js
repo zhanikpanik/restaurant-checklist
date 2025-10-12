@@ -31,10 +31,18 @@ export async function GET({ request }) {
     const storagesResponse = await fetch(storagesUrl);
     const storagesData = await storagesResponse.json();
 
+    console.log(
+      `📦 Poster response:`,
+      JSON.stringify(storagesData).substring(0, 500),
+    );
+
     if (storagesData.error) {
-      throw new Error(
-        `Poster API error: ${storagesData.error.message || JSON.stringify(storagesData.error)}`,
-      );
+      const errorMsg =
+        typeof storagesData.error === "object"
+          ? JSON.stringify(storagesData.error)
+          : storagesData.error;
+      console.error(`❌ Poster API error:`, errorMsg);
+      throw new Error(`Poster API error: ${errorMsg}`);
     }
 
     const storages = storagesData.response || [];
