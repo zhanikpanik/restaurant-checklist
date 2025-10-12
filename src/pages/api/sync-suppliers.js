@@ -32,8 +32,25 @@ export async function POST({ request }) {
 
     console.log("🔄 Syncing suppliers from Poster...");
 
-    // Fetch suppliers from Poster API
-    const posterApiUrl = "https://joinposter.com/api/storage.getSuppliers";
+    // Fetch suppliers from Poster API using account-specific subdomain
+    const accountName =
+      tenantConfig?.poster_account_name || tenantConfig?.account_number;
+
+    if (!accountName) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Poster account name not configured",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const posterApiUrl = `https://${accountName}.joinposter.com/api/storage.getSuppliers`;
+    console.log("📡 Fetching from:", posterApiUrl);
     const response = await fetch(`${posterApiUrl}?token=${posterToken}`);
 
     if (!response.ok) {

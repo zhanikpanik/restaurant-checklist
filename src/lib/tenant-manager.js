@@ -117,6 +117,39 @@ export async function getRestaurantConfig(tenantId) {
 }
 
 /**
+ * Get Poster API configuration (token and baseUrl with account subdomain)
+ */
+export async function getPosterConfig(tenantId) {
+  const config = await getRestaurantConfig(tenantId);
+
+  if (!config) {
+    throw new Error(
+      `Restaurant configuration not found for tenant: ${tenantId}`,
+    );
+  }
+
+  const token = config.poster_token || config.poster_access_token;
+  const accountName = config.poster_account_name || config.account_number;
+
+  if (!token) {
+    throw new Error(`Poster token not configured for tenant: ${tenantId}`);
+  }
+
+  if (!accountName) {
+    throw new Error(
+      `Poster account name not configured for tenant: ${tenantId}`,
+    );
+  }
+
+  // Return account-specific base URL
+  return {
+    token,
+    baseUrl: `https://${accountName}.joinposter.com/api`,
+    accountName,
+  };
+}
+
+/**
  * Fallback configuration when database is not available
  */
 function getFallbackConfig(tenantId) {
@@ -140,51 +173,6 @@ function getFallbackConfig(tenantId) {
     language: "ru",
     whatsapp_enabled: true,
     is_active: true,
-  };
-}
-
-/**
- * Get Poster API configuration for a tenant
- */
-export async function getPosterConfig(tenantId) {
-  const config = await getRestaurantConfig(tenantId);
-
-  // Try both process.env and import.meta.env for compatibility
-  const envToken =
-    typeof import.meta !== "undefined" && import.meta.env
-      ? import.meta.env.POSTER_ACCESS_TOKEN || import.meta.env.POSTER_TOKEN
-      : process.env.POSTER_ACCESS_TOKEN || process.env.POSTER_TOKEN;
-
-  // Use token from config, or fall back to environment variable
-  const token = config.poster_token || envToken;
-
-  console.log(
-    `[${tenantId}] Token sources - DB: ${config.poster_token ? "YES" : "NO"}, ENV: ${envToken ? "YES" : "NO"}, Final: ${token ? "YES" : "NO"}`,
-  );
-
-  if (!token) {
-    throw new Error(
-      `No Poster token configured for restaurant ${tenantId}. Please set poster_token in database or POSTER_ACCESS_TOKEN in environment.`,
-    );
-  }
-
-  // Build account-specific base URL if we have the account name
-  let baseUrl = config.poster_base_url;
-  if (!baseUrl && config.poster_account_name) {
-    baseUrl = `https://${config.poster_account_name}.joinposter.com/api`;
-    console.log(`[${tenantId}] Using account-specific URL: ${baseUrl}`);
-  } else if (!baseUrl) {
-    baseUrl = "https://joinposter.com/api";
-    console.log(
-      `[${tenantId}] Warning: No account name found, using generic URL`,
-    );
-  }
-
-  return {
-    token: token,
-    baseUrl: baseUrl,
-    kitchenStorageId: config.kitchen_storage_id || 1,
-    barStorageId: config.bar_storage_id || 2,
   };
 }
 

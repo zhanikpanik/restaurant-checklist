@@ -102,8 +102,16 @@ async function createPosterSupply(orderId, deliveredItems, tenantId) {
       return { success: false, message: "No products with Poster IDs" };
     }
 
-    // Correct API: storage.createSupply
-    const posterApiUrl = `https://joinposter.com/api/storage.createSupply?token=${posterToken}`;
+    // Get account name for account-specific API URL
+    const accountName =
+      tenantConfig?.poster_account_name || tenantConfig?.account_number;
+
+    if (!accountName) {
+      return { success: false, message: "Poster account name not configured" };
+    }
+
+    // Correct API: storage.createSupply with account-specific subdomain
+    const posterApiUrl = `https://${accountName}.joinposter.com/api/storage.createSupply?token=${posterToken}`;
 
     const supplyData = {
       supply: {
