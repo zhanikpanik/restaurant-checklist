@@ -18,17 +18,17 @@ export async function GET({ url, redirect }) {
       return redirect("/setup?error=no_code");
     }
 
-    // Exchange code for token
+    // Exchange code for token using correct Poster OAuth parameters
     const tokenResponse = await fetch(
-      "https://joinposter.com/api/v2/auth/access_token",
+      "https://joinposter.com/api/auth/access_token",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: new URLSearchParams({
-          application_id: process.env.POSTER_APP_ID,
-          application_secret: process.env.POSTER_APP_SECRET,
+          client_id: process.env.POSTER_APP_ID,
+          client_secret: process.env.POSTER_APP_SECRET,
           grant_type: "authorization_code",
           redirect_uri: process.env.POSTER_REDIRECT_URI,
           code: code,
@@ -43,10 +43,15 @@ export async function GET({ url, redirect }) {
     }
 
     const tokenData = await tokenResponse.json();
+    console.log("📦 Token response:", tokenData);
+
     const { access_token, account_number } = tokenData;
 
     if (!access_token) {
-      console.error("❌ No access token received");
+      console.error(
+        "❌ No access token received, full response:",
+        JSON.stringify(tokenData),
+      );
       return redirect("/setup?error=no_token");
     }
 
