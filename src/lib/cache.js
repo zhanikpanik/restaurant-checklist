@@ -1,248 +1,289 @@
 /**
- * Simple in-memory cache with TTL support
- * Can be easily replaced with Redis later
- * 
- * Usage:
- *   await cache.set('key', data, 300); // Cache for 5 minutes
- *   const data = await cache.get('key');
- *   await cache.del('key');
+ * Centralized Cache Module
+ * Supports Redis (production) with fallback to in-memory cache (development)
  */
 
-class MemoryCache {
-    constructor() {
-        this.cache = new Map();
-        this.timers = new Map();
-        
-        // Clear expired entries every 5 minutes
-        setInterval(() => this.cleanup(), 300000);
-        
-        console.log('📦 Memory cache initialized');
-    }
-    
-    /**
-     * Set a value in cache with optional TTL
-     * @param {string} key - cache key
-     * @param {any} value - value to cache
-     * @param {number} ttl - time to live in seconds (default: 300 = 5 minutes)
-     */
-    async set(key, value, ttl = 300) {
-        try {
-            // Clear existing timer if any
-            if (this.timers.has(key)) {
-                clearTimeout(this.timers.get(key));
-            }
-            
-            // Store value with expiry timestamp
-            this.cache.set(key, {
-                value,
-                expiresAt: Date.now() + (ttl * 1000)
-            });
-            
-            // Set expiry timer
-            const timer = setTimeout(() => {
-                this.cache.delete(key);
-                this.timers.delete(key);
-                console.log(`🗑️ Cache expired: ${key}`);
-            }, ttl * 1000);
-            
-            this.timers.set(key, timer);
-            
-            console.log(`✅ Cached: ${key} (TTL: ${ttl}s)`);
-            return true;
-        } catch (error) {
-            console.error('❌ Cache set error:', error);
-            return false;
-        }
-    }
-    
-    /**
-     * Get a value from cache
-     * @param {string} key - cache key
-     * @returns {any|null} - cached value or null if not found/expired
-     */
-    async get(key) {
-        try {
-            const item = this.cache.get(key);
-            
-            if (!item) {
-                console.log(`❌ Cache miss: ${key}`);
-                return null;
-            }
-            
-            // Check if expired
-            if (Date.now() > item.expiresAt) {
-                this.cache.delete(key);
-                if (this.timers.has(key)) {
-                    clearTimeout(this.timers.get(key));
-                    this.timers.delete(key);
-                }
-                console.log(`⏰ Cache expired: ${key}`);
-                return null;
-            }
-            
-            console.log(`✅ Cache hit: ${key}`);
-            return item.value;
-        } catch (error) {
-            console.error('❌ Cache get error:', error);
-            return null;
-        }
-    }
-    
-    /**
-     * Delete a value from cache
-     * @param {string} key - cache key
-     */
-    async del(key) {
-        try {
-            if (this.timers.has(key)) {
-                clearTimeout(this.timers.get(key));
-                this.timers.delete(key);
-            }
-            this.cache.delete(key);
-            console.log(`🗑️ Cache deleted: ${key}`);
-            return true;
-        } catch (error) {
-            console.error('❌ Cache delete error:', error);
-            return false;
-        }
-    }
-    
-    /**
-     * Delete all keys matching a pattern
-     * @param {string} pattern - pattern to match (simple prefix match)
-     */
-    async delPattern(pattern) {
-        try {
-            let count = 0;
-            for (const key of this.cache.keys()) {
-                if (key.startsWith(pattern)) {
-                    await this.del(key);
-                    count++;
-                }
-            }
-            console.log(`🗑️ Deleted ${count} keys matching: ${pattern}`);
-            return count;
-        } catch (error) {
-            console.error('❌ Cache delete pattern error:', error);
-            return 0;
-        }
-    }
-    
-    /**
-     * Clear all cache entries
-     */
-    async clear() {
-        try {
-            // Clear all timers
-            for (const timer of this.timers.values()) {
-                clearTimeout(timer);
-            }
-            
-            this.cache.clear();
-            this.timers.clear();
-            console.log('🗑️ Cache cleared');
-            return true;
-        } catch (error) {
-            console.error('❌ Cache clear error:', error);
-            return false;
-        }
-    }
-    
-    /**
-     * Get cache statistics
-     */
-    getStats() {
-        return {
-            size: this.cache.size,
-            keys: Array.from(this.cache.keys())
-        };
-    }
-    
-    /**
-     * Cleanup expired entries
-     */
-    cleanup() {
-        const now = Date.now();
-        let cleaned = 0;
-        
-        for (const [key, item] of this.cache.entries()) {
-            if (now > item.expiresAt) {
-                this.cache.delete(key);
-                if (this.timers.has(key)) {
-                    clearTimeout(this.timers.get(key));
-                    this.timers.delete(key);
-                }
-                cleaned++;
-            }
-        }
-        
-        if (cleaned > 0) {
-            console.log(`🧹 Cleaned up ${cleaned} expired cache entries`);
-        }
-    }
-}
+import Redis from "ioredis";
 
-// Create singleton instance
-const cache = new MemoryCache();
+// Redis client instance
+let redisClient = null;
 
-export default cache;
+// Fallback in-memory cache
+const memoryCache = new Map();
+const MEMORY_CACHE_MAX_SIZE = 100; // Prevent memory leaks
+
+// Cache configuration
+const DEFAULT_TTL = 5 * 60; // 5 minutes in seconds
 
 /**
- * Cache helper for wrapping database queries
- * @param {string} key - cache key
- * @param {Function} fetchFn - async function that fetches data
- * @param {number} ttl - time to live in seconds
- * @returns {Promise<any>} - cached or fresh data
+ * Initialize Redis connection
+ * Falls back to in-memory cache if Redis is not available
  */
-export async function cached(key, fetchFn, ttl = 300) {
-    // Try to get from cache first
-    const cachedData = await cache.get(key);
-    if (cachedData !== null) {
-        return cachedData;
-    }
-    
-    // Fetch fresh data
-    const freshData = await fetchFn();
-    
-    // Cache it
-    await cache.set(key, freshData, ttl);
-    
-    return freshData;
+function initRedis() {
+  if (redisClient !== null) {
+    return redisClient;
+  }
+
+  const redisUrl = process.env.REDIS_URL;
+
+  if (!redisUrl) {
+    console.log(
+      "ℹ️  No REDIS_URL found, using in-memory cache (not recommended for production)",
+    );
+    return null;
+  }
+
+  try {
+    redisClient = new Redis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      reconnectOnError: (err) => {
+        const targetError = "READONLY";
+        if (err.message.includes(targetError)) {
+          return true; // Reconnect on READONLY errors
+        }
+        return false;
+      },
+    });
+
+    redisClient.on("connect", () => {
+      console.log("✅ Redis connected successfully");
+    });
+
+    redisClient.on("error", (err) => {
+      console.error("❌ Redis error:", err.message);
+    });
+
+    redisClient.on("close", () => {
+      console.log("⚠️  Redis connection closed");
+    });
+
+    return redisClient;
+  } catch (error) {
+    console.error("❌ Failed to initialize Redis:", error.message);
+    console.log("⚠️  Falling back to in-memory cache");
+    return null;
+  }
 }
 
 /**
- * Cache invalidation helper for common patterns
+ * Get a value from cache
+ * @param {string} key - Cache key
+ * @returns {Promise<any|null>} Cached value or null
  */
-export const cacheKeys = {
-    // Products
-    barProducts: (tenantId) => `products:bar:${tenantId}`,
-    kitchenProducts: (tenantId) => `products:kitchen:${tenantId}`,
-    allProducts: (tenantId) => `products:all:${tenantId}`,
-    
-    // Orders
-    orders: (tenantId) => `orders:${tenantId}`,
-    ordersByDept: (tenantId, dept) => `orders:${tenantId}:${dept}`,
-    ordersByCategory: (tenantId) => `orders:category:${tenantId}`,
-    
-    // Suppliers
-    suppliers: (tenantId) => `suppliers:${tenantId}`,
-    
-    // Categories
-    categories: (tenantId) => `categories:${tenantId}`,
-    categorySuppliers: (tenantId) => `category-suppliers:${tenantId}`,
-    
-    // Departments
-    departments: (tenantId) => `departments:${tenantId}`,
-    
-    // Custom products
-    customProducts: (tenantId) => `custom-products:${tenantId}`,
-};
+export async function getCache(key) {
+  const redis = initRedis();
 
-/**
- * Invalidate cache when data changes
- */
-export async function invalidateCache(pattern) {
-    console.log(`🔄 Invalidating cache pattern: ${pattern}`);
-    await cache.delPattern(pattern);
+  try {
+    if (redis && redis.status === "ready") {
+      const value = await redis.get(key);
+      if (value) {
+        try {
+          return JSON.parse(value);
+        } catch {
+          return value; // Return as-is if not JSON
+        }
+      }
+      return null;
+    }
+  } catch (error) {
+    console.warn(`⚠️  Redis GET error for key "${key}":`, error.message);
+  }
+
+  // Fallback to memory cache
+  const cached = memoryCache.get(key);
+  if (cached && Date.now() < cached.expiry) {
+    return cached.value;
+  }
+
+  // Expired or not found
+  if (cached) {
+    memoryCache.delete(key);
+  }
+  return null;
 }
 
+/**
+ * Set a value in cache
+ * @param {string} key - Cache key
+ * @param {any} value - Value to cache (will be JSON stringified)
+ * @param {number} ttl - Time to live in seconds (default: 5 minutes)
+ * @returns {Promise<boolean>} Success status
+ */
+export async function setCache(key, value, ttl = DEFAULT_TTL) {
+  const redis = initRedis();
+
+  try {
+    if (redis && redis.status === "ready") {
+      const serialized =
+        typeof value === "string" ? value : JSON.stringify(value);
+      await redis.setex(key, ttl, serialized);
+      return true;
+    }
+  } catch (error) {
+    console.warn(`⚠️  Redis SET error for key "${key}":`, error.message);
+  }
+
+  // Fallback to memory cache
+  // Prevent memory leaks by limiting cache size
+  if (memoryCache.size >= MEMORY_CACHE_MAX_SIZE) {
+    const firstKey = memoryCache.keys().next().value;
+    memoryCache.delete(firstKey);
+  }
+
+  memoryCache.set(key, {
+    value,
+    expiry: Date.now() + ttl * 1000,
+  });
+
+  return true;
+}
+
+/**
+ * Delete a value from cache
+ * @param {string} key - Cache key
+ * @returns {Promise<boolean>} Success status
+ */
+export async function deleteCache(key) {
+  const redis = initRedis();
+
+  try {
+    if (redis && redis.status === "ready") {
+      await redis.del(key);
+      return true;
+    }
+  } catch (error) {
+    console.warn(`⚠️  Redis DEL error for key "${key}":`, error.message);
+  }
+
+  // Fallback to memory cache
+  memoryCache.delete(key);
+  return true;
+}
+
+/**
+ * Delete multiple keys matching a pattern
+ * @param {string} pattern - Key pattern (e.g., "restaurant:*")
+ * @returns {Promise<number>} Number of keys deleted
+ */
+export async function deleteCachePattern(pattern) {
+  const redis = initRedis();
+
+  try {
+    if (redis && redis.status === "ready") {
+      const keys = await redis.keys(pattern);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+        return keys.length;
+      }
+      return 0;
+    }
+  } catch (error) {
+    console.warn(
+      `⚠️  Redis DEL pattern error for "${pattern}":`,
+      error.message,
+    );
+  }
+
+  // Fallback to memory cache
+  let count = 0;
+  const regex = new RegExp("^" + pattern.replace("*", ".*") + "$");
+  for (const key of memoryCache.keys()) {
+    if (regex.test(key)) {
+      memoryCache.delete(key);
+      count++;
+    }
+  }
+  return count;
+}
+
+/**
+ * Check if cache is using Redis
+ * @returns {boolean} True if using Redis
+ */
+export function isUsingRedis() {
+  const redis = initRedis();
+  return redis !== null && redis.status === "ready";
+}
+
+/**
+ * Get cache statistics
+ * @returns {Promise<object>} Cache stats
+ */
+export async function getCacheStats() {
+  const redis = initRedis();
+
+  if (redis && redis.status === "ready") {
+    try {
+      const info = await redis.info("stats");
+      const dbSize = await redis.dbsize();
+
+      return {
+        type: "redis",
+        connected: true,
+        keyCount: dbSize,
+        info: info,
+      };
+    } catch (error) {
+      return {
+        type: "redis",
+        connected: false,
+        error: error.message,
+      };
+    }
+  }
+
+  // Memory cache stats
+  let activeKeys = 0;
+  const now = Date.now();
+  for (const [key, cached] of memoryCache.entries()) {
+    if (now < cached.expiry) {
+      activeKeys++;
+    }
+  }
+
+  return {
+    type: "memory",
+    connected: true,
+    keyCount: activeKeys,
+    totalKeys: memoryCache.size,
+    maxSize: MEMORY_CACHE_MAX_SIZE,
+  };
+}
+
+/**
+ * Clear all cache (use with caution!)
+ * @returns {Promise<boolean>} Success status
+ */
+export async function clearAllCache() {
+  const redis = initRedis();
+
+  try {
+    if (redis && redis.status === "ready") {
+      await redis.flushdb();
+      console.log("✅ Redis cache cleared");
+      return true;
+    }
+  } catch (error) {
+    console.error("❌ Redis FLUSHDB error:", error.message);
+  }
+
+  // Clear memory cache
+  memoryCache.clear();
+  console.log("✅ Memory cache cleared");
+  return true;
+}
+
+/**
+ * Close Redis connection (for graceful shutdown)
+ */
+export async function closeCache() {
+  if (redisClient) {
+    await redisClient.quit();
+    redisClient = null;
+    console.log("👋 Redis connection closed");
+  }
+}

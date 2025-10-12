@@ -91,7 +91,6 @@ export async function POST({ request }) {
 
     let created = 0;
     let updated = 0;
-    let skipped = 0;
 
     try {
       for (const posterSupplier of posterSuppliers) {
@@ -101,105 +100,41 @@ export async function POST({ request }) {
         const phone = posterSupplier.supplier_phone || null;
         const contactInfo = posterSupplier.supplier_adress || null; // Note: Poster has typo "adress"
 
-        // Check if supplier already exists with this poster_supplier_id
-        const existingResult = await client.query(
-          "SELECT id, name FROM suppliers WHERE restaurant_id = $1 AND poster_supplier_id = $2",
-          [tenantId, supplierId],
+        // Use INSERT ... ON CONFLICT to handle duplicates gracefully
+        // ON CONFLICT uses (restaurant_id, poster_supplier_id) composite key
+        const result = await client.query(
+          `INSERT INTO suppliers (restaurant_id, name, phone, contact_info, poster_supplier_id, created_at)
+           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+           ON CONFLICT (restaurant_id, poster_supplier_id)
+           DO UPDATE SET
+             name = EXCLUDED.name,
+             phone = EXCLUDED.phone,
+             contact_info = EXCLUDED.contact_info,
+             updated_at = CURRENT_TIMESTAMP
+           RETURNING (xmax = 0) AS inserted`,
+          [tenantId, supplierName, phone, contactInfo, supplierId],
         );
 
-        if (existingResult.rows.length > 0) {
-          // Update existing supplier
-          await client.query(
-            `UPDATE suppliers
-                         SET name = $1, phone = $2, contact_info = $3, updated_at = CURRENT_TIMESTAMP
-                         WHERE restaurant_id = $4 AND poster_supplier_id = $5`,
-            [supplierName, phone, contactInfo, tenantId, supplierId],
-          );
+        if (result.rows[0].inserted) {
           console.log(
-            `✅ Updated supplier: ${supplierName} (ID: ${supplierId})`,
+            `✅ Created supplier: ${supplierName} (ID: ${supplierId})`,
+          );
+          created++;
+        } else {
+          console.log(
+            `🔄 Updated supplier: ${supplierName} (ID: ${supplierId})`,
           );
           updated++;
-        } else {
-          // Check if supplier with same name exists (might be manually created)
-          const nameCheck = await client.query(
-            "SELECT id, poster_supplier_id FROM suppliers WHERE restaurant_id = $1 AND name = $2",
-            [tenantId, supplierName],
-          );
-
-          if (
-            nameCheck.rows.length > 0 &&
-            !nameCheck.rows[0].poster_supplier_id
-          ) {
-            // Update the existing supplier to link with Poster
-            await client.query(
-              `UPDATE suppliers
-                             SET poster_supplier_id = $1, phone = $2, contact_info = $3, updated_at = CURRENT_TIMESTAMP
-                             WHERE restaurant_id = $4 AND id = $5`,
-              [supplierId, phone, contactInfo, tenantId, nameCheck.rows[0].id],
-            );
-            console.log(
-              `🔗 Linked existing supplier to Poster: ${supplierName} (ID: ${supplierId})`,
-            );
-            updated++;
-          } else if (nameCheck.rows.length > 0) {
-            // Already linked to different Poster supplier, skip
-            console.log(
-              `⏭️ Skipped: ${supplierName} (already linked to different Poster supplier)`,
-            );
-            skipped++;
-          } else {
-            // Create new supplier
-            try {
-              await client.query(
-                `INSERT INTO suppliers (restaurant_id, name, phone, contact_info, poster_supplier_id, created_at)
-                               VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
-                [tenantId, supplierName, phone, contactInfo, supplierId],
-              );
-              console.log(
-                `➕ Created supplier: ${supplierName} (ID: ${supplierId})`,
-              );
-              created++;
-            } catch (insertError) {
-              // If duplicate key error, it means name already exists - link it instead
-              if (insertError.code === "23505") {
-                console.log(
-                  `⚠️ Supplier "${supplierName}" already exists, trying to link...`,
-                );
-                const linkResult = await client.query(
-                  `UPDATE suppliers
-                   SET poster_supplier_id = $1, phone = $2, contact_info = $3, updated_at = CURRENT_TIMESTAMP
-                   WHERE restaurant_id = $4 AND name = $5 AND poster_supplier_id IS NULL
-                   RETURNING id`,
-                  [supplierId, phone, contactInfo, tenantId, supplierName],
-                );
-                if (linkResult.rows.length > 0) {
-                  console.log(
-                    `🔗 Linked existing supplier to Poster: ${supplierName} (ID: ${supplierId})`,
-                  );
-                  updated++;
-                } else {
-                  console.log(
-                    `⏭️ Skipped: ${supplierName} (already linked to different Poster supplier)`,
-                  );
-                  skipped++;
-                }
-              } else {
-                throw insertError; // Re-throw if not a duplicate key error
-              }
-            }
-          }
         }
       }
 
-      console.log(
-        `✅ Sync complete: ${created} created, ${updated} updated, ${skipped} skipped`,
-      );
+      console.log(`✅ Sync complete: ${created} created, ${updated} updated`);
 
       return new Response(
         JSON.stringify({
           success: true,
           message: `Synced ${posterSuppliers.length} suppliers from Poster`,
-          data: { created, updated, skipped, total: posterSuppliers.length },
+          data: { created, updated, total: posterSuppliers.length },
         }),
         {
           status: 200,

@@ -1,13 +1,18 @@
 import pool from "./db.js";
+import {
+  getCache,
+  setCache,
+  deleteCache,
+  deleteCachePattern,
+} from "./cache.js";
 
 /**
  * Multi-Tenant Restaurant Management
  * Handles tenant identification, configuration, and Poster API integration
  */
 
-// Cache for restaurant configurations to avoid repeated DB queries
-const restaurantCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+// Cache TTL in seconds (for Redis)
+const CACHE_TTL = 5 * 60; // 5 minutes
 
 /**
  * Get tenant ID from various sources
@@ -75,11 +80,12 @@ export function getTenantId(request) {
  * Get restaurant configuration including Poster tokens
  */
 export async function getRestaurantConfig(tenantId) {
-  // Check cache first
-  const cacheKey = tenantId;
-  const cached = restaurantCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.data;
+  // Check cache first (Redis with in-memory fallback)
+  const cacheKey = `restaurant:${tenantId}`;
+  const cached = await getCache(cacheKey);
+
+  if (cached) {
+    return cached;
   }
 
   if (!pool) {
@@ -101,11 +107,8 @@ export async function getRestaurantConfig(tenantId) {
 
     const config = result.rows[0];
 
-    // Cache the result
-    restaurantCache.set(cacheKey, {
-      data: config,
-      timestamp: Date.now(),
-    });
+    // Cache the result in Redis (or memory fallback)
+    await setCache(cacheKey, config, CACHE_TTL);
 
     return config;
   } catch (error) {
@@ -281,8 +284,8 @@ export async function createRestaurant(restaurantData) {
 
     await client.query("COMMIT");
 
-    // Clear cache
-    restaurantCache.delete(restaurantData.id);
+    // Clear cache for this restaurant
+    await deleteCache(`restaurant:${restaurantData.id}`);
 
     return result.rows[0];
   } catch (error) {
@@ -313,10 +316,12 @@ export function withTenant(handler) {
 /**
  * Clear restaurant cache (useful for admin operations)
  */
-export function clearRestaurantCache(tenantId = null) {
+export async function clearRestaurantCache(tenantId = null) {
   if (tenantId) {
-    restaurantCache.delete(tenantId);
+    await deleteCache(`restaurant:${tenantId}`);
+    console.log(`✅ Cleared cache for tenant: ${tenantId}`);
   } else {
-    restaurantCache.clear();
+    const count = await deleteCachePattern("restaurant:*");
+    console.log(`✅ Cleared ${count} restaurant cache entries`);
   }
 }
