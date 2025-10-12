@@ -55,38 +55,39 @@ export async function GET({ request }) {
     let skipped = 0;
 
     for (const storage of storages) {
-      // Check if section with this storage ID already exists
-      const existingSection = await client.query(
-        "SELECT id, name FROM sections WHERE poster_storage_id = $1 AND restaurant_id = $2",
-        [storage.storage_id, tenantId],
-      );
-
       const emoji = getEmojiForStorage(storage.storage_name);
 
-      if (existingSection.rows.length === 0) {
-        // Create new section
-        await client.query(
+      try {
+        // Use INSERT ... ON CONFLICT to handle duplicates gracefully
+        const result = await client.query(
           `INSERT INTO sections (restaurant_id, name, emoji, poster_storage_id, is_active)
-                     VALUES ($1, $2, $3, $4, true)`,
+           VALUES ($1, $2, $3, $4, true)
+           ON CONFLICT (poster_storage_id)
+           DO UPDATE SET
+             name = EXCLUDED.name,
+             emoji = EXCLUDED.emoji,
+             restaurant_id = EXCLUDED.restaurant_id,
+             updated_at = CURRENT_TIMESTAMP
+           RETURNING (xmax = 0) AS inserted`,
           [tenantId, storage.storage_name, emoji, storage.storage_id],
         );
 
-        console.log(
-          `✅ Created section: ${storage.storage_name} (storage_id: ${storage.storage_id})`,
+        if (result.rows[0].inserted) {
+          console.log(
+            `✅ Created section: ${storage.storage_name} (storage_id: ${storage.storage_id})`,
+          );
+          created++;
+        } else {
+          console.log(
+            `🔄 Updated section: ${storage.storage_name} (storage_id: ${storage.storage_id})`,
+          );
+          updated++;
+        }
+      } catch (err) {
+        console.error(
+          `⚠️ Error syncing section ${storage.storage_name}:`,
+          err.message,
         );
-        created++;
-      } else if (existingSection.rows[0].name !== storage.storage_name) {
-        // Update section name if changed
-        await client.query(
-          `UPDATE sections SET name = $1, emoji = $2, updated_at = CURRENT_TIMESTAMP
-                     WHERE id = $3`,
-          [storage.storage_name, emoji, existingSection.rows[0].id],
-        );
-
-        console.log(`🔄 Updated section: ${storage.storage_name}`);
-        updated++;
-      } else {
-        console.log(`⏭️  Section already up to date: ${storage.storage_name}`);
         skipped++;
       }
     }
