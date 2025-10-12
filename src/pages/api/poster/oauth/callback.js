@@ -59,7 +59,10 @@ export async function GET({ url, redirect }) {
     const tokenData = await tokenResponse.json();
     console.log("📦 Token response:", tokenData);
 
-    const { access_token, account_number } = tokenData;
+    // Poster returns both 'access_token' and 'new_access_token'
+    // 'new_access_token' is in format 'account_number:token' which is required for API calls
+    const access_token = tokenData.new_access_token || tokenData.access_token;
+    const account_number = tokenData.account_number;
 
     if (!access_token) {
       console.error(
@@ -69,11 +72,16 @@ export async function GET({ url, redirect }) {
       return redirect("/setup?error=no_token");
     }
 
-    // Get account info to get restaurant name
+    console.log(`✅ Using token format: ${access_token.substring(0, 10)}...`);
+
+    // Get account info to get restaurant name (use account-specific subdomain)
     const accountResponse = await fetch(
-      `https://joinposter.com/api/settings.getAllSettings?token=${access_token}`,
+      `https://${account}.joinposter.com/api/settings.getAllSettings?token=${access_token}`,
     );
     const accountData = await accountResponse.json();
+    console.log(
+      `📋 Account info retrieved for: ${accountData.response?.name || account}`,
+    );
 
     const restaurantName =
       accountData.response?.name || account_number || "New Restaurant";
