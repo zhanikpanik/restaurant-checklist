@@ -1,13 +1,26 @@
 // Poster OAuth authorization endpoint
 // Redirects user to Poster's OAuth page with correct credentials
+import { loadEnv } from "vite";
 
 export const prerender = false;
 
 export async function GET({ redirect }) {
-  const posterAppId = process.env.POSTER_APP_ID;
-  const redirectUri = process.env.POSTER_REDIRECT_URI;
+  // Load env vars explicitly using vite's loadEnv
+  const env = loadEnv("", process.cwd(), "");
+  const posterAppId =
+    env.POSTER_APP_ID ||
+    import.meta.env.POSTER_APP_ID ||
+    process.env.POSTER_APP_ID;
+  const redirectUri =
+    env.POSTER_REDIRECT_URI ||
+    import.meta.env.POSTER_REDIRECT_URI ||
+    process.env.POSTER_REDIRECT_URI;
 
-  console.log("🔐 OAuth Authorize:", { posterAppId, redirectUri });
+  console.log("🔐 OAuth Authorize:", {
+    posterAppId,
+    redirectUri,
+    cwd: process.cwd(),
+  });
 
   if (!posterAppId || !redirectUri) {
     console.error("❌ Missing OAuth credentials");
