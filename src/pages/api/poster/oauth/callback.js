@@ -6,8 +6,15 @@ export const prerender = false;
 export async function GET({ url, redirect }) {
   try {
     const code = url.searchParams.get("code");
+    const account = url.searchParams.get("account");
     const state = url.searchParams.get("state");
     const error = url.searchParams.get("error");
+
+    console.log("📥 Callback params:", {
+      code: code?.substring(0, 20) + "...",
+      account,
+      state,
+    });
 
     if (error) {
       console.error("❌ OAuth error:", error);
@@ -15,26 +22,33 @@ export async function GET({ url, redirect }) {
     }
 
     if (!code) {
+      console.error("❌ No code received");
       return redirect("/setup?error=no_code");
     }
 
+    if (!account) {
+      console.error("❌ No account received");
+      return redirect("/setup?error=no_account");
+    }
+
     // Exchange code for token using correct Poster OAuth parameters
-    const tokenResponse = await fetch(
-      "https://joinposter.com/api/auth/access_token",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          client_id: process.env.POSTER_APP_ID,
-          client_secret: process.env.POSTER_APP_SECRET,
-          grant_type: "authorization_code",
-          redirect_uri: process.env.POSTER_REDIRECT_URI,
-          code: code,
-        }),
+    // Token endpoint must use account-specific subdomain
+    const tokenEndpoint = `https://${account}.joinposter.com/api/auth/access_token`;
+    console.log("🔗 Token endpoint:", tokenEndpoint);
+
+    const tokenResponse = await fetch(tokenEndpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
       },
-    );
+      body: new URLSearchParams({
+        client_id: process.env.POSTER_APP_ID,
+        client_secret: process.env.POSTER_APP_SECRET,
+        grant_type: "authorization_code",
+        redirect_uri: process.env.POSTER_REDIRECT_URI,
+        code: code,
+      }),
+    });
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
