@@ -1,9 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
 
-const posterAppId = import.meta.env.POSTER_APP_ID;
-const redirectUri = import.meta.env.POSTER_REDIRECT_URI;
-
 // Check for errors or success from callback
 const url = Astro.url;
 const error = url.searchParams.get("error");
@@ -54,37 +51,22 @@ const success = url.searchParams.get("success");
             }
 
             <div class="oauth-section">
-                <form
-                    action="https://joinposter.com/api/v2/auth/manage"
-                    method="POST"
-                >
-                    <input
-                        type="hidden"
-                        name="application_id"
-                        value={posterAppId}
-                    />
-                    <input
-                        type="hidden"
-                        name="redirect_uri"
-                        value={redirectUri}
-                    />
-                    <button type="submit" class="oauth-button">
-                        <svg
-                            width="24"
-                            height="24"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            stroke-width="2"
-                        >
-                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"
-                            ></path>
-                            <polyline points="10 17 15 12 10 7"></polyline>
-                            <line x1="15" y1="12" x2="3" y2="12"></line>
-                        </svg>
-                        Connect with Poster POS
-                    </button>
-                </form>
+                <a href="/api/poster/oauth/authorize" class="oauth-button">
+                    <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                    >
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"
+                        ></path>
+                        <polyline points="10 17 15 12 10 7"></polyline>
+                        <line x1="15" y1="12" x2="3" y2="12"></line>
+                    </svg>
+                    Connect with Poster POS
+                </a>
 
                 <div class="features">
                     <div class="feature">
@@ -176,10 +158,6 @@ const success = url.searchParams.get("success");
         margin: 40px 0;
     }
 
-    .oauth-section form {
-        display: inline-block;
-    }
-
     .oauth-button {
         display: inline-flex;
         align-items: center;
@@ -188,7 +166,7 @@ const success = url.searchParams.get("success");
         color: white;
         padding: 18px 36px;
         border-radius: 12px;
-        border: none;
+        text-decoration: none;
         font-size: 18px;
         font-weight: 600;
         cursor: pointer;
