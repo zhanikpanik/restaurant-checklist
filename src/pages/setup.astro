@@ -1,0 +1,200 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const posterAppId = import.meta.env.POSTER_APP_ID;
+const redirectUri = import.meta.env.POSTER_REDIRECT_URI;
+
+// Build OAuth authorization URL
+const authUrl = `https://joinposter.com/api/v2/auth/manage?application_id=${posterAppId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code`;
+
+// Check for errors or success from callback
+const url = Astro.url;
+const error = url.searchParams.get('error');
+const success = url.searchParams.get('success');
+---
+
+<Layout title="Restaurant Setup">
+  <div class="setup-container">
+    <div class="setup-card">
+      <div class="logo">🍽️</div>
+      <h1>Connect Your Restaurant</h1>
+      <p class="subtitle">Connect your Poster POS account to sync suppliers, products, and inventory</p>
+
+      {error && (
+        <div class="alert alert-error">
+          <strong>Error:</strong>
+          {error === 'no_code' && 'Authorization code not received'}
+          {error === 'token_exchange_failed' && 'Failed to exchange token with Poster'}
+          {error === 'no_token' && 'No access token received from Poster'}
+          {error === 'database_error' && 'Failed to save restaurant data'}
+          {error === 'unknown' && 'An unknown error occurred'}
+          {!['no_code', 'token_exchange_failed', 'no_token', 'database_error', 'unknown'].includes(error) && error}
+        </div>
+      )}
+
+      {success === 'oauth' && (
+        <div class="alert alert-success">
+          <strong>Success!</strong> Your restaurant has been connected successfully!
+        </div>
+      )}
+
+      <div class="oauth-section">
+        <a href={authUrl} class="oauth-button">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
+          Connect with Poster POS
+        </a>
+
+        <div class="features">
+          <div class="feature">
+            <span class="check">✓</span>
+            <span>Automatic supplier sync</span>
+          </div>
+          <div class="feature">
+            <span class="check">✓</span>
+            <span>Product inventory integration</span>
+          </div>
+          <div class="feature">
+            <span class="check">✓</span>
+            <span>Auto-create supplies on delivery</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <p class="help-text">
+          Don't have a Poster account?
+          <a href="https://joinposter.com" target="_blank" rel="noopener">Sign up here</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .setup-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+  }
+
+  .setup-card {
+    background: white;
+    border-radius: 20px;
+    padding: 60px 40px;
+    max-width: 500px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    text-align: center;
+  }
+
+  .logo {
+    font-size: 64px;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+    color: #1a202c;
+  }
+
+  .subtitle {
+    color: #718096;
+    margin-bottom: 30px;
+    font-size: 16px;
+  }
+
+  .alert {
+    padding: 16px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    text-align: left;
+  }
+
+  .alert-error {
+    background: #fee;
+    border: 1px solid #fcc;
+    color: #c33;
+  }
+
+  .alert-success {
+    background: #efe;
+    border: 1px solid #cfc;
+    color: #3c3;
+  }
+
+  .oauth-section {
+    margin: 40px 0;
+  }
+
+  .oauth-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    background: #667eea;
+    color: white;
+    padding: 18px 36px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-size: 18px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  }
+
+  .oauth-button:hover {
+    background: #5568d3;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+  }
+
+  .features {
+    margin-top: 40px;
+    text-align: left;
+    background: #f7fafc;
+    padding: 24px;
+    border-radius: 12px;
+  }
+
+  .feature {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    color: #2d3748;
+  }
+
+  .check {
+    color: #48bb78;
+    font-weight: bold;
+    font-size: 20px;
+  }
+
+  .help-section {
+    margin-top: 30px;
+    padding-top: 30px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .help-text {
+    color: #718096;
+    font-size: 14px;
+  }
+
+  .help-text a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .help-text a:hover {
+    text-decoration: underline;
+  }
+</style>
