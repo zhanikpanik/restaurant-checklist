@@ -45,17 +45,6 @@ async function getSuppliers(tenantId) {
         "restaurant_id:",
         tenantFilter.restaurant_id,
       );
-
-      // If no tenant-specific suppliers, get all suppliers
-      if (result.rows.length === 0) {
-        console.log(
-          "⚠️ No tenant-specific suppliers found, getting all suppliers...",
-        );
-        result = await client.query(
-          "SELECT id, name, contact_info, phone, poster_supplier_id, created_at FROM suppliers ORDER BY name ASC",
-        );
-        console.log("📋 Total suppliers in database:", result.rows.length);
-      }
     } else {
       // No restaurant_id column, get all suppliers
       console.log("📋 Getting all suppliers (no tenant filtering available)");
