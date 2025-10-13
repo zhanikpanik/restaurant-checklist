@@ -695,47 +695,64 @@ import Layout from "../layouts/Layout.astro";
                 return;
             }
 
-            let html = '<div class="space-y-2">';
+            // Clear container first
+            container.innerHTML = "";
+
+            const wrapper = document.createElement("div");
+            wrapper.className = "space-y-2";
 
             availableSuppliers.forEach((supplier) => {
                 const hasPhone = supplier.phone && supplier.phone.trim() !== "";
                 const isSelected = selectedSupplierId === supplier.id;
 
-                html += `
-                    <label class="flex items-start p-3 border rounded-lg cursor-pointer transition-all ${isSelected ? "bg-blue-50 border-blue-500" : "bg-gray-50 border-gray-200 hover:border-blue-300"}">
-                        <input
-                            type="radio"
-                            name="supplier"
-                            value="${supplier.id}"
-                            ${isSelected ? "checked" : ""}
-                            onchange="selectSupplierForAssignment(${supplier.id})"
-                            class="mt-1 mr-3 h-4 w-4 text-blue-600"
-                        >
-                        <div class="flex-1">
-                            <div class="font-medium text-gray-900">${supplier.name}</div>
-                            ${
-                                hasPhone
-                                    ? `
-                                <div class="text-sm text-gray-600 mt-1">📱 ${supplier.phone}</div>
-                            `
-                                    : `
-                                <div class="text-sm text-red-600 mt-1">⚠️ Нет телефона</div>
-                            `
-                            }
-                            ${
-                                supplier.contact_info
-                                    ? `
-                                <div class="text-xs text-gray-500 mt-1">${supplier.contact_info}</div>
-                            `
-                                    : ""
-                            }
-                        </div>
-                    </label>
-                `;
+                const label = document.createElement("label");
+                label.className = `flex items-start p-3 border rounded-lg cursor-pointer transition-all ${isSelected ? "bg-blue-50 border-blue-500" : "bg-gray-50 border-gray-200 hover:border-blue-300"}`;
+
+                // Create radio button
+                const radio = document.createElement("input");
+                radio.type = "radio";
+                radio.name = "supplier";
+                radio.value = supplier.id;
+                radio.checked = isSelected;
+                radio.className = "mt-1 mr-3 h-4 w-4 text-blue-600";
+                radio.addEventListener("change", function () {
+                    selectSupplierForAssignment(supplier.id);
+                });
+
+                // Create content div
+                const contentDiv = document.createElement("div");
+                contentDiv.className = "flex-1";
+
+                // Supplier name
+                const nameDiv = document.createElement("div");
+                nameDiv.className = "font-medium text-gray-900";
+                nameDiv.textContent = supplier.name;
+                contentDiv.appendChild(nameDiv);
+
+                // Phone or no phone warning
+                const phoneDiv = document.createElement("div");
+                phoneDiv.className = hasPhone
+                    ? "text-sm text-gray-600 mt-1"
+                    : "text-sm text-red-600 mt-1";
+                phoneDiv.textContent = hasPhone
+                    ? `📱 ${supplier.phone}`
+                    : "⚠️ Нет телефона";
+                contentDiv.appendChild(phoneDiv);
+
+                // Contact info if exists
+                if (supplier.contact_info) {
+                    const contactDiv = document.createElement("div");
+                    contactDiv.className = "text-xs text-gray-500 mt-1";
+                    contactDiv.textContent = supplier.contact_info;
+                    contentDiv.appendChild(contactDiv);
+                }
+
+                label.appendChild(radio);
+                label.appendChild(contentDiv);
+                wrapper.appendChild(label);
             });
 
-            html += "</div>";
-            container.innerHTML = html;
+            container.appendChild(wrapper);
         }
 
         // Select supplier for assignment
@@ -752,8 +769,10 @@ import Layout from "../layouts/Layout.astro";
             const btn = document.getElementById("assignSupplierBtn");
             btn.disabled = false;
 
-            // Update visual selection
-            displaySuppliersList();
+            console.log(
+                "Supplier selected successfully. Button disabled:",
+                btn.disabled,
+            );
         }
 
         // Assign selected supplier
