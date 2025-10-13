@@ -77,7 +77,6 @@ export async function GET({ request }) {
       "📍 Active sections:",
       activeSections.map((s) => s.name),
     );
-    console.log(`📊 Found ${orders.length} orders for tenant ${restaurantId}`);
 
     // If no sections exist, we won't filter orders (backward compatibility)
     const shouldFilterBySections = activeSections.length > 0;
@@ -126,6 +125,7 @@ export async function GET({ request }) {
     const ordersResult = await client.query(ordersQuery, ordersParams);
 
     const orders = ordersResult.rows;
+    console.log(`📊 Found ${orders.length} orders for tenant ${restaurantId}`);
 
     // Check if product_categories table exists and what columns it has
     const tableCheck = await client.query(`
