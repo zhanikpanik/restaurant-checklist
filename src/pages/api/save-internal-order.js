@@ -52,7 +52,23 @@ export async function POST({ request, locals }) {
 
     // Get tenant ID from request
     const tenantId = getTenantId(request);
-    console.log(`🏢 Tenant ID: ${tenantId}`);
+    console.log(`🏢 Tenant ID from request: ${tenantId}`);
+
+    // Diagnostic: Log all tenant detection sources
+    const url = new URL(request.url);
+    const tenantParam = url.searchParams.get("tenant");
+    const cookies = request.headers.get("cookie");
+    const tenantCookie = cookies
+      ?.split(";")
+      .find((c) => c.trim().startsWith("tenant="));
+    const tenantHeader = request.headers.get("X-Tenant-ID");
+
+    console.log(`🔍 Tenant detection sources:`, {
+      queryParam: tenantParam,
+      cookie: tenantCookie?.split("=")[1]?.trim(),
+      header: tenantHeader,
+      finalTenantId: tenantId,
+    });
 
     // Save order to PostgreSQL database
     const saveSuccess = await addOrder(
