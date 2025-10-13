@@ -17,25 +17,25 @@ export async function GET({ request, url }) {
   try {
     const searchParams = new URL(url).searchParams;
     const departmentName = searchParams.get("department");
-    const sectionId = searchParams.get("section_id");
+    const sectionIdParam = searchParams.get("section_id");
 
-    if (!departmentName && !sectionId) {
+    if (!departmentName && !sectionIdParam) {
       throw new Error("Department name or section_id parameter is required");
     }
 
     console.log(
-      `📦 Loading inventory for section: "${departmentName || `ID:${sectionId}`}"`,
+      `📦 Loading inventory for section: "${departmentName || `ID:${sectionIdParam}`}"`,
     );
 
     // Find the section by ID or name
     let sectionResult;
-    if (sectionId) {
+    if (sectionIdParam) {
       sectionResult = await client.query(
         `SELECT id, name, emoji, poster_storage_id
                FROM sections
                WHERE restaurant_id = $1 AND id = $2 AND is_active = true
                LIMIT 1`,
-        [tenantId, sectionId],
+        [tenantId, sectionIdParam],
       );
     } else {
       sectionResult = await client.query(
@@ -49,7 +49,7 @@ export async function GET({ request, url }) {
 
     if (sectionResult.rows.length === 0) {
       console.log(
-        `⚠️ Section "${departmentName || `ID:${sectionId}`}" not found, returning empty array`,
+        `⚠️ Section "${departmentName || `ID:${sectionIdParam}`}" not found, returning empty array`,
       );
       return new Response(
         JSON.stringify({
