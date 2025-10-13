@@ -17,25 +17,39 @@ export async function GET({ request, url }) {
   try {
     const searchParams = new URL(url).searchParams;
     const departmentName = searchParams.get("department");
+    const sectionId = searchParams.get("section_id");
 
-    if (!departmentName) {
-      throw new Error("Department parameter is required");
+    if (!departmentName && !sectionId) {
+      throw new Error("Department name or section_id parameter is required");
     }
 
-    console.log(`📦 Loading inventory for section: "${departmentName}"`);
-
-    // Find the section by name
-    const sectionResult = await client.query(
-      `SELECT id, name, emoji, poster_storage_id
-             FROM sections
-             WHERE restaurant_id = $1 AND name = $2 AND is_active = true
-             LIMIT 1`,
-      [tenantId, departmentName],
+    console.log(
+      `📦 Loading inventory for section: "${departmentName || `ID:${sectionId}`}"`,
     );
+
+    // Find the section by ID or name
+    let sectionResult;
+    if (sectionId) {
+      sectionResult = await client.query(
+        `SELECT id, name, emoji, poster_storage_id
+               FROM sections
+               WHERE restaurant_id = $1 AND id = $2 AND is_active = true
+               LIMIT 1`,
+        [tenantId, sectionId],
+      );
+    } else {
+      sectionResult = await client.query(
+        `SELECT id, name, emoji, poster_storage_id
+               FROM sections
+               WHERE restaurant_id = $1 AND name = $2 AND is_active = true
+               LIMIT 1`,
+        [tenantId, departmentName],
+      );
+    }
 
     if (sectionResult.rows.length === 0) {
       console.log(
-        `⚠️ Section "${departmentName}" not found, returning empty array`,
+        `⚠️ Section "${departmentName || `ID:${sectionId}`}" not found, returning empty array`,
       );
       return new Response(
         JSON.stringify({

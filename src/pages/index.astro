@@ -1,99 +1,126 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Restaurant System - Выберите отдел">
-	<div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-		<div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
-			<!-- Current Restaurant Indicator -->
-			<div id="tenantIndicator" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-				<div class="flex items-center justify-between">
-					<div class="flex items-center gap-2">
-						<span class="text-sm font-medium text-blue-800">Текущий ресторан:</span>
-						<span id="tenantName" class="text-sm text-blue-600 font-semibold">Загрузка...</span>
-					</div>
-					<a href="/select-restaurant" class="text-xs text-blue-600 hover:text-blue-800 underline">Изменить</a>
-				</div>
-			</div>
+    <div
+        class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4"
+    >
+        <div class="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
+            <!-- Current Restaurant Indicator -->
+            <div
+                id="tenantIndicator"
+                class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg"
+            >
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-medium text-blue-800"
+                            >Текущий ресторан:</span
+                        >
+                        <span
+                            id="tenantName"
+                            class="text-sm text-blue-600 font-semibold"
+                            >Загрузка...</span
+                        >
+                    </div>
+                    <a
+                        href="/select-restaurant"
+                        class="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >Изменить</a
+                    >
+                </div>
+            </div>
 
-			<div class="text-center mb-8">
-				<h1 class="text-3xl font-bold text-gray-800 mb-2">🍽️ Restaurant System</h1>
-				<p class="text-gray-600">Выберите отдел для работы</p>
-			</div>
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">
+                    🍽️ Restaurant System
+                </h1>
+                <p class="text-gray-600">Выберите отдел для работы</p>
+            </div>
 
-			<div id="sectionsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-				<!-- Loading state -->
-				<div class="col-span-full text-center py-8">
-					<div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
-					<p class="text-gray-600">Загрузка отделов...</p>
-				</div>
-			</div>
+            <div
+                id="sectionsContainer"
+                class="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
+                <!-- Loading state -->
+                <div class="col-span-full text-center py-8">
+                    <div
+                        class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"
+                    >
+                    </div>
+                    <p class="text-gray-600">Загрузка отделов...</p>
+                </div>
+            </div>
 
-			<div class="mt-8 text-center">
-				<p class="text-sm text-gray-500">Система управления рестораном</p>
-			</div>
-		</div>
-	</div>
+            <div class="mt-8 text-center">
+                <p class="text-sm text-gray-500">
+                    Система управления рестораном
+                </p>
+            </div>
+        </div>
+    </div>
 
-	<script is:inline>
-		// Get current tenant from cookie
-		function getCurrentTenant() {
-			const cookies = document.cookie.split(';');
-			const tenantCookie = cookies.find(c => c.trim().startsWith('tenant='));
-			return tenantCookie ? tenantCookie.split('=')[1].trim() : 'unknown';
-		}
+    <script is:inline>
+        // Get current tenant from cookie
+        function getCurrentTenant() {
+            const cookies = document.cookie.split(";");
+            const tenantCookie = cookies.find((c) =>
+                c.trim().startsWith("tenant="),
+            );
+            return tenantCookie ? tenantCookie.split("=")[1].trim() : "unknown";
+        }
 
-		// Load tenant info and display it
-		async function loadTenantInfo() {
-			const tenant = getCurrentTenant();
-			const tenantNameEl = document.getElementById('tenantName');
+        // Load tenant info and display it
+        async function loadTenantInfo() {
+            const tenant = getCurrentTenant();
+            const tenantNameEl = document.getElementById("tenantName");
 
-			console.log('🏢 Current tenant:', tenant);
-			tenantNameEl.textContent = tenant;
+            console.log("🏢 Current tenant:", tenant);
+            tenantNameEl.textContent = tenant;
 
-			// Try to fetch restaurant details
-			try {
-				const response = await fetch('/api/restaurants');
-				const data = await response.json();
-				if (data.success) {
-					const restaurant = data.data.find(r => r.id === tenant);
-					if (restaurant) {
-						tenantNameEl.textContent = `${restaurant.logo || '🍽️'} ${restaurant.name}`;
-					}
-				}
-			} catch (error) {
-				console.error('Error fetching restaurant info:', error);
-			}
-		}
+            // Try to fetch restaurant details
+            try {
+                const response = await fetch("/api/restaurants");
+                const data = await response.json();
+                if (data.success) {
+                    const restaurant = data.data.find((r) => r.id === tenant);
+                    if (restaurant) {
+                        tenantNameEl.textContent = `${restaurant.logo || "🍽️"} ${restaurant.name}`;
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching restaurant info:", error);
+            }
+        }
 
-		// Load all sections and display them
-		async function loadSections() {
-			try {
-				const response = await fetch('/api/sections');
-				const data = await response.json();
+        // Load all sections and display them
+        async function loadSections() {
+            try {
+                const response = await fetch("/api/sections");
+                const data = await response.json();
 
-				console.log('📊 Sections API response:', data);
-				console.log('🏢 Current tenant:', getCurrentTenant());
+                console.log("📊 Sections API response:", data);
+                console.log("🏢 Current tenant:", getCurrentTenant());
 
-				if (data.success) {
-					if (data.data.length === 0) {
-						console.warn('⚠️ No sections found for current tenant');
-						showNoSectionsMessage();
-					} else {
-						displaySections(data.data);
-					}
-				} else {
-					throw new Error(data.error);
-				}
-			} catch (error) {
-				console.error('❌ Error loading sections:', error);
-				showErrorMessage(error.message);
-			}
-		}
+                if (data.success) {
+                    if (data.data.length === 0) {
+                        console.warn("⚠️ No sections found for current tenant");
+                        showNoSectionsMessage();
+                    } else {
+                        displaySections(data.data);
+                    }
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                console.error("❌ Error loading sections:", error);
+                showErrorMessage(error.message);
+            }
+        }
 
-		function showNoSectionsMessage() {
-			const container = document.getElementById('sectionsContainer');
-			container.innerHTML = `
+        function showNoSectionsMessage() {
+            const container = document.getElementById("sectionsContainer");
+            container.innerHTML = `
 				<div class="col-span-full text-center py-8">
 					<div class="text-6xl mb-4">📭</div>
 					<h3 class="text-xl font-semibold text-gray-700 mb-2">Отделы не найдены</h3>
@@ -109,39 +136,39 @@ import Layout from '../layouts/Layout.astro';
 					</div>
 				</div>
 			`;
-		}
+        }
 
-		async function syncSections() {
-			const container = document.getElementById('sectionsContainer');
-			container.innerHTML = `
+        async function syncSections() {
+            const container = document.getElementById("sectionsContainer");
+            container.innerHTML = `
 				<div class="col-span-full text-center py-8">
 					<div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
 					<p class="text-gray-600">Синхронизация секций из Poster...</p>
 				</div>
 			`;
 
-			try {
-				// Sync sections from Poster
-				const syncResponse = await fetch('/api/sync-sections');
-				const syncData = await syncResponse.json();
+            try {
+                // Sync sections from Poster
+                const syncResponse = await fetch("/api/sync-sections");
+                const syncData = await syncResponse.json();
 
-				if (!syncData.success) {
-					throw new Error(syncData.error);
-				}
+                if (!syncData.success) {
+                    throw new Error(syncData.error);
+                }
 
-				console.log('✅ Sections synced:', syncData.data);
+                console.log("✅ Sections synced:", syncData.data);
 
-				// Reload sections
-				await loadSections();
-			} catch (error) {
-				console.error('❌ Error syncing sections:', error);
-				showErrorMessage(error.message);
-			}
-		}
+                // Reload sections
+                await loadSections();
+            } catch (error) {
+                console.error("❌ Error syncing sections:", error);
+                showErrorMessage(error.message);
+            }
+        }
 
-		function showErrorMessage(message) {
-			const container = document.getElementById('sectionsContainer');
-			container.innerHTML = `
+        function showErrorMessage(message) {
+            const container = document.getElementById("sectionsContainer");
+            container.innerHTML = `
 				<div class="col-span-full text-center py-8">
 					<div class="text-6xl mb-4">⚠️</div>
 					<h3 class="text-xl font-semibold text-red-700 mb-2">Ошибка загрузки</h3>
@@ -151,13 +178,13 @@ import Layout from '../layouts/Layout.astro';
 					</button>
 				</div>
 			`;
-		}
-		
-		function displaySections(sections) {
-			const container = document.getElementById('sectionsContainer');
+        }
 
-			// Add manager and delivery sections first (special cases)
-			let sectionsHtml = `
+        function displaySections(sections) {
+            const container = document.getElementById("sectionsContainer");
+
+            // Add manager and delivery sections first (special cases)
+            let sectionsHtml = `
 				<button onclick="selectSpecialSection('manager')" class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
 					<span class="text-3xl mr-4">👨‍💼</span>
 					<div class="text-left">
@@ -175,77 +202,88 @@ import Layout from '../layouts/Layout.astro';
 				</button>
 			`;
 
-			// Display all sections
-			sections.forEach(section => {
-				const colors = getSectionColors(section.name);
-				const description = getSectionDescription(section.name, section.poster_storage_id);
-				const sectionId = section.id;
-				const storageId = section.poster_storage_id;
+            // Display all sections
+            sections.forEach((section) => {
+                const colors = getSectionColors(section.name);
+                const description = getSectionDescription(
+                    section.name,
+                    section.poster_storage_id,
+                );
+                const sectionId = section.id;
+                const storageId = section.poster_storage_id;
 
-				sectionsHtml += `
-					<button onclick="selectSection('${sectionId}', '${section.name}', '${storageId || ''}')" class="w-full ${colors} text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
+                sectionsHtml += `
+					<button onclick="selectSection('${sectionId}', '${section.name}', '${storageId || ""}')" class="w-full ${colors} text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start">
 						<span class="text-3xl mr-4">${section.emoji}</span>
 						<div class="text-left">
 							<div class="font-semibold text-lg">${section.name}</div>
-							<div class="text-sm opacity-90">${description} ${section.custom_products_count ? '• ' + section.custom_products_count + ' товаров' : ''}</div>
+							<div class="text-sm opacity-90">${description} ${section.custom_products_count ? "• " + section.custom_products_count + " товаров" : ""}</div>
 						</div>
 					</button>
 				`;
-			});
+            });
 
-			container.innerHTML = sectionsHtml;
-		}
-		
-		function getSectionColors(deptName) {
-			const name = deptName.toLowerCase();
-			if (name.includes('кухня')) return 'bg-orange-500 hover:bg-orange-600';
-			if (name.includes('бар')) return 'bg-purple-500 hover:bg-purple-600';
-			if (name.includes('горничная')) return 'bg-pink-500 hover:bg-pink-600';
-			if (name.includes('склад')) return 'bg-gray-500 hover:bg-gray-600';
-			if (name.includes('офис')) return 'bg-blue-500 hover:bg-blue-600';
-			if (name.includes('ресепшн')) return 'bg-indigo-500 hover:bg-indigo-600';
-			return 'bg-teal-500 hover:bg-teal-600'; // Default color
-		}
-		
-		function getSectionDescription(deptName, posterStorageId) {
-			const name = deptName.toLowerCase();
-			if (name.includes('кухня')) return 'Заказы для кухни';
-			if (name.includes('бар')) return 'Заказы для бара';
-			if (name.includes('горничная')) return 'Хозяйственные товары';
-			if (posterStorageId) return 'Товары из Poster';
-			return 'Управление товарами';
-		}
-		
-		function getSectionKey(deptName) {
-			const name = deptName.toLowerCase();
-			if (name.includes('кухня')) return 'kitchen';
-			if (name.includes('бар')) return 'bar';
-			if (name.includes('горничная')) return 'custom';
-			if (name.includes('офис')) return 'офис';
-			// For custom departments, use a safe URL key
-			return deptName.toLowerCase().replace(/[^a-zа-я0-9]/g, '');
-		}
-		
-		function selectSpecialSection(type) {
-			console.log(`Selected special section: ${type}`);
-			if (type === 'manager') {
-				window.location.href = '/manager';
-			} else if (type === 'delivery') {
-				window.location.href = '/delivery';
-			}
-		}
+            container.innerHTML = sectionsHtml;
+        }
 
-		function selectSection(sectionId, sectionName = '', storageId = '') {
-			console.log(`Selected section: ${sectionId}`, sectionName, storageId);
+        function getSectionColors(deptName) {
+            const name = deptName.toLowerCase();
+            if (name.includes("кухня"))
+                return "bg-orange-500 hover:bg-orange-600";
+            if (name.includes("бар"))
+                return "bg-purple-500 hover:bg-purple-600";
+            if (name.includes("горничная"))
+                return "bg-pink-500 hover:bg-pink-600";
+            if (name.includes("склад")) return "bg-gray-500 hover:bg-gray-600";
+            if (name.includes("офис")) return "bg-blue-500 hover:bg-blue-600";
+            if (name.includes("ресепшн"))
+                return "bg-indigo-500 hover:bg-indigo-600";
+            return "bg-teal-500 hover:bg-teal-600"; // Default color
+        }
 
-			// Redirect to custom page with section name
-			window.location.href = `/custom?dept=${encodeURIComponent(sectionName)}`;
-		}
-		
-		// Load sections when page loads
-		document.addEventListener('DOMContentLoaded', () => {
-			loadTenantInfo();
-			loadSections();
-		});
-	</script>
+        function getSectionDescription(deptName, posterStorageId) {
+            const name = deptName.toLowerCase();
+            if (name.includes("кухня")) return "Заказы для кухни";
+            if (name.includes("бар")) return "Заказы для бара";
+            if (name.includes("горничная")) return "Хозяйственные товары";
+            if (posterStorageId) return "Товары из Poster";
+            return "Управление товарами";
+        }
+
+        function getSectionKey(deptName) {
+            const name = deptName.toLowerCase();
+            if (name.includes("кухня")) return "kitchen";
+            if (name.includes("бар")) return "bar";
+            if (name.includes("горничная")) return "custom";
+            if (name.includes("офис")) return "офис";
+            // For custom departments, use a safe URL key
+            return deptName.toLowerCase().replace(/[^a-zа-я0-9]/g, "");
+        }
+
+        function selectSpecialSection(type) {
+            console.log(`Selected special section: ${type}`);
+            if (type === "manager") {
+                window.location.href = "/manager";
+            } else if (type === "delivery") {
+                window.location.href = "/delivery";
+            }
+        }
+
+        function selectSection(sectionId, sectionName = "", storageId = "") {
+            console.log(
+                `Selected section: ${sectionId}`,
+                sectionName,
+                storageId,
+            );
+
+            // Redirect to custom page with section ID and name for better lookup
+            window.location.href = `/custom?section_id=${sectionId}&dept=${encodeURIComponent(sectionName)}`;
+        }
+
+        // Load sections when page loads
+        document.addEventListener("DOMContentLoaded", () => {
+            loadTenantInfo();
+            loadSections();
+        });
+    </script>
 </Layout>

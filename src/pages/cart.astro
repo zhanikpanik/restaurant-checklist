@@ -346,21 +346,24 @@ import Layout from "../layouts/Layout.astro";
             }
         }
 
-        // Load suppliers and storages for Poster
+        // Global data for smart order creation
+        let allSuppliers = [];
+        let allStorages = [];
+        let productCategories = new Map(); // Map of product name -> category with supplier
+        let allSectionProducts = new Map(); // Map of product name -> section info
+
+        // Load suppliers, storages, and product mappings for smart order creation
         async function loadPosterSettings() {
             try {
                 // Load suppliers
                 const suppliersResponse = await fetch("/api/suppliers");
                 const suppliersData = await suppliersResponse.json();
 
-                const supplierSelect =
-                    document.getElementById("supplierSelect");
-                if (
-                    suppliersData.success &&
-                    suppliersData.data &&
-                    suppliersData.data.length > 0
-                ) {
-                    suppliersData.data.forEach((supplier) => {
+                if (suppliersData.success && suppliersData.data) {
+                    allSuppliers = suppliersData.data;
+                    const supplierSelect =
+                        document.getElementById("supplierSelect");
+                    allSuppliers.forEach((supplier) => {
                         const option = document.createElement("option");
                         option.value = supplier.id;
                         option.textContent = supplier.name;
@@ -372,19 +375,67 @@ import Layout from "../layouts/Layout.astro";
                 const storagesResponse = await fetch("/api/poster-storages");
                 const storagesData = await storagesResponse.json();
 
-                const storageSelect = document.getElementById("storageSelect");
-                if (
-                    storagesData.success &&
-                    storagesData.data &&
-                    storagesData.data.length > 0
-                ) {
-                    storagesData.data.forEach((storage) => {
+                if (storagesData.success && storagesData.data) {
+                    allStorages = storagesData.data;
+                    const storageSelect =
+                        document.getElementById("storageSelect");
+                    allStorages.forEach((storage) => {
                         const option = document.createElement("option");
                         option.value = storage.id;
                         option.textContent = storage.name;
                         storageSelect.appendChild(option);
                     });
                 }
+
+                // Load product categories with suppliers
+                const categoriesResponse = await fetch(
+                    "/api/product-categories",
+                );
+                const categoriesData = await categoriesResponse.json();
+
+                if (categoriesData.success && categoriesData.data) {
+                    categoriesData.data.forEach((cat) => {
+                        productCategories.set(cat.id, cat);
+                    });
+                }
+
+                // Load section products to know which products are Poster products
+                const sectionsResponse = await fetch("/api/sections");
+                const sectionsData = await sectionsResponse.json();
+
+                if (sectionsData.success && sectionsData.data) {
+                    // For each active section, load its products
+                    for (const section of sectionsData.data) {
+                        if (section.is_active) {
+                            const productsResponse = await fetch(
+                                `/api/section-products?section_id=${section.id}`,
+                            );
+                            const productsData = await productsResponse.json();
+
+                            if (productsData.success && productsData.data) {
+                                productsData.data.forEach((product) => {
+                                    allSectionProducts.set(
+                                        product.name.toLowerCase(),
+                                        {
+                                            ...product,
+                                            section_id: section.id,
+                                            poster_storage_id:
+                                                section.poster_storage_id,
+                                            section_name: section.name,
+                                        },
+                                    );
+                                });
+                            }
+                        }
+                    }
+                }
+
+                console.log("📊 Loaded smart order data:", {
+                    suppliers: allSuppliers.length,
+                    storages: allStorages.length,
+                    categories: productCategories.size,
+                    sectionProducts: allSectionProducts.size,
+                });
             } catch (error) {
                 console.error("⚠️ Failed to load Poster settings:", error);
                 // Don't show error to user, just log it
@@ -392,7 +443,7 @@ import Layout from "../layouts/Layout.astro";
         }
 
         // Load cart data and display
-        function loadCartData() {
+        async function loadCartData() {
             const loadingState = document.getElementById("loadingState");
             const emptyCartState = document.getElementById("emptyCartState");
             const cartContent = document.getElementById("cartContent");
@@ -420,7 +471,10 @@ import Layout from "../layouts/Layout.astro";
             updateOrderSummary(allOrders);
 
             // Load Poster settings (suppliers and storages)
-            loadPosterSettings();
+            await loadPosterSettings();
+
+            // Analyze cart and auto-configure Poster settings
+            analyzeCartAndConfigurePosterSettings(allOrders);
         }
 
         // Populate cart items grouped by department
@@ -492,6 +546,99 @@ import Layout from "../layouts/Layout.astro";
             });
 
             cartItems.innerHTML = itemsHtml;
+        }
+
+        // Analyze cart items and configure Poster settings smartly
+        function analyzeCartAndConfigurePosterSettings(allOrders) {
+            const posterSettingsSection =
+                document.getElementById("posterSettings");
+
+            let hasPosterProducts = false;
+            let hasCustomProducts = false;
+            let posterProductsCount = 0;
+            let customProductsCount = 0;
+
+            // Analyze each item to determine if it's a Poster product or custom
+            allOrders.allItems.forEach((item) => {
+                const productInfo = allSectionProducts.get(
+                    item.name.toLowerCase(),
+                );
+
+                if (productInfo && productInfo.poster_ingredient_id) {
+                    // This is a Poster product
+                    hasPosterProducts = true;
+                    posterProductsCount++;
+                } else {
+                    // This is a custom product (manually added or no poster_ingredient_id)
+                    hasCustomProducts = true;
+                    customProductsCount++;
+                }
+            });
+
+            console.log("🔍 Cart analysis:", {
+                hasPosterProducts,
+                hasCustomProducts,
+                posterProductsCount,
+                customProductsCount,
+            });
+
+            // Hide Poster settings if cart only has custom products
+            if (!hasPosterProducts && hasCustomProducts) {
+                posterSettingsSection.style.display = "none";
+                console.log(
+                    "✅ Hidden Poster settings - cart only has custom products",
+                );
+            } else {
+                posterSettingsSection.style.display = "block";
+
+                // Auto-select storage based on products' sections
+                if (hasPosterProducts) {
+                    autoSelectPosterStorage(allOrders.allItems);
+                }
+            }
+        }
+
+        // Auto-select Poster storage based on cart items
+        function autoSelectPosterStorage(items) {
+            const storageSelect = document.getElementById("storageSelect");
+
+            // Find the most common poster_storage_id among items
+            const storageIdCounts = new Map();
+
+            items.forEach((item) => {
+                const productInfo = allSectionProducts.get(
+                    item.name.toLowerCase(),
+                );
+                if (productInfo && productInfo.poster_storage_id) {
+                    const count =
+                        storageIdCounts.get(productInfo.poster_storage_id) || 0;
+                    storageIdCounts.set(
+                        productInfo.poster_storage_id,
+                        count + 1,
+                    );
+                }
+            });
+
+            if (storageIdCounts.size > 0) {
+                // Find the most common storage ID
+                let mostCommonStorageId = null;
+                let maxCount = 0;
+
+                storageIdCounts.forEach((count, storageId) => {
+                    if (count > maxCount) {
+                        maxCount = count;
+                        mostCommonStorageId = storageId;
+                    }
+                });
+
+                // Auto-select the storage
+                if (mostCommonStorageId) {
+                    storageSelect.value = mostCommonStorageId;
+                    console.log(
+                        `✅ Auto-selected storage ID: ${mostCommonStorageId} (${maxCount} products)`,
+                    );
+                }
+            }
         }
 
         // Get department gradient color
@@ -587,7 +734,7 @@ import Layout from "../layouts/Layout.astro";
                 });
         }
 
-        // Create order and save to database
+        // Create order and save to database with smart supplier/storage assignment
         async function createOrder() {
             const btn = document.getElementById("createOrderBtn");
             const originalHTML = btn.innerHTML;
@@ -605,38 +752,31 @@ import Layout from "../layouts/Layout.astro";
             }
 
             try {
-                // Save each department's order separately
                 const savePromises = [];
 
+                // Process each department
                 allOrders.departments.forEach((dept) => {
                     const deptItems = allOrders.allItems.filter(
                         (item) => item.departmentName === dept.name,
                     );
-                    // Use the department key from the first item (already extracted from localStorage key)
+
                     const departmentKey =
                         deptItems[0]?.department || dept.name.toLowerCase();
 
-                    // Save all departments to database (not just bar, kitchen, custom)
-                    if (true) {
-                        // Save all departments
-                        // Clean up items - use shoppingQuantity as the main quantity
-                        const cleanedItems = deptItems.map((item) => ({
+                    // Group items by supplier for smart ordering
+                    const itemsBySupplier = groupItemsBySupplier(deptItems);
+
+                    console.log(
+                        `📊 Department "${dept.name}" grouped into ${itemsBySupplier.length} supplier groups`,
+                    );
+
+                    // Create an order for each supplier group
+                    itemsBySupplier.forEach((group, index) => {
+                        const cleanedItems = group.items.map((item) => ({
                             ...item,
-                            quantity: item.shoppingQuantity, // Use ordered amount, not Poster leftover
+                            quantity: item.shoppingQuantity,
                             shoppingQuantity: item.shoppingQuantity,
                         }));
-
-                        // Get selected supplier and storage IDs
-                        const supplierSelect =
-                            document.getElementById("supplierSelect");
-                        const storageSelect =
-                            document.getElementById("storageSelect");
-                        const supplierId = supplierSelect?.value
-                            ? parseInt(supplierSelect.value)
-                            : null;
-                        const storageId = storageSelect?.value
-                            ? parseInt(storageSelect.value)
-                            : null;
 
                         const orderData = {
                             timestamp: new Date().toISOString(),
@@ -650,19 +790,25 @@ import Layout from "../layouts/Layout.astro";
                                 0,
                             ),
                             status: "pending",
-                            isPartOfUnified: allOrders.departments.length > 1,
+                            isPartOfUnified:
+                                allOrders.departments.length > 1 ||
+                                itemsBySupplier.length > 1,
                             source: "internal",
-                            supplier: "Internal Order",
-                            supplier_id: supplierId,
-                            storage_id: storageId,
-                            section_id: storageId, // Also set section_id as alias
+                            supplier: group.supplierName || "Internal Order",
+                            supplier_id: group.supplierId,
+                            storage_id: group.storageId,
+                            section_id: group.storageId,
                         };
 
-                        console.log("📤 Sending order data:", {
-                            department: departmentKey,
-                            departmentName: dept.name,
-                            itemCount: cleanedItems.length,
-                        });
+                        console.log(
+                            `📤 Creating order ${index + 1}/${itemsBySupplier.length}:`,
+                            {
+                                department: departmentKey,
+                                supplier: group.supplierName || "None",
+                                storage: group.storageId || "None",
+                                itemCount: cleanedItems.length,
+                            },
+                        );
 
                         savePromises.push(
                             fetch("/api/save-internal-order", {
@@ -671,16 +817,15 @@ import Layout from "../layouts/Layout.astro";
                                 body: JSON.stringify(orderData),
                             }),
                         );
-                    }
+                    });
                 });
 
                 // Wait for all saves to complete
                 const results = await Promise.all(savePromises);
 
-                // Check if all succeeded and log details
+                // Check if all succeeded
                 const allSucceeded = results.every((r) => r.ok);
                 if (!allSucceeded) {
-                    // Log failed responses
                     for (let i = 0; i < results.length; i++) {
                         if (!results[i].ok) {
                             const errorData = await results[i].json();
@@ -690,7 +835,11 @@ import Layout from "../layouts/Layout.astro";
                     throw new Error("Some orders failed to save");
                 }
 
-                // Clear all shopping lists (including dynamic department ones)
+                console.log(
+                    `✅ Successfully created ${results.length} order(s)`,
+                );
+
+                // Clear all shopping lists
                 const keysToRemove = [];
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
@@ -716,6 +865,59 @@ import Layout from "../layouts/Layout.astro";
                 btn.disabled = false;
                 btn.innerHTML = originalHTML;
             }
+        }
+
+        // Group items by supplier intelligently
+        function groupItemsBySupplier(items) {
+            const groups = new Map();
+
+            items.forEach((item) => {
+                // Look up product info
+                const productInfo = allSectionProducts.get(
+                    item.name.toLowerCase(),
+                );
+
+                let supplierId = null;
+                let supplierName = null;
+                let storageId = null;
+
+                // Check if product has category with assigned supplier
+                if (productInfo && productInfo.category_id) {
+                    const category = productCategories.get(
+                        productInfo.category_id,
+                    );
+                    if (category && category.supplier_id) {
+                        supplierId = category.supplier_id;
+                        const supplier = allSuppliers.find(
+                            (s) => s.id === supplierId,
+                        );
+                        supplierName = supplier?.name || null;
+                    }
+                }
+
+                // Get storage ID from product's section
+                if (productInfo && productInfo.poster_storage_id) {
+                    storageId = productInfo.poster_storage_id;
+                }
+
+                // Use "no_supplier" key for items without supplier
+                const groupKey = supplierId
+                    ? `supplier_${supplierId}`
+                    : "no_supplier";
+
+                if (!groups.has(groupKey)) {
+                    groups.set(groupKey, {
+                        supplierId,
+                        supplierName,
+                        storageId,
+                        items: [],
+                    });
+                }
+
+                groups.get(groupKey).items.push(item);
+            });
+
+            return Array.from(groups.values());
         }
 
         // Open add product modal

@@ -187,6 +187,7 @@ import Layout from "../layouts/Layout.astro";
 
                 // Get department from URL parameter or default to Горничная
                 const urlParams = new URLSearchParams(window.location.search);
+                const sectionId = urlParams.get("section_id");
                 const deptName = urlParams.get("dept") || "Горничная";
 
                 // Generate department key from name if not provided
@@ -199,6 +200,7 @@ import Layout from "../layouts/Layout.astro";
                 // Update global department variables for cart compatibility
                 window.currentDepartment = deptKey;
                 window.currentDepartmentName = deptName;
+                window.currentSectionId = sectionId; // Store section ID for later use
 
                 // Update page title and header based on department
                 document.title = `${deptName} - Товары`;
@@ -237,9 +239,15 @@ import Layout from "../layouts/Layout.astro";
                 }
 
                 // Load from database via combined inventory API
-                const response = await fetch(
-                    `/api/combined-inventory?department=${encodeURIComponent(deptName)}`,
-                );
+                // Prefer section_id if available, otherwise use department name
+                let apiUrl = `/api/combined-inventory?`;
+                if (sectionId) {
+                    apiUrl += `section_id=${sectionId}`;
+                } else {
+                    apiUrl += `department=${encodeURIComponent(deptName)}`;
+                }
+
+                const response = await fetch(apiUrl);
                 const result = await response.json();
 
                 if (result.success && result.data) {
@@ -372,12 +380,17 @@ import Layout from "../layouts/Layout.astro";
             }
 
             try {
-                // Get current department from URL
+                // Get current section from URL or global variable
                 const urlParams = new URLSearchParams(window.location.search);
+                const sectionId =
+                    urlParams.get("section_id") || window.currentSectionId;
                 const deptName = urlParams.get("dept") || "Горничная";
 
-                // First, get or create the department
-                let departmentId = await getDepartmentId(deptName);
+                // Get section ID - prefer from URL, otherwise look up by name
+                let finalSectionId = sectionId;
+                if (!finalSectionId) {
+                    finalSectionId = await getDepartmentId(deptName);
+                }
 
                 // Save product to database
                 const response = await fetch("/api/custom-products", {
@@ -386,7 +399,7 @@ import Layout from "../layouts/Layout.astro";
                     body: JSON.stringify({
                         name: name,
                         unit: unit,
-                        departmentId: departmentId,
+                        section_id: finalSectionId,
                         minQuantity: 1,
                         currentQuantity: 0,
                     }),
@@ -433,24 +446,24 @@ import Layout from "../layouts/Layout.astro";
             }
         }
 
-        // Get or create department ID
+        // Get or create section ID
         async function getDepartmentId(deptName) {
             try {
-                // First try to get existing department
-                const getResponse = await fetch("/api/departments");
+                // First try to get existing section
+                const getResponse = await fetch("/api/sections");
                 const getResult = await getResponse.json();
 
                 if (getResult.success) {
-                    const existingDept = getResult.data.find(
+                    const existingSection = getResult.data.find(
                         (d) => d.name === deptName,
                     );
-                    if (existingDept) {
-                        return existingDept.id;
+                    if (existingSection) {
+                        return existingSection.id;
                     }
                 }
 
-                // If department doesn't exist, create it
-                const createResponse = await fetch("/api/departments", {
+                // If section doesn't exist, create it
+                const createResponse = await fetch("/api/sections", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -463,10 +476,10 @@ import Layout from "../layouts/Layout.astro";
                 if (createResult.success) {
                     return createResult.data.id;
                 } else {
-                    throw new Error("Failed to create department");
+                    throw new Error("Failed to create section");
                 }
             } catch (error) {
-                console.error("Error getting/creating department:", error);
+                console.error("Error getting/creating section:", error);
                 throw error;
             }
         }
