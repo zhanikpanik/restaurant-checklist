@@ -247,12 +247,20 @@ import Layout from "../layouts/Layout.astro";
                 let apiUrl = `/api/combined-inventory?`;
                 if (sectionId) {
                     apiUrl += `section_id=${sectionId}`;
+                    console.log(
+                        `🔗 Loading products using section_id: ${sectionId}`,
+                    );
                 } else {
                     apiUrl += `department=${encodeURIComponent(deptName)}`;
+                    console.log(
+                        `🔗 Loading products using department name: ${deptName}`,
+                    );
                 }
 
+                console.log(`📡 Fetching: ${apiUrl}`);
                 const response = await fetch(apiUrl);
                 const result = await response.json();
+                console.log(`📥 API Response:`, result);
 
                 if (result.success && result.data) {
                     customProducts = result.data.map((product) => ({
