@@ -54,6 +54,11 @@ async function getSuppliers(tenantId) {
     }
 
     console.log("📊 Total suppliers loaded:", result.rows.length);
+    console.log("🏢 Tenant ID used for filtering:", tenantId);
+    console.log(
+      "📋 Supplier IDs returned:",
+      result.rows.map((s) => s.id),
+    );
 
     return {
       status: 200,
@@ -61,6 +66,7 @@ async function getSuppliers(tenantId) {
         success: true,
         data: result.rows,
         hasRestaurantId: hasRestaurantId,
+        tenantId: tenantId, // Include for debugging
         message: hasRestaurantId
           ? "Loaded with tenant filtering"
           : "Loaded all suppliers (no tenant column)",
