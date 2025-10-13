@@ -1,17 +1,17 @@
-import { getDbClient } from "../../lib/db.js";
+import pool from "../../lib/db.js";
 import { getTenantId } from "../../lib/tenant-manager.js";
 
 export const prerender = false;
 
 export async function GET({ request }) {
-  const { client, error } = await getDbClient();
-  if (error) {
+  if (!pool) {
     return new Response(
-      JSON.stringify({ success: false, error: "Database connection failed" }),
+      JSON.stringify({ success: false, error: "Database not available" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 
+  const client = await pool.connect();
   try {
     const tenantId = getTenantId(request);
 
@@ -56,14 +56,14 @@ export async function GET({ request }) {
 }
 
 export async function POST({ request }) {
-  const { client, error } = await getDbClient();
-  if (error) {
+  if (!pool) {
     return new Response(
-      JSON.stringify({ success: false, error: "Database connection failed" }),
+      JSON.stringify({ success: false, error: "Database not available" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 
+  const client = await pool.connect();
   try {
     const tenantId = getTenantId(request);
     const { name, supplier_id } = await request.json();
@@ -110,14 +110,14 @@ export async function POST({ request }) {
 }
 
 export async function PUT({ request }) {
-  const { client, error } = await getDbClient();
-  if (error) {
+  if (!pool) {
     return new Response(
-      JSON.stringify({ success: false, error: "Database connection failed" }),
+      JSON.stringify({ success: false, error: "Database not available" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 
+  const client = await pool.connect();
   try {
     const tenantId = getTenantId(request);
     const { id, name, supplier_id } = await request.json();
@@ -175,14 +175,14 @@ export async function PUT({ request }) {
 }
 
 export async function DELETE({ request }) {
-  const { client, error } = await getDbClient();
-  if (error) {
+  if (!pool) {
     return new Response(
-      JSON.stringify({ success: false, error: "Database connection failed" }),
+      JSON.stringify({ success: false, error: "Database not available" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 
+  const client = await pool.connect();
   try {
     const tenantId = getTenantId(request);
     const url = new URL(request.url);
