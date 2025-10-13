@@ -83,6 +83,9 @@ export async function GET({ request, url }) {
     );
 
     // Get custom products for this section
+    console.log(
+      `🔍 Querying custom products for section_id: ${sectionId}, tenant: ${tenantId}`,
+    );
     const customProductsResult = await client.query(
       `SELECT
                 cp.id,
@@ -98,6 +101,7 @@ export async function GET({ request, url }) {
             ORDER BY cp.name ASC`,
       [tenantId, sectionId],
     );
+    console.log(`📦 Found ${customProductsResult.rows.length} custom products`);
 
     // Combine both sets of products
     const allProducts = [
