@@ -245,9 +245,7 @@ export async function GET({ request }) {
         ""
       ).toLowerCase();
 
-      console.log(
-        `🔍 Checking order ${order.order_id} with department: "${orderDept}"`,
-      );
+      // Removed verbose per-order logging
 
       // Only filter by sections if we have active sections
       if (shouldFilterBySections) {
@@ -282,19 +280,11 @@ export async function GET({ request }) {
 
         // Skip orders from inactive/non-existent sections
         if (!matchingSection) {
-          console.log(
-            `⏭️  Skipping order ${order.order_id} - no matching section for: "${orderDept}"`,
-          );
+          // Order doesn't match any section - skip silently
           return;
         }
 
-        console.log(
-          `✅ Order ${order.order_id} matched to section: ${matchingSection.name}`,
-        );
-      } else {
-        console.log(
-          `✅ Order ${order.order_id} included (no section filtering)`,
-        );
+        // Order matched to section - process it
       }
 
       // Create individual order object
