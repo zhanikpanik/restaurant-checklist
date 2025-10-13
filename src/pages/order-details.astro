@@ -740,6 +740,12 @@ import Layout from "../layouts/Layout.astro";
 
         // Select supplier for assignment
         function selectSupplierForAssignment(supplierId) {
+            console.log(
+                "Selected supplier ID:",
+                supplierId,
+                "Type:",
+                typeof supplierId,
+            );
             selectedSupplierId = supplierId;
 
             // Enable assign button
@@ -752,6 +758,13 @@ import Layout from "../layouts/Layout.astro";
 
         // Assign selected supplier
         async function assignSelectedSupplier() {
+            console.log("Attempting to assign:", {
+                selectedSupplierId,
+                currentAssignCategoryId,
+                selectedSupplierIdType: typeof selectedSupplierId,
+                currentAssignCategoryIdType: typeof currentAssignCategoryId,
+            });
+
             if (!selectedSupplierId || !currentAssignCategoryId) {
                 alert("Пожалуйста, выберите поставщика");
                 return;
