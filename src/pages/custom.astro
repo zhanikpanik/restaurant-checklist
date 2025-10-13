@@ -193,8 +193,12 @@ import Layout from "../layouts/Layout.astro";
                 // Generate department key from name if not provided
                 let deptKey = urlParams.get("key");
                 if (!deptKey) {
-                    // Convert department name to key (e.g., "Склад 1" -> "склад 1")
-                    deptKey = deptName.toLowerCase().trim();
+                    // Convert department name to safe key (e.g., "Склад 1" -> "sklаd1", "New Section" -> "newsection")
+                    // Remove spaces and special characters for a clean localStorage key
+                    deptKey = deptName
+                        .toLowerCase()
+                        .trim()
+                        .replace(/[^a-zа-я0-9]/g, "");
                 }
 
                 // Update global department variables for cart compatibility
@@ -351,6 +355,14 @@ import Layout from "../layouts/Layout.astro";
                 // Use department-specific key for cart
                 const deptKey = window.currentDepartment || "custom";
                 const storageKey = `${deptKey}ShoppingList`;
+
+                console.log(
+                    `💾 Saving ${itemsForCart.length} items to cart with key: "${storageKey}"`,
+                );
+                console.log(
+                    `   Department: "${window.currentDepartmentName}", Key: "${deptKey}"`,
+                );
+
                 localStorage.setItem(storageKey, JSON.stringify(itemsForCart));
             } catch (error) {
                 console.error("Failed to save custom products:", error);
