@@ -43,6 +43,32 @@
 	const hasSupplier = $derived(category.supplier && category.supplier.name);
 	const hasPhone = $derived(hasSupplier && category.supplier?.phone);
 
+	// Calculate total quantity across all items
+	const totalQuantity = $derived(category.items.reduce((sum, item) => sum + item.quantity, 0));
+
+	// Get color scheme based on supplier status
+	const colorScheme = $derived.by(() => {
+		if (hasSupplier && hasPhone) {
+			return {
+				border: 'border-l-green-500',
+				bg: 'bg-green-50/50 dark:bg-green-950/20',
+				badge: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+			};
+		} else if (hasSupplier && !hasPhone) {
+			return {
+				border: 'border-l-orange-500',
+				bg: 'bg-orange-50/50 dark:bg-orange-950/20',
+				badge: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+			};
+		} else {
+			return {
+				border: 'border-l-red-500',
+				bg: 'bg-red-50/50 dark:bg-red-950/20',
+				badge: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+			};
+		}
+	});
+
 	function toggleExpanded() {
 		expanded = !expanded;
 	}
@@ -58,45 +84,67 @@
 	}
 </script>
 
-<Card class="overflow-hidden">
+<Card class={cn("overflow-hidden border-l-4 shadow-sm hover:shadow-md transition-all duration-200", colorScheme.border)}>
 	<!-- Category Header -->
 	<button
-		class="w-full text-left p-4 hover:bg-accent/50 transition-colors border-b"
+		class={cn(
+			"w-full text-left p-4 hover:bg-accent/50 transition-all duration-200 border-b",
+			colorScheme.bg
+		)}
 		onclick={toggleExpanded}
 		type="button"
+		data-category-toggle
+		aria-expanded={expanded}
 	>
 		<div class="flex items-center justify-between gap-3">
 			<div class="flex-1 min-w-0">
-				<div class="flex items-center gap-2 mb-1">
+				<div class="flex items-center gap-2 mb-2 flex-wrap">
 					<h3 class="font-semibold text-base">🏷️ {category.categoryName}</h3>
 					<Badge variant="secondary" class="text-xs">
-						{category.items.length}
+						{category.items.length} {category.items.length === 1 ? 'товар' : 'товара'}
+					</Badge>
+					<Badge class={cn("text-xs font-mono", colorScheme.badge)}>
+						∑ {totalQuantity}
 					</Badge>
 				</div>
-				<div class="text-xs text-muted-foreground">
+				<div class="text-xs flex flex-col gap-1">
 					{#if hasSupplier}
-						<span>📦 {category.supplier?.name}</span>
+						<div class="flex items-center gap-1.5">
+							<span class="text-green-600 dark:text-green-400">✓</span>
+							<span class="font-medium">{category.supplier?.name}</span>
+						</div>
 						{#if hasPhone}
-							<span> • 📱 {category.supplier?.phone}</span>
+							<div class="flex items-center gap-1.5 text-muted-foreground">
+								<span>📱</span>
+								<span class="font-mono">{category.supplier?.phone}</span>
+							</div>
 						{:else}
-							<span class="text-destructive"> • ⚠️ Нет телефона</span>
+							<div class="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
+								<span>⚠️</span>
+								<span>Нет телефона</span>
+							</div>
 						{/if}
 					{:else}
-						<span class="text-destructive">⚠️ Без поставщика</span>
+						<div class="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+							<span>⚠️</span>
+							<span class="font-medium">Без поставщика</span>
+						</div>
 					{/if}
 				</div>
 			</div>
-			<svg
-				class={cn(
-					"w-5 h-5 text-muted-foreground transition-transform flex-shrink-0",
-					expanded && "rotate-180"
-				)}
-				fill="none"
-				viewBox="0 0 24 24"
-				stroke="currentColor"
-			>
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-			</svg>
+			<div class="flex flex-col items-end gap-2">
+				<svg
+					class={cn(
+						"w-6 h-6 text-muted-foreground transition-all duration-300",
+						expanded && "rotate-180"
+					)}
+					fill="none"
+					viewBox="0 0 24 24"
+					stroke="currentColor"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7" />
+				</svg>
+			</div>
 		</div>
 	</button>
 

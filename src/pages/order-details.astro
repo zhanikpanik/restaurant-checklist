@@ -3,6 +3,44 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <style>
+    /* Animations */
+    @keyframes slideInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    @keyframes shimmer {
+        0% {
+            background-position: -1000px 0;
+        }
+        100% {
+            background-position: 1000px 0;
+        }
+    }
+
+    .animate-in {
+        animation: slideInUp 0.4s ease-out;
+    }
+
+    .fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+
     /* Native app styling */
     .native-card {
         background: var(--card);
@@ -16,11 +54,16 @@ import Layout from "../layouts/Layout.astro";
         transform: scale(0.98);
     }
 
+    .native-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
     .status-badge {
         padding: 0.375rem 0.875rem;
         border-radius: 999px;
         font-size: 0.875rem;
         font-weight: 500;
+        transition: all 0.2s;
     }
 
     .btn-native {
@@ -228,12 +271,12 @@ import Layout from "../layouts/Layout.astro";
     <div class="min-h-screen bg-background">
         <!-- Native Mobile Header -->
         <div
-            class="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b"
+            class="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b shadow-sm"
         >
             <div class="flex items-center h-14 px-4">
                 <a
                     href="/manager"
-                    class="flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-accent transition-colors"
+                    class="flex items-center justify-center w-10 h-10 -ml-2 rounded-full hover:bg-accent transition-all duration-200 active:scale-95"
                 >
                     <svg
                         class="w-6 h-6"
@@ -248,10 +291,16 @@ import Layout from "../layouts/Layout.astro";
                             d="M15 19l-7-7 7-7"></path>
                     </svg>
                 </a>
-                <h1 class="flex-1 text-lg font-semibold ml-2" id="orderTitle">
+                <h1
+                    class="flex-1 text-lg font-semibold ml-2 truncate"
+                    id="orderTitle"
+                >
                     Загрузка...
                 </h1>
-                <span id="orderStatus" class="status-badge">
+                <span
+                    id="orderStatus"
+                    class="status-badge animate-in fade-in duration-300"
+                >
                     <!-- Status will be populated -->
                 </span>
             </div>
@@ -260,58 +309,263 @@ import Layout from "../layouts/Layout.astro";
         <!-- Main Content -->
         <div class="px-4 py-4">
             <!-- Loading State -->
-            <div id="loadingState" class="text-center py-12">
-                <div
-                    class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent"
-                >
+            <div
+                id="loadingState"
+                class="text-center py-12 animate-in fade-in duration-500"
+            >
+                <div class="flex flex-col items-center gap-4">
+                    <div
+                        class="inline-block animate-spin rounded-full h-16 w-16 border-4 border-primary/20 border-t-primary"
+                    >
+                    </div>
+                    <div class="space-y-2">
+                        <p class="text-base font-medium">Загрузка заказа...</p>
+                        <div class="flex gap-1 justify-center">
+                            <div
+                                class="w-2 h-2 bg-primary rounded-full animate-pulse"
+                                style="animation-delay: 0ms"
+                            >
+                            </div>
+                            <div
+                                class="w-2 h-2 bg-primary rounded-full animate-pulse"
+                                style="animation-delay: 150ms"
+                            >
+                            </div>
+                            <div
+                                class="w-2 h-2 bg-primary rounded-full animate-pulse"
+                                style="animation-delay: 300ms"
+                            >
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <p class="mt-4 text-muted-foreground">Загрузка заказа...</p>
             </div>
 
             <!-- Error State -->
-            <div id="errorState" class="hidden text-center py-12">
-                <div class="text-4xl mb-4">❌</div>
-                <h3 class="text-lg font-semibold mb-2">Заказ не найден</h3>
-                <p class="text-muted-foreground mb-4">
-                    Заказ не существует или был удален
-                </p>
-                <a
-                    href="/manager"
-                    class="inline-flex items-center btn-native bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                    ← Вернуться к заказам
-                </a>
+            <div
+                id="errorState"
+                class="hidden text-center py-12 animate-in fade-in duration-500"
+            >
+                <div class="max-w-sm mx-auto">
+                    <div class="mb-4 relative">
+                        <div class="text-6xl animate-bounce">❌</div>
+                        <div
+                            class="absolute inset-0 blur-xl bg-red-500/20 rounded-full"
+                        >
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">Заказ не найден</h3>
+                    <p class="text-muted-foreground mb-6">
+                        Заказ не существует или был удален
+                    </p>
+                    <a
+                        href="/manager"
+                        class="inline-flex items-center gap-2 btn-native bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all"
+                    >
+                        <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                                d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                        <span>Вернуться к заказам</span>
+                    </a>
+                </div>
             </div>
 
             <!-- Order Content -->
-            <div id="orderContent" class="hidden space-y-3">
-                <!-- Order Info Card -->
-                <div class="native-card p-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <div class="text-xs text-muted-foreground mb-1">
-                                Время заказа
+            <div id="orderContent" class="hidden space-y-4 animate-in">
+                <!-- Enhanced Order Info Card -->
+                <div class="native-card overflow-hidden">
+                    <!-- Gradient Header -->
+                    <div
+                        class="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-4 border-b"
+                    >
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center"
+                                >
+                                    <svg
+                                        class="w-5 h-5 text-primary"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                        ></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div
+                                        class="text-xs text-muted-foreground mb-0.5"
+                                    >
+                                        Время заказа
+                                    </div>
+                                    <div
+                                        class="text-sm font-semibold truncate"
+                                        id="orderTime"
+                                    >
+                                        -
+                                    </div>
+                                </div>
                             </div>
-                            <div class="text-base font-semibold" id="orderTime">
-                                -
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center"
+                                >
+                                    <svg
+                                        class="w-5 h-5 text-blue-600"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                                        ></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div
+                                        class="text-xs text-muted-foreground mb-0.5"
+                                    >
+                                        Всего товаров
+                                    </div>
+                                    <div
+                                        class="text-sm font-semibold truncate"
+                                        id="orderTotalItems"
+                                    >
+                                        -
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center"
+                                >
+                                    <svg
+                                        class="w-5 h-5 text-green-600"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                                        ></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div
+                                        class="text-xs text-muted-foreground mb-0.5"
+                                    >
+                                        Категорий
+                                    </div>
+                                    <div
+                                        class="text-sm font-semibold truncate"
+                                        id="orderCategoriesCount"
+                                    >
+                                        -
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center"
+                                >
+                                    <svg
+                                        class="w-5 h-5 text-purple-600"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
+                                        stroke="currentColor"
+                                    >
+                                        <path
+                                            stroke-linecap="round"
+                                            stroke-linejoin="round"
+                                            stroke-width="2"
+                                            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                                        ></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <div
+                                        class="text-xs text-muted-foreground mb-0.5"
+                                    >
+                                        Поставщиков
+                                    </div>
+                                    <div
+                                        class="text-sm font-semibold truncate"
+                                        id="orderSuppliersCount"
+                                    >
+                                        -
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <div class="text-xs text-muted-foreground mb-1">
-                                Всего товаров
+                    </div>
+
+                    <!-- Quick Stats Bar -->
+                    <div
+                        class="px-4 py-3 bg-muted/30 flex items-center justify-between text-xs"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="text-muted-foreground">Прогресс:</span>
+                            <div class="flex items-center gap-1">
+                                <div
+                                    class="h-1.5 w-24 bg-background rounded-full overflow-hidden"
+                                >
+                                    <div
+                                        id="orderProgress"
+                                        class="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500"
+                                        style="width: 0%"
+                                    >
+                                    </div>
+                                </div>
+                                <span
+                                    id="orderProgressText"
+                                    class="font-medium text-muted-foreground"
+                                    >0%</span
+                                >
                             </div>
-                            <div
-                                class="text-base font-semibold"
-                                id="orderTotalItems"
-                            >
-                                -
-                            </div>
+                        </div>
+                        <div
+                            id="orderStatusBadge"
+                            class="flex items-center gap-1.5"
+                        >
+                            <!-- Populated dynamically -->
                         </div>
                     </div>
                 </div>
 
                 <!-- Categories Section -->
-                <div class="space-y-2">
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between px-1">
+                        <h2 class="text-sm font-semibold text-muted-foreground">
+                            Категории заказа
+                        </h2>
+                        <button
+                            id="toggleAllCategories"
+                            class="text-xs text-primary hover:underline"
+                            onclick="toggleAllCategories()"
+                        >
+                            Свернуть все
+                        </button>
+                    </div>
                     <div id="categoryGroups">
                         <!-- Category groups will be populated here -->
                     </div>
@@ -583,11 +837,60 @@ import Layout from "../layouts/Layout.astro";
                 statusEl.textContent = statusText;
                 statusEl.className = `status-badge ${statusColors[orderData.status] || "bg-gray-100 text-gray-800"}`;
 
-                // Update order time and total items
+                // Update basic order info
                 document.getElementById("orderTime").textContent =
                     orderData.displayDate;
                 document.getElementById("orderTotalItems").textContent =
                     orderData.totalItems;
+
+                // Update enhanced statistics
+                const categoriesCount = orderData.categories
+                    ? orderData.categories.length
+                    : 0;
+                document.getElementById("orderCategoriesCount").textContent =
+                    categoriesCount;
+
+                // Count unique suppliers
+                const suppliers = new Set();
+                if (orderData.categories) {
+                    orderData.categories.forEach((cat) => {
+                        if (cat.supplier && cat.supplier.name) {
+                            suppliers.add(cat.supplier.name);
+                        }
+                    });
+                }
+                document.getElementById("orderSuppliersCount").textContent =
+                    suppliers.size;
+
+                // Calculate progress (categories with suppliers / total categories)
+                const categoriesWithSuppliers = orderData.categories
+                    ? orderData.categories.filter(
+                          (cat) => cat.supplier && cat.supplier.name,
+                      ).length
+                    : 0;
+                const progressPercentage =
+                    categoriesCount > 0
+                        ? Math.round(
+                              (categoriesWithSuppliers / categoriesCount) * 100,
+                          )
+                        : 0;
+
+                document.getElementById("orderProgress").style.width =
+                    `${progressPercentage}%`;
+                document.getElementById("orderProgressText").textContent =
+                    `${progressPercentage}%`;
+
+                // Update status badge in stats bar
+                const statusBadge = document.getElementById("orderStatusBadge");
+                const statusIcons = {
+                    pending: "⏳",
+                    sent: "📤",
+                    delivered: "✅",
+                };
+                statusBadge.innerHTML = `
+                    <span class="text-xs">${statusIcons[orderData.status] || "📦"}</span>
+                    <span class="font-medium text-xs">${statusText}</span>
+                `;
 
                 console.log(
                     "Basic order details updated, calling displayCategoryGroups",
@@ -1446,7 +1749,27 @@ import Layout from "../layouts/Layout.astro";
             document.getElementById("orderContent").classList.remove("hidden");
         }
 
-        // Toggle category collapse/expand
+        // Toggle all categories expand/collapse
+        let allCategoriesExpanded = true;
+        window.toggleAllCategories = function () {
+            allCategoriesExpanded = !allCategoriesExpanded;
+            const button = document.getElementById("toggleAllCategories");
+            button.textContent = allCategoriesExpanded
+                ? "Свернуть все"
+                : "Развернуть все";
+
+            // Find all category header buttons and trigger click
+            const categoryButtons = document.querySelectorAll(
+                "[data-category-toggle]",
+            );
+            categoryButtons.forEach((btn) => {
+                const isExpanded = btn.getAttribute("aria-expanded") === "true";
+                if (isExpanded !== allCategoriesExpanded) {
+                    btn.click();
+                }
+            });
+        };
+
         // Initialize page
         document.addEventListener("DOMContentLoaded", function () {
             console.log("=== DOM CONTENT LOADED - Starting initialization ===");
