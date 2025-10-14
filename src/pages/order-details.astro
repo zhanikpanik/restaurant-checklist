@@ -350,24 +350,15 @@ import Layout from "../layouts/Layout.astro";
             showLoadingState();
 
             try {
-                const response = await fetch("/api/orders-by-category");
+                // Fetch the specific order by ID - works for all statuses including completed
+                const response = await fetch(`/api/orders/${orderId}`);
                 const data = await response.json();
 
                 if (data.success && data.data) {
-                    // Find the order with the specific ID
-                    const orderForId = data.data.find(
-                        (order) =>
-                            order.orderId.toString() === orderId.toString(),
-                    );
-
-                    if (orderForId) {
-                        currentOrderData = orderForId;
-                        currentOrderDate = orderForId.timestamp; // Keep for compatibility with missing products
-                        displayOrderDetails(orderForId);
-                        showOrderContent();
-                    } else {
-                        showErrorState();
-                    }
+                    currentOrderData = data.data;
+                    currentOrderDate = data.data.timestamp; // Keep for compatibility with missing products
+                    displayOrderDetails(data.data);
+                    showOrderContent();
                 } else {
                     showErrorState();
                 }
