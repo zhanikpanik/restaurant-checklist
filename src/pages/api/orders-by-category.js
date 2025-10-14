@@ -4,32 +4,34 @@ import { getTenantId } from "../../lib/tenant-manager.js";
 export const prerender = false;
 
 // Helper functions for department display
+// No longer uses hardcoded mappings - returns actual department name from order
 function getDepartmentDisplayName(department) {
-  const departmentNames = {
-    bar: "Бар",
-    kitchen: "Кухня",
-    housekeeping: "Горничная",
-    custom: "Горничная",
-    storage: "Склад",
-    офис: "Офис",
-    office: "Офис",
-  };
-  return (
-    departmentNames[department.toLowerCase()] || department || "Неизвестно"
-  );
+  if (!department) return "Неизвестно";
+
+  // Return the department name as-is from the order
+  // This works with both old orders (bar, kitchen) and new orders (section names)
+  return department;
 }
 
 function getDepartmentEmoji(department) {
-  const departmentEmojis = {
-    bar: "🍷",
-    kitchen: "🍳",
-    housekeeping: "🧹",
-    custom: "🧹",
-    storage: "📦",
-    офис: "🏢",
-    office: "🏢",
-  };
-  return departmentEmojis[department.toLowerCase()] || "📋";
+  if (!department) return "📋";
+
+  const deptLower = department.toLowerCase();
+
+  // Simple emoji matching based on common keywords
+  if (deptLower.includes("бар") || deptLower === "bar") return "🍷";
+  if (deptLower.includes("кухн") || deptLower === "kitchen") return "🍳";
+  if (
+    deptLower.includes("горничн") ||
+    deptLower.includes("housekeeping") ||
+    deptLower === "custom"
+  )
+    return "🧹";
+  if (deptLower.includes("склад") || deptLower.includes("storage")) return "📦";
+  if (deptLower.includes("офис") || deptLower.includes("office")) return "🏢";
+
+  // Default emoji for unknown departments
+  return "📋";
 }
 
 // GET: Get all orders grouped by categories with supplier information
@@ -58,29 +60,6 @@ export async function GET({ request }) {
 
     const orderColumns = ordersTableCheck.rows.map((row) => row.column_name);
     const ordersHasRestaurantId = orderColumns.includes("restaurant_id");
-
-    // Get active sections first to filter orders (sections replaced departments)
-    const activeSectionsResult = await client.query(
-      `
-            SELECT name, poster_storage_id
-            FROM sections
-            WHERE is_active = true AND restaurant_id = $1
-        `,
-      [restaurantId],
-    );
-
-    const activeSections = activeSectionsResult.rows.map((s) => ({
-      name: s.name,
-      nameLower: s.name.toLowerCase(),
-    }));
-    console.log(
-      "📍 Active sections:",
-      activeSections.map((s) => s.name),
-    );
-
-    // If no sections exist, we won't filter orders (backward compatibility)
-    const shouldFilterBySections = activeSections.length > 0;
-    console.log(`🔍 Section filtering enabled: ${shouldFilterBySections}`);
 
     // Build status condition based on filter
     let statusCondition;
@@ -237,55 +216,6 @@ export async function GET({ request }) {
       const items = orderData.items || [];
 
       if (items.length === 0) return; // Skip empty orders
-
-      // Get section/department from order
-      const orderDept = (
-        orderData.department ||
-        order.created_by_role ||
-        ""
-      ).toLowerCase();
-
-      // Removed verbose per-order logging
-
-      // Only filter by sections if we have active sections
-      if (shouldFilterBySections) {
-        // Map English department names to Russian keywords
-        const deptKeywords = {
-          storage: ["склад", "storage", "warehouse"],
-          kitchen: ["кухн", "kitchen"],
-          bar: ["бар", "bar"],
-          office: ["офис", "office"],
-          housekeeping: ["горничн", "housekeeping"],
-          custom: ["склад", "custom"], // Map custom to storage
-        };
-
-        // Get keywords for this order's department
-        const keywords = deptKeywords[orderDept] || [orderDept];
-
-        // Match order department with active sections
-        const matchingSection = activeSections.find((s) => {
-          const sectionName = s.nameLower;
-
-          // Check if any keyword matches the section name
-          return keywords.some((keyword) => {
-            // Exact match
-            if (sectionName === keyword) return true;
-            // Section name contains keyword (e.g., "Склад 1" contains "склад")
-            if (sectionName.includes(keyword)) return true;
-            // Keyword contains section name
-            if (keyword.includes(sectionName)) return true;
-            return false;
-          });
-        });
-
-        // Skip orders from inactive/non-existent sections
-        if (!matchingSection) {
-          // Order doesn't match any section - skip silently
-          return;
-        }
-
-        // Order matched to section - process it
-      }
 
       // Create individual order object
       const individualOrder = {
