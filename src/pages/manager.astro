@@ -1034,6 +1034,9 @@ import Layout from "../layouts/Layout.astro";
         </div>
 
         <script>
+            import { mount } from "svelte";
+            import OrdersTable from "../lib/components/OrdersTable.svelte";
+
             // Load orders by category
             async function loadOrdersByCategory() {
                 console.log("📋 Loading orders by category...");
@@ -1053,7 +1056,7 @@ import Layout from "../layouts/Layout.astro";
                 }
             }
 
-            // Display orders in responsive table/card layout
+            // Display orders using OrdersTable component
             function displayOrdersByCategory(orders) {
                 const container = document.getElementById("ordersByCategory");
                 if (!container) return;
@@ -1069,188 +1072,39 @@ import Layout from "../layouts/Layout.astro";
                     return;
                 }
 
-                // Sort orders by ID descending (newest first) by default
-                const sortedOrders = [...orders].sort(
-                    (a, b) => b.orderId - a.orderId,
-                );
+                // Clear container and mount Svelte component
+                container.innerHTML = "";
 
-                // Generate desktop table view
-                const tableHtml = `
-					<div class="orders-table-container">
-						<table class="orders-table">
-							<thead>
-								<tr>
-									<th class="sortable" data-sort="orderId">#</th>
-									<th class="sortable" data-sort="departmentName">Отдел</th>
-									<th class="sortable" data-sort="displayDate">Дата</th>
-									<th class="sortable" data-sort="status">Статус</th>
-									<th class="sortable number-cell" data-sort="totalItems">Товаров</th>
-									<th class="sortable number-cell" data-sort="totalQuantity">Единиц</th>
-									<th>Действия</th>
-								</tr>
-							</thead>
-							<tbody>
-								${sortedOrders
-                                    .map(
-                                        (order) => `
-									<tr onclick="window.location.href='/order-details?orderId=${order.orderId}'" data-order-id="${order.orderId}">
-										<td>#${order.orderId}</td>
-										<td>${order.departmentEmoji} ${order.departmentName}</td>
-										<td>${order.displayDate}</td>
-										<td>
-											<span class="status-badge-table status-${order.status}">
-												${order.status === "pending" ? "⏳ Ожидает" : order.status === "sent" ? "📤 Отправлен" : "✅ Доставлен"}
-											</span>
-										</td>
-										<td class="number-cell">${order.totalItems}</td>
-										<td class="number-cell">${order.totalQuantity.toFixed(1)}</td>
-										<td onclick="event.stopPropagation()">
-											<div class="action-buttons">
-												<button class="action-btn" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
-													👁️ Детали
-												</button>
-												<button class="action-btn" onclick="alert('Excel export coming soon')">
-													📄 Excel
-												</button>
-												<button class="action-btn" onclick="deleteOrder(${order.orderId})" style="color: hsl(0, 84%, 60%);">
-													🗑️
-												</button>
-											</div>
-										</td>
-									</tr>
-								`,
-                                    )
-                                    .join("")}
-							</tbody>
-						</table>
-					</div>
-				`;
+                mount(OrdersTable, {
+                    target: container,
+                    props: {
+                        orders,
+                        onDelete: async (orderId) => {
+                            try {
+                                const response = await fetch(
+                                    "/api/delete-order",
+                                    {
+                                        method: "POST",
+                                        headers: {
+                                            "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({ orderId }),
+                                    },
+                                );
 
-                // Generate mobile card view
-                const cardsHtml = `
-					<div class="orders-mobile-container">
-						${sortedOrders
-                            .map(
-                                (order) => `
-							<div class="order-card-mobile" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
-								<div class="order-card-header">
-									<div class="order-card-title">
-										<span>#${order.orderId}</span>
-										<span>${order.departmentEmoji} ${order.departmentName}</span>
-									</div>
-									<span class="status-badge-table status-${order.status}">
-										${order.status === "pending" ? "⏳ Ожидает" : order.status === "sent" ? "📤 Отправлен" : "✅ Доставлен"}
-									</span>
-								</div>
-								<div class="order-card-meta">
-									${order.displayDate} • ${order.totalItems} товаров • ${order.totalQuantity.toFixed(1)} единиц
-								</div>
-								<div class="order-card-actions" onclick="event.stopPropagation()">
-									<button class="btn-primary" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
-										👁️ Детали
-									</button>
-									<button onclick="alert('Excel export coming soon')">
-										📄 Excel
-									</button>
-									<button class="btn-danger" onclick="deleteOrder(${order.orderId})">
-										🗑️
-									</button>
-								</div>
-							</div>
-						`,
-                            )
-                            .join("")}
-					</div>
-				`;
-
-                container.innerHTML = tableHtml + cardsHtml;
-
-                // Add click listeners for sortable headers
-                const headers = container.querySelectorAll(".sortable");
-                headers.forEach((header) => {
-                    header.addEventListener("click", () => {
-                        const sortKey = header.getAttribute("data-sort");
-                        sortOrders(sortKey, orders, container);
-                    });
-                });
-            }
-
-            // Global delete function for orders
-            async function deleteOrder(orderId) {
-                if (!confirm(`Удалить заказ #${orderId}?`)) return;
-
-                try {
-                    const response = await fetch("/api/delete-order", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ orderId }),
-                    });
-
-                    const result = await response.json();
-                    if (result.success) {
-                        // Remove the order from DOM
-                        const row = document.querySelector(
-                            `tr[data-order-id="${orderId}"]`,
-                        );
-                        if (row) row.remove();
-
-                        // Also reload to update the list
-                        loadOrdersByCategory();
-                    } else {
-                        alert(`Ошибка: ${result.error}`);
-                    }
-                } catch (error) {
-                    alert("Ошибка при удалении заказа");
-                    console.error(error);
-                }
-            }
-
-            // Make it globally accessible
-            window.deleteOrder = deleteOrder;
-
-            // Sorting state
-            let currentSortKey = "orderId";
-            let currentSortDirection = "desc";
-
-            // Sort orders function
-            function sortOrders(sortKey, orders, container) {
-                // Toggle direction if clicking the same column
-                if (sortKey === currentSortKey) {
-                    currentSortDirection =
-                        currentSortDirection === "asc" ? "desc" : "asc";
-                } else {
-                    currentSortKey = sortKey;
-                    currentSortDirection = "asc";
-                }
-
-                // Sort the orders
-                const sortedOrders = [...orders].sort((a, b) => {
-                    let aVal = a[sortKey];
-                    let bVal = b[sortKey];
-
-                    // Handle different data types
-                    if (typeof aVal === "string") {
-                        aVal = aVal.toLowerCase();
-                        bVal = bVal.toLowerCase();
-                    }
-
-                    if (currentSortDirection === "asc") {
-                        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-                    } else {
-                        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-                    }
-                });
-
-                // Re-render with sorted data
-                displayOrdersByCategory(sortedOrders);
-
-                // Update header classes
-                const headers = container.querySelectorAll(".sortable");
-                headers.forEach((header) => {
-                    header.classList.remove("sorted-asc", "sorted-desc");
-                    if (header.getAttribute("data-sort") === sortKey) {
-                        header.classList.add(`sorted-${currentSortDirection}`);
-                    }
+                                const result = await response.json();
+                                if (result.success) {
+                                    // Reload orders
+                                    loadOrdersByCategory();
+                                } else {
+                                    alert(`Ошибка: ${result.error}`);
+                                }
+                            } catch (error) {
+                                alert("Ошибка при удалении заказа");
+                                console.error(error);
+                            }
+                        },
+                    },
                 });
             }
 
@@ -1342,160 +1196,45 @@ import Layout from "../layouts/Layout.astro";
                 }
             }
 
-            // Display delivered orders in responsive table/card layout
+            // Display delivered orders using OrdersTable component
             function displayDeliveredOrders(orders) {
                 const container = document.getElementById("deliveredOrders");
                 if (!container) return;
 
-                // Sort orders by ID descending (newest first) by default
-                const sortedOrders = [...orders].sort(
-                    (a, b) => b.orderId - a.orderId,
-                );
+                // Clear container and mount Svelte component
+                container.innerHTML = "";
 
-                // Generate desktop table view
-                const tableHtml = `
-					<div class="orders-table-container">
-						<table class="orders-table">
-							<thead>
-								<tr>
-									<th class="sortable" data-sort="orderId">#</th>
-									<th class="sortable" data-sort="departmentName">Отдел</th>
-									<th class="sortable" data-sort="displayDate">Дата</th>
-									<th class="sortable" data-sort="status">Статус</th>
-									<th class="sortable number-cell" data-sort="totalItems">Товаров</th>
-									<th class="sortable number-cell" data-sort="totalQuantity">Единиц</th>
-									<th>Действия</th>
-								</tr>
-							</thead>
-							<tbody>
-								${sortedOrders
-                                    .map(
-                                        (order) => `
-									<tr onclick="window.location.href='/order-details?orderId=${order.orderId}'" data-order-id="${order.orderId}">
-										<td>#${order.orderId}</td>
-										<td>${order.departmentEmoji} ${order.departmentName}</td>
-										<td>${order.displayDate}</td>
-										<td>
-											<span class="status-badge-table status-${order.status}">
-												✅ Доставлен
-											</span>
-										</td>
-										<td class="number-cell">${order.totalItems}</td>
-										<td class="number-cell">${order.totalQuantity.toFixed(1)}</td>
-										<td onclick="event.stopPropagation()">
-											<div class="action-buttons">
-												<button class="action-btn" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
-													👁️ Детали
-												</button>
-												<button class="action-btn" onclick="alert('Excel export coming soon')">
-													📄 Excel
-												</button>
-												<button class="action-btn" onclick="deleteOrder(${order.orderId})" style="color: hsl(0, 84%, 60%);">
-													🗑️
-												</button>
-											</div>
-										</td>
-									</tr>
-								`,
-                                    )
-                                    .join("")}
-							</tbody>
-						</table>
-					</div>
-				`;
+                mount(OrdersTable, {
+                    target: container,
+                    props: {
+                        orders,
+                        onDelete: async (orderId) => {
+                            try {
+                                const response = await fetch(
+                                    "/api/delete-order",
+                                    {
+                                        method: "POST",
+                                        headers: {
+                                            "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({ orderId }),
+                                    },
+                                );
 
-                // Generate mobile card view
-                const cardsHtml = `
-					<div class="orders-mobile-container">
-						${sortedOrders
-                            .map(
-                                (order) => `
-							<div class="order-card-mobile" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
-								<div class="order-card-header">
-									<div class="order-card-title">
-										<span>#${order.orderId}</span>
-										<span>${order.departmentEmoji} ${order.departmentName}</span>
-									</div>
-									<span class="status-badge-table status-delivered">
-										✅ Доставлен
-									</span>
-								</div>
-								<div class="order-card-meta">
-									${order.displayDate} • ${order.totalItems} товаров • ${order.totalQuantity.toFixed(1)} единиц
-								</div>
-								<div class="order-card-actions" onclick="event.stopPropagation()">
-									<button class="btn-primary" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
-										👁️ Детали
-									</button>
-									<button onclick="alert('Excel export coming soon')">
-										📄 Excel
-									</button>
-									<button class="btn-danger" onclick="deleteOrder(${order.orderId})">
-										🗑️
-									</button>
-								</div>
-							</div>
-						`,
-                            )
-                            .join("")}
-					</div>
-				`;
-
-                container.innerHTML = tableHtml + cardsHtml;
-
-                // Add click listeners for sortable headers
-                const headers = container.querySelectorAll(".sortable");
-                headers.forEach((header) => {
-                    header.addEventListener("click", () => {
-                        const sortKey = header.getAttribute("data-sort");
-                        sortDeliveredOrders(sortKey, orders);
-                    });
+                                const result = await response.json();
+                                if (result.success) {
+                                    // Reload delivered orders
+                                    loadDeliveredOrders();
+                                } else {
+                                    alert(`Ошибка: ${result.error}`);
+                                }
+                            } catch (error) {
+                                alert("Ошибка при удалении заказа");
+                                console.error(error);
+                            }
+                        },
+                    },
                 });
-            }
-
-            // Sort delivered orders
-            let deliveredSortKey = "orderId";
-            let deliveredSortDirection = "desc";
-
-            function sortDeliveredOrders(sortKey, orders) {
-                if (sortKey === deliveredSortKey) {
-                    deliveredSortDirection =
-                        deliveredSortDirection === "asc" ? "desc" : "asc";
-                } else {
-                    deliveredSortKey = sortKey;
-                    deliveredSortDirection = "asc";
-                }
-
-                const sortedOrders = [...orders].sort((a, b) => {
-                    let aVal = a[sortKey];
-                    let bVal = b[sortKey];
-
-                    if (typeof aVal === "string") {
-                        aVal = aVal.toLowerCase();
-                        bVal = bVal.toLowerCase();
-                    }
-
-                    if (deliveredSortDirection === "asc") {
-                        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-                    } else {
-                        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-                    }
-                });
-
-                displayDeliveredOrders(sortedOrders);
-
-                const container = document.getElementById("deliveredOrders");
-                if (container) {
-                    const headers = container.querySelectorAll(".sortable");
-                    headers.forEach((header) => {
-                        header.classList.remove("sorted-asc", "sorted-desc");
-                        if (header.getAttribute("data-sort") === sortKey) {
-                            header.classList.add(
-                                `sorted-${deliveredSortDirection}`,
-                            );
-                        }
-                    });
-                }
             }
 
             // Load categories with suppliers
