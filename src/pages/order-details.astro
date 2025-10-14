@@ -495,13 +495,12 @@ import Layout from "../layouts/Layout.astro";
     </div>
 
     <script>
-        import { mount } from "svelte";
-        import CategorySection from "../lib/components/CategorySection.svelte";
-    </script>
-
-    <script is:inline>
         console.log("=== ORDER DETAILS PAGE SCRIPT LOADED ===");
         console.log("Current URL:", window.location.href);
+
+        // Import Svelte components dynamically
+        import { mount } from "svelte";
+        import CategorySection from "../lib/components/CategorySection.svelte";
 
         // Global variables
         let currentOrderData = null;
