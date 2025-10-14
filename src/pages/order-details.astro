@@ -497,7 +497,6 @@ import Layout from "../layouts/Layout.astro";
     <script>
         import { mount } from "svelte";
         import CategorySection from "../lib/components/CategorySection.svelte";
-        import Button from "../lib/components/ui/button.svelte";
     </script>
 
     <script is:inline>
@@ -634,14 +633,12 @@ import Layout from "../layouts/Layout.astro";
             buttonContainer.className = "pt-2";
             container.appendChild(buttonContainer);
 
-            mount(Button, {
-                target: buttonContainer,
-                props: {
-                    class: "w-full",
-                    onclick: () => openAddMissingProductsModal(),
-                },
-                children: "➕ Добавить недостающие товары",
-            });
+            const button = document.createElement("button");
+            button.className =
+                "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full";
+            button.textContent = "➕ Добавить недостающие товары";
+            button.onclick = () => openAddMissingProductsModal();
+            buttonContainer.appendChild(button);
         }
 
         // Send order to supplier
