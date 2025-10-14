@@ -1054,7 +1054,7 @@ import Layout from "../layouts/Layout.astro";
             }
 
             // Display orders in responsive table/card layout
-            function displayOrdersByCategory(orders: any[]) {
+            function displayOrdersByCategory(orders) {
                 const container = document.getElementById("ordersByCategory");
                 if (!container) return;
 
@@ -1176,7 +1176,7 @@ import Layout from "../layouts/Layout.astro";
             }
 
             // Global delete function for orders
-            window.deleteOrder = async function (orderId: number) {
+            async function deleteOrder(orderId) {
                 if (!confirm(`Удалить заказ #${orderId}?`)) return;
 
                 try {
@@ -1203,18 +1203,17 @@ import Layout from "../layouts/Layout.astro";
                     alert("Ошибка при удалении заказа");
                     console.error(error);
                 }
-            };
+            }
+
+            // Make it globally accessible
+            window.deleteOrder = deleteOrder;
 
             // Sorting state
-            let currentSortKey: string = "orderId";
-            let currentSortDirection: "asc" | "desc" = "desc";
+            let currentSortKey = "orderId";
+            let currentSortDirection = "desc";
 
             // Sort orders function
-            function sortOrders(
-                sortKey: string,
-                orders: any[],
-                container: HTMLElement,
-            ) {
+            function sortOrders(sortKey, orders, container) {
                 // Toggle direction if clicking the same column
                 if (sortKey === currentSortKey) {
                     currentSortDirection =
@@ -1344,7 +1343,7 @@ import Layout from "../layouts/Layout.astro";
             }
 
             // Display delivered orders in responsive table/card layout
-            function displayDeliveredOrders(orders: any[]) {
+            function displayDeliveredOrders(orders) {
                 const container = document.getElementById("deliveredOrders");
                 if (!container) return;
 
@@ -1455,10 +1454,10 @@ import Layout from "../layouts/Layout.astro";
             }
 
             // Sort delivered orders
-            let deliveredSortKey: string = "orderId";
-            let deliveredSortDirection: "asc" | "desc" = "desc";
+            let deliveredSortKey = "orderId";
+            let deliveredSortDirection = "desc";
 
-            function sortDeliveredOrders(sortKey: string, orders: any[]) {
+            function sortDeliveredOrders(sortKey, orders) {
                 if (sortKey === deliveredSortKey) {
                     deliveredSortDirection =
                         deliveredSortDirection === "asc" ? "desc" : "asc";
