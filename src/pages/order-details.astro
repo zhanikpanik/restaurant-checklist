@@ -1151,38 +1151,55 @@ import Layout from "../layouts/Layout.astro";
             btn.textContent = "⏳ Добавление...";
 
             try {
-                // Create order items from selected products
-                const orderItems = Object.values(selectedMissingProducts).map(
-                    (product) => ({
-                        name: product.name,
-                        quantity: product.quantity,
-                        unit: product.unit,
-                    }),
-                );
+                // Get the current order ID
+                const orderId = getOrderIdFromURL();
+                if (!orderId || !currentOrderData) {
+                    throw new Error("Order not found");
+                }
 
-                // Create a new order with these items for the specific date
-                const orderData = {
-                    department:
-                        currentMissingProductsSection?.name || "manager",
-                    items: orderItems,
-                    status: "pending",
-                    created_by: "manager",
-                    created_at: new Date(currentOrderDate).toISOString(),
-                };
+                // Create new order items from selected products
+                const newOrderItems = Object.values(
+                    selectedMissingProducts,
+                ).map((product) => ({
+                    name: product.name,
+                    quantity: product.quantity,
+                    shoppingQuantity: product.quantity,
+                    unit: product.unit,
+                }));
 
-                const response = await fetch("/api/orders", {
+                // Get existing items from all categories in the current order
+                const existingItems = [];
+                if (
+                    currentOrderData.categories &&
+                    Array.isArray(currentOrderData.categories)
+                ) {
+                    currentOrderData.categories.forEach((category) => {
+                        if (category.items && Array.isArray(category.items)) {
+                            existingItems.push(...category.items);
+                        }
+                    });
+                }
+
+                // Merge new items with existing items
+                const mergedItems = [...existingItems, ...newOrderItems];
+
+                // Update the order in the database
+                const response = await fetch("/api/update-order-items", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                     },
-                    body: JSON.stringify(orderData),
+                    body: JSON.stringify({
+                        orderId: parseInt(orderId),
+                        items: mergedItems,
+                    }),
                 });
 
                 const data = await response.json();
 
                 if (data.success) {
                     alert(
-                        `Успешно добавлено ${selectedCount} товаров в заказ!`,
+                        `✅ Успешно добавлено ${selectedCount} товаров в заказ!`,
                     );
                     closeAddMissingProductsModal();
                     // Refresh order details
