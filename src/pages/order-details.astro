@@ -500,6 +500,9 @@ import Layout from "../layouts/Layout.astro";
     </script>
 
     <script is:inline>
+        console.log("=== ORDER DETAILS PAGE SCRIPT LOADED ===");
+        console.log("Current URL:", window.location.href);
+
         // Global variables
         let currentOrderData = null;
         let currentOrderDate = null;
@@ -1447,7 +1450,12 @@ import Layout from "../layouts/Layout.astro";
         // Toggle category collapse/expand
         // Initialize page
         document.addEventListener("DOMContentLoaded", function () {
+            console.log("=== DOM CONTENT LOADED - Starting initialization ===");
             loadOrderDetails();
         });
+
+        console.log(
+            "=== Script execution completed, waiting for DOMContentLoaded ===",
+        );
     </script>
 </Layout>
