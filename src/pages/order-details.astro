@@ -494,6 +494,12 @@ import Layout from "../layouts/Layout.astro";
         </style>
     </div>
 
+    <script>
+        import { mount } from "svelte";
+        import CategorySection from "../lib/components/CategorySection.svelte";
+        import Button from "../lib/components/ui/button.svelte";
+    </script>
+
     <script is:inline>
         // Global variables
         let currentOrderData = null;
@@ -575,154 +581,67 @@ import Layout from "../layouts/Layout.astro";
 
             // Display category groups
             displayCategoryGroups(orderData);
-
-            // Expand all categories by default after a small delay to ensure DOM is ready
-            setTimeout(() => {
-                expandAllCategories();
-            }, 50);
         }
 
-        // Display category groups
+        // Display category groups using Svelte components
         function displayCategoryGroups(orderData) {
             const container = document.getElementById("categoryGroups");
+            container.innerHTML = "";
 
-            let html = "";
+            // Create a wrapper div for all categories
+            const categoriesWrapper = document.createElement("div");
+            categoriesWrapper.className = "space-y-3";
+            container.appendChild(categoriesWrapper);
 
-            // Display each category separately
+            // Mount CategorySection component for each category
             orderData.categories.forEach((category, categoryIndex) => {
-                const hasSupplier = category.supplier && category.supplier.name;
-                const supplierInfo = category.supplier || {};
-                const hasPhone = hasSupplier && supplierInfo.phone;
+                const categoryContainer = document.createElement("div");
+                categoriesWrapper.appendChild(categoryContainer);
+
                 const categoryId = category.categoryId || categoryIndex;
+                const categoryData = {
+                    ...category,
+                    categoryId: categoryId,
+                };
 
-                html += `
-					<div class="category-section">
-						<!-- Category Header -->
-						<div class="category-header">
-							<button
-								class="category-header-btn"
-								onclick="toggleCategory(${categoryId})"
-								type="button"
-							>
-								<div class="flex-1 min-w-0">
-									<div class="flex items-center gap-2 mb-1">
-										<h3 class="font-semibold text-base">🏷️ ${category.categoryName}</h3>
-										<span class="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-											${category.items.length}
-										</span>
-									</div>
-									<div class="text-xs text-muted-foreground">
-										${
-                                            hasSupplier
-                                                ? `📦 ${supplierInfo.name}${hasPhone ? ` • 📱 ${supplierInfo.phone}` : ' • <span class="text-destructive">⚠️ Нет телефона</span>'}`
-                                                : `<span class="text-destructive">⚠️ Без поставщика</span>`
-                                        }
-									</div>
-								</div>
-								<svg
-									class="category-toggle-icon w-5 h-5 text-muted-foreground"
-									id="toggle-icon-${categoryId}"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-								</svg>
-							</button>
-						</div>
-
-						<!-- Items Container -->
-						<div class="category-items-container" id="category-items-${categoryId}">
-							<!-- Desktop Table View -->
-							<table class="order-table">
-								<thead>
-									<tr>
-										<th>#</th>
-										<th>Товар</th>
-										<th>Количество</th>
-										<th>Ед.изм</th>
-									</tr>
-								</thead>
-								<tbody>
-									${category.items
-                                        .map(
-                                            (item, index) => `
-										<tr>
-											<td>${index + 1}</td>
-											<td>${item.name}</td>
-											<td>${item.quantity}</td>
-											<td>${item.unit}</td>
-										</tr>
-									`,
-                                        )
-                                        .join("")}
-								</tbody>
-							</table>
-
-							<!-- Mobile List View -->
-							<div class="item-list-mobile">
-								${category.items
-                                    .map(
-                                        (item) => `
-									<div class="item-row-mobile">
-										<span class="item-name-mobile">${item.name}</span>
-										<span class="item-quantity-mobile">${item.quantity} ${item.unit}</span>
-									</div>
-								`,
-                                    )
-                                    .join("")}
-							</div>
-
-							<!-- Action Buttons -->
-							<div class="p-4 border-t">
-								${
-                                    hasSupplier && hasPhone
-                                        ? `
-									<button
-										onclick="sendSupplierOrder('${orderData.orderId}', [${categoryId}], '${supplierInfo.name}', ${supplierInfo.id})"
-										class="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl py-3 px-5 transition-all active:scale-95"
-									>
-										📱 Отправить поставщику
-									</button>
-								`
-                                        : hasSupplier && !hasPhone
-                                          ? `
-									<button
-										disabled
-										class="w-full bg-secondary text-muted-foreground cursor-not-allowed text-sm font-medium rounded-xl py-3 px-5"
-									>
-										📱 Нет телефона
-									</button>
-								`
-                                          : `
-									<button
-										onclick="assignSupplierToCategory(${categoryId}, '${category.categoryName}')"
-										class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium rounded-xl py-3 px-5 transition-all active:scale-95"
-									>
-										Назначить поставщика
-									</button>
-								`
-                                }
-							</div>
-						</div>
-					</div>
-				`;
+                mount(CategorySection, {
+                    target: categoryContainer,
+                    props: {
+                        category: categoryData,
+                        orderId: orderData.orderId,
+                        onSendToSupplier: (
+                            orderId,
+                            categoryIds,
+                            supplierName,
+                            supplierId,
+                        ) => {
+                            sendSupplierOrder(
+                                orderId,
+                                categoryIds,
+                                supplierName,
+                                supplierId,
+                            );
+                        },
+                        onAssignSupplier: (categoryId, categoryName) => {
+                            assignSupplierToCategory(categoryId, categoryName);
+                        },
+                    },
+                });
             });
 
-            // Add missing products button after all categories
-            html += `
-				<div class="text-center pt-2">
-					<button
-						id="addMissingProductsBtn"
-						onclick="openAddMissingProductsModal()"
-						class="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium rounded-xl py-4 px-6 transition-all active:scale-95"
-					>
-						➕ Добавить недостающие товары
-					</button>
-				</div>
-			`;
+            // Add missing products button
+            const buttonContainer = document.createElement("div");
+            buttonContainer.className = "pt-2";
+            container.appendChild(buttonContainer);
 
-            container.innerHTML = html;
+            mount(Button, {
+                target: buttonContainer,
+                props: {
+                    class: "w-full",
+                    onclick: () => openAddMissingProductsModal(),
+                },
+                children: "➕ Добавить недостающие товары",
+            });
         }
 
         // Send order to supplier
@@ -1448,41 +1367,6 @@ import Layout from "../layouts/Layout.astro";
         }
 
         // Toggle category collapse/expand
-        function toggleCategory(categoryId) {
-            const container = document.getElementById(
-                `category-items-${categoryId}`,
-            );
-            const icon = document.getElementById(`toggle-icon-${categoryId}`);
-
-            if (!container) return;
-
-            const isExpanded = container.classList.contains("expanded");
-
-            if (isExpanded) {
-                container.classList.remove("expanded");
-                icon?.classList.remove("expanded");
-            } else {
-                container.classList.add("expanded");
-                icon?.classList.add("expanded");
-            }
-        }
-
-        // Expand all categories by default on page load
-        function expandAllCategories() {
-            const containers = document.querySelectorAll(
-                ".category-items-container",
-            );
-            const icons = document.querySelectorAll(".category-toggle-icon");
-
-            containers.forEach((container) => {
-                container.classList.add("expanded");
-            });
-
-            icons.forEach((icon) => {
-                icon.classList.add("expanded");
-            });
-        }
-
         // Initialize page
         document.addEventListener("DOMContentLoaded", function () {
             loadOrderDetails();
