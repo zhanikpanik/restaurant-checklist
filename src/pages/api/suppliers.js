@@ -394,7 +394,7 @@ export async function DELETE({ request, locals }) {
 
       const hasRestaurantId = columnCheck.rows.length > 0;
 
-      // Check if supplier is being used by categories
+      // Check if supplier is being used by categories and unassign
       let usageCheck;
       if (hasRestaurantId) {
         usageCheck = await client.query(
@@ -409,18 +409,22 @@ export async function DELETE({ request, locals }) {
       }
 
       const categoryCount = parseInt(usageCheck.rows[0].count);
+
+      // Unassign supplier from categories before deletion
       if (categoryCount > 0) {
-        await client.query("ROLLBACK");
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: `Cannot delete supplier: ${categoryCount} categories are using this supplier`,
-          }),
-          {
-            status: 400,
-            headers: { "Content-Type": "application/json" },
-          },
-        );
+        console.log(`📋 Unassigning supplier from ${categoryCount} categories`);
+        if (hasRestaurantId) {
+          await client.query(
+            "UPDATE product_categories SET supplier_id = NULL WHERE supplier_id = $1 AND restaurant_id = $2",
+            [id, tenantId],
+          );
+        } else {
+          await client.query(
+            "UPDATE product_categories SET supplier_id = NULL WHERE supplier_id = $1",
+            [id],
+          );
+        }
+        console.log(`✅ Supplier unassigned from ${categoryCount} categories`);
       }
 
       // Delete the supplier

@@ -93,6 +93,8 @@ export async function POST({ request }) {
     let updated = 0;
 
     try {
+      await client.query("BEGIN");
+
       for (const posterSupplier of posterSuppliers) {
         const supplierId = parseInt(posterSupplier.supplier_id);
         const supplierName =
@@ -100,33 +102,83 @@ export async function POST({ request }) {
         const phone = posterSupplier.supplier_phone || null;
         const contactInfo = posterSupplier.supplier_adress || null; // Note: Poster has typo "adress"
 
-        // Use INSERT ... ON CONFLICT to handle duplicates gracefully
-        // ON CONFLICT uses (restaurant_id, poster_supplier_id) composite key
-        const result = await client.query(
-          `INSERT INTO suppliers (restaurant_id, name, phone, contact_info, poster_supplier_id, created_at)
-           VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
-           ON CONFLICT (restaurant_id, poster_supplier_id)
-           DO UPDATE SET
-             name = EXCLUDED.name,
-             phone = EXCLUDED.phone,
-             contact_info = EXCLUDED.contact_info,
-             updated_at = CURRENT_TIMESTAMP
-           RETURNING (xmax = 0) AS inserted`,
-          [tenantId, supplierName, phone, contactInfo, supplierId],
-        );
+        try {
+          // First, try to find supplier by poster_supplier_id
+          const existingByPosterId = await client.query(
+            `SELECT id FROM suppliers WHERE restaurant_id = $1 AND poster_supplier_id = $2`,
+            [tenantId, supplierId],
+          );
 
-        if (result.rows[0].inserted) {
-          console.log(
-            `✅ Created supplier: ${supplierName} (ID: ${supplierId})`,
+          if (existingByPosterId.rows.length > 0) {
+            // Update existing supplier found by poster_supplier_id
+            await client.query(
+              `UPDATE suppliers
+               SET name = $1, phone = $2, contact_info = $3, updated_at = CURRENT_TIMESTAMP
+               WHERE id = $4`,
+              [supplierName, phone, contactInfo, existingByPosterId.rows[0].id],
+            );
+            console.log(
+              `🔄 Updated supplier: ${supplierName} (ID: ${supplierId})`,
+            );
+            updated++;
+          } else {
+            // Check if supplier with same name already exists (without poster_supplier_id)
+            const existingByName = await client.query(
+              `SELECT id, poster_supplier_id FROM suppliers WHERE restaurant_id = $1 AND name = $2`,
+              [tenantId, supplierName],
+            );
+
+            if (
+              existingByName.rows.length > 0 &&
+              !existingByName.rows[0].poster_supplier_id
+            ) {
+              // Update existing supplier with poster_supplier_id
+              await client.query(
+                `UPDATE suppliers
+                 SET phone = $1, contact_info = $2, poster_supplier_id = $3, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $4`,
+                [phone, contactInfo, supplierId, existingByName.rows[0].id],
+              );
+              console.log(
+                `🔗 Linked existing supplier to Poster: ${supplierName} (ID: ${supplierId})`,
+              );
+              updated++;
+            } else if (existingByName.rows.length > 0) {
+              // Duplicate name but different poster_supplier_id - append ID to make unique
+              const uniqueName = `${supplierName} (Poster #${supplierId})`;
+              await client.query(
+                `INSERT INTO suppliers (restaurant_id, name, phone, contact_info, poster_supplier_id, created_at)
+                 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+                [tenantId, uniqueName, phone, contactInfo, supplierId],
+              );
+              console.log(
+                `✅ Created supplier with unique name: ${uniqueName}`,
+              );
+              created++;
+            } else {
+              // Create new supplier
+              await client.query(
+                `INSERT INTO suppliers (restaurant_id, name, phone, contact_info, poster_supplier_id, created_at)
+                 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)`,
+                [tenantId, supplierName, phone, contactInfo, supplierId],
+              );
+              console.log(
+                `✅ Created supplier: ${supplierName} (ID: ${supplierId})`,
+              );
+              created++;
+            }
+          }
+        } catch (supplierError) {
+          console.error(
+            `❌ Error processing supplier ${supplierName}:`,
+            supplierError.message,
           );
-          created++;
-        } else {
-          console.log(
-            `🔄 Updated supplier: ${supplierName} (ID: ${supplierId})`,
-          );
-          updated++;
+          // Continue with next supplier instead of failing entire sync
+          continue;
         }
       }
+
+      await client.query("COMMIT");
 
       console.log(`✅ Sync complete: ${created} created, ${updated} updated`);
 
@@ -141,6 +193,10 @@ export async function POST({ request }) {
           headers: { "Content-Type": "application/json" },
         },
       );
+    } catch (dbError) {
+      await client.query("ROLLBACK");
+      console.error("❌ Database error during sync:", dbError);
+      throw dbError;
     } finally {
       safeRelease(client);
     }
