@@ -78,6 +78,238 @@ import Layout from "../layouts/Layout.astro";
     .native-list-item:active {
         background: var(--accent);
     }
+
+    /* Orders Table Styles */
+    .orders-table-container {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .orders-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .orders-table thead {
+        background: var(--muted);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .orders-table th {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.6875rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted-foreground);
+        border-bottom: 1px solid var(--border);
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .orders-table th:hover {
+        background: hsl(var(--muted) / 0.8);
+    }
+
+    .orders-table th.sortable::after {
+        content: " ⇅";
+        opacity: 0.3;
+        font-size: 0.75rem;
+    }
+
+    .orders-table th.sorted-asc::after {
+        content: " ↑";
+        opacity: 1;
+    }
+
+    .orders-table th.sorted-desc::after {
+        content: " ↓";
+        opacity: 1;
+    }
+
+    .orders-table tbody tr {
+        cursor: pointer;
+        transition: background-color 0.1s;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .orders-table tbody tr:nth-child(even) {
+        background: hsl(var(--muted) / 0.2);
+    }
+
+    .orders-table tbody tr:hover {
+        background: hsl(var(--accent) / 0.5);
+    }
+
+    .orders-table tbody tr:active {
+        background: hsl(var(--accent) / 0.7);
+    }
+
+    .orders-table td {
+        padding: 0.875rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .orders-table td:first-child {
+        font-weight: 600;
+        color: var(--primary);
+    }
+
+    .orders-table td.number-cell {
+        text-align: right;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .orders-table .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        justify-content: flex-end;
+    }
+
+    .orders-table .action-btn {
+        padding: 0.375rem 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        transition: all 0.15s;
+        border: 1px solid var(--border);
+        background: var(--background);
+        cursor: pointer;
+    }
+
+    .orders-table .action-btn:hover {
+        background: var(--accent);
+    }
+
+    .orders-table .action-btn:active {
+        transform: scale(0.95);
+    }
+
+    /* Status badges */
+    .status-badge-table {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.625rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .status-pending {
+        background: hsl(48, 100%, 85%);
+        color: hsl(45, 100%, 30%);
+    }
+
+    .status-sent {
+        background: hsl(210, 100%, 85%);
+        color: hsl(210, 100%, 30%);
+    }
+
+    .status-delivered {
+        background: hsl(142, 71%, 85%);
+        color: hsl(142, 71%, 30%);
+    }
+
+    /* Mobile Cards */
+    .order-card-mobile {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 0.875rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.15s;
+        cursor: pointer;
+    }
+
+    .order-card-mobile:active {
+        transform: scale(0.98);
+        background: hsl(var(--accent) / 0.3);
+    }
+
+    .order-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+    }
+
+    .order-card-title {
+        font-size: 0.9375rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .order-card-meta {
+        font-size: 0.8125rem;
+        color: var(--muted-foreground);
+        margin-bottom: 0.625rem;
+    }
+
+    .order-card-actions {
+        display: flex;
+        gap: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .order-card-actions button {
+        flex: 1;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        border: 1px solid var(--border);
+        background: var(--background);
+        transition: all 0.15s;
+        min-height: 44px;
+    }
+
+    .order-card-actions button:active {
+        transform: scale(0.95);
+        background: var(--accent);
+    }
+
+    .order-card-actions .btn-primary {
+        background: var(--primary);
+        color: var(--primary-foreground);
+        border-color: var(--primary);
+    }
+
+    .order-card-actions .btn-danger {
+        background: hsl(0, 84%, 60%);
+        color: white;
+        border-color: hsl(0, 84%, 60%);
+    }
+
+    /* Responsive behavior */
+    @media (min-width: 1024px) {
+        .orders-table-container {
+            display: block;
+        }
+
+        .orders-mobile-container {
+            display: none;
+        }
+    }
+
+    @media (max-width: 1023px) {
+        .orders-table-container {
+            display: none;
+        }
+
+        .orders-mobile-container {
+            display: block;
+        }
+    }
 </style>
 
 <Layout title="Менеджер - Панель управления">
@@ -717,6 +949,7 @@ import Layout from "../layouts/Layout.astro";
                 class="bg-background rounded-lg shadow-xl max-w-md w-full mx-4"
             >
                 <div class="p-6 border-b">
+                    \
                     <div class="flex justify-between items-center">
                         <h3 class="text-lg font-semibold">
                             Добавить поставщика
@@ -801,9 +1034,6 @@ import Layout from "../layouts/Layout.astro";
         </div>
 
         <script>
-            import { mount } from "svelte";
-            import OrderCard from "../lib/components/OrderCard.svelte";
-
             // Load orders by category
             async function loadOrdersByCategory() {
                 console.log("📋 Loading orders by category...");
@@ -823,7 +1053,7 @@ import Layout from "../layouts/Layout.astro";
                 }
             }
 
-            // Display orders using Svelte components
+            // Display orders in responsive table/card layout
             function displayOrdersByCategory(orders: any[]) {
                 const container = document.getElementById("ordersByCategory");
                 if (!container) return;
@@ -839,29 +1069,189 @@ import Layout from "../layouts/Layout.astro";
                     return;
                 }
 
-                // Clear container
-                container.innerHTML = "";
+                // Sort orders by ID descending (newest first) by default
+                const sortedOrders = [...orders].sort(
+                    (a, b) => b.orderId - a.orderId,
+                );
 
-                // Create container for cards
-                const cardsContainer = document.createElement("div");
-                cardsContainer.className = "space-y-4";
-                container.appendChild(cardsContainer);
+                // Generate desktop table view
+                const tableHtml = `
+					<div class="orders-table-container">
+						<table class="orders-table">
+							<thead>
+								<tr>
+									<th class="sortable" data-sort="orderId">#</th>
+									<th class="sortable" data-sort="departmentName">Отдел</th>
+									<th class="sortable" data-sort="displayDate">Дата</th>
+									<th class="sortable" data-sort="status">Статус</th>
+									<th class="sortable number-cell" data-sort="totalItems">Товаров</th>
+									<th class="sortable number-cell" data-sort="totalQuantity">Единиц</th>
+									<th>Действия</th>
+								</tr>
+							</thead>
+							<tbody>
+								${sortedOrders
+                                    .map(
+                                        (order) => `
+									<tr onclick="window.location.href='/order-details?orderId=${order.orderId}'" data-order-id="${order.orderId}">
+										<td>#${order.orderId}</td>
+										<td>${order.departmentEmoji} ${order.departmentName}</td>
+										<td>${order.displayDate}</td>
+										<td>
+											<span class="status-badge-table status-${order.status}">
+												${order.status === "pending" ? "⏳ Ожидает" : order.status === "sent" ? "📤 Отправлен" : "✅ Доставлен"}
+											</span>
+										</td>
+										<td class="number-cell">${order.totalItems}</td>
+										<td class="number-cell">${order.totalQuantity.toFixed(1)}</td>
+										<td onclick="event.stopPropagation()">
+											<div class="action-buttons">
+												<button class="action-btn" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
+													👁️ Детали
+												</button>
+												<button class="action-btn" onclick="alert('Excel export coming soon')">
+													📄 Excel
+												</button>
+												<button class="action-btn" onclick="deleteOrder(${order.orderId})" style="color: hsl(0, 84%, 60%);">
+													🗑️
+												</button>
+											</div>
+										</td>
+									</tr>
+								`,
+                                    )
+                                    .join("")}
+							</tbody>
+						</table>
+					</div>
+				`;
 
-                // Create Svelte component for each order
-                orders.forEach((order: any) => {
-                    const target = document.createElement("div");
-                    cardsContainer.appendChild(target);
+                // Generate mobile card view
+                const cardsHtml = `
+					<div class="orders-mobile-container">
+						${sortedOrders
+                            .map(
+                                (order) => `
+							<div class="order-card-mobile" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
+								<div class="order-card-header">
+									<div class="order-card-title">
+										<span>#${order.orderId}</span>
+										<span>${order.departmentEmoji} ${order.departmentName}</span>
+									</div>
+									<span class="status-badge-table status-${order.status}">
+										${order.status === "pending" ? "⏳ Ожидает" : order.status === "sent" ? "📤 Отправлен" : "✅ Доставлен"}
+									</span>
+								</div>
+								<div class="order-card-meta">
+									${order.displayDate} • ${order.totalItems} товаров • ${order.totalQuantity.toFixed(1)} единиц
+								</div>
+								<div class="order-card-actions" onclick="event.stopPropagation()">
+									<button class="btn-primary" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
+										👁️ Детали
+									</button>
+									<button onclick="alert('Excel export coming soon')">
+										📄 Excel
+									</button>
+									<button class="btn-danger" onclick="deleteOrder(${order.orderId})">
+										🗑️
+									</button>
+								</div>
+							</div>
+						`,
+                            )
+                            .join("")}
+					</div>
+				`;
 
-                    mount(OrderCard, {
-                        target,
-                        props: {
-                            order,
-                            onDelete: (orderId: string) => {
-                                // Remove the card from DOM
-                                target.remove();
-                            },
-                        },
+                container.innerHTML = tableHtml + cardsHtml;
+
+                // Add click listeners for sortable headers
+                const headers = container.querySelectorAll(".sortable");
+                headers.forEach((header) => {
+                    header.addEventListener("click", () => {
+                        const sortKey = header.getAttribute("data-sort");
+                        sortOrders(sortKey, orders, container);
                     });
+                });
+            }
+
+            // Global delete function for orders
+            window.deleteOrder = async function (orderId: number) {
+                if (!confirm(`Удалить заказ #${orderId}?`)) return;
+
+                try {
+                    const response = await fetch("/api/delete-order", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ orderId }),
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        // Remove the order from DOM
+                        const row = document.querySelector(
+                            `tr[data-order-id="${orderId}"]`,
+                        );
+                        if (row) row.remove();
+
+                        // Also reload to update the list
+                        loadOrdersByCategory();
+                    } else {
+                        alert(`Ошибка: ${result.error}`);
+                    }
+                } catch (error) {
+                    alert("Ошибка при удалении заказа");
+                    console.error(error);
+                }
+            };
+
+            // Sorting state
+            let currentSortKey: string = "orderId";
+            let currentSortDirection: "asc" | "desc" = "desc";
+
+            // Sort orders function
+            function sortOrders(
+                sortKey: string,
+                orders: any[],
+                container: HTMLElement,
+            ) {
+                // Toggle direction if clicking the same column
+                if (sortKey === currentSortKey) {
+                    currentSortDirection =
+                        currentSortDirection === "asc" ? "desc" : "asc";
+                } else {
+                    currentSortKey = sortKey;
+                    currentSortDirection = "asc";
+                }
+
+                // Sort the orders
+                const sortedOrders = [...orders].sort((a, b) => {
+                    let aVal = a[sortKey];
+                    let bVal = b[sortKey];
+
+                    // Handle different data types
+                    if (typeof aVal === "string") {
+                        aVal = aVal.toLowerCase();
+                        bVal = bVal.toLowerCase();
+                    }
+
+                    if (currentSortDirection === "asc") {
+                        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                    } else {
+                        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+                    }
+                });
+
+                // Re-render with sorted data
+                displayOrdersByCategory(sortedOrders);
+
+                // Update header classes
+                const headers = container.querySelectorAll(".sortable");
+                headers.forEach((header) => {
+                    header.classList.remove("sorted-asc", "sorted-desc");
+                    if (header.getAttribute("data-sort") === sortKey) {
+                        header.classList.add(`sorted-${currentSortDirection}`);
+                    }
                 });
             }
 
@@ -935,27 +1325,8 @@ import Layout from "../layouts/Layout.astro";
                     const data = await response.json();
 
                     if (data.success && data.data && data.data.length > 0) {
-                        // Reuse the same display function
-                        container.innerHTML = "";
-                        const cardsContainer = document.createElement("div");
-                        cardsContainer.className = "space-y-4";
-                        container.appendChild(cardsContainer);
-
-                        data.data.forEach((order: any) => {
-                            const target = document.createElement("div");
-                            cardsContainer.appendChild(target);
-
-                            mount(OrderCard, {
-                                target,
-                                props: {
-                                    order,
-                                    onDelete: (orderId: string) => {
-                                        // Remove the card from DOM
-                                        target.remove();
-                                    },
-                                },
-                            });
-                        });
+                        // Use the same table/card display function
+                        displayDeliveredOrders(data.data);
                     } else {
                         container.innerHTML = `
 						<div class="text-center py-12">
@@ -969,6 +1340,162 @@ import Layout from "../layouts/Layout.astro";
                     console.error("Error loading delivered orders:", error);
                     container.innerHTML =
                         '<div class="text-center text-error py-12"><p>Ошибка загрузки</p></div>';
+                }
+            }
+
+            // Display delivered orders in responsive table/card layout
+            function displayDeliveredOrders(orders: any[]) {
+                const container = document.getElementById("deliveredOrders");
+                if (!container) return;
+
+                // Sort orders by ID descending (newest first) by default
+                const sortedOrders = [...orders].sort(
+                    (a, b) => b.orderId - a.orderId,
+                );
+
+                // Generate desktop table view
+                const tableHtml = `
+					<div class="orders-table-container">
+						<table class="orders-table">
+							<thead>
+								<tr>
+									<th class="sortable" data-sort="orderId">#</th>
+									<th class="sortable" data-sort="departmentName">Отдел</th>
+									<th class="sortable" data-sort="displayDate">Дата</th>
+									<th class="sortable" data-sort="status">Статус</th>
+									<th class="sortable number-cell" data-sort="totalItems">Товаров</th>
+									<th class="sortable number-cell" data-sort="totalQuantity">Единиц</th>
+									<th>Действия</th>
+								</tr>
+							</thead>
+							<tbody>
+								${sortedOrders
+                                    .map(
+                                        (order) => `
+									<tr onclick="window.location.href='/order-details?orderId=${order.orderId}'" data-order-id="${order.orderId}">
+										<td>#${order.orderId}</td>
+										<td>${order.departmentEmoji} ${order.departmentName}</td>
+										<td>${order.displayDate}</td>
+										<td>
+											<span class="status-badge-table status-${order.status}">
+												✅ Доставлен
+											</span>
+										</td>
+										<td class="number-cell">${order.totalItems}</td>
+										<td class="number-cell">${order.totalQuantity.toFixed(1)}</td>
+										<td onclick="event.stopPropagation()">
+											<div class="action-buttons">
+												<button class="action-btn" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
+													👁️ Детали
+												</button>
+												<button class="action-btn" onclick="alert('Excel export coming soon')">
+													📄 Excel
+												</button>
+												<button class="action-btn" onclick="deleteOrder(${order.orderId})" style="color: hsl(0, 84%, 60%);">
+													🗑️
+												</button>
+											</div>
+										</td>
+									</tr>
+								`,
+                                    )
+                                    .join("")}
+							</tbody>
+						</table>
+					</div>
+				`;
+
+                // Generate mobile card view
+                const cardsHtml = `
+					<div class="orders-mobile-container">
+						${sortedOrders
+                            .map(
+                                (order) => `
+							<div class="order-card-mobile" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
+								<div class="order-card-header">
+									<div class="order-card-title">
+										<span>#${order.orderId}</span>
+										<span>${order.departmentEmoji} ${order.departmentName}</span>
+									</div>
+									<span class="status-badge-table status-delivered">
+										✅ Доставлен
+									</span>
+								</div>
+								<div class="order-card-meta">
+									${order.displayDate} • ${order.totalItems} товаров • ${order.totalQuantity.toFixed(1)} единиц
+								</div>
+								<div class="order-card-actions" onclick="event.stopPropagation()">
+									<button class="btn-primary" onclick="window.location.href='/order-details?orderId=${order.orderId}'">
+										👁️ Детали
+									</button>
+									<button onclick="alert('Excel export coming soon')">
+										📄 Excel
+									</button>
+									<button class="btn-danger" onclick="deleteOrder(${order.orderId})">
+										🗑️
+									</button>
+								</div>
+							</div>
+						`,
+                            )
+                            .join("")}
+					</div>
+				`;
+
+                container.innerHTML = tableHtml + cardsHtml;
+
+                // Add click listeners for sortable headers
+                const headers = container.querySelectorAll(".sortable");
+                headers.forEach((header) => {
+                    header.addEventListener("click", () => {
+                        const sortKey = header.getAttribute("data-sort");
+                        sortDeliveredOrders(sortKey, orders);
+                    });
+                });
+            }
+
+            // Sort delivered orders
+            let deliveredSortKey: string = "orderId";
+            let deliveredSortDirection: "asc" | "desc" = "desc";
+
+            function sortDeliveredOrders(sortKey: string, orders: any[]) {
+                if (sortKey === deliveredSortKey) {
+                    deliveredSortDirection =
+                        deliveredSortDirection === "asc" ? "desc" : "asc";
+                } else {
+                    deliveredSortKey = sortKey;
+                    deliveredSortDirection = "asc";
+                }
+
+                const sortedOrders = [...orders].sort((a, b) => {
+                    let aVal = a[sortKey];
+                    let bVal = b[sortKey];
+
+                    if (typeof aVal === "string") {
+                        aVal = aVal.toLowerCase();
+                        bVal = bVal.toLowerCase();
+                    }
+
+                    if (deliveredSortDirection === "asc") {
+                        return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                    } else {
+                        return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+                    }
+                });
+
+                displayDeliveredOrders(sortedOrders);
+
+                const container = document.getElementById("deliveredOrders");
+                if (container) {
+                    const headers = container.querySelectorAll(".sortable");
+                    headers.forEach((header) => {
+                        header.classList.remove("sorted-asc", "sorted-desc");
+                        if (header.getAttribute("data-sort") === sortKey) {
+                            header.classList.add(
+                                `sorted-${deliveredSortDirection}`,
+                            );
+                        }
+                    });
                 }
             }
 
