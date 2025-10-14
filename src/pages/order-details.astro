@@ -46,6 +46,182 @@ import Layout from "../layouts/Layout.astro";
     .btn-native-sm:active {
         transform: scale(0.97);
     }
+
+    /* Responsive Table Styles */
+    .category-section {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 0.75rem;
+    }
+
+    .category-header {
+        padding: 1rem;
+        border-bottom: 1px solid var(--border);
+        background: var(--background);
+    }
+
+    .category-header-btn {
+        width: 100%;
+        text-align: left;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .category-toggle-icon {
+        transition: transform 0.2s;
+        flex-shrink: 0;
+    }
+
+    .category-toggle-icon.expanded {
+        transform: rotate(180deg);
+    }
+
+    /* Desktop Table */
+    .order-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .order-table thead {
+        background: var(--muted);
+        position: sticky;
+        top: 0;
+        z-index: 5;
+    }
+
+    .order-table th {
+        padding: 0.75rem 1rem;
+        text-align: left;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted-foreground);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .order-table th:first-child {
+        width: 50px;
+        text-align: center;
+    }
+
+    .order-table th:nth-child(3) {
+        width: 120px;
+        text-align: right;
+    }
+
+    .order-table th:nth-child(4) {
+        width: 100px;
+    }
+
+    .order-table tbody tr {
+        transition: background-color 0.1s;
+    }
+
+    .order-table tbody tr:nth-child(even) {
+        background: hsl(var(--muted) / 0.3);
+    }
+
+    .order-table tbody tr:hover {
+        background: hsl(var(--accent) / 0.5);
+    }
+
+    .order-table td {
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .order-table td:first-child {
+        text-align: center;
+        color: var(--muted-foreground);
+        font-size: 0.75rem;
+    }
+
+    .order-table td:nth-child(3) {
+        text-align: right;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+
+    .order-table td:nth-child(4) {
+        color: var(--muted-foreground);
+    }
+
+    /* Mobile List */
+    .item-list-mobile {
+        display: none;
+    }
+
+    .item-row-mobile {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        min-height: 48px;
+        padding: 0.75rem 1rem;
+        border-bottom: 1px solid var(--border);
+        transition: background-color 0.1s;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .item-row-mobile:last-child {
+        border-bottom: none;
+    }
+
+    .item-row-mobile:active {
+        background: hsl(var(--accent) / 0.3);
+    }
+
+    .item-name-mobile {
+        flex: 1;
+        font-size: 0.875rem;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-right: 1rem;
+    }
+
+    .item-quantity-mobile {
+        font-size: 1rem;
+        font-weight: 600;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .category-items-container {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+    }
+
+    .category-items-container.expanded {
+        max-height: 5000px;
+    }
+
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+        .order-table {
+            display: none;
+        }
+
+        .item-list-mobile {
+            display: block;
+        }
+
+        .category-header {
+            padding: 0.75rem;
+        }
+
+        .category-section {
+            border-radius: 8px;
+        }
+    }
 </style>
 
 <Layout title="Order Details - Restaurant System">
@@ -399,6 +575,11 @@ import Layout from "../layouts/Layout.astro";
 
             // Display category groups
             displayCategoryGroups(orderData);
+
+            // Expand all categories by default after a small delay to ensure DOM is ready
+            setTimeout(() => {
+                expandAllCategories();
+            }, 50);
         }
 
         // Display category groups
@@ -408,43 +589,84 @@ import Layout from "../layouts/Layout.astro";
             let html = "";
 
             // Display each category separately
-            orderData.categories.forEach((category) => {
+            orderData.categories.forEach((category, categoryIndex) => {
                 const hasSupplier = category.supplier && category.supplier.name;
                 const supplierInfo = category.supplier || {};
                 const hasPhone = hasSupplier && supplierInfo.phone;
+                const categoryId = category.categoryId || categoryIndex;
 
                 html += `
-					<div class="native-card">
-						<div class="p-4 space-y-3">
-							<!-- Category Header -->
-							<div class="flex items-start justify-between gap-2">
+					<div class="category-section">
+						<!-- Category Header -->
+						<div class="category-header">
+							<button
+								class="category-header-btn"
+								onclick="toggleCategory(${categoryId})"
+								type="button"
+							>
 								<div class="flex-1 min-w-0">
-									<h3 class="font-semibold text-base mb-1">🏷️ ${category.categoryName}</h3>
+									<div class="flex items-center gap-2 mb-1">
+										<h3 class="font-semibold text-base">🏷️ ${category.categoryName}</h3>
+										<span class="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+											${category.items.length}
+										</span>
+									</div>
 									<div class="text-xs text-muted-foreground">
 										${
                                             hasSupplier
-                                                ? `
-											📦 ${supplierInfo.name}${hasPhone ? ` • 📱 ${supplierInfo.phone}` : ' • <span class="text-destructive">⚠️ Нет телефона</span>'}
-										`
-                                                : `
-											<span class="text-destructive">⚠️ Без поставщика</span>
-										`
+                                                ? `📦 ${supplierInfo.name}${hasPhone ? ` • 📱 ${supplierInfo.phone}` : ' • <span class="text-destructive">⚠️ Нет телефона</span>'}`
+                                                : `<span class="text-destructive">⚠️ Без поставщика</span>`
                                         }
 									</div>
 								</div>
-								<div class="text-xs text-muted-foreground bg-secondary px-2 py-1 rounded-full">
-									${category.items.length} ${category.items.length === 1 ? "товар" : category.items.length < 5 ? "товара" : "товаров"}
-								</div>
-							</div>
+								<svg
+									class="category-toggle-icon w-5 h-5 text-muted-foreground"
+									id="toggle-icon-${categoryId}"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+								</svg>
+							</button>
+						</div>
 
-							<!-- Items -->
-							<div class="space-y-1">
+						<!-- Items Container -->
+						<div class="category-items-container" id="category-items-${categoryId}">
+							<!-- Desktop Table View -->
+							<table class="order-table">
+								<thead>
+									<tr>
+										<th>#</th>
+										<th>Товар</th>
+										<th>Количество</th>
+										<th>Ед.изм</th>
+									</tr>
+								</thead>
+								<tbody>
+									${category.items
+                                        .map(
+                                            (item, index) => `
+										<tr>
+											<td>${index + 1}</td>
+											<td>${item.name}</td>
+											<td>${item.quantity}</td>
+											<td>${item.unit}</td>
+										</tr>
+									`,
+                                        )
+                                        .join("")}
+								</tbody>
+							</table>
+
+							<!-- Mobile List View -->
+							<div class="item-list-mobile">
 								${category.items
                                     .map(
                                         (item) => `
-									<div class="flex justify-between items-center bg-secondary/50 rounded-lg px-3 py-2">
-										<span class="text-sm truncate mr-2">${item.name}</span>
-										<span class="text-sm font-medium whitespace-nowrap">${item.quantity} ${item.unit}</span>
+									<div class="item-row-mobile">
+										<span class="item-name-mobile">${item.name}</span>
+										<span class="item-quantity-mobile">${item.quantity} ${item.unit}</span>
 									</div>
 								`,
                                     )
@@ -452,13 +674,13 @@ import Layout from "../layouts/Layout.astro";
 							</div>
 
 							<!-- Action Buttons -->
-							<div class="flex gap-2">
+							<div class="p-4 border-t">
 								${
                                     hasSupplier && hasPhone
                                         ? `
 									<button
-										onclick="sendSupplierOrder('${orderData.orderId}', [${category.categoryId}], '${supplierInfo.name}', ${supplierInfo.id})"
-										class="flex-1 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl py-3 px-5 transition-all active:scale-95"
+										onclick="sendSupplierOrder('${orderData.orderId}', [${categoryId}], '${supplierInfo.name}', ${supplierInfo.id})"
+										class="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl py-3 px-5 transition-all active:scale-95"
 									>
 										📱 Отправить поставщику
 									</button>
@@ -467,15 +689,15 @@ import Layout from "../layouts/Layout.astro";
                                           ? `
 									<button
 										disabled
-										class="flex-1 bg-secondary text-muted-foreground cursor-not-allowed text-sm font-medium rounded-xl py-3 px-5"
+										class="w-full bg-secondary text-muted-foreground cursor-not-allowed text-sm font-medium rounded-xl py-3 px-5"
 									>
 										📱 Нет телефона
 									</button>
 								`
                                           : `
 									<button
-										onclick="assignSupplierToCategory(${category.categoryId}, '${category.categoryName}')"
-										class="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium rounded-xl py-3 px-5 transition-all active:scale-95"
+										onclick="assignSupplierToCategory(${categoryId}, '${category.categoryName}')"
+										class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium rounded-xl py-3 px-5 transition-all active:scale-95"
 									>
 										Назначить поставщика
 									</button>
@@ -1223,6 +1445,42 @@ import Layout from "../layouts/Layout.astro";
             document.getElementById("loadingState").classList.add("hidden");
             document.getElementById("errorState").classList.add("hidden");
             document.getElementById("orderContent").classList.remove("hidden");
+        }
+
+        // Toggle category collapse/expand
+        function toggleCategory(categoryId) {
+            const container = document.getElementById(
+                `category-items-${categoryId}`,
+            );
+            const icon = document.getElementById(`toggle-icon-${categoryId}`);
+
+            if (!container) return;
+
+            const isExpanded = container.classList.contains("expanded");
+
+            if (isExpanded) {
+                container.classList.remove("expanded");
+                icon?.classList.remove("expanded");
+            } else {
+                container.classList.add("expanded");
+                icon?.classList.add("expanded");
+            }
+        }
+
+        // Expand all categories by default on page load
+        function expandAllCategories() {
+            const containers = document.querySelectorAll(
+                ".category-items-container",
+            );
+            const icons = document.querySelectorAll(".category-toggle-icon");
+
+            containers.forEach((container) => {
+                container.classList.add("expanded");
+            });
+
+            icons.forEach((icon) => {
+                icon.classList.add("expanded");
+            });
         }
 
         // Initialize page
