@@ -1036,6 +1036,7 @@ import Layout from "../layouts/Layout.astro";
         <script>
             import { mount } from "svelte";
             import OrdersTable from "../lib/components/OrdersTable.svelte";
+            import ProductsTable from "../lib/components/ProductsTable.svelte";
 
             // Load orders by category
             async function loadOrdersByCategory() {
@@ -2025,114 +2026,53 @@ import Layout from "../layouts/Layout.astro";
             // Display products
             function displayProducts(products, categories) {
                 const container = document.getElementById("productsList");
+                container.innerHTML = "";
 
-                if (products.length === 0) {
-                    container.innerHTML = `
-					<div class="text-center py-12">
-						<div class="text-6xl mb-4">📦</div>
-						<p class="text-xl font-semibold mb-2">Нет товаров</p>
-						<p class="text-muted-foreground">Синхронизируйте секции из Poster или добавьте товары вручную</p>
-					</div>
-				`;
-                    return;
-                }
+                mount(ProductsTable, {
+                    target: container,
+                    props: {
+                        products,
+                        categories,
+                        onCategoryChange: async (
+                            productId,
+                            categoryId,
+                            type,
+                        ) => {
+                            await updateProductCategory(
+                                productId,
+                                categoryId,
+                                type,
+                            );
+                        },
+                        onDelete: async (productId, productName, type) => {
+                            if (confirm(`Удалить товар "${productName}"?`)) {
+                                try {
+                                    const endpoint =
+                                        type === "custom"
+                                            ? `/api/custom-products/${productId}`
+                                            : `/api/section-products/${productId}`;
 
-                const sectionProducts = products.filter(
-                    (p) => p.type === "section",
-                );
-                const customProducts = products.filter(
-                    (p) => p.type === "custom",
-                );
+                                    const response = await fetch(endpoint, {
+                                        method: "DELETE",
+                                    });
 
-                let html = "";
-
-                if (sectionProducts.length > 0) {
-                    html +=
-                        '<div class="mb-6"><h4 class="text-lg font-semibold mb-3">📦 Товары из секций Poster</h4>';
-                    html +=
-                        '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
-
-                    sectionProducts.forEach((product) => {
-                        html += `
-						<div class="rounded-lg border bg-card p-3" data-product-id="${product.id}" data-product-type="section">
-							<div class="flex justify-between items-start mb-2">
-								<div class="flex-1">
-									<div class="font-medium">${product.name}</div>
-									<div class="text-sm text-muted-foreground">${product.section_name || "Без секции"}</div>
-								</div>
-								<div class="text-sm font-medium text-muted-foreground">${product.unit || "шт"}</div>
-							</div>
-							<div class="flex items-center gap-2">
-								<select
-									onchange="updateProductCategory('${product.id}', this.value, 'section')"
-									class="flex-1 text-xs px-2 py-1 border rounded bg-background"
-								>
-									<option value="">Без категории</option>
-									${categories
-                                        .map(
-                                            (cat) => `
-										<option value="${cat.id}" ${product.category_id == cat.id ? "selected" : ""}>
-											${cat.name}
-										</option>
-									`,
-                                        )
-                                        .join("")}
-								</select>
-							</div>
-						</div>
-					`;
-                    });
-
-                    html += "</div></div>";
-                }
-
-                if (customProducts.length > 0) {
-                    html +=
-                        '<div class="mb-6"><h4 class="text-lg font-semibold mb-3">📝 Кастомные товары</h4>';
-                    html +=
-                        '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">';
-
-                    customProducts.forEach((product) => {
-                        html += `
-						<div class="rounded-lg border bg-card p-3" data-product-id="${product.id}" data-product-type="custom">
-							<div class="flex justify-between items-start mb-2">
-								<div class="flex-1">
-									<div class="font-medium">${product.name || product.product_name}</div>
-									<div class="text-sm text-muted-foreground">${product.section_name || "Без секции"}</div>
-								</div>
-								<div class="text-sm font-medium text-muted-foreground">${product.unit || "шт"}</div>
-							</div>
-							<div class="space-y-2">
-								<select
-									onchange="updateProductCategory('${product.id}', this.value, 'custom')"
-									class="w-full text-xs px-2 py-1 border rounded bg-background"
-								>
-									<option value="">Без категории</option>
-									${categories
-                                        .map(
-                                            (cat) => `
-										<option value="${cat.id}" ${product.category_id == cat.id ? "selected" : ""}>
-											${cat.name}
-										</option>
-									`,
-                                        )
-                                        .join("")}
-								</select>
-								<button
-									onclick="deleteProduct('${product.id}', '${(product.name || product.product_name).replace(/'/g, "\\'")}', 'custom', this)"
-									class="w-full h-7 text-xs rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 active:scale-95 transition-all"
-								>
-									🗑️ Удалить
-								</button>
-							</div>
-						</div>
-					`;
-                    });
-
-                    html += "</div></div>";
-                }
-
-                container.innerHTML = html;
+                                    const data = await response.json();
+                                    if (data.success) {
+                                        await loadProducts();
+                                    } else {
+                                        alert("Ошибка при удалении товара");
+                                    }
+                                } catch (error) {
+                                    console.error(
+                                        "Error deleting product:",
+                                        error,
+                                    );
+                                    alert("Ошибка при удалении товара");
+                                }
+                            }
+                        },
+                    },
+                });
             }
 
             // Filter products based on search and category
@@ -2226,46 +2166,6 @@ import Layout from "../layouts/Layout.astro";
             };
 
             // Delete product (custom products only)
-            window.deleteProduct = async function (
-                productId,
-                productName,
-                productType,
-                buttonElement,
-            ) {
-                if (!confirm(`Удалить товар "${productName}"?`)) {
-                    return;
-                }
-
-                try {
-                    const response = await fetch("/api/custom-products", {
-                        method: "DELETE",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ id: productId }),
-                    });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        // Remove the card from DOM
-                        const card = buttonElement.closest(".rounded-lg");
-                        if (card) {
-                            card.remove();
-                        }
-
-                        // Remove from local data
-                        allProducts = allProducts.filter(
-                            (p) =>
-                                !(p.id === productId && p.type === productType),
-                        );
-                    } else {
-                        alert(`❌ Ошибка: ${data.error}`);
-                    }
-                } catch (error) {
-                    console.error("Error deleting product:", error);
-                    alert("❌ Ошибка при удалении товара");
-                }
-            };
-
             // Sync products from Poster
             window.syncProducts = async function () {
                 if (
