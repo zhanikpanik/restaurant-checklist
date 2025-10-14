@@ -48,16 +48,17 @@ export async function POST({ request }) {
     // Recalculate totals
     orderData.totalItems = items.length;
     orderData.totalQuantity = items.reduce(
-      (sum, item) => sum + (parseFloat(item.quantity || item.shoppingQuantity) || 0),
-      0
+      (sum, item) =>
+        sum + (parseFloat(item.quantity || item.shoppingQuantity) || 0),
+      0,
     );
 
     // Update the order in database
     const updateQuery = `
       UPDATE orders
-      SET order_data = $1, updated_at = CURRENT_TIMESTAMP
+      SET order_data = $1
       WHERE id = $2
-      RETURNING id, order_data, status, created_at, updated_at
+      RETURNING id, order_data, status, created_at
     `;
 
     const updateResult = await client.query(updateQuery, [
@@ -65,7 +66,9 @@ export async function POST({ request }) {
       orderId,
     ]);
 
-    console.log(`✅ Order ${orderId} updated successfully with ${items.length} items`);
+    console.log(
+      `✅ Order ${orderId} updated successfully with ${items.length} items`,
+    );
 
     return new Response(
       JSON.stringify({
@@ -76,7 +79,7 @@ export async function POST({ request }) {
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   } catch (error) {
     console.error("Error updating order items:", error);
@@ -88,7 +91,7 @@ export async function POST({ request }) {
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   } finally {
     safeRelease(client);
