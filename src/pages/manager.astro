@@ -2049,18 +2049,24 @@ import Layout from "../layouts/Layout.astro";
                                 try {
                                     const endpoint =
                                         type === "custom"
-                                            ? `/api/custom-products/${productId}`
-                                            : `/api/section-products/${productId}`;
+                                            ? `/api/custom-products`
+                                            : `/api/section-products`;
 
                                     const response = await fetch(endpoint, {
                                         method: "DELETE",
+                                        headers: {
+                                            "Content-Type": "application/json",
+                                        },
+                                        body: JSON.stringify({ id: productId }),
                                     });
 
                                     const data = await response.json();
                                     if (data.success) {
                                         await loadProducts();
                                     } else {
-                                        alert("Ошибка при удалении товара");
+                                        alert(
+                                            `Ошибка при удалении товара: ${data.error || "Неизвестная ошибка"}`,
+                                        );
                                     }
                                 } catch (error) {
                                     console.error(
