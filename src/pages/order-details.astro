@@ -577,11 +577,12 @@ import Layout from "../layouts/Layout.astro";
         <div
             id="assignSupplierModal"
             class="fixed inset-0 z-50 hidden"
-            style="display: none;"
+            style="display: none; pointer-events: none;"
         >
             <!-- Backdrop -->
             <div
                 class="absolute inset-0 bg-black bg-opacity-50"
+                style="pointer-events: auto;"
                 onclick="closeSupplierModal()"
             >
             </div>
@@ -589,17 +590,22 @@ import Layout from "../layouts/Layout.astro";
             <!-- Modal Content -->
             <div
                 class="relative z-10 flex items-center justify-center min-h-full p-4"
+                style="pointer-events: none;"
             >
                 <div
-                    class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+                    class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]"
+                    style="pointer-events: auto;"
                 >
-                    <div class="p-6 border-b dark:border-gray-700">
+                    <!-- Header - Fixed -->
+                    <div
+                        class="p-6 border-b dark:border-gray-700 flex-shrink-0"
+                    >
                         <div class="flex justify-between items-center">
                             <h3 class="text-lg font-semibold">
                                 Назначить поставщика
                             </h3>
                             <button
-                                onclick="closeSupplierModal()"
+                                onclick="event.stopPropagation(); closeSupplierModal();"
                                 type="button"
                                 class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                             >
@@ -614,7 +620,8 @@ import Layout from "../layouts/Layout.astro";
                         </p>
                     </div>
 
-                    <div class="p-6 max-h-96 overflow-y-auto">
+                    <!-- Scrollable content -->
+                    <div class="flex-1 overflow-y-auto p-6">
                         <div id="suppliersList">
                             <!-- Loading spinner -->
                             <div class="text-center py-8">
@@ -629,10 +636,13 @@ import Layout from "../layouts/Layout.astro";
                         </div>
                     </div>
 
-                    <div class="p-6 border-t dark:border-gray-700">
+                    <!-- Footer - Fixed -->
+                    <div
+                        class="p-6 border-t dark:border-gray-700 flex-shrink-0"
+                    >
                         <div class="flex space-x-3">
                             <button
-                                onclick="assignSelectedSupplier()"
+                                onclick="event.stopPropagation(); assignSelectedSupplier();"
                                 type="button"
                                 class="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 id="assignSupplierBtn"
@@ -641,7 +651,7 @@ import Layout from "../layouts/Layout.astro";
                                 Назначить
                             </button>
                             <button
-                                onclick="closeSupplierModal()"
+                                onclick="event.stopPropagation(); closeSupplierModal();"
                                 type="button"
                                 class="flex-1 px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg transition-colors"
                             >
@@ -1195,6 +1205,7 @@ import Layout from "../layouts/Layout.astro";
             const modal = document.getElementById("assignSupplierModal");
             modal.classList.remove("hidden");
             modal.style.display = "block";
+            modal.style.pointerEvents = "auto";
             document.getElementById("supplierModalCategoryName").textContent =
                 `Категория: ${categoryName}`;
 
@@ -1390,6 +1401,7 @@ import Layout from "../layouts/Layout.astro";
             const modal = document.getElementById("assignSupplierModal");
             modal.classList.add("hidden");
             modal.style.display = "none";
+            modal.style.pointerEvents = "none";
             currentAssignCategoryId = null;
             currentAssignCategoryName = null;
             selectedSupplierId = null;
