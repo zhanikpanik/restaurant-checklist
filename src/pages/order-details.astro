@@ -605,7 +605,7 @@ import Layout from "../layouts/Layout.astro";
                                 Назначить поставщика
                             </h3>
                             <button
-                                onclick="event.stopPropagation(); closeSupplierModal();"
+                                onclick="closeSupplierModal(); return false;"
                                 type="button"
                                 class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                             >
@@ -642,7 +642,7 @@ import Layout from "../layouts/Layout.astro";
                     >
                         <div class="flex space-x-3">
                             <button
-                                onclick="event.stopPropagation(); assignSelectedSupplier();"
+                                onclick="assignSelectedSupplier(); return false;"
                                 type="button"
                                 class="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 id="assignSupplierBtn"
@@ -651,9 +651,10 @@ import Layout from "../layouts/Layout.astro";
                                 Назначить
                             </button>
                             <button
-                                onclick="event.stopPropagation(); closeSupplierModal();"
+                                onclick="closeSupplierModal(); return false;"
                                 type="button"
                                 class="flex-1 px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg transition-colors"
+                                id="cancelSupplierBtn"
                             >
                                 Отмена
                             </button>
@@ -1343,6 +1344,7 @@ import Layout from "../layouts/Layout.astro";
 
         // Assign selected supplier
         async function assignSelectedSupplier() {
+            console.log("🟢 assignSelectedSupplier called!");
             console.log("Attempting to assign:", {
                 selectedSupplierId,
                 currentAssignCategoryId,
@@ -1398,6 +1400,7 @@ import Layout from "../layouts/Layout.astro";
 
         // Close supplier modal
         function closeSupplierModal() {
+            console.log("🔴 closeSupplierModal called!");
             const modal = document.getElementById("assignSupplierModal");
             modal.classList.add("hidden");
             modal.style.display = "none";
@@ -1406,7 +1409,18 @@ import Layout from "../layouts/Layout.astro";
             currentAssignCategoryName = null;
             selectedSupplierId = null;
             availableSuppliers = [];
+            console.log("✅ Modal closed");
         }
+
+        // Make functions available globally
+        window.closeSupplierModal = closeSupplierModal;
+        window.assignSelectedSupplier = assignSelectedSupplier;
+
+        // Debug: Log that functions are available
+        console.log("✅ Supplier modal functions registered:", {
+            closeSupplierModal: typeof window.closeSupplierModal,
+            assignSelectedSupplier: typeof window.assignSelectedSupplier,
+        });
 
         // Edit supplier for categories
         function editSupplierForCategories(
