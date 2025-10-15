@@ -44,7 +44,7 @@ export async function GET({ params, request }) {
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -97,7 +97,7 @@ export async function GET({ params, request }) {
         {
           status: 404,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
@@ -116,40 +116,91 @@ export async function GET({ params, request }) {
       allItems.push(...orderData.items);
     }
 
-    // Build categories grouped by supplier
-    const categories = [];
-    const supplierMap = new Map();
+    // Build categories grouped by category_id and look up current suppliers
+    const categoryMap = new Map();
 
+    // Get unique category IDs from items
+    const categoryIds = [
+      ...new Set(
+        allItems
+          .map((item) => item.category_id || item.categoryId)
+          .filter(Boolean),
+      ),
+    ];
+
+    // Look up current suppliers for these categories
+    const supplierLookup = new Map();
+    if (categoryIds.length > 0) {
+      const supplierQuery = `
+        SELECT
+          pc.id as category_id,
+          pc.name as category_name,
+          s.id as supplier_id,
+          s.name as supplier_name,
+          s.phone as supplier_phone
+        FROM product_categories pc
+        LEFT JOIN suppliers s ON pc.supplier_id = s.id
+        WHERE pc.id = ANY($1::int[])
+      `;
+      const supplierResult = await client.query(supplierQuery, [categoryIds]);
+
+      supplierResult.rows.forEach((row) => {
+        supplierLookup.set(row.category_id, {
+          supplierId: row.supplier_id,
+          supplierName: row.supplier_name,
+          supplierPhone: row.supplier_phone,
+        });
+      });
+    }
+
+    // Group items by category
     for (const item of allItems) {
-      const supplierName = item.supplierName || "Без поставщика";
-      const supplierId = item.supplierId || null;
+      const categoryId = item.category_id || item.categoryId;
+      const categoryName =
+        item.categoryName || item.category || "Без категории";
 
-      if (!supplierMap.has(supplierName)) {
-        supplierMap.set(supplierName, {
-          categoryName: supplierName,
-          supplierId: supplierId,
+      // Get current supplier info from lookup, fallback to item data
+      const currentSupplier = categoryId
+        ? supplierLookup.get(categoryId)
+        : null;
+      const supplierName =
+        currentSupplier?.supplierName || item.supplierName || null;
+      const supplierId = currentSupplier?.supplierId || item.supplierId || null;
+      const supplierPhone =
+        currentSupplier?.supplierPhone || item.supplierPhone || null;
+
+      if (!categoryMap.has(categoryId || "no-category")) {
+        categoryMap.set(categoryId || "no-category", {
+          categoryId: categoryId,
+          categoryName: categoryName,
+          supplier: supplierName
+            ? {
+                id: supplierId,
+                name: supplierName,
+                phone: supplierPhone,
+              }
+            : null,
           items: [],
         });
       }
 
-      supplierMap.get(supplierName).items.push({
+      categoryMap.get(categoryId || "no-category").items.push({
         id: item.id,
         name: item.name,
         quantity: item.quantity || item.shoppingQuantity || 0,
         shoppingQuantity: item.shoppingQuantity || item.quantity || 0,
         unit: item.unit || "",
-        supplierName: supplierName,
-        supplierId: supplierId,
       });
     }
 
-    categories.push(...supplierMap.values());
+    const categories = Array.from(categoryMap.values());
 
     // Format the response
     const formattedOrder = {
       orderId: order.order_id,
       department: orderData.department || "unknown",
-      departmentName: orderData.departmentName || orderData.department || "Неизвестно",
+      departmentName:
+        orderData.departmentName || orderData.department || "Неизвестно",
       departmentEmoji: getDepartmentEmoji(orderData.department || ""),
       timestamp: order.created_at,
       status: order.status,
@@ -158,8 +209,9 @@ export async function GET({ params, request }) {
       items: allItems,
       totalItems: allItems.length,
       totalQuantity: allItems.reduce(
-        (sum, item) => sum + (parseFloat(item.quantity || item.shoppingQuantity) || 0),
-        0
+        (sum, item) =>
+          sum + (parseFloat(item.quantity || item.shoppingQuantity) || 0),
+        0,
       ),
     };
 
@@ -173,7 +225,7 @@ export async function GET({ params, request }) {
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   } catch (error) {
     console.error("Error fetching order:", error);
@@ -185,7 +237,7 @@ export async function GET({ params, request }) {
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
-      }
+      },
     );
   } finally {
     safeRelease(client);
