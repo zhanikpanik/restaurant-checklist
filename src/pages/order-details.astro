@@ -576,56 +576,78 @@ import Layout from "../layouts/Layout.astro";
         <!-- Assign Supplier Modal -->
         <div
             id="assignSupplierModal"
-            class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center"
+            class="fixed inset-0 z-50 hidden"
+            style="display: none;"
         >
-            <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-                <div class="p-6 border-b">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-lg font-semibold">
-                            Назначить поставщика
-                        </h3>
-                        <button
-                            onclick="closeSupplierModal()"
-                            class="text-gray-400 hover:text-gray-600">✕</button
-                        >
-                    </div>
-                    <p
-                        class="text-sm text-gray-600 mt-2"
-                        id="supplierModalCategoryName"
-                    >
-                        Категория: -
-                    </p>
-                </div>
+            <!-- Backdrop -->
+            <div
+                class="absolute inset-0 bg-black bg-opacity-50"
+                onclick="closeSupplierModal()"
+            >
+            </div>
 
-                <div class="p-6 max-h-96 overflow-y-auto">
-                    <div id="suppliersList">
-                        <!-- Loading spinner -->
-                        <div class="text-center py-8">
-                            <div
-                                class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"
+            <!-- Modal Content -->
+            <div
+                class="relative z-10 flex items-center justify-center min-h-full p-4"
+            >
+                <div
+                    class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full"
+                >
+                    <div class="p-6 border-b dark:border-gray-700">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-lg font-semibold">
+                                Назначить поставщика
+                            </h3>
+                            <button
+                                onclick="closeSupplierModal()"
+                                type="button"
+                                class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                             >
+                                ✕
+                            </button>
+                        </div>
+                        <p
+                            class="text-sm text-gray-600 dark:text-gray-400 mt-2"
+                            id="supplierModalCategoryName"
+                        >
+                            Категория: -
+                        </p>
+                    </div>
+
+                    <div class="p-6 max-h-96 overflow-y-auto">
+                        <div id="suppliersList">
+                            <!-- Loading spinner -->
+                            <div class="text-center py-8">
+                                <div
+                                    class="animate-spin h-8 w-8 border-b-2 border-primary rounded-full mx-auto mb-4"
+                                >
+                                </div>
+                                <p class="text-muted-foreground">
+                                    Загрузка поставщиков...
+                                </p>
                             </div>
-                            <p class="text-gray-600">Загрузка поставщиков...</p>
                         </div>
                     </div>
-                </div>
 
-                <div class="p-6 border-t">
-                    <div class="flex space-x-3">
-                        <button
-                            onclick="assignSelectedSupplier()"
-                            class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg"
-                            id="assignSupplierBtn"
-                            disabled
-                        >
-                            Назначить
-                        </button>
-                        <button
-                            onclick="closeSupplierModal()"
-                            class="flex-1 px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-medium rounded-lg"
-                        >
-                            Отмена
-                        </button>
+                    <div class="p-6 border-t dark:border-gray-700">
+                        <div class="flex space-x-3">
+                            <button
+                                onclick="assignSelectedSupplier()"
+                                type="button"
+                                class="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                id="assignSupplierBtn"
+                                disabled
+                            >
+                                Назначить
+                            </button>
+                            <button
+                                onclick="closeSupplierModal()"
+                                type="button"
+                                class="flex-1 px-4 py-2 bg-secondary hover:bg-secondary/80 text-secondary-foreground font-medium rounded-lg transition-colors"
+                            >
+                                Отмена
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1170,9 +1192,9 @@ import Layout from "../layouts/Layout.astro";
             selectedSupplierId = null;
 
             // Open modal
-            document
-                .getElementById("assignSupplierModal")
-                .classList.remove("hidden");
+            const modal = document.getElementById("assignSupplierModal");
+            modal.classList.remove("hidden");
+            modal.style.display = "block";
             document.getElementById("supplierModalCategoryName").textContent =
                 `Категория: ${categoryName}`;
 
@@ -1365,9 +1387,9 @@ import Layout from "../layouts/Layout.astro";
 
         // Close supplier modal
         function closeSupplierModal() {
-            document
-                .getElementById("assignSupplierModal")
-                .classList.add("hidden");
+            const modal = document.getElementById("assignSupplierModal");
+            modal.classList.add("hidden");
+            modal.style.display = "none";
             currentAssignCategoryId = null;
             currentAssignCategoryName = null;
             selectedSupplierId = null;
