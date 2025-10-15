@@ -116,17 +116,32 @@ export async function GET({ params, request }) {
       allItems.push(...orderData.items);
     }
 
+    // Debug: Log first item to see structure
+    if (allItems.length > 0) {
+      console.log(
+        `🔍 Sample item structure:`,
+        JSON.stringify(allItems[0], null, 2),
+      );
+      console.log(`📋 Available fields:`, Object.keys(allItems[0]));
+    }
+
     // Build categories grouped by category_id and look up current suppliers
     const categoryMap = new Map();
 
-    // Get unique category IDs from items
+    // Get unique category IDs from items (try multiple field names)
     const categoryIds = [
       ...new Set(
         allItems
-          .map((item) => item.category_id || item.categoryId)
+          .map((item) => item.category_id || item.categoryId || item.category)
           .filter(Boolean),
       ),
     ];
+
+    console.log(
+      `📊 Found ${categoryIds.length} unique categories:`,
+      categoryIds,
+    );
+    console.log(`📦 Total items:`, allItems.length);
 
     // Look up current suppliers for these categories
     const supplierLookup = new Map();
@@ -144,7 +159,14 @@ export async function GET({ params, request }) {
       `;
       const supplierResult = await client.query(supplierQuery, [categoryIds]);
 
+      console.log(
+        `🔍 Supplier lookup returned ${supplierResult.rows.length} rows`,
+      );
+
       supplierResult.rows.forEach((row) => {
+        console.log(
+          `   Category ${row.category_id} (${row.category_name}) → Supplier: ${row.supplier_name} (${row.supplier_id})`,
+        );
         supplierLookup.set(row.category_id, {
           supplierId: row.supplier_id,
           supplierName: row.supplier_name,
