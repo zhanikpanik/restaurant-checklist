@@ -29,14 +29,7 @@
 	type Variant = VariantProps<typeof buttonVariants>["variant"];
 	type Size = VariantProps<typeof buttonVariants>["size"];
 
-	interface Props {
-		variant?: Variant;
-		size?: Size;
-		class?: string;
-		[key: string]: any;
-	}
-
-	let { variant = "default", size = "default", class: className, ...restProps }: Props = $props();
+	let { variant = "default", size = "default", class: className, ...restProps } = $props();
 </script>
 
 <button class={cn(buttonVariants({ variant, size, className }))} {...restProps}>
