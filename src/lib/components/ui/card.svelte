@@ -3,12 +3,17 @@
 
 	interface Props {
 		class?: string;
-		[key: string]: any;
+		onclick?: ((event: MouseEvent) => void) | undefined;
 	}
 
-	let { class: className, ...restProps }: Props = $props();
+	let { class: className, onclick }: Props = $props();
 </script>
 
-<div class={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)} {...restProps}>
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	class={cn("rounded-lg border bg-card text-card-foreground shadow-sm", className)}
+	onclick={onclick}
+>
 	<slot />
 </div>
