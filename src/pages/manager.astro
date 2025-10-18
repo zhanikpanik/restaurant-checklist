@@ -1038,12 +1038,14 @@ const tenantId = getTenantId(Astro.request);
         </div>
 
         <script define:vars={{ tenantId }}>
+            // Store tenant ID globally for API calls
+            window.TENANT_ID = tenantId;
+        </script>
+
+        <script>
             import { mount } from "svelte";
             import OrdersTable from "../lib/components/OrdersTable.svelte";
             import ProductsTable from "../lib/components/ProductsTable.svelte";
-
-            // Store tenant ID globally for API calls
-            window.TENANT_ID = tenantId;
 
             // Load orders by category
             async function loadOrdersByCategory() {
