@@ -8,6 +8,8 @@
 	import Button from './ui/button.svelte';
 	import Badge from './ui/badge.svelte';
 	import Card from './ui/card.svelte';
+	import OrderDetailsDrawer from './OrderDetailsDrawer.svelte';
+	import OrderActionsDrawer from './OrderActionsDrawer.svelte';
 	import { cn } from '$lib/utils/cn';
 
 	interface Order {
@@ -18,6 +20,15 @@
 		status: 'pending' | 'sent' | 'delivered';
 		totalItems: number;
 		totalQuantity: number;
+		categories?: Array<{
+			categoryName: string;
+			supplier: { name: string } | null;
+			items: Array<{
+				name: string;
+				quantity: number;
+				unit: string;
+			}>;
+		}>;
 	}
 
 	interface Props {
@@ -26,6 +37,11 @@
 	}
 
 	let { orders, onDelete }: Props = $props();
+
+	// Drawer state
+	let detailsDrawerOpen = $state(false);
+	let actionsDrawerOpen = $state(false);
+	let selectedOrder = $state<Order | null>(null);
 
 	// Sorting state
 	let sortKey = $state<keyof Order>('orderId');
@@ -59,8 +75,18 @@
 		}
 	}
 
+	function openDetailsDrawer(order: Order) {
+		selectedOrder = order;
+		detailsDrawerOpen = true;
+	}
+
+	function openActionsDrawer(order: Order, event: MouseEvent) {
+		event.stopPropagation();
+		selectedOrder = order;
+		actionsDrawerOpen = true;
+	}
+
 	function handleDelete(orderId: number) {
-		if (!confirm(`Удалить заказ #${orderId}?`)) return;
 		onDelete?.(orderId);
 	}
 
@@ -132,7 +158,7 @@
 			</TableHeader>
 			<TableBody>
 				{#each sortedOrders as order (order.orderId)}
-					<TableRow class="cursor-pointer" onclick={() => window.location.href = `/order-details?orderId=${order.orderId}`}>
+					<TableRow class="cursor-pointer" onclick={() => openDetailsDrawer(order)}>
 						<TableCell class="font-semibold text-primary">#{order.orderId}</TableCell>
 						<TableCell>
 							<div class="flex items-center gap-2">
@@ -154,25 +180,9 @@
 									variant="ghost"
 									size="sm"
 									class="h-8 text-xs"
-									onclick={() => window.location.href = `/order-details?orderId=${order.orderId}`}
+									onclick={(e) => openActionsDrawer(order, e)}
 								>
-									👁️
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="h-8 text-xs"
-									onclick={() => alert('Excel export coming soon')}
-								>
-									📄
-								</Button>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="h-8 text-xs text-destructive hover:text-destructive"
-									onclick={() => handleDelete(order.orderId)}
-								>
-									🗑️
+									⋯
 								</Button>
 							</div>
 						</TableCell>
@@ -188,7 +198,7 @@
 	{#each sortedOrders as order (order.orderId)}
 		<Card
 			class="p-4 cursor-pointer transition-all active:scale-[0.98]"
-			onclick={() => window.location.href = `/order-details?orderId=${order.orderId}`}
+			onclick={() => openDetailsDrawer(order)}
 		>
 			<!-- Header -->
 			<div class="flex items-start justify-between gap-2 mb-3">
@@ -210,30 +220,33 @@
 			<!-- Actions -->
 			<div class="flex gap-2 pt-3 border-t" onclick={(e) => e.stopPropagation()}>
 				<Button
-					variant="default"
-					size="sm"
-					class="flex-1 min-h-[44px]"
-					onclick={() => window.location.href = `/order-details?orderId=${order.orderId}`}
-				>
-					👁️ Детали
-				</Button>
-				<Button
 					variant="outline"
 					size="sm"
 					class="flex-1 min-h-[44px]"
-					onclick={() => alert('Excel export coming soon')}
+					onclick={(e) => openActionsDrawer(order, e)}
 				>
-					📄 Excel
-				</Button>
-				<Button
-					variant="destructive"
-					size="sm"
-					class="min-h-[44px] px-3"
-					onclick={() => handleDelete(order.orderId)}
-				>
-					🗑️
+					⋯ Действия
 				</Button>
 			</div>
 		</Card>
 	{/each}
 </div>
+
+<!-- Drawers -->
+<OrderDetailsDrawer
+	bind:open={detailsDrawerOpen}
+	order={selectedOrder}
+	onClose={() => detailsDrawerOpen = false}
+	onDelete={handleDelete}
+/>
+
+<OrderActionsDrawer
+	bind:open={actionsDrawerOpen}
+	order={selectedOrder}
+	onClose={() => actionsDrawerOpen = false}
+	onViewDetails={(orderId) => {
+		const order = orders.find(o => o.orderId === orderId);
+		if (order) openDetailsDrawer(order);
+	}}
+	onDelete={handleDelete}
+/>

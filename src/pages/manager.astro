@@ -1,6 +1,7 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { getTenantId } from "../lib/tenant-manager.js";
+import "../styles/app.css";
 
 // Get tenant ID from request
 const tenantId = getTenantId(Astro.request);

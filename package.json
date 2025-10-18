@@ -29,6 +29,7 @@
     "pg": "^8.16.3",
     "svelte": "^5.39.10",
     "tailwindcss": "^3.4.0",
+    "vaul-svelte": "1.0.0-next.7",
     "xlsx": "^0.18.5"
   },
   "engines": {
@@ -39,6 +40,7 @@
     "clsx": "^2.1.1",
     "svelte-preprocess": "^6.0.3",
     "tailwind-merge": "^3.3.1",
-    "tailwind-variants": "^3.1.1"
+    "tailwind-variants": "^3.1.1",
+    "tailwindcss-animate": "^1.0.7"
   }
 }
