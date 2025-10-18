@@ -1,5 +1,9 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { getTenantId } from "../lib/tenant-manager.js";
+
+// Get tenant ID from request
+const tenantId = getTenantId(Astro.request);
 ---
 
 <style>
@@ -341,7 +345,7 @@ import Layout from "../layouts/Layout.astro";
                     id="tenantIndicator"
                     class="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-medium"
                 >
-                    🏢 <span id="tenantId">...</span>
+                    🏢 <span id="tenantId">{tenantId}</span>
                 </div>
             </div>
         </div>
@@ -1033,16 +1037,21 @@ import Layout from "../layouts/Layout.astro";
             </div>
         </div>
 
-        <script>
+        <script define:vars={{ tenantId }}>
             import { mount } from "svelte";
             import OrdersTable from "../lib/components/OrdersTable.svelte";
             import ProductsTable from "../lib/components/ProductsTable.svelte";
+
+            // Store tenant ID globally for API calls
+            window.TENANT_ID = tenantId;
 
             // Load orders by category
             async function loadOrdersByCategory() {
                 console.log("📋 Loading orders by category...");
                 try {
-                    const response = await fetch("/api/orders-by-category");
+                    const response = await fetch(
+                        `/api/orders-by-category?tenant=${window.TENANT_ID}`,
+                    );
                     const data = await response.json();
 
                     if (data.success) {
@@ -1173,7 +1182,7 @@ import Layout from "../layouts/Layout.astro";
 
                 try {
                     const response = await fetch(
-                        "/api/orders-by-category?status=delivered",
+                        `/api/orders-by-category?status=delivered&tenant=${window.TENANT_ID}`,
                         { cache: "no-store" },
                     );
                     const data = await response.json();
