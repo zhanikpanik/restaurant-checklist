@@ -138,10 +138,54 @@ export async function GET({ params, request }) {
     ];
 
     console.log(
-      `📊 Found ${categoryIds.length} unique categories:`,
+      `📊 Found ${categoryIds.length} unique categories from order data:`,
       categoryIds,
     );
     console.log(`📦 Total items:`, allItems.length);
+
+    // ALSO look up category IDs by matching product names in current database
+    // This handles old orders where items didn't have category_id set
+    const productNames = allItems.map((item) => item.name).filter(Boolean);
+    const productCategoryLookup = new Map();
+
+    if (productNames.length > 0) {
+      const productQuery = `
+        SELECT DISTINCT
+          sp.name as product_name,
+          sp.category_id,
+          pc.name as category_name
+        FROM section_products sp
+        LEFT JOIN product_categories pc ON sp.category_id = pc.id
+        LEFT JOIN sections s ON sp.section_id = s.id
+        WHERE s.restaurant_id = $1
+          AND sp.name = ANY($2::text[])
+          AND sp.category_id IS NOT NULL
+      `;
+
+      const productCatResult = await client.query(productQuery, [
+        restaurantId,
+        productNames,
+      ]);
+
+      console.log(
+        `🔍 Product-to-category lookup found ${productCatResult.rows.length} matches`,
+      );
+
+      productCatResult.rows.forEach((row) => {
+        console.log(
+          `   Product "${row.product_name}" → Category ${row.category_id} (${row.category_name})`,
+        );
+        productCategoryLookup.set(row.product_name, {
+          categoryId: row.category_id,
+          categoryName: row.category_name,
+        });
+
+        // Add to categoryIds set if not already there
+        if (!categoryIds.includes(row.category_id)) {
+          categoryIds.push(row.category_id);
+        }
+      });
+    }
 
     // Look up current suppliers for these categories
     const supplierLookup = new Map();
@@ -177,9 +221,19 @@ export async function GET({ params, request }) {
 
     // Group items by category
     for (const item of allItems) {
-      const categoryId = item.category_id || item.categoryId;
-      const categoryName =
-        item.categoryName || item.category || "Без категории";
+      // Try to get category from item, or look up by product name
+      let categoryId = item.category_id || item.categoryId;
+      let categoryName = item.categoryName || item.category || "Без категории";
+
+      // If no category_id in order item, look it up by product name
+      if (!categoryId && productCategoryLookup.has(item.name)) {
+        const productCat = productCategoryLookup.get(item.name);
+        categoryId = productCat.categoryId;
+        categoryName = productCat.categoryName;
+        console.log(
+          `   🔄 Item "${item.name}" assigned to category ${categoryId} (${categoryName}) via product lookup`,
+        );
+      }
 
       // Get current supplier info from lookup, fallback to item data
       const currentSupplier = categoryId
