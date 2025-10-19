@@ -1046,9 +1046,13 @@ const tenantId = getTenantId(Astro.request);
         <script>
             // Helper function to render orders table with Alpine.js
             function renderOrdersTable(container, orders, onDelete) {
+                // Store orders data globally to avoid JSON injection issues
+                const dataId = 'ordersData_' + Date.now();
+                window[dataId] = orders;
+
                 container.innerHTML = `
                     <div x-data="{
-                        orders: ${JSON.stringify(orders).replace(/</g, '\\u003c')},
+                        orders: window['${dataId}'] || [],
                         sortKey: 'orderId',
                         sortDir: 'desc',
                         detailsOpen: false,
@@ -1245,11 +1249,15 @@ const tenantId = getTenantId(Astro.request);
                     return;
                 }
 
+                // Store data globally to avoid JSON injection issues
+                const dataId = 'productsData_' + Date.now();
+                window[dataId] = { sectionProducts, customProducts, categories };
+
                 container.innerHTML = `
                     <div x-data="{
-                        sectionProducts: ${JSON.stringify(sectionProducts).replace(/</g, '\\u003c')},
-                        customProducts: ${JSON.stringify(customProducts).replace(/</g, '\\u003c')},
-                        categories: ${JSON.stringify(categories).replace(/</g, '\\u003c')},
+                        sectionProducts: window['${dataId}'].sectionProducts || [],
+                        customProducts: window['${dataId}'].customProducts || [],
+                        categories: window['${dataId}'].categories || [],
                         getProductName(product) {
                             return product.name || product.product_name || 'Без названия';
                         }
