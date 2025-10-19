@@ -1230,7 +1230,38 @@ const tenantId = getTenantId(Astro.request);
                                  x-transition:leave="transition ease-in duration-150"
                                  x-transition:leave-start="translate-y-0"
                                  x-transition:leave-end="translate-y-full"
-                                 class="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl flex flex-col lg:max-w-2xl lg:mx-auto lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:rounded-2xl"
+                                 x-data="{
+                                     touchStartY: 0,
+                                     touchCurrentY: 0,
+                                     isDragging: false,
+                                     handleTouchStart(e) {
+                                         this.touchStartY = e.touches[0].clientY;
+                                         this.touchCurrentY = e.touches[0].clientY;
+                                         this.isDragging = true;
+                                     },
+                                     handleTouchMove(e) {
+                                         if (!this.isDragging) return;
+                                         this.touchCurrentY = e.touches[0].clientY;
+                                         const deltaY = this.touchCurrentY - this.touchStartY;
+                                         if (deltaY > 0) {
+                                             $el.style.transform = \`translateY(\${deltaY}px)\`;
+                                         }
+                                     },
+                                     handleTouchEnd(e) {
+                                         if (!this.isDragging) return;
+                                         const deltaY = this.touchCurrentY - this.touchStartY;
+                                         if (deltaY > 100) {
+                                             actionsOpen = false;
+                                         } else {
+                                             $el.style.transform = '';
+                                         }
+                                         this.isDragging = false;
+                                     }
+                                 }"
+                                 @touchstart="handleTouchStart($event)"
+                                 @touchmove="handleTouchMove($event)"
+                                 @touchend="handleTouchEnd($event)"
+                                 class="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl flex flex-col lg:max-w-2xl lg:mx-auto lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:rounded-2xl transition-transform"
                                  style="max-height: 90vh; height: 90vh;">
                                 <template x-if="selectedOrder">
                                     <div class="flex flex-col flex-1 min-h-0">
@@ -1343,7 +1374,7 @@ const tenantId = getTenantId(Astro.request);
                                                             <!-- Send to Supplier Button -->
                                                             <template x-if="supplier.phone">
                                                                 <div class="p-2 bg-green-50 border-t-2 border-green-200">
-                                                                    <button @click="window.location.href = '/order-details?orderId=' + selectedOrder.orderId"
+                                                                    <button @click="sendSupplierOrder(selectedOrder.orderId, supplier); actionsOpen = false;"
                                                                             class="w-full px-3 py-2.5 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors">
                                                                         📱 Отправить в <span x-text="supplier.name"></span>
                                                                     </button>
@@ -1351,7 +1382,7 @@ const tenantId = getTenantId(Astro.request);
                                                             </template>
                                                             <template x-if="!supplier.phone">
                                                                 <div class="p-2 bg-yellow-50 border-t-2 border-yellow-200">
-                                                                    <button @click="window.location.href = '/order-details?orderId=' + selectedOrder.orderId"
+                                                                    <button @click="alert('Функция назначения поставщика скоро будет доступна'); window.location.href = '/order-details?orderId=' + selectedOrder.orderId"
                                                                             class="w-full px-3 py-2.5 bg-yellow-500 text-white text-sm font-bold rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors">
                                                                         🔗 Назначить поставщика
                                                                     </button>
@@ -1366,21 +1397,16 @@ const tenantId = getTenantId(Astro.request);
                                         <!-- Footer Actions -->
                                         <div class="flex-shrink-0 p-4 border-t bg-gray-50 space-y-2">
                                             <div class="flex gap-2">
-                                                <a :href="'/order-details?orderId=' + selectedOrder.orderId"
-                                                   class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border bg-white rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors">
-                                                    <span>👁️</span>
-                                                    <span class="text-sm">Полная версия</span>
-                                                </a>
+                                                <button @click="if(confirm('Удалить заказ #' + selectedOrder.orderId + '?')) { deleteOrder(selectedOrder.orderId); actionsOpen = false; }"
+                                                        class="flex-1 px-4 py-2.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 active:bg-red-200 font-medium transition-colors">
+                                                    🗑️ Удалить заказ
+                                                </button>
                                                 <button @click="alert('Excel export coming soon')"
-                                                        class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border bg-white rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors">
+                                                        class="hidden lg:flex flex-1 items-center justify-center gap-2 px-4 py-2.5 border bg-white rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors">
                                                     <span>📄</span>
                                                     <span class="text-sm">Excel</span>
                                                 </button>
                                             </div>
-                                            <button @click="if(confirm('Удалить заказ #' + selectedOrder.orderId + '?')) { deleteOrder(selectedOrder.orderId); actionsOpen = false; }"
-                                                    class="w-full px-4 py-2.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 active:bg-red-200 font-medium transition-colors">
-                                                🗑️ Удалить заказ
-                                            </button>
                                             <button @click="actionsOpen = false"
                                                     class="w-full px-4 py-2.5 border bg-white rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors">
                                                 Закрыть
@@ -1550,6 +1576,114 @@ const tenantId = getTenantId(Astro.request);
                 // Set up global functions for callbacks
                 window.updateProductCategory = onCategoryChange;
                 window.deleteProduct = onDelete;
+            }
+
+            // Send order to supplier via WhatsApp
+            async function sendSupplierOrder(orderId, supplierData) {
+                console.log(`📤 Sending order to supplier: ${supplierData.name} for order: ${orderId}`);
+
+                try {
+                    // Get the full order data
+                    const order = window.ordersData || [];
+                    const currentOrder = order.find(o => o.orderId === orderId);
+
+                    if (!currentOrder) {
+                        throw new Error("Order data not loaded");
+                    }
+
+                    // Find all categories for this supplier
+                    const categories = currentOrder.categories.filter(cat =>
+                        cat.supplier?.id === supplierData.id
+                    );
+
+                    if (categories.length === 0) {
+                        throw new Error("No categories found for this supplier");
+                    }
+
+                    const supplierPhone = supplierData.phone;
+                    if (!supplierPhone) {
+                        throw new Error("Supplier phone number not found");
+                    }
+
+                    // Generate consolidated WhatsApp message
+                    let message = `📋 Заказ товаров - ${currentOrder.displayDate}\\n\\n`;
+                    message += `📦 Поставщик: ${supplierData.name}\\n\\n`;
+
+                    categories.forEach(category => {
+                        message += `🏪 ${category.categoryName}:\\n`;
+                        category.items.forEach(item => {
+                            message += `• ${item.name} - ${item.quantity} ${item.unit}\\n`;
+                        });
+                        message += `\\n`;
+                    });
+
+                    const totalItems = categories.reduce((sum, cat) => sum + cat.items.length, 0);
+                    message += `📊 Итого: ${totalItems} товаров из ${categories.length} ${categories.length === 1 ? "категории" : "категорий"}`;
+
+                    // Send via WhatsApp
+                    const encodedMessage = encodeURIComponent(message);
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                    let whatsappUrl;
+                    if (isMobile) {
+                        whatsappUrl = `whatsapp://send?phone=${supplierPhone}&text=${encodedMessage}`;
+                    } else {
+                        whatsappUrl = `https://web.whatsapp.com/send?phone=${supplierPhone}&text=${encodedMessage}`;
+                    }
+
+                    // Try to open WhatsApp
+                    const whatsappWindow = window.open(whatsappUrl, "_blank");
+
+                    // If popup was blocked, show manual instructions
+                    if (!whatsappWindow || whatsappWindow.closed || typeof whatsappWindow.closed === "undefined") {
+                        const copyMessage = confirm(
+                            "❌ Не удалось открыть WhatsApp автоматически.\\n\\n" +
+                            `Телефон: ${supplierPhone}\\n\\n` +
+                            "Нажмите OK, чтобы скопировать текст заказа в буфер обмена."
+                        );
+
+                        if (copyMessage) {
+                            navigator.clipboard.writeText(message)
+                                .then(() => {
+                                    alert(`✅ Текст заказа скопирован!\\n\\nОткройте WhatsApp вручную и отправьте на номер:\\n${supplierPhone}`);
+                                })
+                                .catch(() => {
+                                    alert(`Телефон: ${supplierPhone}\\n\\nТекст заказа:\\n\\n${message}`);
+                                });
+                        }
+                    }
+
+                    // Update database for all categories
+                    const categoryIds = categories.map(cat => cat.categoryId);
+                    const promises = categoryIds.map(categoryId =>
+                        fetch("/api/send-category-to-supplier", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                categoryId: categoryId,
+                                supplierId: supplierData.id,
+                            }),
+                        })
+                    );
+
+                    const responses = await Promise.all(promises);
+                    const results = await Promise.all(responses.map(r => r.json()));
+
+                    const successCount = results.filter(r => r.success).length;
+                    const failCount = results.filter(r => !r.success).length;
+
+                    if (successCount > 0) {
+                        alert(`✅ Отправлено ${successCount} ${successCount === 1 ? "категория" : "категорий"} через WhatsApp: ${supplierData.name}`);
+                        loadOrdersByCategory(); // Refresh the display
+                    }
+
+                    if (failCount > 0) {
+                        alert(`⚠️ ${failCount} ${failCount === 1 ? "категорию" : "категорий"} не удалось обновить в БД`);
+                    }
+                } catch (error) {
+                    console.error("❌ Error sending order:", error);
+                    alert("Ошибка при отправке заказа поставщику: " + error.message);
+                }
             }
 
             // Load orders by category
