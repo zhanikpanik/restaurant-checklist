@@ -1044,9 +1044,344 @@ const tenantId = getTenantId(Astro.request);
         </script>
 
         <script>
-            import { mount } from "svelte";
-            import OrdersTable from "../lib/components/OrdersTable.svelte";
-            import ProductsTable from "../lib/components/ProductsTable.svelte";
+            // Helper function to render orders table with Alpine.js
+            function renderOrdersTable(container, orders, onDelete) {
+                container.innerHTML = `
+                    <div x-data="{
+                        orders: ${JSON.stringify(orders).replace(/</g, '\\u003c')},
+                        sortKey: 'orderId',
+                        sortDir: 'desc',
+                        detailsOpen: false,
+                        actionsOpen: false,
+                        selectedOrder: null,
+                        get sortedOrders() {
+                            return [...this.orders].sort((a, b) => {
+                                let aVal = a[this.sortKey];
+                                let bVal = b[this.sortKey];
+                                if (typeof aVal === 'string') {
+                                    aVal = aVal.toLowerCase();
+                                    bVal = bVal.toLowerCase();
+                                }
+                                return this.sortDir === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+                            });
+                        },
+                        handleSort(key) {
+                            if (key === this.sortKey) {
+                                this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc';
+                            } else {
+                                this.sortKey = key;
+                                this.sortDir = 'asc';
+                            }
+                        },
+                        getSortIcon(key) {
+                            if (this.sortKey !== key) return '⇅';
+                            return this.sortDir === 'asc' ? '↑' : '↓';
+                        },
+                        getStatusBadge(status) {
+                            const badges = {
+                                'pending': { class: 'bg-yellow-100 text-yellow-800', text: '⏳ Ожидает' },
+                                'sent': { class: 'bg-blue-100 text-blue-800', text: '📤 Отправлен' },
+                                'delivered': { class: 'bg-green-100 text-green-800', text: '✅ Доставлен' }
+                            };
+                            return badges[status] || badges['pending'];
+                        },
+                        openDetails(order) {
+                            this.selectedOrder = order;
+                            this.detailsOpen = true;
+                        },
+                        openActions(order) {
+                            this.selectedOrder = order;
+                            this.actionsOpen = true;
+                        },
+                        deleteOrder(orderId) {
+                            ${onDelete ? `window.deleteOrder(orderId);` : ''}
+                        }
+                    }">
+                        <!-- Desktop Table -->
+                        <div class="hidden lg:block">
+                            <div class="rounded-lg border bg-card shadow-sm overflow-hidden">
+                                <table class="w-full">
+                                    <thead>
+                                        <tr class="border-b">
+                                            <th @click="handleSort('orderId')" class="cursor-pointer px-4 py-3 text-left text-xs font-bold uppercase">
+                                                # <span class="text-xs opacity-50" x-text="getSortIcon('orderId')"></span>
+                                            </th>
+                                            <th @click="handleSort('departmentName')" class="cursor-pointer px-4 py-3 text-left text-xs font-bold uppercase">
+                                                Отдел <span class="text-xs opacity-50" x-text="getSortIcon('departmentName')"></span>
+                                            </th>
+                                            <th @click="handleSort('displayDate')" class="cursor-pointer px-4 py-3 text-left text-xs font-bold uppercase">
+                                                Дата <span class="text-xs opacity-50" x-text="getSortIcon('displayDate')"></span>
+                                            </th>
+                                            <th @click="handleSort('status')" class="cursor-pointer px-4 py-3 text-left text-xs font-bold uppercase">
+                                                Статус <span class="text-xs opacity-50" x-text="getSortIcon('status')"></span>
+                                            </th>
+                                            <th @click="handleSort('totalItems')" class="cursor-pointer px-4 py-3 text-right text-xs font-bold uppercase">
+                                                Товаров <span class="text-xs opacity-50" x-text="getSortIcon('totalItems')"></span>
+                                            </th>
+                                            <th @click="handleSort('totalQuantity')" class="cursor-pointer px-4 py-3 text-right text-xs font-bold uppercase">
+                                                Единиц <span class="text-xs opacity-50" x-text="getSortIcon('totalQuantity')"></span>
+                                            </th>
+                                            <th class="px-4 py-3 text-right text-xs font-bold uppercase">Действия</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template x-for="order in sortedOrders" :key="order.orderId">
+                                            <tr @click="openDetails(order)" class="cursor-pointer border-b hover:bg-accent/50">
+                                                <td class="px-4 py-3 font-semibold text-primary" x-text="'#' + order.orderId"></td>
+                                                <td class="px-4 py-3">
+                                                    <span x-text="order.departmentEmoji"></span>
+                                                    <span x-text="order.departmentName" class="ml-2 font-medium"></span>
+                                                </td>
+                                                <td class="px-4 py-3 text-muted-foreground" x-text="order.displayDate"></td>
+                                                <td class="px-4 py-3">
+                                                    <span :class="'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' + getStatusBadge(order.status).class" x-text="getStatusBadge(order.status).text"></span>
+                                                </td>
+                                                <td class="px-4 py-3 text-right font-semibold" x-text="order.totalItems"></td>
+                                                <td class="px-4 py-3 text-right font-semibold" x-text="order.totalQuantity.toFixed(1)"></td>
+                                                <td class="px-4 py-3 text-right" @click.stop="">
+                                                    <button @click="openActions(order)" class="px-3 py-1 text-sm rounded hover:bg-accent">⋯</button>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Mobile Cards -->
+                        <div class="lg:hidden space-y-3">
+                            <template x-for="order in sortedOrders" :key="order.orderId">
+                                <div @click="openDetails(order)" class="p-4 rounded-lg border bg-card shadow-sm cursor-pointer active:scale-[0.98] transition-all">
+                                    <div class="flex items-start justify-between gap-2 mb-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-bold text-primary" x-text="'#' + order.orderId"></span>
+                                            <span x-text="order.departmentEmoji"></span>
+                                            <span x-text="order.departmentName" class="font-semibold"></span>
+                                        </div>
+                                        <span :class="'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' + getStatusBadge(order.status).class" x-text="getStatusBadge(order.status).text"></span>
+                                    </div>
+                                    <div class="text-sm text-muted-foreground mb-3">
+                                        <span x-text="order.displayDate"></span> •
+                                        <span x-text="order.totalItems"></span> товаров •
+                                        <span x-text="order.totalQuantity.toFixed(1)"></span> единиц
+                                    </div>
+                                    <div class="flex gap-2 pt-3 border-t" @click.stop="">
+                                        <button @click="openActions(order)" class="flex-1 px-3 py-2 text-sm border rounded hover:bg-accent min-h-[44px]">
+                                            ⋯ Действия
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+
+                        <!-- Order Details Modal -->
+                        <dialog x-ref="detailsDialog" :open="detailsOpen" @click.self="detailsOpen = false" class="backdrop:bg-black/50 rounded-lg p-6 max-w-2xl w-full">
+                            <template x-if="selectedOrder">
+                                <div>
+                                    <div class="flex justify-between items-start mb-4">
+                                        <h3 class="text-xl font-bold">
+                                            <span class="text-primary" x-text="'#' + selectedOrder.orderId"></span>
+                                            <span x-text="selectedOrder.departmentEmoji"></span>
+                                            <span x-text="selectedOrder.departmentName"></span>
+                                        </h3>
+                                        <button @click="detailsOpen = false" class="text-2xl">&times;</button>
+                                    </div>
+                                    <p class="text-muted-foreground mb-4">
+                                        <span x-text="selectedOrder.displayDate"></span> •
+                                        <span x-text="selectedOrder.totalItems"></span> товаров •
+                                        <span x-text="selectedOrder.totalQuantity.toFixed(1)"></span> единиц
+                                    </p>
+                                    <div class="flex gap-2">
+                                        <a :href="'/order-details?orderId=' + selectedOrder.orderId" class="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 text-center">
+                                            👁️ Полный просмотр
+                                        </a>
+                                        <button @click="if(confirm('Удалить заказ #' + selectedOrder.orderId + '?')) { deleteOrder(selectedOrder.orderId); detailsOpen = false; }" class="flex-1 px-4 py-2 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90">
+                                            🗑️ Удалить
+                                        </button>
+                                    </div>
+                                </div>
+                            </template>
+                        </dialog>
+
+                        <!-- Order Actions Modal -->
+                        <dialog x-ref="actionsDialog" :open="actionsOpen" @click.self="actionsOpen = false" class="backdrop:bg-black/50 rounded-lg p-6 max-w-md w-full">
+                            <template x-if="selectedOrder">
+                                <div>
+                                    <h3 class="text-xl font-bold mb-4">Заказ <span x-text="'#' + selectedOrder.orderId"></span></h3>
+                                    <div class="space-y-2">
+                                        <a :href="'/order-details?orderId=' + selectedOrder.orderId" class="block w-full px-4 py-3 text-left border rounded hover:bg-accent">
+                                            <span class="mr-3">📋</span>Полный просмотр
+                                        </a>
+                                        <button @click="alert('Excel export coming soon')" class="w-full px-4 py-3 text-left border rounded hover:bg-accent">
+                                            <span class="mr-3">📄</span>Экспорт в Excel
+                                        </button>
+                                        <button @click="if(confirm('Удалить заказ #' + selectedOrder.orderId + '?')) { deleteOrder(selectedOrder.orderId); actionsOpen = false; }" class="w-full px-4 py-3 text-left bg-destructive text-destructive-foreground rounded hover:bg-destructive/90">
+                                            <span class="mr-3">🗑️</span>Удалить заказ
+                                        </button>
+                                    </div>
+                                    <button @click="actionsOpen = false" class="w-full mt-4 px-4 py-2 border rounded hover:bg-accent">
+                                        Отмена
+                                    </button>
+                                </div>
+                            </template>
+                        </dialog>
+                    </div>
+                `;
+            }
+
+            // Helper function to render products table with Alpine.js
+            function renderProductsTable(container, products, categories, onCategoryChange, onDelete) {
+                const sectionProducts = products.filter(p => p.type === 'section');
+                const customProducts = products.filter(p => p.type === 'custom');
+
+                if (products.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-12">
+                            <div class="text-6xl mb-4">📦</div>
+                            <p class="text-xl font-semibold mb-2">Нет товаров</p>
+                            <p class="text-muted-foreground">Синхронизируйте секции из Poster или добавьте товары вручную</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = `
+                    <div x-data="{
+                        sectionProducts: ${JSON.stringify(sectionProducts).replace(/</g, '\\u003c')},
+                        customProducts: ${JSON.stringify(customProducts).replace(/</g, '\\u003c')},
+                        categories: ${JSON.stringify(categories).replace(/</g, '\\u003c')},
+                        getProductName(product) {
+                            return product.name || product.product_name || 'Без названия';
+                        }
+                    }">
+                        ${sectionProducts.length > 0 ? `
+                        <div class="mb-8">
+                            <h4 class="text-lg font-semibold mb-3">📦 Товары из секций Poster</h4>
+
+                            <!-- Desktop Table -->
+                            <div class="hidden md:block">
+                                <div class="rounded-lg border bg-card shadow-sm overflow-hidden">
+                                    <table class="w-full">
+                                        <thead class="border-b">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left text-xs font-bold uppercase w-[40%]">Название</th>
+                                                <th class="px-4 py-3 text-left text-xs font-bold uppercase w-[25%]">Секция</th>
+                                                <th class="px-4 py-3 text-left text-xs font-bold uppercase w-[10%]">Ед. изм.</th>
+                                                <th class="px-4 py-3 text-left text-xs font-bold uppercase w-[25%]">Категория</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="product in sectionProducts" :key="product.id">
+                                                <tr class="border-b">
+                                                    <td class="px-4 py-3 font-medium" x-text="getProductName(product)"></td>
+                                                    <td class="px-4 py-3 text-muted-foreground" x-text="product.section_name || 'Без секции'"></td>
+                                                    <td class="px-4 py-3 text-muted-foreground" x-text="product.unit || 'шт'"></td>
+                                                    <td class="px-4 py-3">
+                                                        <select @change="window.updateProductCategory(product.id, $event.target.value, 'section')" :value="product.category_id || ''" class="w-full text-xs px-2 py-1.5 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
+                                                            <option value="">Без категории</option>
+                                                            <template x-for="cat in categories" :key="cat.id">
+                                                                <option :value="cat.id" x-text="cat.name"></option>
+                                                            </template>
+                                                        </select>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Mobile Cards -->
+                            <div class="md:hidden space-y-3">
+                                <template x-for="product in sectionProducts" :key="product.id">
+                                    <div class="p-4 rounded-lg border bg-card shadow-sm">
+                                        <div class="font-medium mb-2" x-text="getProductName(product)"></div>
+                                        <div class="text-sm text-muted-foreground mb-2">
+                                            <span x-text="product.section_name || 'Без секции'"></span> •
+                                            <span x-text="product.unit || 'шт'"></span>
+                                        </div>
+                                        <select @change="window.updateProductCategory(product.id, $event.target.value, 'section')" :value="product.category_id || ''" class="w-full text-sm px-3 py-2 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
+                                            <option value="">Без категории</option>
+                                            <template x-for="cat in categories" :key="cat.id">
+                                                <option :value="cat.id" x-text="cat.name"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        ${customProducts.length > 0 ? `
+                        <div>
+                            <h4 class="text-lg font-semibold mb-3">✏️ Пользовательские товары</h4>
+
+                            <!-- Desktop Table -->
+                            <div class="hidden md:block">
+                                <div class="rounded-lg border bg-card shadow-sm overflow-hidden">
+                                    <table class="w-full">
+                                        <thead class="border-b">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left text-xs font-bold uppercase w-[40%]">Название</th>
+                                                <th class="px-4 py-3 text-left text-xs font-bold uppercase w-[10%]">Ед. изм.</th>
+                                                <th class="px-4 py-3 text-left text-xs font-bold uppercase w-[30%]">Категория</th>
+                                                <th class="px-4 py-3 text-left text-xs font-bold uppercase w-[20%]">Действия</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="product in customProducts" :key="product.id">
+                                                <tr class="border-b">
+                                                    <td class="px-4 py-3 font-medium" x-text="getProductName(product)"></td>
+                                                    <td class="px-4 py-3 text-muted-foreground" x-text="product.unit || 'шт'"></td>
+                                                    <td class="px-4 py-3">
+                                                        <select @change="window.updateProductCategory(product.id, $event.target.value, 'custom')" :value="product.category_id || ''" class="w-full text-xs px-2 py-1.5 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
+                                                            <option value="">Без категории</option>
+                                                            <template x-for="cat in categories" :key="cat.id">
+                                                                <option :value="cat.id" x-text="cat.name"></option>
+                                                            </template>
+                                                        </select>
+                                                    </td>
+                                                    <td class="px-4 py-3">
+                                                        <button @click="window.deleteProduct(product.id, getProductName(product), 'custom')" class="px-3 py-1 text-xs bg-destructive text-destructive-foreground rounded hover:bg-destructive/90">
+                                                            🗑️
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Mobile Cards -->
+                            <div class="md:hidden space-y-3">
+                                <template x-for="product in customProducts" :key="product.id">
+                                    <div class="p-4 rounded-lg border bg-card shadow-sm">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div class="font-medium" x-text="getProductName(product)"></div>
+                                            <button @click="window.deleteProduct(product.id, getProductName(product), 'custom')" class="px-2 py-1 text-xs bg-destructive text-destructive-foreground rounded">
+                                                🗑️
+                                            </button>
+                                        </div>
+                                        <div class="text-sm text-muted-foreground mb-2" x-text="product.unit || 'шт'"></div>
+                                        <select @change="window.updateProductCategory(product.id, $event.target.value, 'custom')" :value="product.category_id || ''" class="w-full text-sm px-3 py-2 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
+                                            <option value="">Без категории</option>
+                                            <template x-for="cat in categories" :key="cat.id">
+                                                <option :value="cat.id" x-text="cat.name"></option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                // Set up global functions for callbacks
+                window.updateProductCategory = onCategoryChange;
+                window.deleteProduct = onDelete;
+            }
 
             // Load orders by category
             async function loadOrdersByCategory() {
@@ -1069,7 +1404,7 @@ const tenantId = getTenantId(Astro.request);
                 }
             }
 
-            // Display orders using OrdersTable component
+            // Display orders using Alpine.js
             function displayOrdersByCategory(orders) {
                 const container = document.getElementById("ordersByCategory");
                 if (!container) return;
@@ -1085,40 +1420,27 @@ const tenantId = getTenantId(Astro.request);
                     return;
                 }
 
-                // Clear container and mount Svelte component
-                container.innerHTML = "";
-
-                mount(OrdersTable, {
-                    target: container,
-                    props: {
-                        orders,
-                        onDelete: async (orderId) => {
-                            try {
-                                const response = await fetch(
-                                    "/api/delete-order",
-                                    {
-                                        method: "POST",
-                                        headers: {
-                                            "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({ orderId }),
-                                    },
-                                );
-
-                                const result = await response.json();
-                                if (result.success) {
-                                    // Reload orders
-                                    loadOrdersByCategory();
-                                } else {
-                                    alert(`Ошибка: ${result.error}`);
-                                }
-                            } catch (error) {
-                                alert("Ошибка при удалении заказа");
-                                console.error(error);
-                            }
-                        },
-                    },
-                });
+                // Set up Alpine.js data and render template
+                window.ordersData = orders;
+                window.deleteOrder = async (orderId) => {
+                    try {
+                        const response = await fetch("/api/delete-order", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ orderId }),
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            loadOrdersByCategory();
+                        } else {
+                            alert(`Ошибка: ${result.error}`);
+                        }
+                    } catch (error) {
+                        alert("Ошибка при удалении заказа");
+                        console.error(error);
+                    }
+                };
+                renderOrdersTable(container, orders, window.deleteOrder);
             }
 
             // Tab switching
@@ -1209,45 +1531,31 @@ const tenantId = getTenantId(Astro.request);
                 }
             }
 
-            // Display delivered orders using OrdersTable component
+            // Display delivered orders using Alpine.js
             function displayDeliveredOrders(orders) {
                 const container = document.getElementById("deliveredOrders");
                 if (!container) return;
 
-                // Clear container and mount Svelte component
-                container.innerHTML = "";
-
-                mount(OrdersTable, {
-                    target: container,
-                    props: {
-                        orders,
-                        onDelete: async (orderId) => {
-                            try {
-                                const response = await fetch(
-                                    "/api/delete-order",
-                                    {
-                                        method: "POST",
-                                        headers: {
-                                            "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({ orderId }),
-                                    },
-                                );
-
-                                const result = await response.json();
-                                if (result.success) {
-                                    // Reload delivered orders
-                                    loadDeliveredOrders();
-                                } else {
-                                    alert(`Ошибка: ${result.error}`);
-                                }
-                            } catch (error) {
-                                alert("Ошибка при удалении заказа");
-                                console.error(error);
-                            }
-                        },
-                    },
-                });
+                // Set up Alpine.js data and render template
+                const deleteOrderDelivered = async (orderId) => {
+                    try {
+                        const response = await fetch("/api/delete-order", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ orderId }),
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            loadDeliveredOrders();
+                        } else {
+                            alert(`Ошибка: ${result.error}`);
+                        }
+                    } catch (error) {
+                        alert("Ошибка при удалении заказа");
+                        console.error(error);
+                    }
+                };
+                renderOrdersTable(container, orders, deleteOrderDelivered);
             }
 
             // Load categories with suppliers
@@ -2035,62 +2343,37 @@ const tenantId = getTenantId(Astro.request);
                 }
             }
 
-            // Display products
+            // Display products using Alpine.js
             function displayProducts(products, categories) {
                 const container = document.getElementById("productsList");
-                container.innerHTML = "";
 
-                mount(ProductsTable, {
-                    target: container,
-                    props: {
-                        products,
-                        categories,
-                        onCategoryChange: async (
-                            productId,
-                            categoryId,
-                            type,
-                        ) => {
-                            await updateProductCategory(
-                                productId,
-                                categoryId,
-                                type,
-                            );
-                        },
-                        onDelete: async (productId, productName, type) => {
-                            if (confirm(`Удалить товар "${productName}"?`)) {
-                                try {
-                                    const endpoint =
-                                        type === "custom"
-                                            ? `/api/custom-products`
-                                            : `/api/section-products`;
+                const onCategoryChange = async (productId, categoryId, type) => {
+                    await updateProductCategory(productId, categoryId, type);
+                };
 
-                                    const response = await fetch(endpoint, {
-                                        method: "DELETE",
-                                        headers: {
-                                            "Content-Type": "application/json",
-                                        },
-                                        body: JSON.stringify({ id: productId }),
-                                    });
-
-                                    const data = await response.json();
-                                    if (data.success) {
-                                        await loadProducts();
-                                    } else {
-                                        alert(
-                                            `Ошибка при удалении товара: ${data.error || "Неизвестная ошибка"}`,
-                                        );
-                                    }
-                                } catch (error) {
-                                    console.error(
-                                        "Error deleting product:",
-                                        error,
-                                    );
-                                    alert("Ошибка при удалении товара");
-                                }
+                const onDelete = async (productId, productName, type) => {
+                    if (confirm(`Удалить товар "${productName}"?`)) {
+                        try {
+                            const endpoint = type === "custom" ? `/api/custom-products` : `/api/section-products`;
+                            const response = await fetch(endpoint, {
+                                method: "DELETE",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ id: productId }),
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                await loadProducts();
+                            } else {
+                                alert(`Ошибка при удалении товара: ${data.error || "Неизвестная ошибка"}`);
                             }
-                        },
-                    },
-                });
+                        } catch (error) {
+                            console.error("Error deleting product:", error);
+                            alert("Ошибка при удалении товара");
+                        }
+                    }
+                };
+
+                renderProductsTable(container, products, categories, onCategoryChange, onDelete);
             }
 
             // Filter products based on search and category

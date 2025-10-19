@@ -20,26 +20,21 @@
   ],
   "dependencies": {
     "@astrojs/node": "^9.3.1",
-    "@astrojs/svelte": "^7.2.0",
     "@astrojs/tailwind": "^5.1.2",
+    "alpinejs": "^3.14.3",
     "astro": "^5.12.0",
-    "bits-ui": "^2.13.1",
     "dotenv": "^17.2.2",
     "ioredis": "^5.8.1",
     "node-fetch": "^3.3.2",
     "pg": "^8.16.3",
-    "svelte": "^5.39.10",
     "tailwindcss": "^3.4.0",
-    "vaul-svelte": "1.0.0-next.7",
     "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=20.19.0"
   },
   "devDependencies": {
-    "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "clsx": "^2.1.1",
-    "svelte-preprocess": "^6.0.3",
     "tailwind-merge": "^3.3.1",
     "tailwind-variants": "^3.1.1",
     "tailwindcss-animate": "^1.0.7"

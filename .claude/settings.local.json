@@ -32,7 +32,8 @@
       "Bash(Get-Content .env)",
       "Bash(Select-String \"DATABASE_URL\")",
       "Bash(git restore:*)",
-      "WebFetch(domain:svelte.dev)"
+      "WebFetch(domain:svelte.dev)",
+      "Bash(pnpm run build:*)"
     ],
     "deny": [],
     "ask": []
