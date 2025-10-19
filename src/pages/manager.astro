@@ -1058,6 +1058,31 @@ const tenantId = getTenantId(Astro.request);
                         detailsOpen: false,
                         actionsOpen: false,
                         selectedOrder: null,
+                        get selectedOrderBySupplier() {
+                            if (!this.selectedOrder || !this.selectedOrder.categories) return [];
+
+                            // Group categories by supplier
+                            const supplierMap = new Map();
+
+                            this.selectedOrder.categories.forEach(category => {
+                                const supplierKey = category.supplier?.id || 'no-supplier';
+                                const supplierName = category.supplier?.name || 'Без поставщика';
+                                const supplierPhone = category.supplier?.phone || null;
+
+                                if (!supplierMap.has(supplierKey)) {
+                                    supplierMap.set(supplierKey, {
+                                        id: category.supplier?.id || null,
+                                        name: supplierName,
+                                        phone: supplierPhone,
+                                        categories: []
+                                    });
+                                }
+
+                                supplierMap.get(supplierKey).categories.push(category);
+                            });
+
+                            return Array.from(supplierMap.values());
+                        },
                         get sortedOrders() {
                             return [...this.orders].sort((a, b) => {
                                 let aVal = a[this.sortKey];
@@ -1234,76 +1259,100 @@ const tenantId = getTenantId(Astro.request);
                                         <!-- Scrollable Order Content -->
                                         <div class="flex-1 overflow-y-auto p-4 space-y-3" style="min-height: 0;"
                                              x-data="{
-                                                 categoryStates: {},
-                                                 initCategoryStates() {
-                                                     if (selectedOrder && selectedOrder.categories) {
+                                                 supplierStates: {},
+                                                 initSupplierStates() {
+                                                     if (selectedOrder) {
                                                          const autoExpand = selectedOrder.totalItems <= 8;
-                                                         selectedOrder.categories.forEach(cat => {
-                                                             this.categoryStates[cat.categoryId] = autoExpand;
+                                                         selectedOrderBySupplier.forEach(supplier => {
+                                                             this.supplierStates[supplier.id || 'no-supplier'] = autoExpand;
                                                          });
                                                      }
                                                  },
-                                                 toggleCategory(categoryId) {
-                                                     this.categoryStates[categoryId] = !this.categoryStates[categoryId];
+                                                 toggleSupplier(supplierId) {
+                                                     this.supplierStates[supplierId] = !this.supplierStates[supplierId];
                                                  },
-                                                 isCategoryExpanded(categoryId) {
-                                                     if (this.categoryStates[categoryId] === undefined) {
-                                                         this.initCategoryStates();
+                                                 isSupplierExpanded(supplierId) {
+                                                     if (this.supplierStates[supplierId] === undefined) {
+                                                         this.initSupplierStates();
                                                      }
-                                                     return this.categoryStates[categoryId] || false;
+                                                     return this.supplierStates[supplierId] || false;
+                                                 },
+                                                 getTotalItemsForSupplier(supplier) {
+                                                     return supplier.categories.reduce((sum, cat) => sum + cat.items.length, 0);
                                                  }
                                              }"
-                                             x-init="initCategoryStates()">
-                                            <template x-if="selectedOrder.categories && selectedOrder.categories.length > 0">
+                                             x-init="initSupplierStates()">
+                                            <template x-if="selectedOrderBySupplier.length > 0">
                                                 <div>
-                                                    <template x-for="category in selectedOrder.categories" :key="category.categoryId">
-                                                        <div class="mb-3 rounded-lg border overflow-hidden">
-                                                            <!-- Category Header (Clickable) -->
-                                                            <button @click="toggleCategory(category.categoryId)"
-                                                                    class="w-full bg-gray-50 px-3 py-2.5 border-b hover:bg-gray-100 active:bg-gray-200 transition-colors">
+                                                    <template x-for="supplier in selectedOrderBySupplier" :key="supplier.id || 'no-supplier'">
+                                                        <div class="mb-3 rounded-lg border-2 overflow-hidden"
+                                                             :class="supplier.phone ? 'border-green-200' : 'border-yellow-200'">
+                                                            <!-- Supplier Header (Clickable) -->
+                                                            <button @click="toggleSupplier(supplier.id || 'no-supplier')"
+                                                                    class="w-full px-3 py-3 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                                                                    :class="supplier.phone ? 'bg-green-50' : 'bg-yellow-50'">
                                                                 <div class="flex items-center justify-between gap-2">
                                                                     <div class="flex items-center gap-2 flex-1 min-w-0">
-                                                                        <svg :class="isCategoryExpanded(category.categoryId) ? 'rotate-90' : ''"
-                                                                             class="w-4 h-4 text-gray-400 transition-transform duration-200 flex-shrink-0"
+                                                                        <svg :class="isSupplierExpanded(supplier.id || 'no-supplier') ? 'rotate-90' : ''"
+                                                                             class="w-5 h-5 transition-transform duration-200 flex-shrink-0"
+                                                                             :class="supplier.phone ? 'text-green-600' : 'text-yellow-600'"
                                                                              fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
                                                                         </svg>
-                                                                        <span class="font-semibold text-sm truncate" x-text="'🏷️ ' + category.categoryName"></span>
-                                                                        <span class="text-xs text-gray-500 flex-shrink-0" x-text="category.items.length + ' шт'"></span>
-                                                                    </div>
-                                                                    <template x-if="category.supplier">
-                                                                        <div class="text-xs text-green-600 font-medium truncate">
-                                                                            <span x-text="category.supplier.name"></span>
+                                                                        <div class="flex-1 text-left min-w-0">
+                                                                            <div class="font-bold text-base truncate"
+                                                                                 :class="supplier.phone ? 'text-green-900' : 'text-yellow-900'"
+                                                                                 x-text="supplier.name"></div>
+                                                                            <div class="text-xs mt-0.5"
+                                                                                 :class="supplier.phone ? 'text-green-700' : 'text-yellow-700'">
+                                                                                <span x-text="supplier.categories.length"></span> категорий •
+                                                                                <span x-text="getTotalItemsForSupplier(supplier)"></span> товаров
+                                                                                <template x-if="supplier.phone">
+                                                                                    <span class="ml-2">📱 <span x-text="supplier.phone"></span></span>
+                                                                                </template>
+                                                                            </div>
                                                                         </div>
-                                                                    </template>
+                                                                    </div>
                                                                 </div>
                                                             </button>
 
-                                                            <!-- Items List (Collapsible) -->
-                                                            <div x-show="isCategoryExpanded(category.categoryId)"
+                                                            <!-- Categories & Items (Collapsible) -->
+                                                            <div x-show="isSupplierExpanded(supplier.id || 'no-supplier')"
                                                                  x-collapse
-                                                                 class="divide-y bg-white">
-                                                                <template x-for="item in category.items" :key="item.name">
-                                                                    <div class="flex items-center justify-between px-3 py-2.5">
-                                                                        <span class="text-sm flex-1 mr-2" x-text="item.name"></span>
-                                                                        <span class="text-sm font-semibold whitespace-nowrap" x-text="item.quantity + ' ' + item.unit"></span>
+                                                                 class="bg-white">
+                                                                <template x-for="category in supplier.categories" :key="category.categoryId">
+                                                                    <div class="border-t first:border-t-0">
+                                                                        <!-- Category Name -->
+                                                                        <div class="bg-gray-50 px-3 py-2 border-b">
+                                                                            <span class="font-semibold text-sm text-gray-700" x-text="'🏷️ ' + category.categoryName"></span>
+                                                                            <span class="text-xs text-gray-500 ml-2" x-text="category.items.length + ' шт'"></span>
+                                                                        </div>
+                                                                        <!-- Items -->
+                                                                        <div class="divide-y">
+                                                                            <template x-for="item in category.items" :key="item.name">
+                                                                                <div class="flex items-center justify-between px-3 py-2.5">
+                                                                                    <span class="text-sm flex-1 mr-2" x-text="item.name"></span>
+                                                                                    <span class="text-sm font-semibold whitespace-nowrap" x-text="item.quantity + ' ' + item.unit"></span>
+                                                                                </div>
+                                                                            </template>
+                                                                        </div>
                                                                     </div>
                                                                 </template>
                                                             </div>
 
                                                             <!-- Send to Supplier Button -->
-                                                            <template x-if="category.supplier && category.supplier.phone">
-                                                                <div class="p-2 bg-gray-50 border-t">
+                                                            <template x-if="supplier.phone">
+                                                                <div class="p-2 bg-green-50 border-t-2 border-green-200">
                                                                     <button @click="window.location.href = '/order-details?orderId=' + selectedOrder.orderId"
-                                                                            class="w-full px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors">
-                                                                        📱 Отправить в <span x-text="category.supplier.name"></span>
+                                                                            class="w-full px-3 py-2.5 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors">
+                                                                        📱 Отправить в <span x-text="supplier.name"></span>
                                                                     </button>
                                                                 </div>
                                                             </template>
-                                                            <template x-if="!category.supplier || !category.supplier.phone">
-                                                                <div class="p-2 bg-gray-50 border-t">
+                                                            <template x-if="!supplier.phone">
+                                                                <div class="p-2 bg-yellow-50 border-t-2 border-yellow-200">
                                                                     <button @click="window.location.href = '/order-details?orderId=' + selectedOrder.orderId"
-                                                                            class="w-full px-3 py-2 bg-yellow-500 text-white text-sm font-medium rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors">
+                                                                            class="w-full px-3 py-2.5 bg-yellow-500 text-white text-sm font-bold rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors">
                                                                         🔗 Назначить поставщика
                                                                     </button>
                                                                 </div>
