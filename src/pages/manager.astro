@@ -1186,7 +1186,7 @@ const tenantId = getTenantId(Astro.request);
                             </template>
                         </div>
 
-                        <!-- Order Actions Modal (Mobile Bottom Sheet) -->
+                        <!-- Order Details Modal (Mobile Bottom Sheet) -->
                         <div x-show="actionsOpen"
                              x-transition:enter="transition ease-out duration-200"
                              x-transition:enter-start="opacity-0"
@@ -1205,38 +1205,108 @@ const tenantId = getTenantId(Astro.request);
                                  x-transition:leave="transition ease-in duration-150"
                                  x-transition:leave-start="translate-y-0"
                                  x-transition:leave-end="translate-y-full"
-                                 class="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl p-4 pb-6 lg:max-w-md lg:mx-auto lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:rounded-2xl">
+                                 class="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[90vh] flex flex-col lg:max-w-2xl lg:mx-auto lg:bottom-auto lg:top-1/2 lg:-translate-y-1/2 lg:rounded-2xl lg:max-h-[85vh]">
                                 <template x-if="selectedOrder">
-                                    <div>
-                                        <!-- Handle Bar (Mobile) -->
-                                        <div class="lg:hidden w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-4"></div>
+                                    <div class="flex flex-col h-full">
+                                        <!-- Header -->
+                                        <div class="flex-shrink-0 p-4 border-b">
+                                            <!-- Handle Bar (Mobile) -->
+                                            <div class="lg:hidden w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3"></div>
 
-                                        <h3 class="text-lg font-bold mb-4">
-                                            Заказ <span x-text="'#' + selectedOrder.orderId"></span>
-                                        </h3>
-
-                                        <div class="space-y-2">
-                                            <a :href="'/order-details?orderId=' + selectedOrder.orderId"
-                                               class="flex items-center w-full px-4 py-3 text-left border rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                                                <span class="text-xl mr-3">👁️</span>
-                                                <span class="font-medium">Полный просмотр</span>
-                                            </a>
-                                            <button @click="alert('Excel export coming soon')"
-                                                    class="flex items-center w-full px-4 py-3 text-left border rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors">
-                                                <span class="text-xl mr-3">📄</span>
-                                                <span class="font-medium">Экспорт в Excel</span>
-                                            </button>
-                                            <button @click="if(confirm('Удалить заказ #' + selectedOrder.orderId + '?')) { deleteOrder(selectedOrder.orderId); actionsOpen = false; }"
-                                                    class="flex items-center w-full px-4 py-3 text-left bg-red-50 text-red-700 rounded-lg hover:bg-red-100 active:bg-red-200 transition-colors">
-                                                <span class="text-xl mr-3">🗑️</span>
-                                                <span class="font-medium">Удалить заказ</span>
-                                            </button>
+                                            <div class="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <div class="flex items-center gap-2 mb-1">
+                                                        <span class="text-lg font-bold text-blue-600" x-text="'#' + selectedOrder.orderId"></span>
+                                                        <span class="text-xl" x-text="selectedOrder.departmentEmoji"></span>
+                                                        <span class="font-semibold" x-text="selectedOrder.departmentName"></span>
+                                                    </div>
+                                                    <div class="text-sm text-gray-600">
+                                                        <span x-text="selectedOrder.displayDate"></span> •
+                                                        <span x-text="selectedOrder.totalItems"></span> товаров •
+                                                        <span x-text="selectedOrder.totalQuantity.toFixed(1)"></span> единиц
+                                                    </div>
+                                                </div>
+                                                <span :class="'inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ' + getStatusBadge(selectedOrder.status).class" x-text="getStatusBadge(selectedOrder.status).text"></span>
+                                            </div>
                                         </div>
 
-                                        <button @click="actionsOpen = false"
-                                                class="w-full mt-4 px-4 py-2.5 border rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors">
-                                            Отмена
-                                        </button>
+                                        <!-- Scrollable Order Content -->
+                                        <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                                            <template x-if="selectedOrder.categories && selectedOrder.categories.length > 0">
+                                                <div>
+                                                    <template x-for="category in selectedOrder.categories" :key="category.categoryId">
+                                                        <div class="mb-3 rounded-lg border overflow-hidden">
+                                                            <!-- Category Header -->
+                                                            <div class="bg-gray-50 px-3 py-2 border-b">
+                                                                <div class="flex items-center justify-between">
+                                                                    <div class="flex items-center gap-2">
+                                                                        <span class="font-semibold text-sm" x-text="'🏷️ ' + category.categoryName"></span>
+                                                                        <span class="text-xs text-gray-500" x-text="category.items.length + ' товаров'"></span>
+                                                                    </div>
+                                                                    <template x-if="category.supplier">
+                                                                        <div class="text-xs text-green-600 font-medium">
+                                                                            <span x-text="category.supplier.name"></span>
+                                                                        </div>
+                                                                    </template>
+                                                                </div>
+                                                            </div>
+
+                                                            <!-- Items List -->
+                                                            <div class="divide-y bg-white">
+                                                                <template x-for="item in category.items" :key="item.name">
+                                                                    <div class="flex items-center justify-between px-3 py-2.5">
+                                                                        <span class="text-sm flex-1 mr-2" x-text="item.name"></span>
+                                                                        <span class="text-sm font-semibold whitespace-nowrap" x-text="item.quantity + ' ' + item.unit"></span>
+                                                                    </div>
+                                                                </template>
+                                                            </div>
+
+                                                            <!-- Send to Supplier Button -->
+                                                            <template x-if="category.supplier && category.supplier.phone">
+                                                                <div class="p-2 bg-gray-50 border-t">
+                                                                    <button @click="window.location.href = '/order-details?orderId=' + selectedOrder.orderId"
+                                                                            class="w-full px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors">
+                                                                        📱 Отправить в <span x-text="category.supplier.name"></span>
+                                                                    </button>
+                                                                </div>
+                                                            </template>
+                                                            <template x-if="!category.supplier || !category.supplier.phone">
+                                                                <div class="p-2 bg-gray-50 border-t">
+                                                                    <button @click="window.location.href = '/order-details?orderId=' + selectedOrder.orderId"
+                                                                            class="w-full px-3 py-2 bg-yellow-500 text-white text-sm font-medium rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors">
+                                                                        🔗 Назначить поставщика
+                                                                    </button>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
+
+                                        <!-- Footer Actions -->
+                                        <div class="flex-shrink-0 p-4 border-t bg-gray-50 space-y-2">
+                                            <div class="flex gap-2">
+                                                <a :href="'/order-details?orderId=' + selectedOrder.orderId"
+                                                   class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border bg-white rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors">
+                                                    <span>👁️</span>
+                                                    <span class="text-sm">Полная версия</span>
+                                                </a>
+                                                <button @click="alert('Excel export coming soon')"
+                                                        class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 border bg-white rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors">
+                                                    <span>📄</span>
+                                                    <span class="text-sm">Excel</span>
+                                                </button>
+                                            </div>
+                                            <button @click="if(confirm('Удалить заказ #' + selectedOrder.orderId + '?')) { deleteOrder(selectedOrder.orderId); actionsOpen = false; }"
+                                                    class="w-full px-4 py-2.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 active:bg-red-200 font-medium transition-colors">
+                                                🗑️ Удалить заказ
+                                            </button>
+                                            <button @click="actionsOpen = false"
+                                                    class="w-full px-4 py-2.5 border bg-white rounded-lg hover:bg-gray-50 active:bg-gray-100 font-medium transition-colors">
+                                                Закрыть
+                                            </button>
+                                        </div>
                                     </div>
                                 </template>
                             </div>
