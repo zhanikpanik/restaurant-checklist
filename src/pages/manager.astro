@@ -1232,28 +1232,57 @@ const tenantId = getTenantId(Astro.request);
                                         </div>
 
                                         <!-- Scrollable Order Content -->
-                                        <div class="flex-1 overflow-y-auto p-4 space-y-3" style="min-height: 0;">
+                                        <div class="flex-1 overflow-y-auto p-4 space-y-3" style="min-height: 0;"
+                                             x-data="{
+                                                 categoryStates: {},
+                                                 initCategoryStates() {
+                                                     if (selectedOrder && selectedOrder.categories) {
+                                                         const autoExpand = selectedOrder.totalItems <= 8;
+                                                         selectedOrder.categories.forEach(cat => {
+                                                             this.categoryStates[cat.categoryId] = autoExpand;
+                                                         });
+                                                     }
+                                                 },
+                                                 toggleCategory(categoryId) {
+                                                     this.categoryStates[categoryId] = !this.categoryStates[categoryId];
+                                                 },
+                                                 isCategoryExpanded(categoryId) {
+                                                     if (this.categoryStates[categoryId] === undefined) {
+                                                         this.initCategoryStates();
+                                                     }
+                                                     return this.categoryStates[categoryId] || false;
+                                                 }
+                                             }"
+                                             x-init="initCategoryStates()">
                                             <template x-if="selectedOrder.categories && selectedOrder.categories.length > 0">
                                                 <div>
                                                     <template x-for="category in selectedOrder.categories" :key="category.categoryId">
                                                         <div class="mb-3 rounded-lg border overflow-hidden">
-                                                            <!-- Category Header -->
-                                                            <div class="bg-gray-50 px-3 py-2 border-b">
-                                                                <div class="flex items-center justify-between">
-                                                                    <div class="flex items-center gap-2">
-                                                                        <span class="font-semibold text-sm" x-text="'🏷️ ' + category.categoryName"></span>
-                                                                        <span class="text-xs text-gray-500" x-text="category.items.length + ' товаров'"></span>
+                                                            <!-- Category Header (Clickable) -->
+                                                            <button @click="toggleCategory(category.categoryId)"
+                                                                    class="w-full bg-gray-50 px-3 py-2.5 border-b hover:bg-gray-100 active:bg-gray-200 transition-colors">
+                                                                <div class="flex items-center justify-between gap-2">
+                                                                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                                                                        <svg :class="isCategoryExpanded(category.categoryId) ? 'rotate-90' : ''"
+                                                                             class="w-4 h-4 text-gray-400 transition-transform duration-200 flex-shrink-0"
+                                                                             fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7"/>
+                                                                        </svg>
+                                                                        <span class="font-semibold text-sm truncate" x-text="'🏷️ ' + category.categoryName"></span>
+                                                                        <span class="text-xs text-gray-500 flex-shrink-0" x-text="category.items.length + ' шт'"></span>
                                                                     </div>
                                                                     <template x-if="category.supplier">
-                                                                        <div class="text-xs text-green-600 font-medium">
+                                                                        <div class="text-xs text-green-600 font-medium truncate">
                                                                             <span x-text="category.supplier.name"></span>
                                                                         </div>
                                                                     </template>
                                                                 </div>
-                                                            </div>
+                                                            </button>
 
-                                                            <!-- Items List -->
-                                                            <div class="divide-y bg-white">
+                                                            <!-- Items List (Collapsible) -->
+                                                            <div x-show="isCategoryExpanded(category.categoryId)"
+                                                                 x-collapse
+                                                                 class="divide-y bg-white">
                                                                 <template x-for="item in category.items" :key="item.name">
                                                                     <div class="flex items-center justify-between px-3 py-2.5">
                                                                         <span class="text-sm flex-1 mr-2" x-text="item.name"></span>
