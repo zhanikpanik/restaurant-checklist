@@ -1578,8 +1578,8 @@ const tenantId = getTenantId(Astro.request);
                 window.deleteProduct = onDelete;
             }
 
-            // Send order to supplier via WhatsApp
-            async function sendSupplierOrder(orderId, supplierData) {
+            // Send order to supplier via WhatsApp (make it global for Alpine access)
+            window.sendSupplierOrder = async function(orderId, supplierData) {
                 console.log(`📤 Sending order to supplier: ${supplierData.name} for order: ${orderId}`);
 
                 try {
@@ -1684,7 +1684,7 @@ const tenantId = getTenantId(Astro.request);
                     console.error("❌ Error sending order:", error);
                     alert("Ошибка при отправке заказа поставщику: " + error.message);
                 }
-            }
+            };
 
             // Load orders by category
             async function loadOrdersByCategory() {
