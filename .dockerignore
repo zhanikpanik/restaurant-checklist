@@ -1,47 +1,17 @@
-# Dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# Build output
-dist/
-.astro/
-
-# Environment files
-.env
-.env.local
-.env.production
-
-# Version control
-.git/
-.gitignore
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Documentation and setup files
-README.md
-DEPLOYMENT.md
-POSTER_SETUP.md
-setup-env.md
-
-# Docker files
 Dockerfile
 .dockerignore
-
-# Cache
-.npm/
-.cache/
-
-# Logs
-logs/
-*.log 
+node_modules
+npm-debug.log
+.next
+.git
+.gitignore
+README.md
+.env
+.env.local
+.vscode
+.claude
+backup-astro
+dist
+.astro
+*.md
+test-db.js

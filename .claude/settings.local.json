@@ -33,7 +33,16 @@
       "Bash(Select-String \"DATABASE_URL\")",
       "Bash(git restore:*)",
       "WebFetch(domain:svelte.dev)",
-      "Bash(pnpm run build:*)"
+      "Bash(pnpm run build:*)",
+      "Bash(npm create:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(rm:*)",
+      "Bash(railway variables:*)",
+      "Bash(railway service:*)",
+      "Bash(taskkill:*)",
+      "Bash(npm run build:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
