@@ -3062,6 +3062,9 @@ const tenantId = getTenantId(Astro.request);
                             product.category_id = categoryId || null;
                         }
                         console.log("✅ Category updated");
+
+                        // Reload products to refresh the display
+                        await loadProducts();
                     } else {
                         console.error("❌ Error:", data.error);
                         alert("Ошибка: " + data.error);
