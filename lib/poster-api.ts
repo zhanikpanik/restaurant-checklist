@@ -82,9 +82,11 @@ export class PosterAPI {
     const url = `${this.baseUrl}${endpoint}`;
 
     // Add access token to params for Poster API
-    const requestParams = {
-      ...params,
-      token: this.accessToken
+    const requestParams: Record<string, string> = {
+      ...Object.fromEntries(
+        Object.entries(params).map(([k, v]) => [k, String(v)])
+      ),
+      ...(this.accessToken ? { token: this.accessToken } : {})
     };
 
     const queryString = new URLSearchParams(requestParams).toString();

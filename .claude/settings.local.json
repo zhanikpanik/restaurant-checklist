@@ -42,7 +42,8 @@
       "Bash(railway service:*)",
       "Bash(taskkill:*)",
       "Bash(npm run build:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(railway restart:*)"
     ],
     "deny": [],
     "ask": []
