@@ -1291,6 +1291,67 @@ const tenantId = getTenantId(Astro.request);
                                         <div class="flex-1 overflow-y-auto p-4 space-y-3" style="min-height: 0;"
                                              x-data="{
                                                  supplierStates: {},
+                                                 assigningCategory: null,
+                                                 availableSuppliers: [],
+                                                 selectedSupplierId: null,
+                                                 async loadSuppliers() {
+                                                     console.log('🔄 Loading suppliers...');
+                                                     try {
+                                                         const response = await fetch('/api/suppliers');
+                                                         console.log('Response:', response.status);
+                                                         const data = await response.json();
+                                                         console.log('Suppliers data:', data);
+                                                         if (data.success && data.data) {
+                                                             this.availableSuppliers = data.data;
+                                                             console.log('✅ Loaded suppliers:', this.availableSuppliers.length);
+                                                         } else {
+                                                             console.error('❌ No suppliers found or error:', data);
+                                                         }
+                                                     } catch (error) {
+                                                         console.error('❌ Error loading suppliers:', error);
+                                                     }
+                                                 },
+                                                 async startAssigning(categoryId) {
+                                                     console.log('🔵 startAssigning called with categoryId:', categoryId);
+                                                     this.assigningCategory = categoryId;
+                                                     this.selectedSupplierId = null;
+                                                     console.log('Current availableSuppliers length:', this.availableSuppliers.length);
+                                                     if (this.availableSuppliers.length === 0) {
+                                                         await this.loadSuppliers();
+                                                     }
+                                                     console.log('After load, availableSuppliers:', this.availableSuppliers);
+                                                 },
+                                                 cancelAssigning() {
+                                                     this.assigningCategory = null;
+                                                     this.selectedSupplierId = null;
+                                                 },
+                                                 async assignSupplier(categoryId, categoryName) {
+                                                     if (!this.selectedSupplierId) return;
+
+                                                     try {
+                                                         const response = await fetch('/api/category-suppliers', {
+                                                             method: 'POST',
+                                                             headers: { 'Content-Type': 'application/json' },
+                                                             body: JSON.stringify({
+                                                                 categoryId: categoryId,
+                                                                 supplierId: this.selectedSupplierId
+                                                             })
+                                                         });
+
+                                                         const data = await response.json();
+                                                         if (data.success) {
+                                                             const supplier = this.availableSuppliers.find(s => s.id === this.selectedSupplierId);
+                                                             alert('✅ Поставщик ' + supplier.name + ' назначен для ' + categoryName);
+                                                             this.cancelAssigning();
+                                                             await window.loadOrdersByCategory();
+                                                         } else {
+                                                             alert('Ошибка: ' + (data.error || 'Не удалось назначить поставщика'));
+                                                         }
+                                                     } catch (error) {
+                                                         console.error('Error assigning supplier:', error);
+                                                         alert('Ошибка при назначении поставщика');
+                                                     }
+                                                 },
                                                  initSupplierStates() {
                                                      if (selectedOrder) {
                                                          const autoExpand = selectedOrder.totalItems <= 8;
@@ -1351,7 +1412,7 @@ const tenantId = getTenantId(Astro.request);
                                                             <div x-show="isSupplierExpanded(supplier.id || 'no-supplier')"
                                                                  x-collapse
                                                                  class="bg-white">
-                                                                <template x-for="category in supplier.categories" :key="category.categoryId">
+                                                                <template x-for="category in supplier.categories" :key="String(category.categoryId)">
                                                                     <div class="border-t first:border-t-0">
                                                                         <!-- Category Name -->
                                                                         <div class="bg-gray-50 px-3 py-2 border-b">
@@ -1374,18 +1435,60 @@ const tenantId = getTenantId(Astro.request);
                                                             <!-- Send to Supplier Button -->
                                                             <template x-if="supplier.phone">
                                                                 <div class="p-2 bg-green-50 border-t-2 border-green-200">
-                                                                    <button @click="sendSupplierOrder(selectedOrder.orderId, supplier); actionsOpen = false;"
+                                                                    <button @click="sendSupplierOrder(selectedOrder.orderId, supplier);"
                                                                             class="w-full px-3 py-2.5 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 active:bg-green-800 transition-colors">
                                                                         📱 Отправить в <span x-text="supplier.name"></span>
                                                                     </button>
                                                                 </div>
                                                             </template>
                                                             <template x-if="!supplier.phone">
-                                                                <div class="p-2 bg-yellow-50 border-t-2 border-yellow-200">
-                                                                    <button @click="alert('Функция назначения поставщика скоро будет доступна'); window.location.href = '/order-details?orderId=' + selectedOrder.orderId"
-                                                                            class="w-full px-3 py-2.5 bg-yellow-500 text-white text-sm font-bold rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors">
-                                                                        🔗 Назначить поставщика
-                                                                    </button>
+                                                                <div class="p-2 bg-yellow-50 border-t-2 border-yellow-200 space-y-2">
+                                                                    <template x-for="category in supplier.categories" :key="String(category.categoryId)">
+                                                                        <div>
+                                                                            <!-- Show button if not assigning -->
+                                                                            <template x-if="assigningCategory !== category.categoryId">
+                                                                                <button @click="startAssigning(category.categoryId)"
+                                                                                        class="w-full px-3 py-2.5 bg-yellow-500 text-white text-sm font-bold rounded-lg hover:bg-yellow-600 active:bg-yellow-700 transition-colors">
+                                                                                    🔗 Назначить для <span x-text="category.categoryName"></span>
+                                                                                </button>
+                                                                            </template>
+
+                                                                            <!-- Show supplier selector if assigning -->
+                                                                            <template x-if="assigningCategory === category.categoryId">
+                                                                                <div class="bg-white rounded-lg p-3 space-y-2">
+                                                                                    <div class="flex items-center justify-between mb-2">
+                                                                                        <span class="text-sm font-semibold">Выберите поставщика:</span>
+                                                                                        <button @click="cancelAssigning()" class="text-gray-400 hover:text-gray-600">✕</button>
+                                                                                    </div>
+
+                                                                                    <div x-show="availableSuppliers.length === 0" class="text-center py-2 text-sm text-gray-500">Загрузка...</div>
+
+                                                                                    <div x-show="availableSuppliers.length > 0" class="max-h-48 overflow-y-auto space-y-1">
+                                                                                        <template x-for="s in availableSuppliers" :key="s.id">
+                                                                                            <label class="flex items-start p-2 border rounded cursor-pointer hover:bg-gray-50"
+                                                                                                   :class="selectedSupplierId === s.id ? 'bg-blue-50 border-blue-500' : 'border-gray-200'">
+                                                                                                <input type="radio"
+                                                                                                       name="supplier-select"
+                                                                                                       :value="s.id"
+                                                                                                       x-model="selectedSupplierId"
+                                                                                                       class="mt-1 mr-2">
+                                                                                                <div class="flex-1 min-w-0">
+                                                                                                    <div class="font-medium text-sm" x-text="s.name"></div>
+                                                                                                    <div class="text-xs text-gray-600" x-text="s.phone ? '📱 ' + s.phone : '⚠️ Нет телефона'"></div>
+                                                                                                </div>
+                                                                                            </label>
+                                                                                        </template>
+                                                                                    </div>
+
+                                                                                    <button @click="assignSupplier(category.categoryId, category.categoryName)"
+                                                                                            :disabled="!selectedSupplierId"
+                                                                                            class="w-full px-3 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                                                                        ✓ Назначить
+                                                                                    </button>
+                                                                                </div>
+                                                                            </template>
+                                                                        </div>
+                                                                    </template>
                                                                 </div>
                                                             </template>
                                                         </div>
@@ -1472,7 +1575,7 @@ const tenantId = getTenantId(Astro.request);
                                                     <td class="px-4 py-3 text-muted-foreground" x-text="product.section_name || 'Без секции'"></td>
                                                     <td class="px-4 py-3 text-muted-foreground" x-text="product.unit || 'шт'"></td>
                                                     <td class="px-4 py-3">
-                                                        <select @change="window.updateProductCategory(product.id, $event.target.value, 'section')" :value="product.category_id || ''" class="w-full text-xs px-2 py-1.5 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
+                                                        <select @change="window.updateProductCategoryInternal(product.id, $event.target.value || null, 'section')" :value="product.category_id || ''" class="w-full text-xs px-2 py-1.5 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
                                                             <option value="">Без категории</option>
                                                             <template x-for="cat in categories" :key="cat.id">
                                                                 <option :value="cat.id" x-text="cat.name"></option>
@@ -1495,7 +1598,7 @@ const tenantId = getTenantId(Astro.request);
                                             <span x-text="product.section_name || 'Без секции'"></span> •
                                             <span x-text="product.unit || 'шт'"></span>
                                         </div>
-                                        <select @change="window.updateProductCategory(product.id, $event.target.value, 'section')" :value="product.category_id || ''" class="w-full text-sm px-3 py-2 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
+                                        <select @change="window.updateProductCategoryInternal(product.id, $event.target.value || null, 'section')" :value="product.category_id || ''" class="w-full text-sm px-3 py-2 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
                                             <option value="">Без категории</option>
                                             <template x-for="cat in categories" :key="cat.id">
                                                 <option :value="cat.id" x-text="cat.name"></option>
@@ -1529,7 +1632,7 @@ const tenantId = getTenantId(Astro.request);
                                                     <td class="px-4 py-3 font-medium" x-text="getProductName(product)"></td>
                                                     <td class="px-4 py-3 text-muted-foreground" x-text="product.unit || 'шт'"></td>
                                                     <td class="px-4 py-3">
-                                                        <select @change="window.updateProductCategory(product.id, $event.target.value, 'custom')" :value="product.category_id || ''" class="w-full text-xs px-2 py-1.5 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
+                                                        <select @change="window.updateProductCategoryInternal(product.id, $event.target.value || null, 'custom')" :value="product.category_id || ''" class="w-full text-xs px-2 py-1.5 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
                                                             <option value="">Без категории</option>
                                                             <template x-for="cat in categories" :key="cat.id">
                                                                 <option :value="cat.id" x-text="cat.name"></option>
@@ -1559,7 +1662,7 @@ const tenantId = getTenantId(Astro.request);
                                             </button>
                                         </div>
                                         <div class="text-sm text-muted-foreground mb-2" x-text="product.unit || 'шт'"></div>
-                                        <select @change="window.updateProductCategory(product.id, $event.target.value, 'custom')" :value="product.category_id || ''" class="w-full text-sm px-3 py-2 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
+                                        <select @change="window.updateProductCategoryInternal(product.id, $event.target.value || null, 'custom')" :value="product.category_id || ''" class="w-full text-sm px-3 py-2 border rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary">
                                             <option value="">Без категории</option>
                                             <template x-for="cat in categories" :key="cat.id">
                                                 <option :value="cat.id" x-text="cat.name"></option>
@@ -1574,7 +1677,6 @@ const tenantId = getTenantId(Astro.request);
                 `;
 
                 // Set up global functions for callbacks
-                window.updateProductCategory = onCategoryChange;
                 window.deleteProduct = onDelete;
             }
 
@@ -1684,6 +1786,207 @@ const tenantId = getTenantId(Astro.request);
                     console.error("❌ Error sending order:", error);
                     alert("Ошибка при отправке заказа поставщику: " + error.message);
                 }
+            };
+
+            // Supplier assignment variables v2
+            let currentAssignCategoryId = null;
+            let currentAssignCategoryName = null;
+            let selectedSupplierId = null;
+            let availableSuppliers = [];
+
+            // Assign supplier to category
+            window.assignSupplierToCategory = async function(categoryId, categoryName) {
+                currentAssignCategoryId = categoryId;
+                currentAssignCategoryName = categoryName;
+                selectedSupplierId = null;
+
+                // Open modal
+                const modal = document.getElementById("assignSupplierModal");
+                modal.classList.remove("hidden");
+                modal.style.display = "block";
+                modal.style.pointerEvents = "auto";
+                document.getElementById("supplierModalCategoryName").textContent =
+                    `Категория: ${categoryName}`;
+
+                // Load suppliers
+                await loadSuppliersForAssignment();
+            };
+
+            // Load suppliers for assignment
+            async function loadSuppliersForAssignment() {
+                const container = document.getElementById("suppliersList");
+
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <div class="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4"></div>
+                        <p class="text-gray-600">Загрузка поставщиков...</p>
+                    </div>
+                `;
+
+                try {
+                    const response = await fetch("/api/suppliers");
+                    const data = await response.json();
+
+                    if (data.success && data.data) {
+                        availableSuppliers = data.data;
+                        displaySuppliersList();
+                    } else {
+                        throw new Error(data.error || "Failed to load suppliers");
+                    }
+                } catch (error) {
+                    console.error("Error loading suppliers:", error);
+                    container.innerHTML = `
+                        <div class="text-center py-8">
+                            <span class="text-4xl mb-2 block">❌</span>
+                            <p class="text-red-600">Ошибка загрузки поставщиков</p>
+                            <p class="text-sm text-gray-500">${error.message}</p>
+                        </div>
+                    `;
+                }
+            }
+
+            // Display suppliers list
+            function displaySuppliersList() {
+                const container = document.getElementById("suppliersList");
+
+                if (availableSuppliers.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-8">
+                            <span class="text-4xl mb-2 block">📭</span>
+                            <p class="text-gray-600">Нет доступных поставщиков</p>
+                            <p class="text-sm text-gray-500 mt-2">Добавьте поставщиков в разделе "Менеджер"</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Clear container first
+                container.innerHTML = "";
+
+                const wrapper = document.createElement("div");
+                wrapper.className = "space-y-2";
+
+                availableSuppliers.forEach((supplier) => {
+                    const hasPhone = supplier.phone && supplier.phone.trim() !== "";
+                    const isSelected = selectedSupplierId === supplier.id;
+
+                    const label = document.createElement("label");
+                    label.className = `flex items-start p-3 border rounded-lg cursor-pointer transition-all ${isSelected ? "bg-blue-50 border-blue-500" : "bg-gray-50 border-gray-200 hover:border-blue-300"}`;
+
+                    // Create radio button
+                    const radio = document.createElement("input");
+                    radio.type = "radio";
+                    radio.name = "supplier";
+                    radio.value = supplier.id;
+                    radio.checked = isSelected;
+                    radio.className = "mt-1 mr-3 h-4 w-4 text-blue-600";
+                    radio.addEventListener("change", function () {
+                        selectSupplierForAssignment(supplier.id);
+                    });
+
+                    // Create content div
+                    const contentDiv = document.createElement("div");
+                    contentDiv.className = "flex-1";
+
+                    // Supplier name
+                    const nameDiv = document.createElement("div");
+                    nameDiv.className = "font-medium text-gray-900";
+                    nameDiv.textContent = supplier.name;
+                    contentDiv.appendChild(nameDiv);
+
+                    // Phone or no phone warning
+                    const phoneDiv = document.createElement("div");
+                    phoneDiv.className = hasPhone
+                        ? "text-sm text-gray-600 mt-1"
+                        : "text-sm text-red-600 mt-1";
+                    phoneDiv.textContent = hasPhone
+                        ? `📱 ${supplier.phone}`
+                        : "⚠️ Нет телефона";
+                    contentDiv.appendChild(phoneDiv);
+
+                    // Contact info if exists
+                    if (supplier.contact_info) {
+                        const contactDiv = document.createElement("div");
+                        contactDiv.className = "text-xs text-gray-500 mt-1";
+                        contactDiv.textContent = supplier.contact_info;
+                        contentDiv.appendChild(contactDiv);
+                    }
+
+                    label.appendChild(radio);
+                    label.appendChild(contentDiv);
+                    wrapper.appendChild(label);
+                });
+
+                container.appendChild(wrapper);
+            }
+
+            // Select supplier for assignment
+            function selectSupplierForAssignment(supplierId) {
+                selectedSupplierId = supplierId;
+
+                // Enable assign button
+                const btn = document.getElementById("assignSupplierBtn");
+                btn.disabled = false;
+            }
+
+            // Assign selected supplier
+            window.assignSelectedSupplier = async function() {
+                if (!selectedSupplierId || !currentAssignCategoryId) {
+                    alert("Пожалуйста, выберите поставщика");
+                    return;
+                }
+
+                const btn = document.getElementById("assignSupplierBtn");
+                const originalText = btn.textContent;
+                btn.disabled = true;
+                btn.textContent = "⏳ Назначение...";
+
+                try {
+                    const response = await fetch("/api/category-suppliers", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            categoryId: currentAssignCategoryId,
+                            supplierId: selectedSupplierId,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        const supplier = availableSuppliers.find(
+                            (s) => s.id === selectedSupplierId,
+                        );
+                        alert(
+                            `✅ Поставщик "${supplier.name}" успешно назначен для категории "${currentAssignCategoryName}"`,
+                        );
+                        closeSupplierModal();
+
+                        // Reload orders to show updated supplier
+                        await loadOrdersByCategory();
+                    } else {
+                        throw new Error(data.error || "Failed to assign supplier");
+                    }
+                } catch (error) {
+                    console.error("Error assigning supplier:", error);
+                    alert("Ошибка при назначении поставщика: " + error.message);
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                }
+            };
+
+            // Close supplier modal
+            window.closeSupplierModal = function() {
+                const modal = document.getElementById("assignSupplierModal");
+                modal.classList.add("hidden");
+                modal.style.display = "none";
+                modal.style.pointerEvents = "none";
+                currentAssignCategoryId = null;
+                currentAssignCategoryName = null;
+                selectedSupplierId = null;
+                availableSuppliers = [];
             };
 
             // Load orders by category
@@ -2651,7 +2954,7 @@ const tenantId = getTenantId(Astro.request);
                 const container = document.getElementById("productsList");
 
                 const onCategoryChange = async (productId, categoryId, type) => {
-                    await updateProductCategory(productId, categoryId, type);
+                    await window.updateProductCategoryInternal(productId, categoryId, type);
                 };
 
                 const onDelete = async (productId, productName, type) => {
@@ -2728,8 +3031,8 @@ const tenantId = getTenantId(Astro.request);
                 }
             };
 
-            // Update product category
-            window.updateProductCategory = async function (
+            // Update product category (internal function)
+            window.updateProductCategoryInternal = async function (
                 productId,
                 categoryId,
                 productType,
@@ -3051,5 +3354,95 @@ const tenantId = getTenantId(Astro.request);
                 setInterval(loadOrdersByCategory, 30000);
             });
         </script>
+    </div>
+
+    <!-- Assign Supplier Modal -->
+    <div
+        id="assignSupplierModal"
+        class="fixed inset-0 z-50 hidden"
+        style="display: none; pointer-events: none;"
+    >
+        <!-- Backdrop -->
+        <div
+            class="absolute inset-0 bg-black bg-opacity-50"
+            style="pointer-events: auto;"
+            onclick="closeSupplierModal()"
+        >
+        </div>
+
+        <!-- Modal Content -->
+        <div
+            class="relative z-10 flex items-center justify-center min-h-full p-4"
+            style="pointer-events: none;"
+        >
+            <div
+                class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full overflow-hidden flex flex-col max-h-[90vh]"
+                style="pointer-events: auto;"
+            >
+                <!-- Header - Fixed -->
+                <div
+                    class="p-6 border-b dark:border-gray-700 flex-shrink-0"
+                >
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">
+                            Назначить поставщика
+                        </h3>
+                        <button
+                            onclick="closeSupplierModal(); return false;"
+                            type="button"
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            ✕
+                        </button>
+                    </div>
+                    <p
+                        class="text-sm text-gray-600 dark:text-gray-400 mt-2"
+                        id="supplierModalCategoryName"
+                    >
+                        Категория: -
+                    </p>
+                </div>
+
+                <!-- Scrollable content -->
+                <div class="flex-1 overflow-y-auto p-6">
+                    <div id="suppliersList">
+                        <!-- Loading spinner -->
+                        <div class="text-center py-8">
+                            <div
+                                class="animate-spin h-8 w-8 border-b-2 border-primary rounded-full mx-auto mb-4"
+                            >
+                            </div>
+                            <p class="text-muted-foreground">
+                                Загрузка поставщиков...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer - Fixed -->
+                <div
+                    class="p-6 border-t dark:border-gray-700 flex-shrink-0"
+                >
+                    <div class="flex space-x-3">
+                        <button
+                            onclick="assignSelectedSupplier(); return false;"
+                            type="button"
+                            class="flex-1 px-4 py-2 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            id="assignSupplierBtn"
+                            disabled
+                        >
+                            Назначить
+                        </button>
+                        <button
+                            onclick="closeSupplierModal(); return false;"
+                            type="button"
+                            class="flex-1 px-4 py-2 bg-secondary hover:bg-secondary/90 text-secondary-foreground font-medium rounded-lg transition-colors"
+                        >
+                            Отмена
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </Layout>
