@@ -33,7 +33,6 @@ export const POSTER_CONFIG: PosterConfig = {
     // Menu/Products
     getProducts: '/menu.getProducts',
     getCategories: '/menu.getCategories',
-    getIngredients: '/menu.getIngredients',
 
     // Storage
     getStorages: '/storage.getStorages',
