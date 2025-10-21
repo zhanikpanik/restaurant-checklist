@@ -92,7 +92,9 @@ export interface OrderItem {
   unit?: string;
   category?: string;
   supplier?: string;
+  supplier_id?: number | string;
   poster_id?: string;
+  productId?: number;
 }
 
 export interface Order {
