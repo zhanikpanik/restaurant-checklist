@@ -33,8 +33,8 @@ export default function HomePage() {
 
   const getCurrentTenant = () => {
     const cookies = document.cookie.split(";");
-    const tenantCookie = cookies.find((c) => c.trim().startsWith("tenant="));
-    return tenantCookie ? tenantCookie.split("=")[1].trim() : "unknown";
+    const restaurantCookie = cookies.find((c) => c.trim().startsWith("restaurant_id="));
+    return restaurantCookie ? restaurantCookie.split("=")[1].trim() : "unknown";
   };
 
   const loadTenantInfo = async () => {

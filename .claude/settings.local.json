@@ -43,7 +43,9 @@
       "Bash(taskkill:*)",
       "Bash(npm run build:*)",
       "Bash(git rm:*)",
-      "Bash(railway restart:*)"
+      "Bash(railway restart:*)",
+      "WebFetch(domain:docs.railway.com)",
+      "WebFetch(domain:restaurant-checklist-production.up.railway.app)"
     ],
     "deny": [],
     "ask": []
