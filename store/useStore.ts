@@ -138,23 +138,44 @@ export const useStore = create<AppState>()(
 );
 
 // Selector hooks for common use cases
-export const useCart = () => useStore((state) => ({
-  items: state.cart,
-  add: state.addToCart,
-  remove: state.removeFromCart,
-  updateQuantity: state.updateCartItemQuantity,
-  clear: state.clearCart,
-  count: state.getCartCount(),
-}));
+export const useCart = () => {
+  const items = useStore((state) => state.cart);
+  const add = useStore((state) => state.addToCart);
+  const remove = useStore((state) => state.removeFromCart);
+  const updateQuantity = useStore((state) => state.updateCartItemQuantity);
+  const clear = useStore((state) => state.clearCart);
+  const getCartCount = useStore((state) => state.getCartCount);
 
-export const useRestaurant = () => useStore((state) => ({
-  current: state.currentRestaurant,
-  setCurrent: state.setCurrentRestaurant,
-}));
+  return {
+    items,
+    add,
+    remove,
+    updateQuantity,
+    clear,
+    count: getCartCount(),
+  };
+};
 
-export const useSections = () => useStore((state) => ({
-  all: state.sections,
-  current: state.currentSection,
-  setAll: state.setSections,
-  setCurrent: state.setCurrentSection,
-}));
+export const useRestaurant = () => {
+  const current = useStore((state) => state.currentRestaurant);
+  const setCurrent = useStore((state) => state.setCurrentRestaurant);
+
+  return {
+    current,
+    setCurrent,
+  };
+};
+
+export const useSections = () => {
+  const all = useStore((state) => state.sections);
+  const current = useStore((state) => state.currentSection);
+  const setAll = useStore((state) => state.setSections);
+  const setCurrent = useStore((state) => state.setCurrentSection);
+
+  return {
+    all,
+    current,
+    setAll,
+    setCurrent,
+  };
+};

@@ -5,8 +5,8 @@ import type { Product, ApiResponse } from "@/types";
 // GET /api/products - Get all products
 export async function GET(request: NextRequest) {
   try {
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    const restaurantCookie = request.cookies.get("restaurant_id");
+    const restaurantId = restaurantCookie?.value || "default";
 
     const { searchParams } = new URL(request.url);
     const department = searchParams.get("department");
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       LEFT JOIN suppliers s ON p.supplier_id = s.id
       WHERE p.restaurant_id = $1
     `;
-    const params: any[] = [tenant];
+    const params: any[] = [restaurantId];
 
     if (department) {
       query += ` AND p.department = $${params.length + 1}`;
@@ -63,8 +63,8 @@ export async function GET(request: NextRequest) {
 // POST /api/products - Create new product
 export async function POST(request: NextRequest) {
   try {
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    const restaurantCookie = request.cookies.get("restaurant_id");
+    const restaurantId = restaurantCookie?.value || "default";
 
     const productData = await request.json();
 
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     const existingCheck = await pool.query(
       `SELECT id FROM products
        WHERE restaurant_id = $1 AND name = $2 AND department = $3`,
-      [tenant, productData.name, productData.department || null]
+      [restaurantId, productData.name, productData.department || null]
     );
 
     if (existingCheck.rows.length > 0) {
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
       [
-        tenant,
+        restaurantId,
         productData.name,
         productData.category_id || null,
         productData.supplier_id || null,
@@ -140,8 +140,8 @@ export async function POST(request: NextRequest) {
 // PATCH /api/products - Update product
 export async function PATCH(request: NextRequest) {
   try {
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    const restaurantCookie = request.cookies.get("restaurant_id");
+    const restaurantId = restaurantCookie?.value || "default";
 
     const { id, ...updateData } = await request.json();
 
@@ -189,7 +189,7 @@ export async function PATCH(request: NextRequest) {
 
     const result = await pool.query<Product>(
       query,
-      [id, tenant, ...values]
+      [id, restaurantId, ...values]
     );
 
     if (result.rowCount === 0) {
@@ -229,8 +229,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    const restaurantCookie = request.cookies.get("restaurant_id");
+    const restaurantId = restaurantCookie?.value || "default";
 
     if (!pool) {
       return NextResponse.json<ApiResponse>(
@@ -243,7 +243,7 @@ export async function DELETE(request: NextRequest) {
       `DELETE FROM products
        WHERE id = $1 AND restaurant_id = $2
        RETURNING id`,
-      [productId, tenant]
+      [productId, restaurantId]
     );
 
     if (result.rowCount === 0) {

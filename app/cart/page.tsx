@@ -29,6 +29,17 @@ export default function CartPage() {
 
     setIsSubmitting(true);
     try {
+      // Format items to ensure all required fields are present
+      const formattedItems = cart.items.map(item => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit || "шт", // Default to "шт" if not specified
+        category: item.category,
+        supplier: item.supplier,
+        poster_id: item.poster_id,
+        productId: item.productId,
+      }));
+
       const response = await fetch("/api/orders", {
         method: "POST",
         headers: {
@@ -36,7 +47,7 @@ export default function CartPage() {
         },
         body: JSON.stringify({
           department: "general",
-          items: cart.items,
+          items: formattedItems,
           notes: notes,
           created_by: "user",
         }),

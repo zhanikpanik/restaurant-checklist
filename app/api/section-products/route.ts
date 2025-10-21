@@ -3,10 +3,6 @@ import pool from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   try {
-    // Get restaurant_id from cookie
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
-
     if (!pool) {
       return NextResponse.json(
         { success: false, error: "Database connection not available" },
@@ -14,20 +10,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch sections for the current restaurant
     const result = await pool.query(
       `SELECT
-        s.id,
-        s.name,
-        s.emoji,
-        s.poster_storage_id,
-        COUNT(cp.id) as custom_products_count
-      FROM sections s
-      LEFT JOIN custom_products cp ON cp.section_id = s.id
-      WHERE s.restaurant_id = $1
-      GROUP BY s.id, s.name, s.emoji, s.poster_storage_id
-      ORDER BY s.name`,
-      [restaurantId]
+        sp.id,
+        sp.name,
+        sp.unit,
+        sp.poster_ingredient_id,
+        sp.section_id,
+        sp.category_id,
+        sp.is_active,
+        pc.name as category_name,
+        s.name as section_name
+      FROM section_products sp
+      LEFT JOIN product_categories pc ON sp.category_id = pc.id
+      LEFT JOIN sections s ON sp.section_id = s.id
+      ORDER BY sp.name`
     );
 
     return NextResponse.json({
@@ -35,7 +32,7 @@ export async function GET(request: NextRequest) {
       data: result.rows,
     });
   } catch (error) {
-    console.error("Error fetching sections:", error);
+    console.error("Error fetching section products:", error);
     return NextResponse.json(
       {
         success: false,
@@ -48,9 +45,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
-
     if (!pool) {
       return NextResponse.json(
         { success: false, error: "Database connection not available" },
@@ -59,29 +53,29 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, emoji, poster_storage_id } = body;
+    const { name, unit, section_id, category_id, is_active } = body;
 
-    if (!name) {
+    if (!name || !section_id) {
       return NextResponse.json(
-        { success: false, error: "Name is required" },
+        { success: false, error: "Name and section_id are required" },
         { status: 400 }
       );
     }
 
     const result = await pool.query(
-      `INSERT INTO sections (restaurant_id, name, emoji, poster_storage_id)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO section_products (name, unit, section_id, category_id, is_active)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [restaurantId, name, emoji || null, poster_storage_id || null]
+      [name, unit || null, section_id, category_id || null, is_active !== false]
     );
 
     return NextResponse.json({
       success: true,
       data: result.rows[0],
-      message: "Section created successfully",
+      message: "Product created successfully",
     });
   } catch (error) {
-    console.error("Error creating section:", error);
+    console.error("Error creating product:", error);
     return NextResponse.json(
       {
         success: false,
@@ -94,9 +88,6 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
-
     if (!pool) {
       return NextResponse.json(
         { success: false, error: "Database connection not available" },
@@ -105,29 +96,31 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, name, emoji, poster_storage_id } = body;
+    const { id, name, unit, section_id, category_id, is_active } = body;
 
     if (!id) {
       return NextResponse.json(
-        { success: false, error: "Section ID is required" },
+        { success: false, error: "Product ID is required" },
         { status: 400 }
       );
     }
 
     const result = await pool.query(
-      `UPDATE sections
+      `UPDATE section_products
        SET name = COALESCE($1, name),
-           emoji = COALESCE($2, emoji),
-           poster_storage_id = COALESCE($3, poster_storage_id),
+           unit = COALESCE($2, unit),
+           section_id = COALESCE($3, section_id),
+           category_id = COALESCE($4, category_id),
+           is_active = COALESCE($5, is_active),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 AND restaurant_id = $5
+       WHERE id = $6
        RETURNING *`,
-      [name, emoji, poster_storage_id, id, restaurantId]
+      [name, unit, section_id, category_id, is_active, id]
     );
 
     if (result.rowCount === 0) {
       return NextResponse.json(
-        { success: false, error: "Section not found" },
+        { success: false, error: "Product not found" },
         { status: 404 }
       );
     }
@@ -135,10 +128,10 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: result.rows[0],
-      message: "Section updated successfully",
+      message: "Product updated successfully",
     });
   } catch (error) {
-    console.error("Error updating section:", error);
+    console.error("Error updating product:", error);
     return NextResponse.json(
       {
         success: false,
@@ -152,17 +145,14 @@ export async function PATCH(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const sectionId = searchParams.get("id");
+    const productId = searchParams.get("id");
 
-    if (!sectionId) {
+    if (!productId) {
       return NextResponse.json(
-        { success: false, error: "Section ID is required" },
+        { success: false, error: "Product ID is required" },
         { status: 400 }
       );
     }
-
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
 
     if (!pool) {
       return NextResponse.json(
@@ -171,39 +161,37 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Check if section is from Poster
+    // Check if product is from Poster
     const checkResult = await pool.query(
-      `SELECT poster_storage_id FROM sections WHERE id = $1 AND restaurant_id = $2`,
-      [sectionId, restaurantId]
+      `SELECT poster_ingredient_id FROM section_products WHERE id = $1`,
+      [productId]
     );
 
-    if (checkResult.rows.length > 0 && checkResult.rows[0].poster_storage_id) {
+    if (checkResult.rows.length > 0 && checkResult.rows[0].poster_ingredient_id) {
       return NextResponse.json(
-        { success: false, error: "Невозможно удалить секцию из Poster" },
+        { success: false, error: "Невозможно удалить товар из Poster" },
         { status: 403 }
       );
     }
 
     const result = await pool.query(
-      `DELETE FROM sections
-       WHERE id = $1 AND restaurant_id = $2
-       RETURNING id`,
-      [sectionId, restaurantId]
+      `DELETE FROM section_products WHERE id = $1 RETURNING id`,
+      [productId]
     );
 
     if (result.rowCount === 0) {
       return NextResponse.json(
-        { success: false, error: "Section not found" },
+        { success: false, error: "Product not found" },
         { status: 404 }
       );
     }
 
     return NextResponse.json({
       success: true,
-      message: "Section deleted successfully",
+      message: "Product deleted successfully",
     });
   } catch (error) {
-    console.error("Error deleting section:", error);
+    console.error("Error deleting product:", error);
     return NextResponse.json(
       {
         success: false,

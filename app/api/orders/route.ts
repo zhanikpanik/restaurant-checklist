@@ -101,7 +101,9 @@ export async function POST(request: NextRequest) {
           unit: item.unit,
           category: item.category || item.categoryName || null,
           supplier: item.supplier || null,
+          supplier_id: item.supplier_id || null,
           poster_id: item.poster_id || null,
+          productId: item.productId || null,
         } as OrderItem;
       }),
       department: orderData.department,
@@ -131,6 +133,63 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error creating order:", error);
+    return NextResponse.json<ApiResponse>(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/orders - Update order
+export async function PATCH(request: NextRequest) {
+  try {
+    const tenantCookie = request.cookies.get("tenant");
+    const tenant = tenantCookie?.value || "default";
+
+    const body = await request.json();
+    const { id, status, order_data } = body;
+
+    if (!id) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: "Order ID is required" },
+        { status: 400 }
+      );
+    }
+
+    if (!pool) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: "Database connection not available" },
+        { status: 500 }
+      );
+    }
+
+    const result = await pool.query<Order>(
+      `UPDATE orders
+       SET status = COALESCE($1, status),
+           order_data = COALESCE($2, order_data),
+           delivered_at = CASE WHEN $1 = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END
+       WHERE id = $3 AND restaurant_id = $4
+       RETURNING *`,
+      [status, order_data ? JSON.stringify(order_data) : null, id, tenant]
+    );
+
+    if (result.rowCount === 0) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: "Order not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json<ApiResponse<Order>>({
+      success: true,
+      data: result.rows[0],
+      message: "Order updated successfully",
+    });
+  } catch (error) {
+    console.error("Error updating order:", error);
     return NextResponse.json<ApiResponse>(
       {
         success: false,
