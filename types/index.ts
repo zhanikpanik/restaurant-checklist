@@ -13,8 +13,8 @@ export interface Restaurant {
 
 // Section Types
 export interface Section {
-  id: string;
-  tenant_id: string;
+  id: number;
+  tenant_id?: string;
   restaurant_id?: string;
   name: string;
   emoji: string;
