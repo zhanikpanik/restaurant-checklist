@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/store/useStore";
@@ -18,7 +18,7 @@ interface ProductQuantity {
   [productId: number]: number;
 }
 
-export default function CustomPage() {
+function CustomPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const cart = useCart();
@@ -360,5 +360,17 @@ export default function CustomPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function CustomPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500" />
+      </div>
+    }>
+      <CustomPageContent />
+    </Suspense>
   );
 }
