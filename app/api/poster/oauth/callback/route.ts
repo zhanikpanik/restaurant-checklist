@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 export async function GET(request: NextRequest) {
+  // Helper to build proper redirect URL
+  const getRedirectUrl = (path: string) => {
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'restaurant-checklist-production.up.railway.app';
+    return `${protocol}://${host}${path}`;
+  };
+
   try {
     const { searchParams } = new URL(request.url);
     const code = searchParams.get("code");
@@ -15,17 +22,17 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("❌ OAuth error:", error);
-      return NextResponse.redirect(new URL(`/setup?error=${encodeURIComponent(error)}`, request.url));
+      return NextResponse.redirect(getRedirectUrl(`/setup?error=${encodeURIComponent(error)}`));
     }
 
     if (!code) {
       console.error("❌ No code received");
-      return NextResponse.redirect(new URL("/setup?error=no_code", request.url));
+      return NextResponse.redirect(getRedirectUrl("/setup?error=no_code"));
     }
 
     if (!account) {
       console.error("❌ No account received");
-      return NextResponse.redirect(new URL("/setup?error=no_account", request.url));
+      return NextResponse.redirect(getRedirectUrl("/setup?error=no_account"));
     }
 
     // Exchange code for token
@@ -49,7 +56,7 @@ export async function GET(request: NextRequest) {
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
       console.error("❌ Token exchange failed:", errorText);
-      return NextResponse.redirect(new URL("/setup?error=token_exchange_failed", request.url));
+      return NextResponse.redirect(getRedirectUrl("/setup?error=token_exchange_failed"));
     }
 
     const tokenData = await tokenResponse.json();
@@ -60,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     if (!access_token) {
       console.error("❌ No access token received");
-      return NextResponse.redirect(new URL("/setup?error=no_token", request.url));
+      return NextResponse.redirect(getRedirectUrl("/setup?error=no_token"));
     }
 
     console.log(`✅ Using token format: ${access_token.substring(0, 10)}...`);
@@ -75,7 +82,7 @@ export async function GET(request: NextRequest) {
     const restaurantId = account_number || `restaurant_${Date.now()}`;
 
     if (!pool) {
-      return NextResponse.redirect(new URL("/setup?error=database_error", request.url));
+      return NextResponse.redirect(getRedirectUrl("/setup?error=database_error"));
     }
 
     // Store restaurant in database
@@ -128,7 +135,7 @@ export async function GET(request: NextRequest) {
 
       await client.query("COMMIT");
 
-      const response = NextResponse.redirect(new URL(`/setup?success=oauth`, request.url));
+      const response = NextResponse.redirect(getRedirectUrl("/setup?success=oauth"));
       response.cookies.set("restaurant_id", restaurantId, {
         path: "/",
         maxAge: 31536000,
@@ -140,12 +147,12 @@ export async function GET(request: NextRequest) {
     } catch (dbError) {
       await client.query("ROLLBACK");
       console.error("❌ Database error:", dbError);
-      return NextResponse.redirect(new URL("/setup?error=database_error", request.url));
+      return NextResponse.redirect(getRedirectUrl("/setup?error=database_error"));
     } finally {
       client.release();
     }
   } catch (error) {
     console.error("❌ OAuth callback error:", error);
-    return NextResponse.redirect(new URL("/setup?error=unknown", request.url));
+    return NextResponse.redirect(getRedirectUrl("/setup?error=unknown"));
   }
 }
