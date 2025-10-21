@@ -204,7 +204,7 @@ export default function ManagerPage() {
       id: section.id,
       name: section.name,
       emoji: section.emoji || "📦",
-      poster_storage_id: section.poster_storage_id,
+      poster_storage_id: section.poster_storage_id ?? null,
     });
     setShowSectionModal(true);
   };
