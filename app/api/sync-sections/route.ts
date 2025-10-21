@@ -13,6 +13,13 @@ export async function GET(request: NextRequest) {
 
     const restaurantId = restaurantCookie.value;
 
+    if (!pool) {
+      return NextResponse.json(
+        { success: false, error: "Database connection error" },
+        { status: 500 }
+      );
+    }
+
     // Get restaurant's Poster token
     const restaurantResult = await pool.query(
       "SELECT poster_token, poster_account_name FROM restaurants WHERE id = $1",
