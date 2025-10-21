@@ -20,9 +20,12 @@ export async function GET(request: NextRequest) {
         sp.category_id,
         sp.is_active,
         pc.name as category_name,
+        pc.supplier_id,
+        sup.name as supplier_name,
         s.name as section_name
       FROM section_products sp
       LEFT JOIN product_categories pc ON sp.category_id = pc.id
+      LEFT JOIN suppliers sup ON pc.supplier_id = sup.id
       LEFT JOIN sections s ON sp.section_id = s.id
       ORDER BY sp.name`
     );

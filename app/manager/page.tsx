@@ -38,6 +38,8 @@ export default function ManagerPage() {
   const [editingSection, setEditingSection] = useState<SectionFormData | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
 
   useEffect(() => {
     loadData();
@@ -306,6 +308,39 @@ export default function ManagerPage() {
     } catch (error) {
       console.error("Error deleting section:", error);
       alert("Ошибка при удалении секции");
+    }
+  };
+
+  const handleEditCategory = (category: ProductCategory) => {
+    setEditingCategory(category);
+    setShowCategoryModal(true);
+  };
+
+  const handleSaveCategory = async () => {
+    if (!editingCategory) return;
+
+    try {
+      const response = await fetch("/api/categories", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editingCategory.id,
+          supplier_id: editingCategory.supplier_id || null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShowCategoryModal(false);
+        setEditingCategory(null);
+        loadData(); // Reload categories
+      } else {
+        alert(data.error || "Ошибка при сохранении категории");
+      }
+    } catch (error) {
+      console.error("Error saving category:", error);
+      alert("Ошибка при сохранении категории");
     }
   };
 
@@ -629,19 +664,33 @@ export default function ManagerPage() {
                           key={category.id}
                           className="border rounded-lg p-4 hover:bg-gray-50"
                         >
-                          <h3 className="font-medium text-gray-900">
-                            {category.name}
-                          </h3>
-                          {category.supplier_id && (
-                            <p className="text-sm text-gray-500 mt-1">
-                              Поставщик ID: {category.supplier_id}
-                            </p>
-                          )}
-                          {(category as any).poster_category_id && (
-                            <p className="text-xs text-gray-400 italic mt-1">
-                              Из Poster (ID: {(category as any).poster_category_id})
-                            </p>
-                          )}
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h3 className="font-medium text-gray-900">
+                                {category.name}
+                              </h3>
+                              {(category as any).supplier_name ? (
+                                <p className="text-sm text-gray-600 mt-1">
+                                  📦 Поставщик: {(category as any).supplier_name}
+                                </p>
+                              ) : (
+                                <p className="text-sm text-gray-400 mt-1">
+                                  Поставщик не назначен
+                                </p>
+                              )}
+                              {(category as any).poster_category_id && (
+                                <p className="text-xs text-gray-400 italic mt-1">
+                                  Из Poster (ID: {(category as any).poster_category_id})
+                                </p>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleEditCategory(category)}
+                              className="ml-3 px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                            >
+                              Назначить поставщика
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1119,6 +1168,63 @@ export default function ManagerPage() {
                   <p className="text-sm text-yellow-700">{selectedOrder.order_data.notes}</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Edit Modal */}
+      {showCategoryModal && editingCategory && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="border-b px-6 py-4">
+              <h2 className="text-xl font-semibold">Назначить поставщика</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Категория: {editingCategory.name}
+              </p>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Выберите поставщика
+                  </label>
+                  <select
+                    value={editingCategory.supplier_id || ""}
+                    onChange={(e) => setEditingCategory({
+                      ...editingCategory,
+                      supplier_id: e.target.value ? Number(e.target.value) : undefined
+                    })}
+                    className="w-full border rounded-lg px-3 py-2"
+                  >
+                    <option value="">Без поставщика</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowCategoryModal(false);
+                      setEditingCategory(null);
+                    }}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleSaveCategory}
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Сохранить
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

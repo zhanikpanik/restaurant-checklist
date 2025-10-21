@@ -104,7 +104,8 @@ function CustomPageContent() {
       quantity: 1,
       unit: product.unit,
       category: product.category_name,
-      supplier: "",
+      supplier: (product as any).supplier_name || "",
+      supplier_id: (product as any).supplier_id,
       poster_id: product.poster_ingredient_id,
     });
   };
