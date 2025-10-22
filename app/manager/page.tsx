@@ -23,6 +23,19 @@ interface SectionFormData {
   poster_storage_id: number | null;
 }
 
+interface SupplierFormData {
+  id?: number;
+  name: string;
+  phone: string;
+  contact_info: string;
+}
+
+interface CategoryFormData {
+  id?: number;
+  name: string;
+  supplier_id: number | null;
+}
+
 export default function ManagerPage() {
   const restaurant = useRestaurant();
   const [activeTab, setActiveTab] = useState<TabType>("orders");
@@ -39,7 +52,9 @@ export default function ManagerPage() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null);
+  const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
+  const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<SupplierFormData | null>(null);
 
   useEffect(() => {
     loadData();
@@ -320,13 +335,13 @@ export default function ManagerPage() {
     if (!editingCategory) return;
 
     try {
-      const response = await fetch("/api/categories", {
-        method: "PATCH",
+      const url = "/api/categories";
+      const method = editingCategory.id ? "PATCH" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: editingCategory.id,
-          supplier_id: editingCategory.supplier_id || null,
-        }),
+        body: JSON.stringify(editingCategory),
       });
 
       const data = await response.json();
@@ -341,6 +356,101 @@ export default function ManagerPage() {
     } catch (error) {
       console.error("Error saving category:", error);
       alert("Ошибка при сохранении категории");
+    }
+  };
+
+  const handleCreateCategory = () => {
+    setEditingCategory({
+      name: "",
+      supplier_id: null,
+    });
+    setShowCategoryModal(true);
+  };
+
+  const handleDeleteCategory = async (categoryId: number) => {
+    if (!confirm("Удалить эту категорию?")) return;
+
+    try {
+      const response = await fetch(`/api/categories?id=${categoryId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setCategories(categories.filter(c => c.id !== categoryId));
+      } else {
+        alert(data.error || "Ошибка при удалении категории");
+      }
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      alert("Ошибка при удалении категории");
+    }
+  };
+
+  const handleCreateSupplier = () => {
+    setEditingSupplier({
+      name: "",
+      phone: "",
+      contact_info: "",
+    });
+    setShowSupplierModal(true);
+  };
+
+  const handleEditSupplier = (supplier: Supplier) => {
+    setEditingSupplier({
+      id: supplier.id,
+      name: supplier.name,
+      phone: supplier.phone || "",
+      contact_info: supplier.contact_info || "",
+    });
+    setShowSupplierModal(true);
+  };
+
+  const handleSaveSupplier = async () => {
+    if (!editingSupplier) return;
+
+    try {
+      const url = "/api/suppliers";
+      const method = editingSupplier.id ? "PATCH" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingSupplier),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShowSupplierModal(false);
+        setEditingSupplier(null);
+        loadData(); // Reload suppliers
+      } else {
+        alert(data.error || "Ошибка при сохранении поставщика");
+      }
+    } catch (error) {
+      console.error("Error saving supplier:", error);
+      alert("Ошибка при сохранении поставщика");
+    }
+  };
+
+  const handleDeleteSupplier = async (supplierId: number) => {
+    if (!confirm("Удалить этого поставщика?")) return;
+
+    try {
+      const response = await fetch(`/api/suppliers?id=${supplierId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setSuppliers(suppliers.filter(s => s.id !== supplierId));
+      } else {
+        alert(data.error || "Ошибка при удалении поставщика");
+      }
+    } catch (error) {
+      console.error("Error deleting supplier:", error);
+      alert("Ошибка при удалении поставщика");
     }
   };
 
@@ -601,9 +711,17 @@ export default function ManagerPage() {
               {/* Suppliers Tab */}
               {activeTab === "suppliers" && (
                 <div className="p-6">
-                  <h2 className="text-lg font-semibold mb-4">
-                    Поставщики ({suppliers.length})
-                  </h2>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold">
+                      Поставщики ({suppliers.length})
+                    </h2>
+                    <button
+                      onClick={handleCreateSupplier}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      ➕ Добавить поставщика
+                    </button>
+                  </div>
                   {suppliers.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">
                       Нет поставщиков
@@ -613,7 +731,7 @@ export default function ManagerPage() {
                       {suppliers.map((supplier) => (
                         <div
                           key={supplier.id}
-                          className="border rounded-lg p-4 hover:bg-gray-50"
+                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
                         >
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
@@ -634,6 +752,22 @@ export default function ManagerPage() {
                                 <p className="text-xs text-gray-400 italic mt-1">
                                   Из Poster (ID: {(supplier as any).poster_supplier_id})
                                 </p>
+                              )}
+                            </div>
+                            <div className="flex gap-2 ml-3">
+                              <button
+                                onClick={() => handleEditSupplier(supplier)}
+                                className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                              >
+                                Редактировать
+                              </button>
+                              {!(supplier as any).poster_supplier_id && (
+                                <button
+                                  onClick={() => handleDeleteSupplier(supplier.id)}
+                                  className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                                >
+                                  Удалить
+                                </button>
                               )}
                             </div>
                           </div>
@@ -714,9 +848,17 @@ export default function ManagerPage() {
               {/* Categories Tab */}
               {activeTab === "categories" && (
                 <div className="p-6">
-                  <h2 className="text-lg font-semibold mb-4">
-                    Категории товаров ({categories.length})
-                  </h2>
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold">
+                      Категории товаров ({categories.length})
+                    </h2>
+                    <button
+                      onClick={handleCreateCategory}
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      ➕ Добавить категорию
+                    </button>
+                  </div>
                   {categories.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">
                       Нет категорий
@@ -726,7 +868,7 @@ export default function ManagerPage() {
                       {categories.map((category) => (
                         <div
                           key={category.id}
-                          className="border rounded-lg p-4 hover:bg-gray-50"
+                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
                         >
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
@@ -748,12 +890,22 @@ export default function ManagerPage() {
                                 </p>
                               )}
                             </div>
-                            <button
-                              onClick={() => handleEditCategory(category)}
-                              className="ml-3 px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                            >
-                              Назначить поставщика
-                            </button>
+                            <div className="flex gap-2 ml-3">
+                              <button
+                                onClick={() => handleEditCategory(category)}
+                                className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
+                              >
+                                Редактировать
+                              </button>
+                              {!(category as any).poster_category_id && (
+                                <button
+                                  onClick={() => handleDeleteCategory(category.id)}
+                                  className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                                >
+                                  Удалить
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1314,27 +1466,43 @@ export default function ManagerPage() {
       )}
 
       {/* Category Edit Modal */}
+      {/* Category Modal */}
       {showCategoryModal && editingCategory && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full">
             <div className="border-b px-6 py-4">
-              <h2 className="text-xl font-semibold">Назначить поставщика</h2>
-              <p className="text-sm text-gray-500 mt-1">
-                Категория: {editingCategory.name}
-              </p>
+              <h2 className="text-xl font-semibold">
+                {editingCategory.id ? "Редактировать категорию" : "Создать категорию"}
+              </h2>
             </div>
 
             <div className="p-6">
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Выберите поставщика
+                    Название категории
+                  </label>
+                  <input
+                    type="text"
+                    value={editingCategory.name}
+                    onChange={(e) => setEditingCategory({
+                      ...editingCategory,
+                      name: e.target.value
+                    })}
+                    className="w-full border rounded-lg px-3 py-2"
+                    placeholder="Название"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Поставщик
                   </label>
                   <select
                     value={editingCategory.supplier_id || ""}
                     onChange={(e) => setEditingCategory({
                       ...editingCategory,
-                      supplier_id: e.target.value ? Number(e.target.value) : undefined
+                      supplier_id: e.target.value ? Number(e.target.value) : null
                     })}
                     className="w-full border rounded-lg px-3 py-2"
                   >
@@ -1359,6 +1527,89 @@ export default function ManagerPage() {
                   </button>
                   <button
                     onClick={handleSaveCategory}
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Сохранить
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Supplier Modal */}
+      {showSupplierModal && editingSupplier && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="border-b px-6 py-4">
+              <h2 className="text-xl font-semibold">
+                {editingSupplier.id ? "Редактировать поставщика" : "Создать поставщика"}
+              </h2>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Название
+                  </label>
+                  <input
+                    type="text"
+                    value={editingSupplier.name}
+                    onChange={(e) => setEditingSupplier({
+                      ...editingSupplier,
+                      name: e.target.value
+                    })}
+                    className="w-full border rounded-lg px-3 py-2"
+                    placeholder="Название"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Телефон
+                  </label>
+                  <input
+                    type="text"
+                    value={editingSupplier.phone}
+                    onChange={(e) => setEditingSupplier({
+                      ...editingSupplier,
+                      phone: e.target.value
+                    })}
+                    className="w-full border rounded-lg px-3 py-2"
+                    placeholder="+7 XXX XXX XX XX"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Контактная информация
+                  </label>
+                  <textarea
+                    value={editingSupplier.contact_info}
+                    onChange={(e) => setEditingSupplier({
+                      ...editingSupplier,
+                      contact_info: e.target.value
+                    })}
+                    className="w-full border rounded-lg px-3 py-2"
+                    placeholder="Email, адрес, примечания..."
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <button
+                    onClick={() => {
+                      setShowSupplierModal(false);
+                      setEditingSupplier(null);
+                    }}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleSaveSupplier}
                     className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors"
                   >
                     Сохранить

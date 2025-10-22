@@ -168,3 +168,76 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+// DELETE /api/categories - Delete category
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const categoryId = searchParams.get("id");
+
+    if (!categoryId) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: "Category ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const restaurantCookie = request.cookies.get("restaurant_id");
+    const restaurantId = restaurantCookie?.value || "default";
+
+    if (!pool) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: "Database connection not available" },
+        { status: 500 }
+      );
+    }
+
+    // Check if category has associated products
+    const associatedCheck = await pool.query(
+      `SELECT COUNT(*) as products_count
+       FROM section_products
+       WHERE category_id = $1`,
+      [categoryId]
+    );
+
+    const { products_count } = associatedCheck.rows[0];
+
+    if (parseInt(products_count) > 0) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          error: `Cannot delete category with ${products_count} products`,
+        },
+        { status: 409 }
+      );
+    }
+
+    const result = await pool.query(
+      `DELETE FROM product_categories
+       WHERE id = $1 AND restaurant_id = $2
+       RETURNING id`,
+      [categoryId, restaurantId]
+    );
+
+    if (result.rowCount === 0) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: "Category not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json<ApiResponse>({
+      success: true,
+      message: "Category deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting category:", error);
+    return NextResponse.json<ApiResponse>(
+      {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
+  }
+}

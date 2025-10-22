@@ -5,8 +5,8 @@ import type { Supplier, ApiResponse } from "@/types";
 // GET /api/suppliers - Get all suppliers
 export async function GET(request: NextRequest) {
   try {
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    const restaurantCookie = request.cookies.get("restaurant_id");
+    const restaurantId = restaurantCookie?.value || "default";
 
     if (!pool) {
       return NextResponse.json(
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
        WHERE s.restaurant_id = $1
        GROUP BY s.id
        ORDER BY s.name`,
-      [tenant]
+      [restaurantId]
     );
 
     return NextResponse.json<ApiResponse<Supplier[]>>({
@@ -47,8 +47,8 @@ export async function GET(request: NextRequest) {
 // POST /api/suppliers - Create new supplier
 export async function POST(request: NextRequest) {
   try {
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    const restaurantCookie = request.cookies.get("restaurant_id");
+    const restaurantId = restaurantCookie?.value || "default";
 
     const supplierData = await request.json();
 
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     const existingCheck = await pool.query(
       `SELECT id FROM suppliers
        WHERE restaurant_id = $1 AND name = $2`,
-      [tenant, supplierData.name]
+      [restaurantId, supplierData.name]
     );
 
     if (existingCheck.rows.length > 0) {
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
       [
-        tenant,
+        restaurantId,
         supplierData.name,
         supplierData.phone || null,
         supplierData.contact_info || null,
@@ -122,8 +122,8 @@ export async function POST(request: NextRequest) {
 // PATCH /api/suppliers - Update supplier
 export async function PATCH(request: NextRequest) {
   try {
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    const restaurantCookie = request.cookies.get("restaurant_id");
+    const restaurantId = restaurantCookie?.value || "default";
 
     const { id, ...updateData } = await request.json();
 
@@ -171,7 +171,7 @@ export async function PATCH(request: NextRequest) {
 
     const result = await pool.query<Supplier>(
       query,
-      [id, tenant, ...values]
+      [id, restaurantId, ...values]
     );
 
     if (result.rowCount === 0) {
@@ -211,8 +211,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    const restaurantCookie = request.cookies.get("restaurant_id");
+    const restaurantId = restaurantCookie?.value || "default";
 
     if (!pool) {
       return NextResponse.json<ApiResponse>(
@@ -245,7 +245,7 @@ export async function DELETE(request: NextRequest) {
       `DELETE FROM suppliers
        WHERE id = $1 AND restaurant_id = $2
        RETURNING id`,
-      [supplierId, tenant]
+      [supplierId, restaurantId]
     );
 
     if (result.rowCount === 0) {
