@@ -472,8 +472,8 @@ export default function ManagerPage() {
             <>
               {/* Orders Tab */}
               {activeTab === "orders" && (
-                <div className="p-6">
-                  <h2 className="text-lg font-semibold mb-4">
+                <div className="p-4">
+                  <h2 className="text-lg font-semibold mb-4 px-2">
                     Все заказы ({orders.length})
                   </h2>
                   {orders.length === 0 ? (
@@ -481,68 +481,67 @@ export default function ManagerPage() {
                       Нет заказов
                     </p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              ID
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Дата
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Отдел
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Товаров
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Статус
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Действия
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {orders.map((order) => (
-                            <tr key={order.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm text-gray-900">
+                    <div className="space-y-3">
+                      {orders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-all shadow-sm"
+                        >
+                          {/* Header Row */}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg font-bold text-gray-900">
                                 #{order.id}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">
+                              </span>
+                              {getStatusBadge(order.status)}
+                            </div>
+                            <button
+                              onClick={() => handleDeleteOrder(order.id)}
+                              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+
+                          {/* Info Grid */}
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Дата</p>
+                              <p className="text-sm font-medium text-gray-900">
                                 {formatDate(order.created_at)}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">
-                                {order.order_data.department || "—"}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">
-                                {order.order_data.items?.length || 0}
-                              </td>
-                              <td className="px-4 py-3">
-                                {getStatusBadge(order.status)}
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <div className="flex gap-2">
-                                  <button
-                                    onClick={() => handleViewOrder(order)}
-                                    className="text-blue-600 hover:text-blue-800 font-medium"
-                                  >
-                                    Просмотр
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteOrder(order.id)}
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    Удалить
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Товаров</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                {order.order_data.items?.length || 0} шт
+                              </p>
+                            </div>
+                            {order.order_data.department && (
+                              <div className="col-span-2">
+                                <p className="text-xs text-gray-500 mb-1">Отдел</p>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {order.order_data.department}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Button */}
+                          <button
+                            onClick={() => handleViewOrder(order)}
+                            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            Просмотреть заказ
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -596,8 +595,8 @@ export default function ManagerPage() {
 
               {/* Delivered Tab */}
               {activeTab === "delivered" && (
-                <div className="p-6">
-                  <h2 className="text-lg font-semibold mb-4">
+                <div className="p-4">
+                  <h2 className="text-lg font-semibold mb-4 px-2">
                     Доставленные заказы ({orders.length})
                   </h2>
                   {orders.length === 0 ? (
@@ -605,43 +604,57 @@ export default function ManagerPage() {
                       Нет доставленных заказов
                     </p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              ID
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Дата доставки
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Отдел
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Товаров
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {orders.map((order) => (
-                            <tr key={order.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm text-gray-900">
+                    <div className="space-y-3">
+                      {orders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4 shadow-sm"
+                        >
+                          {/* Header Row */}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg font-bold text-gray-900">
                                 #{order.id}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">
-                                {formatDate(order.created_at)}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">
-                                {order.order_data.department || "—"}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-900">
-                                {order.order_data.items?.length || 0}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              </span>
+                              <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold">
+                                ✓ Доставлен
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Info Grid */}
+                          <div className="grid grid-cols-2 gap-3 mb-3">
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Дата доставки</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                {formatDate(order.delivered_at || order.created_at)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500 mb-1">Товаров</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                {order.order_data.items?.length || 0} шт
+                              </p>
+                            </div>
+                            {order.order_data.department && (
+                              <div className="col-span-2">
+                                <p className="text-xs text-gray-500 mb-1">Отдел</p>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {order.order_data.department}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* View Details Button */}
+                          <button
+                            onClick={() => handleViewOrder(order)}
+                            className="w-full bg-white hover:bg-gray-50 border-2 border-green-200 text-green-700 py-2.5 px-4 rounded-lg font-medium transition-colors"
+                          >
+                            Просмотр деталей
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
