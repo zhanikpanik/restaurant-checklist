@@ -781,16 +781,19 @@ export default function ManagerPage() {
 
               {/* Products Tab */}
               {activeTab === "products" && (
-                <div className="p-6">
-                  <div className="flex justify-between items-center mb-4">
+                <div className="p-4">
+                  <div className="flex justify-between items-center mb-4 px-2">
                     <h2 className="text-lg font-semibold">
                       Товары ({products.length})
                     </h2>
                     <button
                       onClick={handleCreateProduct}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
                     >
-                      ➕ Добавить товар
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Добавить
                     </button>
                   </div>
                   {products.length === 0 ? (
@@ -798,91 +801,96 @@ export default function ManagerPage() {
                       Нет товаров
                     </p>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Название
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Категория
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Секция
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Единица
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Статус
-                            </th>
-                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              Действия
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200">
-                          {products.map((product: any) => (
-                            <tr key={product.id} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 text-sm text-gray-900">
+                    <div className="space-y-3">
+                      {products.map((product: any) => (
+                        <div
+                          key={product.id}
+                          className={`border-2 rounded-xl p-4 transition-all shadow-sm ${
+                            product.poster_ingredient_id
+                              ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200"
+                              : "bg-white border-gray-200 hover:border-purple-300"
+                          }`}
+                        >
+                          {/* Header */}
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <h3 className="font-semibold text-gray-900 text-base mb-1">
                                 {product.name}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">
-                                {product.category_name || "—"}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">
-                                {product.section_name || "—"}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-500">
-                                {product.unit || "—"}
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              </h3>
+                              <div className="flex items-center gap-2">
+                                <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                                   product.is_active
                                     ? "bg-green-100 text-green-800"
                                     : "bg-gray-100 text-gray-800"
                                 }`}>
-                                  {product.is_active ? "Активен" : "Неактивен"}
+                                  {product.is_active ? "✓ Активен" : "○ Неактивен"}
                                 </span>
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <button
-                                  onClick={() => handleEditProduct(product)}
-                                  className="text-blue-600 hover:text-blue-800 mr-3"
-                                >
-                                  Редактировать
-                                </button>
-                                {!product.poster_ingredient_id ? (
-                                  <button
-                                    onClick={async () => {
-                                      if (!confirm(`Удалить товар "${product.name}"?`)) return;
-                                      try {
-                                        const response = await fetch(`/api/section-products?id=${product.id}`, {
-                                          method: "DELETE",
-                                        });
-                                        const data = await response.json();
-                                        if (data.success) {
-                                          setProducts(products.filter((p: any) => p.id !== product.id));
-                                        }
-                                      } catch (error) {
-                                        console.error("Error deleting product:", error);
-                                      }
-                                    }}
-                                    className="text-red-600 hover:text-red-800"
-                                  >
-                                    Удалить
-                                  </button>
-                                ) : (
-                                  <span className="text-xs text-gray-400 italic">
-                                    Из Poster
+                                {product.poster_ingredient_id && (
+                                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
+                                    📦 Poster
                                   </span>
                                 )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                              </div>
+                            </div>
+                            {!product.poster_ingredient_id && (
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Удалить товар "${product.name}"?`)) return;
+                                  try {
+                                    const response = await fetch(`/api/section-products?id=${product.id}`, {
+                                      method: "DELETE",
+                                    });
+                                    const data = await response.json();
+                                    if (data.success) {
+                                      setProducts(products.filter((p: any) => p.id !== product.id));
+                                    }
+                                  } catch (error) {
+                                    console.error("Error deleting product:", error);
+                                  }
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Info Grid */}
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className="bg-white/50 rounded-lg p-2">
+                              <p className="text-xs text-gray-500">Категория</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                {product.category_name || "—"}
+                              </p>
+                            </div>
+                            <div className="bg-white/50 rounded-lg p-2">
+                              <p className="text-xs text-gray-500">Единица</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                {product.unit || "—"}
+                              </p>
+                            </div>
+                            <div className="bg-white/50 rounded-lg p-2 col-span-2">
+                              <p className="text-xs text-gray-500">Секция</p>
+                              <p className="text-sm font-medium text-gray-900">
+                                {product.section_name || "—"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Edit Button */}
+                          <button
+                            onClick={() => handleEditProduct(product)}
+                            className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Редактировать
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
