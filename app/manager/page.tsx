@@ -165,7 +165,7 @@ export default function ManagerPage() {
     }
 
     // Format order message
-    let message = `🛒 *Заказ от ${restaurant.name || "Ресторан"}*\n\n`;
+    let message = `🛒 *Заказ от ${restaurant.current?.name || "Ресторан"}*\n\n`;
     message += `📅 ${formatDate(orderDate)}\n\n`;
     message += `*Товары:*\n`;
 
