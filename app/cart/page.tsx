@@ -58,7 +58,7 @@ export default function CartPage() {
       if (data.success) {
         alert("Заказ успешно отправлен!");
         cart.clear();
-        router.push("/delivery");
+        router.push("/");
       } else {
         throw new Error(data.error || "Failed to submit order");
       }

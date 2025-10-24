@@ -179,23 +179,47 @@ export default function ManagerPage() {
       return;
     }
 
-    // Format order message
-    let message = `🛒 *Заказ от ${restaurant.current?.name || "Ресторан"}*\n\n`;
-    message += `📅 ${formatDate(orderDate)}\n\n`;
-    message += `*Товары:*\n`;
+    // Clean phone number (remove all non-digits)
+    const cleanPhone = supplier.phone.replace(/\D/g, '');
 
-    items.forEach((item, index) => {
+    // Validate phone number
+    if (!cleanPhone || cleanPhone.length < 10) {
+      alert(`Неверный формат номера телефона для поставщика "${supplierName}"`);
+      return;
+    }
+
+    // Format order message (keep it concise to avoid URL length issues)
+    const restaurantName = restaurant.current?.name || "Ресторан";
+    const dateStr = new Date(orderDate).toLocaleDateString("ru-RU");
+
+    let message = `Заказ от ${restaurantName}\n`;
+    message += `Дата: ${dateStr}\n\n`;
+    message += `Товары:\n`;
+
+    // Limit to first 20 items to avoid URL length issues
+    const itemsToShow = items.slice(0, 20);
+    itemsToShow.forEach((item, index) => {
       message += `${index + 1}. ${item.name} - ${item.quantity} ${item.unit || "шт"}\n`;
     });
 
-    message += `\n_Всего позиций: ${items.length}_`;
+    if (items.length > 20) {
+      message += `\n...и еще ${items.length - 20} позиций`;
+    }
 
-    // Clean phone number (remove spaces, dashes, etc)
-    const cleanPhone = supplier.phone.replace(/\D/g, '');
+    message += `\nВсего: ${items.length} позиций`;
 
     // Open WhatsApp with pre-filled message
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
+
+    // Check URL length (WhatsApp has limits)
+    if (whatsappUrl.length > 2000) {
+      // Fallback: open WhatsApp without message if URL is too long
+      const fallbackUrl = `https://wa.me/${cleanPhone}`;
+      window.open(fallbackUrl, '_blank');
+      alert("Сообщение слишком длинное. WhatsApp открыт без текста. Скопируйте заказ вручную.");
+    } else {
+      window.open(whatsappUrl, '_blank');
+    }
   };
 
   const formatDate = (date: Date | string) => {
