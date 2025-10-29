@@ -38,6 +38,34 @@ export default function DeliveryPage() {
     }
   };
 
+  const formatNaturalDate = (date: Date | string) => {
+    const orderDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const dayBeforeYesterday = new Date(today);
+    dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+
+    const orderDateOnly = new Date(orderDate);
+    orderDateOnly.setHours(0, 0, 0, 0);
+
+    if (orderDateOnly.getTime() === today.getTime()) {
+      return "Сегодня";
+    } else if (orderDateOnly.getTime() === yesterday.getTime()) {
+      return "Вчера";
+    } else if (orderDateOnly.getTime() === dayBeforeYesterday.getTime()) {
+      return "Позавчера";
+    } else {
+      return orderDate.toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long"
+      });
+    }
+  };
+
   const filteredOrders = orders.filter((order) => {
     if (filter === "pending") return order.status === "pending";
     if (filter === "delivered") return order.status === "delivered";
@@ -278,7 +306,7 @@ export default function DeliveryPage() {
                           Заказ #{order.id}
                         </h3>
                         <p className="text-sm text-gray-500">
-                          {new Date(order.created_at).toLocaleString("ru-RU")}
+                          {formatNaturalDate(order.created_at)}
                         </p>
                       </div>
                       <span

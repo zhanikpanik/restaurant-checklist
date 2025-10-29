@@ -118,30 +118,16 @@ export default function HomePage() {
       <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
         {/* Current Restaurant Indicator */}
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-blue-800">
-                Текущий ресторан:
-              </span>
-              <span className="text-sm text-blue-600 font-semibold">
-                {tenantName}
-              </span>
-            </div>
-            <Link
-              href="/select-restaurant"
-              className="text-xs text-blue-600 hover:text-blue-800 underline"
-            >
-              Изменить
-            </Link>
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-blue-800">
+              Текущий ресторан:
+            </span>
+            <span className="text-sm text-blue-600 font-semibold">
+              {tenantName}
+            </span>
           </div>
         </div>
 
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            🍽️ Restaurant System
-          </h1>
-          <p className="text-gray-600">Выберите отдел для работы</p>
-        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {loading ? (

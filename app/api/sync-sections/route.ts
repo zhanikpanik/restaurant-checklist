@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {

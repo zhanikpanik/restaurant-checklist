@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, unit, section_id, category_id, is_active } = body;
+    const { name, unit, section_id, category_id, is_active, poster_ingredient_id } = body;
 
     if (!name || !section_id) {
       return NextResponse.json(
@@ -65,11 +66,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Generate a unique ID for custom products (prefix with 'custom_')
+    const ingredientId = poster_ingredient_id || `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     const result = await pool.query(
-      `INSERT INTO section_products (name, unit, section_id, category_id, is_active)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO section_products (name, unit, section_id, category_id, is_active, poster_ingredient_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [name, unit || null, section_id, category_id || null, is_active !== false]
+      [name, unit || null, section_id, category_id || null, is_active !== false, ingredientId]
     );
 
     return NextResponse.json({

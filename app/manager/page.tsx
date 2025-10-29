@@ -55,6 +55,9 @@ export default function ManagerPage() {
   const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<SupplierFormData | null>(null);
+  const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
+  const [editingOrderItems, setEditingOrderItems] = useState<any[]>([]);
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -153,7 +156,43 @@ export default function ManagerPage() {
 
   const handleViewOrder = (order: Order) => {
     setSelectedOrder(order);
+    setEditingOrderItems(order.order_data.items || []);
     setShowOrderModal(true);
+  };
+
+  const handleRemoveItemFromOrder = (index: number) => {
+    setEditingOrderItems(editingOrderItems.filter((_, i) => i !== index));
+  };
+
+  const handleSaveOrderChanges = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedOrder.id,
+          order_data: {
+            ...selectedOrder.order_data,
+            items: editingOrderItems,
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Update local state
+        setOrders(orders.map(o => o.id === selectedOrder.id ? { ...o, order_data: { ...o.order_data, items: editingOrderItems } } : o));
+        setSelectedOrder({ ...selectedOrder, order_data: { ...selectedOrder.order_data, items: editingOrderItems } });
+        alert("Заказ обновлен");
+      } else {
+        alert("Ошибка при обновлении заказа: " + data.error);
+      }
+    } catch (error) {
+      console.error("Error updating order:", error);
+      alert("Ошибка при обновлении заказа");
+    }
   };
 
   const groupItemsBySupplier = (items: any[]) => {
@@ -168,6 +207,51 @@ export default function ManagerPage() {
     });
 
     return grouped;
+  };
+
+  // Group all pending orders by supplier
+  const groupPendingOrdersBySupplier = () => {
+    const supplierGroups = new Map<string, {
+      items: any[];
+      orders: Order[];
+      totalItems: number;
+    }>();
+
+    // Filter only pending orders (all dates)
+    const pendingOrders = orders.filter(order => order.status === 'pending');
+
+    pendingOrders.forEach(order => {
+      const items = order.order_data.items || [];
+      items.forEach(item => {
+        const supplierName = item.supplier || "Без поставщика";
+
+        if (!supplierGroups.has(supplierName)) {
+          supplierGroups.set(supplierName, {
+            items: [],
+            orders: [],
+            totalItems: 0
+          });
+        }
+
+        const group = supplierGroups.get(supplierName)!;
+
+        // Check if this order is already in the group
+        if (!group.orders.find(o => o.id === order.id)) {
+          group.orders.push(order);
+        }
+
+        // Add item with order context
+        group.items.push({
+          ...item,
+          orderId: order.id,
+          orderDate: order.created_at,
+          department: order.order_data.department
+        });
+        group.totalItems += 1;
+      });
+    });
+
+    return supplierGroups;
   };
 
   const sendToWhatsApp = (supplierName: string, items: any[], orderDate: Date) => {
@@ -219,6 +303,34 @@ export default function ManagerPage() {
       alert("Сообщение слишком длинное. WhatsApp открыт без текста. Скопируйте заказ вручную.");
     } else {
       window.open(whatsappUrl, '_blank');
+    }
+  };
+
+  const formatNaturalDate = (date: Date | string) => {
+    const orderDate = new Date(date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const dayBeforeYesterday = new Date(today);
+    dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+
+    const orderDateOnly = new Date(orderDate);
+    orderDateOnly.setHours(0, 0, 0, 0);
+
+    if (orderDateOnly.getTime() === today.getTime()) {
+      return "Сегодня";
+    } else if (orderDateOnly.getTime() === yesterday.getTime()) {
+      return "Вчера";
+    } else if (orderDateOnly.getTime() === dayBeforeYesterday.getTime()) {
+      return "Позавчера";
+    } else {
+      return orderDate.toLocaleDateString("ru-RU", {
+        day: "numeric",
+        month: "long"
+      });
     }
   };
 
@@ -351,7 +463,11 @@ export default function ManagerPage() {
   };
 
   const handleEditCategory = (category: ProductCategory) => {
-    setEditingCategory(category);
+    setEditingCategory({
+      id: category.id,
+      name: category.name,
+      supplier_id: category.supplier_id ?? null,
+    });
     setShowCategoryModal(true);
   };
 
@@ -607,81 +723,120 @@ export default function ManagerPage() {
               {/* Orders Tab */}
               {activeTab === "orders" && (
                 <div className="p-4 md:p-6">
-                  <h2 className="text-lg md:text-xl font-semibold mb-4 md:mb-6 px-2 md:px-0">
-                    Все заказы ({orders.length})
-                  </h2>
-                  {orders.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">
-                      Нет заказов
-                    </p>
-                  ) : (
-                    <>
-                      {/* Mobile Card View */}
-                      <div className="space-y-3 md:hidden">
-                        {orders.map((order) => (
-                          <div
-                            key={order.id}
-                            className="bg-white border-2 border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-all shadow-sm"
-                          >
-                            {/* Header Row */}
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <span className="text-lg font-bold text-gray-900">
-                                  #{order.id}
-                                </span>
-                                {getStatusBadge(order.status)}
-                              </div>
-                              <button
-                                onClick={() => handleDeleteOrder(order.id)}
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  {/* By Supplier Section */}
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-4">
+                      <h2 className="text-lg md:text-xl font-semibold">
+                        📦 По поставщикам
+                      </h2>
+                      <span className="text-sm text-gray-500">(активные заказы)</span>
+                    </div>
+                    {Array.from(groupPendingOrdersBySupplier()).length === 0 ? (
+                      <p className="text-gray-500 text-center py-6 bg-gray-50 rounded-lg">
+                        Нет активных заказов
+                      </p>
+                    ) : (
+                      <>
+                        {/* Mobile Card View - Supplier Groups */}
+                        <div className="space-y-3 md:hidden">
+                          {Array.from(groupPendingOrdersBySupplier()).map(([supplierName, group]) => {
+                          const isExpanded = expandedSupplier === supplierName;
+                          return (
+                            <div
+                              key={supplierName}
+                              className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden shadow-sm"
+                            >
+                              {/* Supplier Header */}
+                              <div
+                                onClick={() => setExpandedSupplier(isExpanded ? null : supplierName)}
+                                className="p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                               >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                            </div>
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-2xl">📦</span>
+                                    <div>
+                                      <h3 className="text-lg font-bold text-gray-900">
+                                        {supplierName}
+                                      </h3>
+                                      <p className="text-xs text-gray-500">
+                                        {group.orders.length} {group.orders.length === 1 ? 'заказ' : group.orders.length < 5 ? 'заказа' : 'заказов'}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <svg
+                                    className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </div>
 
-                            {/* Info Grid */}
-                            <div className="grid grid-cols-2 gap-3 mb-3">
-                              <div>
-                                <p className="text-xs text-gray-500 mb-1">Дата</p>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {formatDate(order.created_at)}
-                                </p>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-4">
+                                    <div>
+                                      <p className="text-xs text-gray-500">Товаров</p>
+                                      <p className="text-sm font-medium text-gray-900">
+                                        {group.totalItems} шт
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      sendToWhatsApp(supplierName, group.items, group.orders[0].created_at);
+                                    }}
+                                    className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                                  >
+                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                                    </svg>
+                                    Отправить
+                                  </button>
+                                </div>
                               </div>
-                              <div>
-                                <p className="text-xs text-gray-500 mb-1">Товаров</p>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {order.order_data.items?.length || 0} шт
-                                </p>
-                              </div>
-                              {order.order_data.department && (
-                                <div className="col-span-2">
-                                  <p className="text-xs text-gray-500 mb-1">Отдел</p>
-                                  <p className="text-sm font-medium text-gray-900">
-                                    {order.order_data.department}
-                                  </p>
+
+                              {/* Expanded Items View */}
+                              {isExpanded && (
+                                <div className="border-t bg-gray-50 p-4">
+                                  <div className="space-y-3">
+                                    {group.items.map((item, idx) => (
+                                      <div key={idx} className="bg-white rounded-lg p-3 border border-gray-200">
+                                        <div className="flex justify-between items-start mb-2">
+                                          <div className="flex-1">
+                                            <p className="font-medium text-gray-900">{item.name}</p>
+                                            {item.category && (
+                                              <p className="text-xs text-gray-500">{item.category}</p>
+                                            )}
+                                          </div>
+                                          <div className="text-right ml-3">
+                                            <p className="font-semibold text-gray-900">
+                                              {item.quantity} {item.unit || "шт"}
+                                            </p>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                          <span>#{item.orderId}</span>
+                                          {item.department && (
+                                            <>
+                                              <span>•</span>
+                                              <span>{item.department}</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                             </div>
+                          );
+                        })}
+                        </div>
 
-                            {/* Action Button */}
-                            <button
-                              onClick={() => handleViewOrder(order)}
-                              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                            >
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
-                              Просмотреть заказ
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Desktop Table View */}
-                      <div className="hidden md:block overflow-x-auto">
+                        {/* Desktop Table View */}
+                        <div className="hidden md:block overflow-x-auto">
                         <table className="w-full">
                           <thead>
                             <tr className="border-b-2 border-gray-200 bg-gray-50">
@@ -697,7 +852,8 @@ export default function ManagerPage() {
                             {orders.map((order) => (
                               <tr
                                 key={order.id}
-                                className="border-b border-gray-200 hover:bg-gray-50 transition-colors"
+                                onClick={() => handleViewOrder(order)}
+                                className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
                               >
                                 <td className="py-3 px-4 font-semibold text-gray-900">#{order.id}</td>
                                 <td className="py-3 px-4 text-gray-700">{formatDate(order.created_at)}</td>
@@ -707,13 +863,10 @@ export default function ManagerPage() {
                                 <td className="py-3 px-4">
                                   <div className="flex items-center justify-center gap-2">
                                     <button
-                                      onClick={() => handleViewOrder(order)}
-                                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                                    >
-                                      Просмотреть
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteOrder(order.id)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteOrder(order.id);
+                                      }}
                                       className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                     >
                                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -726,9 +879,70 @@ export default function ManagerPage() {
                             ))}
                           </tbody>
                         </table>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Recent Orders Section */}
+                  <div className="border-t pt-6">
+                    <h2 className="text-lg md:text-xl font-semibold mb-4">
+                      📋 Все заказы
+                    </h2>
+                    {orders.length === 0 ? (
+                      <p className="text-gray-500 text-center py-6 bg-gray-50 rounded-lg">
+                        Нет заказов
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {orders.map((order) => (
+                          <div
+                            key={order.id}
+                            onClick={() => handleViewOrder(order)}
+                            className="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-all shadow-sm cursor-pointer"
+                          >
+                            {/* Header Row */}
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-lg font-bold text-gray-900">
+                                  {formatNaturalDate(order.created_at)}
+                                </span>
+                                {getStatusBadge(order.status)}
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteOrder(order.id);
+                                }}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+
+                            {/* Info Row */}
+                            <div className="flex items-center gap-4 text-sm">
+                              <div className="flex items-center gap-2 text-gray-600">
+                                <span className="text-xs text-gray-400">#{order.id}</span>
+                                <span>•</span>
+                                <span>{order.order_data.items?.length || 0} товаров</span>
+                              </div>
+                              {order.order_data.department && (
+                                <>
+                                  <span className="text-gray-400">•</span>
+                                  <span className="text-gray-900 font-medium">
+                                    {order.order_data.department}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    </>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -755,7 +969,8 @@ export default function ManagerPage() {
                       {suppliers.map((supplier) => (
                         <div
                           key={supplier.id}
-                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                          onClick={() => handleEditSupplier(supplier)}
+                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
                         >
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
@@ -776,22 +991,6 @@ export default function ManagerPage() {
                                 <p className="text-xs text-gray-400 italic mt-1">
                                   Из Poster (ID: {(supplier as any).poster_supplier_id})
                                 </p>
-                              )}
-                            </div>
-                            <div className="flex gap-2 ml-3">
-                              <button
-                                onClick={() => handleEditSupplier(supplier)}
-                                className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                              >
-                                Редактировать
-                              </button>
-                              {!(supplier as any).poster_supplier_id && (
-                                <button
-                                  onClick={() => handleDeleteSupplier(supplier.id)}
-                                  className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-                                >
-                                  Удалить
-                                </button>
                               )}
                             </div>
                           </div>
@@ -892,7 +1091,8 @@ export default function ManagerPage() {
                       {categories.map((category) => (
                         <div
                           key={category.id}
-                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                          onClick={() => handleEditCategory(category)}
+                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
                         >
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
@@ -912,22 +1112,6 @@ export default function ManagerPage() {
                                 <p className="text-xs text-gray-400 italic mt-1">
                                   Из Poster (ID: {(category as any).poster_category_id})
                                 </p>
-                              )}
-                            </div>
-                            <div className="flex gap-2 ml-3">
-                              <button
-                                onClick={() => handleEditCategory(category)}
-                                className="px-3 py-1 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                              >
-                                Редактировать
-                              </button>
-                              {!(category as any).poster_category_id && (
-                                <button
-                                  onClick={() => handleDeleteCategory(category.id)}
-                                  className="px-3 py-1 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-                                >
-                                  Удалить
-                                </button>
                               )}
                             </div>
                           </div>
@@ -961,7 +1145,8 @@ export default function ManagerPage() {
                       {sections.map((section) => (
                         <div
                           key={section.id}
-                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                          onClick={() => handleEditSection(section)}
+                          className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
                         >
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
@@ -977,27 +1162,11 @@ export default function ManagerPage() {
                                 Товаров: {(section as any).custom_products_count || 0}
                               </p>
                             </div>
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => handleEditSection(section)}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                              >
-                                Редактировать
-                              </button>
-                              {!section.poster_storage_id && (
-                                <button
-                                  onClick={() => handleDeleteSection(section.id)}
-                                  className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                >
-                                  Удалить
-                                </button>
-                              )}
-                              {section.poster_storage_id && (
-                                <span className="text-xs text-gray-400 italic">
-                                  Из Poster
-                                </span>
-                              )}
-                            </div>
+                            {section.poster_storage_id && (
+                              <span className="text-xs text-gray-400 italic">
+                                Из Poster
+                              </span>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -1034,9 +1203,10 @@ export default function ManagerPage() {
                         {products.map((product: any) => (
                           <div
                             key={product.id}
-                            className={`border rounded-lg p-3 transition-all ${
+                            onClick={() => handleEditProduct(product)}
+                            className={`border rounded-lg p-3 transition-all cursor-pointer ${
                               product.poster_ingredient_id
-                                ? "bg-blue-50 border-blue-200"
+                                ? "bg-blue-50 border-blue-200 hover:border-blue-300"
                                 : "bg-white border-gray-200 hover:border-purple-300"
                             }`}
                           >
@@ -1066,19 +1236,22 @@ export default function ManagerPage() {
                               </div>
                               {!product.poster_ingredient_id && (
                                 <button
-                                  onClick={async () => {
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     if (!confirm(`Удалить товар "${product.name}"?`)) return;
-                                    try {
-                                      const response = await fetch(`/api/section-products?id=${product.id}`, {
-                                        method: "DELETE",
-                                      });
-                                      const data = await response.json();
-                                      if (data.success) {
-                                        setProducts(products.filter((p: any) => p.id !== product.id));
+                                    (async () => {
+                                      try {
+                                        const response = await fetch(`/api/section-products?id=${product.id}`, {
+                                          method: "DELETE",
+                                        });
+                                        const data = await response.json();
+                                        if (data.success) {
+                                          setProducts(products.filter((p: any) => p.id !== product.id));
+                                        }
+                                      } catch (error) {
+                                        console.error("Error deleting product:", error);
                                       }
-                                    } catch (error) {
-                                      console.error("Error deleting product:", error);
-                                    }
+                                    })();
                                   }}
                                   className="p-1.5 text-red-500 hover:bg-red-50 rounded transition-colors flex-shrink-0"
                                 >
@@ -1090,17 +1263,9 @@ export default function ManagerPage() {
                             </div>
 
                             {/* Section Info */}
-                            <div className="text-xs text-gray-500 mb-2">
+                            <div className="text-xs text-gray-500">
                               📍 {product.section_name || "Без секции"}
                             </div>
-
-                            {/* Edit Button */}
-                            <button
-                              onClick={() => handleEditProduct(product)}
-                              className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-3 rounded-lg text-sm font-medium transition-colors"
-                            >
-                              Редактировать
-                            </button>
                           </div>
                         ))}
                       </div>
@@ -1122,8 +1287,9 @@ export default function ManagerPage() {
                             {products.map((product: any) => (
                               <tr
                                 key={product.id}
-                                className={`border-b border-gray-200 transition-colors ${
-                                  product.poster_ingredient_id ? "bg-blue-50" : "hover:bg-gray-50"
+                                onClick={() => handleEditProduct(product)}
+                                className={`border-b border-gray-200 transition-colors cursor-pointer ${
+                                  product.poster_ingredient_id ? "bg-blue-50 hover:bg-blue-100" : "hover:bg-gray-50"
                                 }`}
                               >
                                 <td className="py-3 px-4">
@@ -1150,27 +1316,24 @@ export default function ManagerPage() {
                                 </td>
                                 <td className="py-3 px-4">
                                   <div className="flex items-center justify-center gap-2">
-                                    <button
-                                      onClick={() => handleEditProduct(product)}
-                                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                                    >
-                                      Редактировать
-                                    </button>
                                     {!product.poster_ingredient_id && (
                                       <button
-                                        onClick={async () => {
+                                        onClick={(e) => {
+                                          e.stopPropagation();
                                           if (!confirm(`Удалить товар "${product.name}"?`)) return;
-                                          try {
-                                            const response = await fetch(`/api/section-products?id=${product.id}`, {
-                                              method: "DELETE",
-                                            });
-                                            const data = await response.json();
-                                            if (data.success) {
-                                              setProducts(products.filter((p: any) => p.id !== product.id));
+                                          (async () => {
+                                            try {
+                                              const response = await fetch(`/api/section-products?id=${product.id}`, {
+                                                method: "DELETE",
+                                              });
+                                              const data = await response.json();
+                                              if (data.success) {
+                                                setProducts(products.filter((p: any) => p.id !== product.id));
+                                              }
+                                            } catch (error) {
+                                              console.error("Error deleting product:", error);
                                             }
-                                          } catch (error) {
-                                            console.error("Error deleting product:", error);
-                                          }
+                                          })();
                                         }}
                                         className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                       >
@@ -1256,23 +1419,38 @@ export default function ManagerPage() {
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setShowSectionModal(false);
-                    setEditingSection(null);
-                  }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={handleSaveSection}
-                  disabled={!editingSection.name}
-                  className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2 rounded-lg font-medium transition-colors"
-                >
-                  Сохранить
-                </button>
+              <div className="space-y-3 mt-6">
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowSectionModal(false);
+                      setEditingSection(null);
+                    }}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Отмена
+                  </button>
+                  <button
+                    onClick={handleSaveSection}
+                    disabled={!editingSection.name}
+                    className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Сохранить
+                  </button>
+                </div>
+                {editingSection.id && !editingSection.poster_storage_id && (
+                  <button
+                    onClick={() => {
+                      if (!confirm(`Удалить секцию "${editingSection.name}"?`)) return;
+                      handleDeleteSection(editingSection.id!);
+                      setShowSectionModal(false);
+                      setEditingSection(null);
+                    }}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Удалить секцию
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1433,49 +1611,78 @@ export default function ManagerPage() {
               </div>
 
               {/* Items grouped by supplier */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg mb-3">Товары по поставщикам</h3>
-                {Array.from(groupItemsBySupplier(selectedOrder.order_data.items || [])).map(([supplierName, items]) => (
-                  <div key={supplierName} className="border rounded-lg p-4 bg-gray-50">
-                    <div className="flex justify-between items-center mb-3">
-                      <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-                        <span className="text-lg">📦</span>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-base">Товары по поставщикам</h3>
+                  <button
+                    onClick={() => setShowAddProductModal(true)}
+                    className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    + Добавить товар
+                  </button>
+                </div>
+                {Array.from(groupItemsBySupplier(editingOrderItems)).map(([supplierName, items]) => (
+                  <div key={supplierName} className="border rounded-lg p-3 bg-gray-50">
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+                        <span>📦</span>
                         {supplierName}
                       </h4>
                       <button
                         onClick={() => sendToWhatsApp(supplierName, items, selectedOrder.created_at)}
-                        className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors font-medium"
+                        className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-medium"
                       >
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                         </svg>
                         WhatsApp
                       </button>
                     </div>
-                    <div className="space-y-2">
-                      {items.map((item, idx) => (
-                        <div key={idx} className="flex justify-between items-center py-2 border-t">
-                          <div className="flex-1">
-                            <p className="font-medium text-gray-900">{item.name}</p>
-                            {item.category && (
-                              <p className="text-sm text-gray-500">{item.category}</p>
-                            )}
+                    <div className="space-y-1">
+                      {items.map((item, idx) => {
+                        const globalIdx = editingOrderItems.findIndex(i => i === item);
+                        return (
+                          <div key={idx} className="flex justify-between items-center py-1.5 border-t">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                              {item.category && (
+                                <p className="text-xs text-gray-500">{item.category}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 ml-2">
+                              <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                                {item.quantity} {item.unit || "шт"}
+                              </p>
+                              <button
+                                onClick={() => handleRemoveItemFromOrder(globalIdx)}
+                                className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-gray-900">
-                              {item.quantity} {item.unit || "шт"}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-                    <div className="mt-3 pt-3 border-t">
-                      <p className="text-sm text-gray-600">
+                    <div className="mt-2 pt-2 border-t">
+                      <p className="text-xs text-gray-600">
                         Всего позиций: <span className="font-semibold">{items.length}</span>
                       </p>
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Save Button */}
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={handleSaveOrderChanges}
+                  className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors"
+                >
+                  Сохранить изменения
+                </button>
               </div>
 
               {selectedOrder.order_data.notes && (
@@ -1484,6 +1691,64 @@ export default function ManagerPage() {
                   <p className="text-sm text-yellow-700">{selectedOrder.order_data.notes}</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Product to Order Modal */}
+      {showAddProductModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full">
+            <div className="border-b px-6 py-4">
+              <h2 className="text-xl font-semibold">Добавить товар</h2>
+            </div>
+
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Выберите товар
+                  </label>
+                  <select
+                    className="w-full border rounded-lg px-3 py-2"
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const product = products.find((p: any) => p.id === Number(e.target.value));
+                      if (!product) return;
+
+                      setEditingOrderItems([
+                        ...editingOrderItems,
+                        {
+                          name: product.name,
+                          quantity: 1,
+                          unit: product.unit,
+                          category: product.category_name,
+                          supplier: product.supplier_name,
+                          productId: product.id,
+                        }
+                      ]);
+                      setShowAddProductModal(false);
+                    }}
+                  >
+                    <option value="">-- Выберите товар --</option>
+                    {products.map((product: any) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} ({product.category_name || "Без категории"})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-6">
+                <button
+                  onClick={() => setShowAddProductModal(false)}
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium transition-colors"
+                >
+                  Отмена
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1539,22 +1804,37 @@ export default function ManagerPage() {
                   </select>
                 </div>
 
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowCategoryModal(false);
-                      setEditingCategory(null);
-                    }}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium transition-colors"
-                  >
-                    Отмена
-                  </button>
-                  <button
-                    onClick={handleSaveCategory}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors"
-                  >
-                    Сохранить
-                  </button>
+                <div className="space-y-3 mt-6">
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowCategoryModal(false);
+                        setEditingCategory(null);
+                      }}
+                      className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={handleSaveCategory}
+                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Сохранить
+                    </button>
+                  </div>
+                  {editingCategory.id && !(editingCategory as any).poster_category_id && (
+                    <button
+                      onClick={() => {
+                        if (!confirm(`Удалить категорию "${editingCategory.name}"?`)) return;
+                        handleDeleteCategory(editingCategory.id!);
+                        setShowCategoryModal(false);
+                        setEditingCategory(null);
+                      }}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Удалить категорию
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1622,22 +1902,37 @@ export default function ManagerPage() {
                   />
                 </div>
 
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={() => {
-                      setShowSupplierModal(false);
-                      setEditingSupplier(null);
-                    }}
-                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium transition-colors"
-                  >
-                    Отмена
-                  </button>
-                  <button
-                    onClick={handleSaveSupplier}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors"
-                  >
-                    Сохранить
-                  </button>
+                <div className="space-y-3 mt-6">
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowSupplierModal(false);
+                        setEditingSupplier(null);
+                      }}
+                      className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Отмена
+                    </button>
+                    <button
+                      onClick={handleSaveSupplier}
+                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Сохранить
+                    </button>
+                  </div>
+                  {editingSupplier.id && !(editingSupplier as any).poster_supplier_id && (
+                    <button
+                      onClick={() => {
+                        if (!confirm(`Удалить поставщика "${editingSupplier.name}"?`)) return;
+                        handleDeleteSupplier(editingSupplier.id!);
+                        setShowSupplierModal(false);
+                        setEditingSupplier(null);
+                      }}
+                      className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors"
+                    >
+                      Удалить поставщика
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

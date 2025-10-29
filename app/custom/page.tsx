@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useCart } from "@/store/useStore";
+import { useCart, useSections } from "@/store/useStore";
 
 interface Product {
   id: number;
@@ -22,6 +22,7 @@ function CustomPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const cart = useCart();
+  const sections = useSections();
 
   const sectionId = searchParams.get("section_id");
   const dept = searchParams.get("dept");
@@ -69,6 +70,8 @@ function CustomPageContent() {
         );
         if (section) {
           setSectionName(section.name);
+          // Set current section in store
+          sections.setCurrent(section);
         }
       }
 
@@ -315,7 +318,7 @@ function CustomPageContent() {
                     {!hasQuantity ? (
                       <button
                         onClick={() => handleIncreaseQuantity(product)}
-                        className="ml-3 w-10 h-10 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-xl font-bold"
+                        className="ml-3 w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
                       >
                         +
                       </button>
@@ -323,7 +326,7 @@ function CustomPageContent() {
                       <div className="flex items-center gap-2 ml-3">
                         <button
                           onClick={() => handleDecreaseQuantity(product)}
-                          className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors text-xl font-bold"
+                          className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
                         >
                           −
                         </button>
@@ -332,7 +335,7 @@ function CustomPageContent() {
                         </span>
                         <button
                           onClick={() => handleIncreaseQuantity(product)}
-                          className="w-10 h-10 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-xl font-bold"
+                          className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
                         >
                           +
                         </button>

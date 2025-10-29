@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import type { Order, OrderItem, ApiResponse } from "@/types";
 
 // GET /api/orders - Get all orders
 export async function GET(request: NextRequest) {
   try {
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth; // Return error response
+    }
+    const { restaurantId } = auth;
 
     if (!pool) {
       return NextResponse.json(
@@ -20,7 +25,7 @@ export async function GET(request: NextRequest) {
        WHERE restaurant_id = $1
        ORDER BY created_at DESC
        LIMIT 100`,
-      [tenant]
+      [restaurantId]
     );
 
     return NextResponse.json<ApiResponse<Order[]>>({
@@ -42,8 +47,12 @@ export async function GET(request: NextRequest) {
 // POST /api/orders - Create new order
 export async function POST(request: NextRequest) {
   try {
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     const orderData = await request.json();
     console.log("💾 Creating new order...", orderData);
@@ -117,7 +126,7 @@ export async function POST(request: NextRequest) {
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
       [
-        tenant,
+        restaurantId,
         JSON.stringify(formattedOrder),
         orderData.status || "pending",
         orderData.created_by || "manager",
@@ -146,8 +155,12 @@ export async function POST(request: NextRequest) {
 // PATCH /api/orders - Update order
 export async function PATCH(request: NextRequest) {
   try {
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     const body = await request.json();
     const { id, status, order_data } = body;
@@ -173,7 +186,7 @@ export async function PATCH(request: NextRequest) {
            delivered_at = CASE WHEN $1 = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END
        WHERE id = $3 AND restaurant_id = $4
        RETURNING *`,
-      [status, order_data ? JSON.stringify(order_data) : null, id, tenant]
+      [status, order_data ? JSON.stringify(order_data) : null, id, restaurantId]
     );
 
     if (result.rowCount === 0) {
@@ -203,6 +216,13 @@ export async function PATCH(request: NextRequest) {
 // DELETE /api/orders - Delete order
 export async function DELETE(request: NextRequest) {
   try {
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
+
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get("id");
 
@@ -212,9 +232,6 @@ export async function DELETE(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    const tenantCookie = request.cookies.get("tenant");
-    const tenant = tenantCookie?.value || "default";
 
     if (!pool) {
       return NextResponse.json<ApiResponse>(
@@ -227,7 +244,7 @@ export async function DELETE(request: NextRequest) {
       `DELETE FROM orders
        WHERE id = $1 AND restaurant_id = $2
        RETURNING id`,
-      [orderId, tenant]
+      [orderId, restaurantId]
     );
 
     if (result.rowCount === 0) {

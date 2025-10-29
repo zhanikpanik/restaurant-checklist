@@ -3,13 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useCart, useRestaurant } from "@/store/useStore";
+import { useCart, useRestaurant, useStore } from "@/store/useStore";
 import type { CartItem } from "@/types";
 
 export default function CartPage() {
   const router = useRouter();
   const cart = useCart();
   const restaurant = useRestaurant();
+  const currentSection = useStore((state) => state.currentSection);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notes, setNotes] = useState("");
 
@@ -46,7 +47,7 @@ export default function CartPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          department: "general",
+          department: currentSection?.name || "Общий",
           items: formattedItems,
           notes: notes,
           created_by: "user",

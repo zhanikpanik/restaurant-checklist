@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 import type { Supplier, ApiResponse } from "@/types";
 
 // GET /api/suppliers - Get all suppliers
 export async function GET(request: NextRequest) {
   try {
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     if (!pool) {
       return NextResponse.json(
@@ -47,8 +52,12 @@ export async function GET(request: NextRequest) {
 // POST /api/suppliers - Create new supplier
 export async function POST(request: NextRequest) {
   try {
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     const supplierData = await request.json();
 
@@ -122,8 +131,12 @@ export async function POST(request: NextRequest) {
 // PATCH /api/suppliers - Update supplier
 export async function PATCH(request: NextRequest) {
   try {
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     const { id, ...updateData } = await request.json();
 
@@ -211,8 +224,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     if (!pool) {
       return NextResponse.json<ApiResponse>(

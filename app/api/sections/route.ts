@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
+import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
     // Get restaurant_id from cookie
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     if (!pool) {
       return NextResponse.json(
@@ -48,8 +53,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     if (!pool) {
       return NextResponse.json(
@@ -94,8 +103,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     if (!pool) {
       return NextResponse.json(
@@ -161,8 +174,12 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const restaurantCookie = request.cookies.get("restaurant_id");
-    const restaurantId = restaurantCookie?.value || "default";
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
+    }
+    const { restaurantId } = auth;
 
     if (!pool) {
       return NextResponse.json(
