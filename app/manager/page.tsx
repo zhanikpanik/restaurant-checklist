@@ -1722,9 +1722,9 @@ export default function ManagerPage() {
                         {
                           name: product.name,
                           quantity: 1,
-                          unit: product.unit,
-                          category: product.category_name,
-                          supplier: product.supplier_name,
+                          unit: product.unit || "шт",
+                          category: (product as any).category_name || "",
+                          supplier: (product as any).supplier_name || "",
                           productId: product.id,
                         }
                       ]);
