@@ -166,12 +166,14 @@ export default function HomePage() {
                   Синхронизировать отделы из Poster
                 </button>
                 <br />
-                <Link
-                  href="/select-restaurant"
-                  className="inline-block bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
-                >
-                  Выбрать другой ресторан
-                </Link>
+                {process.env.NODE_ENV === 'development' && (
+                  <Link
+                    href="/dev/switch-restaurant"
+                    className="inline-block bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg"
+                  >
+                    🔧 Dev: Выбрать другой ресторан
+                  </Link>
+                )}
               </div>
             </div>
           ) : (

@@ -9,24 +9,24 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "15.0.3",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "typescript": "^5.6.3",
     "@types/node": "^22.10.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
-    "tailwindcss": "^3.4.0",
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
-    "pg": "^8.13.1",
-    "ioredis": "^5.4.1",
-    "dotenv": "^16.4.5",
-    "zustand": "^5.0.1",
     "axios": "^1.7.7",
     "clsx": "^2.1.1",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
+    "next": "^15.0.7",
+    "pg": "^8.13.1",
+    "postcss": "^8.4.49",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "tailwind-merge": "^2.5.4",
-    "xlsx": "^0.18.5"
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.6.3",
+    "xlsx": "^0.18.5",
+    "zustand": "^5.0.1"
   },
   "devDependencies": {
     "@types/pg": "^8.11.10"
