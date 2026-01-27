@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth-config";
 
 // Routes that don't require authentication
-const publicRoutes = ["/login", "/api/auth", "/api/health", "/api/debug-auth"];
+const publicRoutes = ["/login", "/setup", "/api/auth", "/api/health", "/api/debug-auth", "/api/poster/oauth"];
 
 // Role-based route access
 const roleRoutes: Record<string, string[]> = {
