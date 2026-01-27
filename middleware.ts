@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { auth } from "@/lib/auth-config";
 
 // Routes that don't require authentication
 const publicRoutes = ["/login", "/api/auth", "/api/health", "/api/debug-auth"];
@@ -13,8 +13,8 @@ const roleRoutes: Record<string, string[]> = {
   delivery: ["/", "/delivery", "/api/orders"],
 };
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+export default auth((req) => {
+  const { pathname } = req.nextUrl;
   
   // Allow public routes
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
@@ -30,24 +30,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Get the JWT token (Edge-compatible)
-  const token = await getToken({ 
-    req: request,
-    secret: process.env.AUTH_SECRET,
-  });
+  // Get session from auth
+  const session = req.auth;
   
   // Debug logging
   console.log("Middleware check:", { 
     pathname, 
-    hasToken: !!token,
-    tokenRole: token?.role,
-    tokenRestaurant: token?.restaurantId,
+    hasSession: !!session,
+    sessionRole: session?.user?.role,
+    sessionRestaurant: session?.user?.restaurantId,
   });
   
-  if (!token) {
+  if (!session) {
     // Redirect to login for page requests
     if (!pathname.startsWith("/api")) {
-      const loginUrl = new URL("/login", request.url);
+      const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", pathname);
       return NextResponse.redirect(loginUrl);
     }
@@ -60,14 +57,14 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check role-based access
-  const userRole = token.role as string;
+  const userRole = session.user?.role as string;
   const allowedRoutes = roleRoutes[userRole] || [];
   
   // Admin has access to everything
   if (allowedRoutes.includes("*")) {
     // Set restaurant_id cookie from session for API routes
     const response = NextResponse.next();
-    response.cookies.set("restaurant_id", token.restaurantId as string, {
+    response.cookies.set("restaurant_id", session.user?.restaurantId as string, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -87,7 +84,7 @@ export async function middleware(request: NextRequest) {
   if (!isAllowed) {
     // Redirect to home for unauthorized page access
     if (!pathname.startsWith("/api")) {
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.redirect(new URL("/", req.url));
     }
     
     // Return 403 for unauthorized API access
@@ -99,7 +96,7 @@ export async function middleware(request: NextRequest) {
 
   // Set restaurant_id cookie from session for API routes
   const response = NextResponse.next();
-  response.cookies.set("restaurant_id", token.restaurantId as string, {
+  response.cookies.set("restaurant_id", session.user?.restaurantId as string, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -107,7 +104,7 @@ export async function middleware(request: NextRequest) {
   });
   
   return response;
-}
+});
 
 export const config = {
   matcher: [
