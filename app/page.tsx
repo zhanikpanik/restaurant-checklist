@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 
 interface Section {
   id: string;
@@ -19,12 +20,16 @@ interface Restaurant {
 }
 
 export default function HomePage() {
+  const { data: session } = useSession();
   const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTenant, setCurrentTenant] = useState<string>("unknown");
   const [tenantName, setTenantName] = useState<string>("Загрузка...");
   const router = useRouter();
+  
+  const isAdmin = session?.user?.role === "admin";
+  const isManager = session?.user?.role === "manager";
 
   useEffect(() => {
     loadTenantInfo();
@@ -118,13 +123,20 @@ export default function HomePage() {
       <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
         {/* Current Restaurant Indicator */}
         <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-blue-800">
-              Текущий ресторан:
-            </span>
-            <span className="text-sm text-blue-600 font-semibold">
-              {tenantName}
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-blue-800">
+                Текущий ресторан:
+              </span>
+              <span className="text-sm text-blue-600 font-semibold">
+                {tenantName}
+              </span>
+            </div>
+            {session?.user && (
+              <div className="text-sm text-gray-600">
+                👤 {session.user.name}
+              </div>
+            )}
           </div>
         </div>
 
@@ -178,6 +190,22 @@ export default function HomePage() {
             </div>
           ) : (
             <>
+              {/* Admin Section - Only for admins */}
+              {isAdmin && (
+                <Link
+                  href="/admin/users"
+                  className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                >
+                  <span className="text-3xl mr-4">👥</span>
+                  <div className="text-left">
+                    <div className="font-semibold text-lg">Пользователи</div>
+                    <div className="text-sm opacity-90">
+                      Управление доступом сотрудников
+                    </div>
+                  </div>
+                </Link>
+              )}
+
               {/* Manager Section */}
               <Link
                 href="/manager"
