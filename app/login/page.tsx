@@ -30,13 +30,19 @@ function LoginForm() {
         redirect: false,
       });
 
+      console.log("SignIn result:", result);
+
       if (result?.error) {
-        setErrorMessage("Неверный email или пароль");
-      } else {
+        console.error("SignIn error:", result.error);
+        setErrorMessage(`Ошибка: ${result.error}`);
+      } else if (result?.ok) {
         router.push(callbackUrl);
         router.refresh();
+      } else {
+        setErrorMessage("Неизвестная ошибка входа");
       }
     } catch (error) {
+      console.error("SignIn exception:", error);
       setErrorMessage("Произошла ошибка. Попробуйте снова.");
     } finally {
       setIsLoading(false);
