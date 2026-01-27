@@ -36,8 +36,8 @@ function LoginForm() {
         console.error("SignIn error:", result.error);
         setErrorMessage(`Ошибка: ${result.error}`);
       } else if (result?.ok) {
-        router.push(callbackUrl);
-        router.refresh();
+        // Force navigation to home page
+        window.location.href = callbackUrl;
       } else {
         setErrorMessage("Неизвестная ошибка входа");
       }
