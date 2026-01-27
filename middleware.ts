@@ -36,6 +36,14 @@ export async function middleware(request: NextRequest) {
     secret: process.env.AUTH_SECRET,
   });
   
+  // Debug logging
+  console.log("Middleware check:", { 
+    pathname, 
+    hasToken: !!token,
+    tokenRole: token?.role,
+    tokenRestaurant: token?.restaurantId,
+  });
+  
   if (!token) {
     // Redirect to login for page requests
     if (!pathname.startsWith("/api")) {
