@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { withTenant } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import type { Supplier, ApiResponse } from "@/types";
 
@@ -13,29 +13,21 @@ export async function GET(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const suppliers = await withTenant(restaurantId, async (client) => {
+      const result = await client.query<Supplier>(
+        `SELECT s.*,
+                COUNT(DISTINCT pc.id) as categories_count
+         FROM suppliers s
+         LEFT JOIN product_categories pc ON pc.supplier_id = s.id
+         GROUP BY s.id
+         ORDER BY s.name`
       );
-    }
-
-    const result = await pool.query<Supplier>(
-      `SELECT s.*,
-              COUNT(DISTINCT pc.id) as categories_count,
-              COUNT(DISTINCT p.id) as products_count
-       FROM suppliers s
-       LEFT JOIN product_categories pc ON pc.supplier_id = s.id
-       LEFT JOIN products p ON p.supplier_id = s.id
-       WHERE s.restaurant_id = $1
-       GROUP BY s.id
-       ORDER BY s.name`,
-      [restaurantId]
-    );
+      return result.rows;
+    });
 
     return NextResponse.json<ApiResponse<Supplier[]>>({
       success: true,
-      data: result.rows,
+      data: suppliers,
     });
   } catch (error) {
     console.error("Error fetching suppliers:", error);
@@ -72,21 +64,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!pool) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const supplier = await withTenant(restaurantId, async (client) => {
+      // Check if supplier already exists
+      const existingCheck = await client.query(
+        `SELECT id FROM suppliers WHERE name = $1`,
+        [supplierData.name]
       );
-    }
 
-    // Check if supplier already exists
-    const existingCheck = await pool.query(
-      `SELECT id FROM suppliers
-       WHERE restaurant_id = $1 AND name = $2`,
-      [restaurantId, supplierData.name]
-    );
+      if (existingCheck.rows.length > 0) {
+        return null; // Supplier exists
+      }
 
-    if (existingCheck.rows.length > 0) {
+      // Insert new supplier
+      const result = await client.query<Supplier>(
+        `INSERT INTO suppliers
+         (restaurant_id, name, phone, contact_info, poster_supplier_id)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [
+          restaurantId,
+          supplierData.name,
+          supplierData.phone || null,
+          supplierData.contact_info || null,
+          supplierData.poster_supplier_id || null,
+        ]
+      );
+      return result.rows[0];
+    });
+
+    if (!supplier) {
       return NextResponse.json<ApiResponse>(
         {
           success: false,
@@ -96,24 +102,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert new supplier
-    const result = await pool.query<Supplier>(
-      `INSERT INTO suppliers
-       (restaurant_id, name, phone, contact_info, poster_supplier_id)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [
-        restaurantId,
-        supplierData.name,
-        supplierData.phone || null,
-        supplierData.contact_info || null,
-        supplierData.poster_supplier_id || null,
-      ]
-    );
-
     return NextResponse.json<ApiResponse<Supplier>>({
       success: true,
-      data: result.rows[0],
+      data: supplier,
       message: "Supplier created successfully",
     });
   } catch (error) {
@@ -150,13 +141,6 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (!pool) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
-      );
-    }
-
     // Build dynamic update query
     const fields = Object.keys(updateData);
     const values = Object.values(updateData);
@@ -172,22 +156,21 @@ export async function PATCH(request: NextRequest) {
     }
 
     const setClause = fields
-      .map((field, index) => `${field} = $${index + 3}`)
+      .map((field, index) => `${field} = $${index + 2}`)
       .join(", ");
 
-    const query = `
-      UPDATE suppliers
-      SET ${setClause}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1 AND restaurant_id = $2
-      RETURNING *
-    `;
+    const supplier = await withTenant(restaurantId, async (client) => {
+      const query = `
+        UPDATE suppliers
+        SET ${setClause}, updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *
+      `;
+      const result = await client.query<Supplier>(query, [id, ...values]);
+      return result.rows[0];
+    });
 
-    const result = await pool.query<Supplier>(
-      query,
-      [id, restaurantId, ...values]
-    );
-
-    if (result.rowCount === 0) {
+    if (!supplier) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: "Supplier not found" },
         { status: 404 }
@@ -196,7 +179,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json<ApiResponse<Supplier>>({
       success: true,
-      data: result.rows[0],
+      data: supplier,
       message: "Supplier updated successfully",
     });
   } catch (error) {
@@ -231,41 +214,35 @@ export async function DELETE(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    if (!pool) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const result = await withTenant(restaurantId, async (client) => {
+      // Check if supplier has associated categories
+      const associatedCheck = await client.query(
+        `SELECT COUNT(*) as categories_count FROM product_categories WHERE supplier_id = $1`,
+        [supplierId]
       );
-    }
 
-    // Check if supplier has associated products or categories
-    const associatedCheck = await pool.query(
-      `SELECT
-        (SELECT COUNT(*) FROM products WHERE supplier_id = $1) as products_count,
-        (SELECT COUNT(*) FROM product_categories WHERE supplier_id = $1) as categories_count`,
-      [supplierId]
-    );
+      const { categories_count } = associatedCheck.rows[0];
 
-    const { products_count, categories_count } = associatedCheck.rows[0];
+      if (parseInt(categories_count) > 0) {
+        return { error: `Cannot delete supplier with ${categories_count} categories` };
+      }
 
-    if (parseInt(products_count) > 0 || parseInt(categories_count) > 0) {
+      const deleteResult = await client.query(
+        `DELETE FROM suppliers WHERE id = $1 RETURNING id`,
+        [supplierId]
+      );
+
+      return { deleted: deleteResult.rowCount && deleteResult.rowCount > 0 };
+    });
+
+    if ("error" in result) {
       return NextResponse.json<ApiResponse>(
-        {
-          success: false,
-          error: `Cannot delete supplier with ${products_count} products and ${categories_count} categories`,
-        },
+        { success: false, error: result.error },
         { status: 409 }
       );
     }
 
-    const result = await pool.query(
-      `DELETE FROM suppliers
-       WHERE id = $1 AND restaurant_id = $2
-       RETURNING id`,
-      [supplierId, restaurantId]
-    );
-
-    if (result.rowCount === 0) {
+    if (!result.deleted) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: "Supplier not found" },
         { status: 404 }

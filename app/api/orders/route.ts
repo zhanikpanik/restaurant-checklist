@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { withTenant } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import type { Order, OrderItem, ApiResponse } from "@/types";
 
@@ -13,24 +13,18 @@ export async function GET(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const orders = await withTenant(restaurantId, async (client) => {
+      const result = await client.query<Order>(
+        `SELECT * FROM orders
+         ORDER BY created_at DESC
+         LIMIT 100`
       );
-    }
-
-    const result = await pool.query<Order>(
-      `SELECT * FROM orders
-       WHERE restaurant_id = $1
-       ORDER BY created_at DESC
-       LIMIT 100`,
-      [restaurantId]
-    );
+      return result.rows;
+    });
 
     return NextResponse.json<ApiResponse<Order[]>>({
       success: true,
-      data: result.rows,
+      data: orders,
     });
   } catch (error) {
     console.error("Error fetching orders:", error);
@@ -92,13 +86,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    if (!pool) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
-      );
-    }
-
     // Format the order
     const formattedOrder = {
       items: orderData.items.map((item: any) => {
@@ -120,24 +107,27 @@ export async function POST(request: NextRequest) {
       total_items: orderData.items.length,
     };
 
-    // Save order to database
-    const result = await pool.query<Order>(
-      `INSERT INTO orders (restaurant_id, order_data, status, created_by_role)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [
-        restaurantId,
-        JSON.stringify(formattedOrder),
-        orderData.status || "pending",
-        orderData.created_by || "manager",
-      ]
-    );
+    // Save order to database with RLS
+    const order = await withTenant(restaurantId, async (client) => {
+      const result = await client.query<Order>(
+        `INSERT INTO orders (restaurant_id, order_data, status, created_by_role)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [
+          restaurantId,
+          JSON.stringify(formattedOrder),
+          orderData.status || "pending",
+          orderData.created_by || "manager",
+        ]
+      );
+      return result.rows[0];
+    });
 
-    console.log(`✅ Order created with ID: ${result.rows[0].id}`);
+    console.log(`✅ Order created with ID: ${order.id}`);
 
     return NextResponse.json<ApiResponse<Order>>({
       success: true,
-      data: result.rows[0],
+      data: order,
       message: "Order created successfully",
     });
   } catch (error) {
@@ -172,24 +162,21 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (!pool) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const order = await withTenant(restaurantId, async (client) => {
+      const result = await client.query<Order>(
+        `UPDATE orders
+         SET status = COALESCE($1, status),
+             order_data = COALESCE($2, order_data),
+             delivered_at = CASE WHEN $1 = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3
+         RETURNING *`,
+        [status, order_data ? JSON.stringify(order_data) : null, id]
       );
-    }
+      return result.rows[0];
+    });
 
-    const result = await pool.query<Order>(
-      `UPDATE orders
-       SET status = COALESCE($1, status),
-           order_data = COALESCE($2, order_data),
-           delivered_at = CASE WHEN $1 = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END
-       WHERE id = $3 AND restaurant_id = $4
-       RETURNING *`,
-      [status, order_data ? JSON.stringify(order_data) : null, id, restaurantId]
-    );
-
-    if (result.rowCount === 0) {
+    if (!order) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: "Order not found" },
         { status: 404 }
@@ -198,7 +185,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json<ApiResponse<Order>>({
       success: true,
-      data: result.rows[0],
+      data: order,
       message: "Order updated successfully",
     });
   } catch (error) {
@@ -233,21 +220,17 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (!pool) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const deleted = await withTenant(restaurantId, async (client) => {
+      const result = await client.query(
+        `DELETE FROM orders
+         WHERE id = $1
+         RETURNING id`,
+        [orderId]
       );
-    }
+      return result.rowCount && result.rowCount > 0;
+    });
 
-    const result = await pool.query(
-      `DELETE FROM orders
-       WHERE id = $1 AND restaurant_id = $2
-       RETURNING id`,
-      [orderId, restaurantId]
-    );
-
-    if (result.rowCount === 0) {
+    if (!deleted) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: "Order not found" },
         { status: 404 }

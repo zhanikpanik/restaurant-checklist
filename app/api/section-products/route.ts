@@ -1,39 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { withTenant } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
-      );
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
     }
+    const { restaurantId } = auth;
 
-    const result = await pool.query(
-      `SELECT
-        sp.id,
-        sp.name,
-        sp.unit,
-        sp.poster_ingredient_id,
-        sp.section_id,
-        sp.category_id,
-        sp.is_active,
-        pc.name as category_name,
-        pc.supplier_id,
-        sup.name as supplier_name,
-        s.name as section_name
-      FROM section_products sp
-      LEFT JOIN product_categories pc ON sp.category_id = pc.id
-      LEFT JOIN suppliers sup ON pc.supplier_id = sup.id
-      LEFT JOIN sections s ON sp.section_id = s.id
-      ORDER BY sp.name`
-    );
+    const products = await withTenant(restaurantId, async (client) => {
+      const result = await client.query(
+        `SELECT
+          sp.id,
+          sp.name,
+          sp.unit,
+          sp.poster_ingredient_id,
+          sp.section_id,
+          sp.category_id,
+          sp.is_active,
+          pc.name as category_name,
+          pc.supplier_id,
+          sup.name as supplier_name,
+          s.name as section_name
+        FROM section_products sp
+        LEFT JOIN product_categories pc ON sp.category_id = pc.id
+        LEFT JOIN suppliers sup ON pc.supplier_id = sup.id
+        LEFT JOIN sections s ON sp.section_id = s.id
+        ORDER BY sp.name`
+      );
+      return result.rows;
+    });
 
     return NextResponse.json({
       success: true,
-      data: result.rows,
+      data: products,
     });
   } catch (error) {
     console.error("Error fetching section products:", error);
@@ -49,12 +52,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
-      );
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
     }
+    const { restaurantId } = auth;
 
     const body = await request.json();
     const { name, unit, section_id, category_id, is_active, poster_ingredient_id } = body;
@@ -69,16 +72,19 @@ export async function POST(request: NextRequest) {
     // Generate a unique ID for custom products (prefix with 'custom_')
     const ingredientId = poster_ingredient_id || `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    const result = await pool.query(
-      `INSERT INTO section_products (name, unit, section_id, category_id, is_active, poster_ingredient_id)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING *`,
-      [name, unit || null, section_id, category_id || null, is_active !== false, ingredientId]
-    );
+    const product = await withTenant(restaurantId, async (client) => {
+      const result = await client.query(
+        `INSERT INTO section_products (name, unit, section_id, category_id, is_active, poster_ingredient_id)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [name, unit || null, section_id, category_id || null, is_active !== false, ingredientId]
+      );
+      return result.rows[0];
+    });
 
     return NextResponse.json({
       success: true,
-      data: result.rows[0],
+      data: product,
       message: "Product created successfully",
     });
   } catch (error) {
@@ -95,12 +101,12 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
-      );
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
     }
+    const { restaurantId } = auth;
 
     const body = await request.json();
     const { id, name, unit, section_id, category_id, is_active } = body;
@@ -112,20 +118,23 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const result = await pool.query(
-      `UPDATE section_products
-       SET name = COALESCE($1, name),
-           unit = COALESCE($2, unit),
-           section_id = COALESCE($3, section_id),
-           category_id = COALESCE($4, category_id),
-           is_active = COALESCE($5, is_active),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $6
-       RETURNING *`,
-      [name, unit, section_id, category_id, is_active, id]
-    );
+    const product = await withTenant(restaurantId, async (client) => {
+      const result = await client.query(
+        `UPDATE section_products
+         SET name = COALESCE($1, name),
+             unit = COALESCE($2, unit),
+             section_id = COALESCE($3, section_id),
+             category_id = COALESCE($4, category_id),
+             is_active = COALESCE($5, is_active),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $6
+         RETURNING *`,
+        [name, unit, section_id, category_id, is_active, id]
+      );
+      return result.rows[0];
+    });
 
-    if (result.rowCount === 0) {
+    if (!product) {
       return NextResponse.json(
         { success: false, error: "Product not found" },
         { status: 404 }
@@ -134,7 +143,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: result.rows[0],
+      data: product,
       message: "Product updated successfully",
     });
   } catch (error) {
@@ -161,32 +170,44 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
-      );
+    // Authenticate and get restaurant ID
+    const auth = await requireAuth(request);
+    if (auth instanceof NextResponse) {
+      return auth;
     }
+    const { restaurantId } = auth;
 
-    // Check if product is from Poster
-    const checkResult = await pool.query(
-      `SELECT poster_ingredient_id FROM section_products WHERE id = $1`,
-      [productId]
-    );
+    const result = await withTenant(restaurantId, async (client) => {
+      // Check if product is from Poster (non-custom)
+      const checkResult = await client.query(
+        `SELECT poster_ingredient_id FROM section_products WHERE id = $1`,
+        [productId]
+      );
 
-    if (checkResult.rows.length > 0 && checkResult.rows[0].poster_ingredient_id) {
+      if (checkResult.rows.length > 0) {
+        const ingredientId = checkResult.rows[0].poster_ingredient_id;
+        // Only allow deletion of custom products (prefixed with 'custom_')
+        if (ingredientId && !ingredientId.startsWith('custom_')) {
+          return { error: "Невозможно удалить товар из Poster" };
+        }
+      }
+
+      const deleteResult = await client.query(
+        `DELETE FROM section_products WHERE id = $1 RETURNING id`,
+        [productId]
+      );
+
+      return { deleted: deleteResult.rowCount && deleteResult.rowCount > 0 };
+    });
+
+    if ("error" in result) {
       return NextResponse.json(
-        { success: false, error: "Невозможно удалить товар из Poster" },
+        { success: false, error: result.error },
         { status: 403 }
       );
     }
 
-    const result = await pool.query(
-      `DELETE FROM section_products WHERE id = $1 RETURNING id`,
-      [productId]
-    );
-
-    if (result.rowCount === 0) {
+    if (!result.deleted) {
       return NextResponse.json(
         { success: false, error: "Product not found" },
         { status: 404 }

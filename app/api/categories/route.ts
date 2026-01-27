@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { withTenant } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import type { ProductCategory, ApiResponse } from "@/types";
 
@@ -13,25 +13,19 @@ export async function GET(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const categories = await withTenant(restaurantId, async (client) => {
+      const result = await client.query<ProductCategory>(
+        `SELECT pc.*, s.name as supplier_name
+         FROM product_categories pc
+         LEFT JOIN suppliers s ON pc.supplier_id = s.id
+         ORDER BY pc.name`
       );
-    }
-
-    const result = await pool.query<ProductCategory>(
-      `SELECT pc.*, s.name as supplier_name
-       FROM product_categories pc
-       LEFT JOIN suppliers s ON pc.supplier_id = s.id
-       WHERE pc.restaurant_id = $1
-       ORDER BY pc.name`,
-      [restaurantId]
-    );
+      return result.rows;
+    });
 
     return NextResponse.json<ApiResponse<ProductCategory[]>>({
       success: true,
-      data: result.rows,
+      data: categories,
     });
   } catch (error) {
     console.error("Error fetching categories:", error);
@@ -68,21 +62,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!pool) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const category = await withTenant(restaurantId, async (client) => {
+      // Check if category already exists
+      const existingCheck = await client.query(
+        `SELECT id FROM product_categories WHERE name = $1`,
+        [categoryData.name]
       );
-    }
 
-    // Check if category already exists
-    const existingCheck = await pool.query(
-      `SELECT id FROM product_categories
-       WHERE restaurant_id = $1 AND name = $2`,
-      [restaurantId, categoryData.name]
-    );
+      if (existingCheck.rows.length > 0) {
+        return null; // Category exists
+      }
 
-    if (existingCheck.rows.length > 0) {
+      // Insert new category
+      const result = await client.query<ProductCategory>(
+        `INSERT INTO product_categories
+         (restaurant_id, name, supplier_id)
+         VALUES ($1, $2, $3)
+         RETURNING *`,
+        [
+          restaurantId,
+          categoryData.name,
+          categoryData.supplier_id || null,
+        ]
+      );
+      return result.rows[0];
+    });
+
+    if (!category) {
       return NextResponse.json<ApiResponse>(
         {
           success: false,
@@ -92,22 +98,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Insert new category
-    const result = await pool.query<ProductCategory>(
-      `INSERT INTO product_categories
-       (restaurant_id, name, supplier_id)
-       VALUES ($1, $2, $3)
-       RETURNING *`,
-      [
-        restaurantId,
-        categoryData.name,
-        categoryData.supplier_id || null,
-      ]
-    );
-
     return NextResponse.json<ApiResponse<ProductCategory>>({
       success: true,
-      data: result.rows[0],
+      data: category,
       message: "Category created successfully",
     });
   } catch (error) {
@@ -142,23 +135,20 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (!pool) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const category = await withTenant(restaurantId, async (client) => {
+      const result = await client.query<ProductCategory>(
+        `UPDATE product_categories
+         SET name = COALESCE($1, name),
+             supplier_id = $2,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $3
+         RETURNING *`,
+        [name, supplier_id, id]
       );
-    }
+      return result.rows[0];
+    });
 
-    const result = await pool.query<ProductCategory>(
-      `UPDATE product_categories
-       SET name = COALESCE($1, name),
-           supplier_id = $2
-       WHERE id = $3 AND restaurant_id = $4
-       RETURNING *`,
-      [name, supplier_id, id, restaurantId]
-    );
-
-    if (result.rowCount === 0) {
+    if (!category) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: "Category not found" },
         { status: 404 }
@@ -167,7 +157,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json<ApiResponse<ProductCategory>>({
       success: true,
-      data: result.rows[0],
+      data: category,
       message: "Category updated successfully",
     });
   } catch (error) {
@@ -202,41 +192,37 @@ export async function DELETE(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    if (!pool) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const result = await withTenant(restaurantId, async (client) => {
+      // Check if category has associated products
+      const associatedCheck = await client.query(
+        `SELECT COUNT(*) as products_count
+         FROM section_products
+         WHERE category_id = $1`,
+        [categoryId]
       );
-    }
 
-    // Check if category has associated products
-    const associatedCheck = await pool.query(
-      `SELECT COUNT(*) as products_count
-       FROM section_products
-       WHERE category_id = $1`,
-      [categoryId]
-    );
+      const { products_count } = associatedCheck.rows[0];
 
-    const { products_count } = associatedCheck.rows[0];
+      if (parseInt(products_count) > 0) {
+        return { error: `Cannot delete category with ${products_count} products` };
+      }
 
-    if (parseInt(products_count) > 0) {
+      const deleteResult = await client.query(
+        `DELETE FROM product_categories WHERE id = $1 RETURNING id`,
+        [categoryId]
+      );
+
+      return { deleted: deleteResult.rowCount && deleteResult.rowCount > 0 };
+    });
+
+    if ("error" in result) {
       return NextResponse.json<ApiResponse>(
-        {
-          success: false,
-          error: `Cannot delete category with ${products_count} products`,
-        },
+        { success: false, error: result.error },
         { status: 409 }
       );
     }
 
-    const result = await pool.query(
-      `DELETE FROM product_categories
-       WHERE id = $1 AND restaurant_id = $2
-       RETURNING id`,
-      [categoryId, restaurantId]
-    );
-
-    if (result.rowCount === 0) {
+    if (!result.deleted) {
       return NextResponse.json<ApiResponse>(
         { success: false, error: "Category not found" },
         { status: 404 }

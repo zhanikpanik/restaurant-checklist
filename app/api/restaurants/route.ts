@@ -1,26 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { withoutTenant } from "@/lib/db";
 import type { Restaurant, ApiResponse } from "@/types";
 
-// GET /api/restaurants - Get all restaurants
+/**
+ * GET /api/restaurants - Get all restaurants
+ * 
+ * NOTE: Uses withoutTenant because this is an admin/cross-tenant operation
+ * (restaurants table doesn't have RLS since it's the top-level entity)
+ */
 export async function GET(request: NextRequest) {
   try {
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const restaurants = await withoutTenant(async (client) => {
+      const result = await client.query<Restaurant>(
+        `SELECT * FROM restaurants
+         WHERE is_active = true
+         ORDER BY name`
       );
-    }
-
-    const result = await pool.query<Restaurant>(
-      `SELECT * FROM restaurants
-       WHERE is_active = true
-       ORDER BY name`
-    );
+      return result.rows;
+    });
 
     return NextResponse.json<ApiResponse<Restaurant[]>>({
       success: true,
-      data: result.rows,
+      data: restaurants,
     });
   } catch (error) {
     console.error("Error fetching restaurants:", error);

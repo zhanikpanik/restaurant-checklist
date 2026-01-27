@@ -71,3 +71,108 @@ if (pool) {
 
 // Export the pool for querying the database from other parts of the application
 export default pool;
+
+/**
+ * Execute queries within a tenant context (Row Level Security).
+ * 
+ * This sets the `app.current_tenant` session variable so that RLS policies
+ * automatically filter data to the specified restaurant.
+ * 
+ * @example
+ * ```typescript
+ * const orders = await withTenant(restaurantId, async (client) => {
+ *   // All queries automatically filtered by restaurantId
+ *   const result = await client.query('SELECT * FROM orders');
+ *   return result.rows;
+ * });
+ * ```
+ * 
+ * @param tenantId - The restaurant_id to scope queries to
+ * @param callback - Function that receives the client and executes queries
+ * @returns The result of the callback function
+ */
+export async function withTenant<T>(
+  tenantId: string,
+  callback: (client: import("pg").PoolClient) => Promise<T>
+): Promise<T> {
+  if (!pool) {
+    throw new Error("Database pool not initialized");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    // Set the tenant for this session (LOCAL = only this transaction)
+    await client.query("SET LOCAL app.current_tenant = $1", [tenantId]);
+
+    // Execute the callback with tenant context
+    return await callback(client);
+  } finally {
+    // Always release the client back to the pool
+    client.release();
+  }
+}
+
+/**
+ * Execute queries within a transaction with tenant context.
+ * 
+ * @example
+ * ```typescript
+ * await withTenantTransaction(restaurantId, async (client) => {
+ *   await client.query('INSERT INTO orders ...');
+ *   await client.query('UPDATE inventory ...');
+ *   // Auto-commits on success, auto-rollbacks on error
+ * });
+ * ```
+ */
+export async function withTenantTransaction<T>(
+  tenantId: string,
+  callback: (client: import("pg").PoolClient) => Promise<T>
+): Promise<T> {
+  if (!pool) {
+    throw new Error("Database pool not initialized");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query("SET LOCAL app.current_tenant = $1", [tenantId]);
+
+    const result = await callback(client);
+
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Execute a query without tenant context (for admin operations).
+ * 
+ * WARNING: This bypasses RLS. Only use for:
+ * - Cross-tenant admin queries
+ * - Restaurant management
+ * - Migrations
+ */
+export async function withoutTenant<T>(
+  callback: (client: import("pg").PoolClient) => Promise<T>
+): Promise<T> {
+  if (!pool) {
+    throw new Error("Database pool not initialized");
+  }
+
+  const client = await pool.connect();
+
+  try {
+    // Reset tenant setting to ensure no accidental tenant context
+    await client.query("RESET app.current_tenant");
+    return await callback(client);
+  } finally {
+    client.release();
+  }
+}

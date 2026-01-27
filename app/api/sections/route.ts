@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { withTenant } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    // Get restaurant_id from cookie
     // Authenticate and get restaurant ID
     const auth = await requireAuth(request);
     if (auth instanceof NextResponse) {
@@ -12,32 +11,25 @@ export async function GET(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const sections = await withTenant(restaurantId, async (client) => {
+      const result = await client.query(
+        `SELECT
+          s.id,
+          s.name,
+          s.emoji,
+          s.poster_storage_id,
+          COUNT(cp.id) as custom_products_count
+        FROM sections s
+        LEFT JOIN custom_products cp ON cp.section_id = s.id
+        GROUP BY s.id, s.name, s.emoji, s.poster_storage_id
+        ORDER BY s.name`
       );
-    }
-
-    // Fetch sections for the current restaurant
-    const result = await pool.query(
-      `SELECT
-        s.id,
-        s.name,
-        s.emoji,
-        s.poster_storage_id,
-        COUNT(cp.id) as custom_products_count
-      FROM sections s
-      LEFT JOIN custom_products cp ON cp.section_id = s.id
-      WHERE s.restaurant_id = $1
-      GROUP BY s.id, s.name, s.emoji, s.poster_storage_id
-      ORDER BY s.name`,
-      [restaurantId]
-    );
+      return result.rows;
+    });
 
     return NextResponse.json({
       success: true,
-      data: result.rows,
+      data: sections,
     });
   } catch (error) {
     console.error("Error fetching sections:", error);
@@ -60,13 +52,6 @@ export async function POST(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const { name, emoji, poster_storage_id } = body;
 
@@ -77,16 +62,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await pool.query(
-      `INSERT INTO sections (restaurant_id, name, emoji, poster_storage_id)
-       VALUES ($1, $2, $3, $4)
-       RETURNING *`,
-      [restaurantId, name, emoji || null, poster_storage_id || null]
-    );
+    const section = await withTenant(restaurantId, async (client) => {
+      const result = await client.query(
+        `INSERT INTO sections (restaurant_id, name, emoji, poster_storage_id)
+         VALUES ($1, $2, $3, $4)
+         RETURNING *`,
+        [restaurantId, name, emoji || null, poster_storage_id || null]
+      );
+      return result.rows[0];
+    });
 
     return NextResponse.json({
       success: true,
-      data: result.rows[0],
+      data: section,
       message: "Section created successfully",
     });
   } catch (error) {
@@ -110,13 +98,6 @@ export async function PATCH(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
-      );
-    }
-
     const body = await request.json();
     const { id, name, emoji, poster_storage_id } = body;
 
@@ -127,18 +108,21 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const result = await pool.query(
-      `UPDATE sections
-       SET name = COALESCE($1, name),
-           emoji = COALESCE($2, emoji),
-           poster_storage_id = COALESCE($3, poster_storage_id),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $4 AND restaurant_id = $5
-       RETURNING *`,
-      [name, emoji, poster_storage_id, id, restaurantId]
-    );
+    const section = await withTenant(restaurantId, async (client) => {
+      const result = await client.query(
+        `UPDATE sections
+         SET name = COALESCE($1, name),
+             emoji = COALESCE($2, emoji),
+             poster_storage_id = COALESCE($3, poster_storage_id),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $4
+         RETURNING *`,
+        [name, emoji, poster_storage_id, id]
+      );
+      return result.rows[0];
+    });
 
-    if (result.rowCount === 0) {
+    if (!section) {
       return NextResponse.json(
         { success: false, error: "Section not found" },
         { status: 404 }
@@ -147,7 +131,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: result.rows[0],
+      data: section,
       message: "Section updated successfully",
     });
   } catch (error) {
@@ -181,34 +165,33 @@ export async function DELETE(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    if (!pool) {
-      return NextResponse.json(
-        { success: false, error: "Database connection not available" },
-        { status: 500 }
+    const result = await withTenant(restaurantId, async (client) => {
+      // Check if section is from Poster
+      const checkResult = await client.query(
+        `SELECT poster_storage_id FROM sections WHERE id = $1`,
+        [sectionId]
       );
-    }
 
-    // Check if section is from Poster
-    const checkResult = await pool.query(
-      `SELECT poster_storage_id FROM sections WHERE id = $1 AND restaurant_id = $2`,
-      [sectionId, restaurantId]
-    );
+      if (checkResult.rows.length > 0 && checkResult.rows[0].poster_storage_id) {
+        return { error: "Невозможно удалить секцию из Poster" };
+      }
 
-    if (checkResult.rows.length > 0 && checkResult.rows[0].poster_storage_id) {
+      const deleteResult = await client.query(
+        `DELETE FROM sections WHERE id = $1 RETURNING id`,
+        [sectionId]
+      );
+
+      return { deleted: deleteResult.rowCount && deleteResult.rowCount > 0 };
+    });
+
+    if ("error" in result) {
       return NextResponse.json(
-        { success: false, error: "Невозможно удалить секцию из Poster" },
+        { success: false, error: result.error },
         { status: 403 }
       );
     }
 
-    const result = await pool.query(
-      `DELETE FROM sections
-       WHERE id = $1 AND restaurant_id = $2
-       RETURNING id`,
-      [sectionId, restaurantId]
-    );
-
-    if (result.rowCount === 0) {
+    if (!result.deleted) {
       return NextResponse.json(
         { success: false, error: "Section not found" },
         { status: 404 }

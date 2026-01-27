@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import pool from "@/lib/db";
+import { withoutTenant } from "@/lib/db";
 
 export async function GET(request: NextRequest) {
   // Helper to build proper redirect URL
@@ -15,29 +15,29 @@ export async function GET(request: NextRequest) {
     const account = searchParams.get("account");
     const error = searchParams.get("error");
 
-    console.log("📥 Callback params:", {
+    console.log("Callback params:", {
       code: code?.substring(0, 20) + "...",
       account,
     });
 
     if (error) {
-      console.error("❌ OAuth error:", error);
+      console.error("OAuth error:", error);
       return NextResponse.redirect(getRedirectUrl(`/setup?error=${encodeURIComponent(error)}`));
     }
 
     if (!code) {
-      console.error("❌ No code received");
+      console.error("No code received");
       return NextResponse.redirect(getRedirectUrl("/setup?error=no_code"));
     }
 
     if (!account) {
-      console.error("❌ No account received");
+      console.error("No account received");
       return NextResponse.redirect(getRedirectUrl("/setup?error=no_account"));
     }
 
     // Exchange code for token
     const tokenEndpoint = `https://${account}.joinposter.com/api/auth/access_token`;
-    console.log("🔗 Token endpoint:", tokenEndpoint);
+    console.log("Token endpoint:", tokenEndpoint);
 
     const tokenResponse = await fetch(tokenEndpoint, {
       method: "POST",
@@ -55,22 +55,20 @@ export async function GET(request: NextRequest) {
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error("❌ Token exchange failed:", errorText);
+      console.error("Token exchange failed:", errorText);
       return NextResponse.redirect(getRedirectUrl("/setup?error=token_exchange_failed"));
     }
 
     const tokenData = await tokenResponse.json();
-    console.log("📦 Token response:", tokenData);
+    console.log("Token response received");
 
     const access_token = tokenData.new_access_token || tokenData.access_token;
     const account_number = tokenData.account_number;
 
     if (!access_token) {
-      console.error("❌ No access token received");
+      console.error("No access token received");
       return NextResponse.redirect(getRedirectUrl("/setup?error=no_token"));
     }
-
-    console.log(`✅ Using token format: ${access_token.substring(0, 10)}...`);
 
     // Get account info
     const accountResponse = await fetch(
@@ -81,59 +79,61 @@ export async function GET(request: NextRequest) {
     const restaurantName = accountData.response?.name || account_number || "New Restaurant";
     const restaurantId = account_number || `restaurant_${Date.now()}`;
 
-    if (!pool) {
-      return NextResponse.redirect(getRedirectUrl("/setup?error=database_error"));
-    }
-
-    // Store restaurant in database
-    const client = await pool.connect();
+    // Store restaurant in database using withoutTenant (admin operation, restaurants table has no RLS)
     try {
-      await client.query("BEGIN");
+      await withoutTenant(async (client) => {
+        await client.query("BEGIN");
 
-      const existingResult = await client.query(
-        "SELECT id FROM restaurants WHERE poster_account_name = $1",
-        [account_number]
-      );
+        try {
+          const existingResult = await client.query(
+            "SELECT id FROM restaurants WHERE poster_account_name = $1",
+            [account_number]
+          );
 
-      if (existingResult.rows.length > 0) {
-        await client.query(
-          `UPDATE restaurants
-           SET poster_token = $1,
-               name = $2,
-               is_active = true
-           WHERE poster_account_name = $3`,
-          [access_token, restaurantName, account_number]
-        );
-        console.log("✅ Updated existing restaurant:", account_number);
-      } else {
-        await client.query(
-          `INSERT INTO restaurants (
-            id, name, logo, primary_color, currency,
-            poster_token, poster_account_name, poster_base_url,
-            kitchen_storage_id, bar_storage_id,
-            timezone, language, whatsapp_enabled, is_active
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
-          [
-            restaurantId,
-            restaurantName,
-            "🍽️",
-            "#3B82F6",
-            "₽",
-            access_token,
-            account_number,
-            "https://joinposter.com/api",
-            1,
-            2,
-            "Europe/Moscow",
-            "ru",
-            true,
-            true,
-          ]
-        );
-        console.log("✅ Created new restaurant:", restaurantId);
-      }
+          if (existingResult.rows.length > 0) {
+            await client.query(
+              `UPDATE restaurants
+               SET poster_token = $1,
+                   name = $2,
+                   is_active = true
+               WHERE poster_account_name = $3`,
+              [access_token, restaurantName, account_number]
+            );
+            console.log("Updated existing restaurant:", account_number);
+          } else {
+            await client.query(
+              `INSERT INTO restaurants (
+                id, name, logo, primary_color, currency,
+                poster_token, poster_account_name, poster_base_url,
+                kitchen_storage_id, bar_storage_id,
+                timezone, language, whatsapp_enabled, is_active
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+              [
+                restaurantId,
+                restaurantName,
+                "🍽️",
+                "#3B82F6",
+                "₽",
+                access_token,
+                account_number,
+                "https://joinposter.com/api",
+                1,
+                2,
+                "Europe/Moscow",
+                "ru",
+                true,
+                true,
+              ]
+            );
+            console.log("Created new restaurant:", restaurantId);
+          }
 
-      await client.query("COMMIT");
+          await client.query("COMMIT");
+        } catch (dbError) {
+          await client.query("ROLLBACK");
+          throw dbError;
+        }
+      });
 
       const response = NextResponse.redirect(getRedirectUrl("/setup?success=oauth"));
       response.cookies.set("restaurant_id", restaurantId, {
@@ -142,17 +142,14 @@ export async function GET(request: NextRequest) {
         sameSite: "lax",
       });
 
-      console.log(`✅ OAuth complete, restaurant: ${restaurantId}`);
+      console.log(`OAuth complete, restaurant: ${restaurantId}`);
       return response;
     } catch (dbError) {
-      await client.query("ROLLBACK");
-      console.error("❌ Database error:", dbError);
+      console.error("Database error:", dbError);
       return NextResponse.redirect(getRedirectUrl("/setup?error=database_error"));
-    } finally {
-      client.release();
     }
   } catch (error) {
-    console.error("❌ OAuth callback error:", error);
+    console.error("OAuth callback error:", error);
     return NextResponse.redirect(getRedirectUrl("/setup?error=unknown"));
   }
 }
