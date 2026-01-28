@@ -13,6 +13,8 @@ interface Section {
   custom_products_count?: number;
 }
 
+type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
+
 interface Restaurant {
   id: string;
   name: string;
@@ -26,6 +28,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [currentTenant, setCurrentTenant] = useState<string>("unknown");
   const [tenantName, setTenantName] = useState<string>("Загрузка...");
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const router = useRouter();
   
   const isAdmin = session?.user?.role === "admin";
@@ -81,9 +84,9 @@ export default function HomePage() {
     }
   };
 
-  const syncSections = async () => {
+const syncSections = async () => {
     try {
-      setLoading(true);
+      setSyncStatus('syncing');
       const response = await fetch("/api/sync-sections");
       const data = await response.json();
 
@@ -91,10 +94,15 @@ export default function HomePage() {
         throw new Error(data.error);
       }
 
+      setSyncStatus('success');
       await loadSections();
+      
+      // Reset status after 3 seconds
+      setTimeout(() => setSyncStatus('idle'), 3000);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to sync sections");
-      setLoading(false);
+      setSyncStatus('error');
+      setTimeout(() => setSyncStatus('idle'), 3000);
     }
   };
 
@@ -132,11 +140,51 @@ export default function HomePage() {
                 {tenantName}
               </span>
             </div>
-            {session?.user && (
-              <div className="text-sm text-gray-600">
-                👤 {session.user.name}
-              </div>
-            )}
+            <div className="flex items-center gap-3">
+              {(isAdmin || isManager) && (
+                <button
+                  onClick={syncSections}
+                  disabled={syncStatus === 'syncing'}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    syncStatus === 'syncing'
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : syncStatus === 'success'
+                      ? 'bg-green-100 text-green-700'
+                      : syncStatus === 'error'
+                      ? 'bg-red-100 text-red-700'
+                      : 'bg-green-500 hover:bg-green-600 text-white'
+                  }`}
+                  title="Синхронизировать отделы и товары из Poster"
+                >
+                  {syncStatus === 'syncing' ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" />
+                      <span className="hidden sm:inline">Синхронизация...</span>
+                    </>
+                  ) : syncStatus === 'success' ? (
+                    <>
+                      <span>✓</span>
+                      <span className="hidden sm:inline">Готово!</span>
+                    </>
+                  ) : syncStatus === 'error' ? (
+                    <>
+                      <span>✕</span>
+                      <span className="hidden sm:inline">Ошибка</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🔄</span>
+                      <span className="hidden sm:inline">Синхронизировать</span>
+                    </>
+                  )}
+                </button>
+              )}
+              {session?.user && (
+                <div className="text-sm text-gray-600">
+                  👤 {session.user.name}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

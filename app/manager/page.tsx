@@ -58,6 +58,7 @@ export default function ManagerPage() {
   const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
   const [editingOrderItems, setEditingOrderItems] = useState<any[]>([]);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -459,6 +460,27 @@ export default function ManagerPage() {
     } catch (error) {
       console.error("Error deleting section:", error);
       alert("Ошибка при удалении секции");
+    }
+  };
+
+  const handleSyncFromPoster = async () => {
+    try {
+      setSyncing(true);
+      const response = await fetch("/api/sync-sections");
+      const data = await response.json();
+
+      if (data.success) {
+        const { syncedCount, ingredientsSynced } = data.data;
+        alert(`Синхронизировано: ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`);
+        loadData(); // Reload sections
+      } else {
+        alert(data.error || "Ошибка синхронизации");
+      }
+    } catch (error) {
+      console.error("Error syncing from Poster:", error);
+      alert("Ошибка синхронизации с Poster");
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -1129,12 +1151,28 @@ export default function ManagerPage() {
                     <h2 className="text-lg font-semibold">
                       Секции ({sections.length})
                     </h2>
-                    <button
-                      onClick={handleCreateSection}
-                      className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                    >
-                      ➕ Добавить секцию
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSyncFromPoster}
+                        disabled={syncing}
+                        className="bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                      >
+                        {syncing ? (
+                          <>
+                            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                            Синхронизация...
+                          </>
+                        ) : (
+                          <>🔄 Синхронизировать из Poster</>
+                        )}
+                      </button>
+                      <button
+                        onClick={handleCreateSection}
+                        className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                      >
+                        ➕ Добавить секцию
+                      </button>
+                    </div>
                   </div>
                   {sections.length === 0 ? (
                     <p className="text-gray-500 text-center py-8">
