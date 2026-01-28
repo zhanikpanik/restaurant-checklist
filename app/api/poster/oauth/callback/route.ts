@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
         try {
           const existingResult = await client.query(
             "SELECT id FROM restaurants WHERE poster_account_name = $1",
-            [account_number]
+            [account]
           );
 
           if (existingResult.rows.length > 0) {
@@ -118,7 +118,7 @@ export async function GET(request: NextRequest) {
                    name = $2,
                    is_active = true
                WHERE poster_account_name = $3`,
-              [access_token, restaurantName, account_number]
+              [access_token, restaurantName, account]
             );
             console.log("Updated existing restaurant:", finalRestaurantId);
           } else {
@@ -136,8 +136,8 @@ export async function GET(request: NextRequest) {
                 "#3B82F6",
                 "₽",
                 access_token,
-                account_number,
-                "https://joinposter.com/api",
+                account,  // Use subdomain, not account_number
+                `https://${account}.joinposter.com/api`,
                 1,
                 2,
                 "Europe/Moscow",

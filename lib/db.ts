@@ -103,12 +103,14 @@ export async function withTenant<T>(
 
   try {
     // Set the tenant for this session using set_config (supports parameterized values)
-    // The third parameter 'true' makes it LOCAL (transaction-scoped)
-    await client.query("SELECT set_config('app.current_tenant', $1, true)", [tenantId]);
+    // The third parameter 'false' makes it session-scoped (persists across queries)
+    await client.query("SELECT set_config('app.current_tenant', $1, false)", [tenantId]);
 
     // Execute the callback with tenant context
     return await callback(client);
   } finally {
+    // Reset tenant setting before releasing back to pool
+    await client.query("RESET app.current_tenant");
     // Always release the client back to the pool
     client.release();
   }

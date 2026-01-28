@@ -39,10 +39,13 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch storages from Poster
-    const storagesUrl = `https://${poster_account_name}.joinposter.com/api/storage.getStorage?token=${poster_token}`;
+    const storagesUrl = `https://${poster_account_name}.joinposter.com/api/storage.getStorages?token=${poster_token}`;
+    console.log("Fetching storages from:", storagesUrl.replace(poster_token, "***"));
+    
     const storagesResponse = await fetch(storagesUrl);
 
     if (!storagesResponse.ok) {
+      console.error("Poster API error:", storagesResponse.status, await storagesResponse.text());
       return NextResponse.json(
         { success: false, error: "Failed to fetch storages from Poster" },
         { status: 500 }
@@ -50,6 +53,7 @@ export async function GET(request: NextRequest) {
     }
 
     const storagesData = await storagesResponse.json();
+    console.log("Poster storages response:", JSON.stringify(storagesData));
     const storages = storagesData.response || [];
 
     console.log(`Found ${storages.length} storages from Poster`);
