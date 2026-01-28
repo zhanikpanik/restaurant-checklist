@@ -102,8 +102,9 @@ export async function withTenant<T>(
   const client = await pool.connect();
 
   try {
-    // Set the tenant for this session (LOCAL = only this transaction)
-    await client.query("SET LOCAL app.current_tenant = $1", [tenantId]);
+    // Set the tenant for this session using set_config (supports parameterized values)
+    // The third parameter 'true' makes it LOCAL (transaction-scoped)
+    await client.query("SELECT set_config('app.current_tenant', $1, true)", [tenantId]);
 
     // Execute the callback with tenant context
     return await callback(client);
@@ -137,7 +138,8 @@ export async function withTenantTransaction<T>(
 
   try {
     await client.query("BEGIN");
-    await client.query("SET LOCAL app.current_tenant = $1", [tenantId]);
+    // Set the tenant for this session using set_config (supports parameterized values)
+    await client.query("SELECT set_config('app.current_tenant', $1, true)", [tenantId]);
 
     const result = await callback(client);
 
