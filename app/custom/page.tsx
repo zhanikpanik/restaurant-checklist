@@ -31,13 +31,8 @@ function CustomPageContent() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [sectionName, setSectionName] = useState("");
+const [sectionName, setSectionName] = useState("");
   const [productQuantities, setProductQuantities] = useState<ProductQuantity>({});
-
-  // Custom product form
-  const [customName, setCustomName] = useState("");
-  const [customQuantity, setCustomQuantity] = useState("");
-  const [customUnit, setCustomUnit] = useState("шт");
 
   useEffect(() => {
     if (!sectionId) {
@@ -136,29 +131,7 @@ function CustomPageContent() {
     } else if (cartItem) {
       cart.remove(cartItem.cartId);
     }
-  };
-
-  const handleAddCustomProduct = () => {
-    if (!customName.trim() || !customQuantity) {
-      alert("Заполните название и количество");
-      return;
-    }
-
-    cart.add({
-      cartId: `custom-${Date.now()}`,
-      productId: 0,
-      name: customName,
-      quantity: parseFloat(customQuantity),
-      unit: customUnit,
-      category: "Пользовательский",
-      supplier: "",
-    });
-
-    // Clear form
-    setCustomName("");
-    setCustomQuantity("");
-    setCustomUnit("шт");
-  };
+};
 
   return (
     <div className="min-h-screen bg-white">
@@ -191,8 +164,8 @@ function CustomPageContent() {
 
       {/* Main Content */}
       <main className="max-w-md mx-auto px-4 py-6">
-        {/* Search Field */}
-        <div className="sticky top-0 z-10 bg-gray-50 p-4 rounded-lg border-2 border-purple-200 shadow-sm mb-4">
+{/* Search Field */}
+        <div className="sticky top-0 z-10 bg-white pb-4 mb-4">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg
@@ -240,50 +213,7 @@ function CustomPageContent() {
           </div>
         </div>
 
-        {/* Add Custom Product Form */}
-        <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-200">
-          <div className="flex items-center space-x-1">
-            <input
-              type="text"
-              value={customName}
-              onChange={(e) => setCustomName(e.target.value)}
-              placeholder="Название"
-              className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm min-w-0"
-            />
-            <input
-              type="number"
-              value={customQuantity}
-              onChange={(e) => setCustomQuantity(e.target.value)}
-              placeholder="Кол-во"
-              min="0.1"
-              step="0.1"
-              className="w-16 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
-            />
-            <select
-              value={customUnit}
-              onChange={(e) => setCustomUnit(e.target.value)}
-              className="w-14 px-1 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm"
-            >
-              <option value="шт">шт</option>
-              <option value="кг">кг</option>
-              <option value="г">г</option>
-              <option value="л">л</option>
-              <option value="мл">мл</option>
-              <option value="упак">упак</option>
-              <option value="бутылка">бутылка</option>
-              <option value="коробка">коробка</option>
-              <option value="мешок">мешок</option>
-            </select>
-            <button
-              onClick={handleAddCustomProduct}
-              className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 text-sm font-medium flex-shrink-0"
-            >
-              ➕
-            </button>
-          </div>
-        </div>
-
-        {/* Products List */}
+{/* Products List */}
         {loading ? (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500" />
@@ -303,16 +233,11 @@ function CustomPageContent() {
               return (
                 <div
                   key={product.id}
-                  className="bg-white p-4 rounded-lg border border-gray-200 hover:border-purple-300 transition-colors"
+                  className="bg-white p-4 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex-1">
+<div className="flex-1">
                       <h3 className="font-medium text-gray-900">{product.name}</h3>
-                      {product.category_name && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          {product.category_name}
-                        </p>
-                      )}
                     </div>
 
                     {!hasQuantity ? (
