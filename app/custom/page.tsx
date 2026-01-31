@@ -56,8 +56,12 @@ const [sectionName, setSectionName] = useState("");
   const loadProducts = async () => {
     setLoading(true);
     try {
-      // Load section info
-      const sectionsRes = await fetch("/api/sections");
+      // Load section info and products in parallel, with server-side filtering
+      const [sectionsRes, productsRes] = await Promise.all([
+        fetch("/api/sections"),
+        fetch(`/api/section-products?section_id=${sectionId}&active=true`)
+      ]);
+      
       const sectionsData = await sectionsRes.json();
       if (sectionsData.success) {
         const section = sectionsData.data.find(
@@ -70,15 +74,11 @@ const [sectionName, setSectionName] = useState("");
         }
       }
 
-      // Load products for this section
-      const productsRes = await fetch("/api/section-products");
       const productsData = await productsRes.json();
       if (productsData.success) {
-        const sectionProducts = productsData.data.filter(
-          (p: any) => p.section_id === Number(sectionId) && p.is_active
-        );
-        setProducts(sectionProducts);
-        setFilteredProducts(sectionProducts);
+        // Products already filtered by section_id and is_active on server
+        setProducts(productsData.data);
+        setFilteredProducts(productsData.data);
       }
     } catch (error) {
       console.error("Error loading products:", error);

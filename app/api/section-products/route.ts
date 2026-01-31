@@ -11,9 +11,13 @@ export async function GET(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
+    // Optional filtering by section_id and active status
+    const { searchParams } = new URL(request.url);
+    const sectionId = searchParams.get("section_id");
+    const activeOnly = searchParams.get("active") === "true";
+
     const products = await withTenant(restaurantId, async (client) => {
-      const result = await client.query(
-        `SELECT
+      let query = `SELECT
           sp.id,
           sp.name,
           sp.unit,
@@ -28,9 +32,27 @@ export async function GET(request: NextRequest) {
         FROM section_products sp
         LEFT JOIN product_categories pc ON sp.category_id = pc.id
         LEFT JOIN suppliers sup ON pc.supplier_id = sup.id
-        LEFT JOIN sections s ON sp.section_id = s.id
-        ORDER BY sp.name`
-      );
+        LEFT JOIN sections s ON sp.section_id = s.id`;
+      
+      const conditions: string[] = [];
+      const params: any[] = [];
+      
+      if (sectionId) {
+        params.push(Number(sectionId));
+        conditions.push(`sp.section_id = $${params.length}`);
+      }
+      
+      if (activeOnly) {
+        conditions.push(`sp.is_active = true`);
+      }
+      
+      if (conditions.length > 0) {
+        query += ` WHERE ${conditions.join(" AND ")}`;
+      }
+      
+      query += ` ORDER BY sp.name`;
+      
+      const result = await client.query(query, params);
       return result.rows;
     });
 
