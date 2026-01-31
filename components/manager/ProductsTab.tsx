@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
+import { SkeletonCard, SkeletonTable } from "@/components/ui/Skeleton";
+import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
 import type { Product, Section, ProductCategory } from "@/types";
 
 interface ProductFormData {
@@ -32,6 +35,7 @@ export function ProductsTab({
   loading,
   onReload,
 }: ProductsTabProps) {
+  const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ProductFormData | null>(null);
 
@@ -75,12 +79,13 @@ export function ProductsTab({
         setShowModal(false);
         setEditingProduct(null);
         onReload();
+        toast.success(editingProduct.id ? "Товар обновлен" : "Товар создан");
       } else {
-        alert(data.error || "Ошибка при сохранении товара");
+        toast.error(data.error || "Ошибка при сохранении товара");
       }
     } catch (error) {
       console.error("Error saving product:", error);
-      alert("Ошибка при сохранении товара");
+      toast.error("Ошибка при сохранении товара");
     }
   };
 
@@ -93,17 +98,33 @@ export function ProductsTab({
 
       if (data.success) {
         setProducts(products.filter((p: any) => p.id !== productId));
+        toast.success("Товар удален");
+      } else {
+        toast.error("Ошибка при удалении товара");
       }
     } catch (error) {
       console.error("Error deleting product:", error);
+      toast.error("Ошибка при удалении товара");
     }
   };
 
   if (loading) {
     return (
-      <div className="p-12 text-center">
-        <div className="animate-spin h-10 w-10 border-b-2 border-blue-500 rounded-full mx-auto mb-4" />
-        <p className="text-gray-500">Загрузка товаров...</p>
+      <div className="p-3 md:p-6">
+        <div className="flex justify-between items-center mb-4 md:mb-6 px-1 md:px-0">
+          <div className="h-6 md:h-7 w-32 bg-gray-200 rounded animate-pulse" />
+          <div className="h-9 md:h-10 w-28 bg-gray-200 rounded animate-pulse" />
+        </div>
+        {/* Mobile skeleton */}
+        <div className="space-y-2 md:hidden">
+          {[1, 2, 3, 4].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
+        {/* Desktop skeleton */}
+        <div className="hidden md:block">
+          <SkeletonTable rows={5} />
+        </div>
       </div>
     );
   }

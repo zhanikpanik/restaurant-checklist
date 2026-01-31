@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
+import { SkeletonCard } from "@/components/ui/Skeleton";
+import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
 import type { ProductCategory, Supplier } from "@/types";
 
 interface CategoryFormData {
@@ -27,6 +30,7 @@ export function CategoriesTab({
   loading,
   onReload,
 }: CategoriesTabProps) {
+  const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
 
@@ -61,12 +65,13 @@ export function CategoriesTab({
         setShowModal(false);
         setEditingCategory(null);
         onReload();
+        toast.success(editingCategory.id ? "Категория обновлена" : "Категория создана");
       } else {
-        alert(data.error || "Ошибка при сохранении категории");
+        toast.error(data.error || "Ошибка при сохранении категории");
       }
     } catch (error) {
       console.error("Error saving category:", error);
-      alert("Ошибка при сохранении категории");
+      toast.error("Ошибка при сохранении категории");
     }
   };
 
@@ -81,20 +86,28 @@ export function CategoriesTab({
 
       if (data.success) {
         setCategories(categories.filter((c) => c.id !== categoryId));
+        toast.success("Категория удалена");
       } else {
-        alert(data.error || "Ошибка при удалении категории");
+        toast.error(data.error || "Ошибка при удалении категории");
       }
     } catch (error) {
       console.error("Error deleting category:", error);
-      alert("Ошибка при удалении категории");
+      toast.error("Ошибка при удалении категории");
     }
   };
 
   if (loading) {
     return (
-      <div className="p-12 text-center">
-        <div className="animate-spin h-10 w-10 border-b-2 border-blue-500 rounded-full mx-auto mb-4" />
-        <p className="text-gray-500">Загрузка категорий...</p>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <div className="h-7 w-48 bg-gray-200 rounded animate-pulse" />
+          <div className="h-10 w-40 bg-gray-200 rounded animate-pulse" />
+        </div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -107,7 +120,15 @@ export function CategoriesTab({
       </div>
 
       {categories.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">Нет категорий</p>
+        <EmptyStateIllustrated
+          type="categories"
+          title="Нет категорий"
+          description="Создайте первую категорию товаров"
+          action={{
+            label: "+ Добавить категорию",
+            onClick: handleCreate,
+          }}
+        />
       ) : (
         <div className="grid gap-4">
           {categories.map((category) => (

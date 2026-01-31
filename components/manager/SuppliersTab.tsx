@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input, Textarea } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
+import { SkeletonCard } from "@/components/ui/Skeleton";
+import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
 import type { Supplier } from "@/types";
 
 interface SupplierFormData {
@@ -26,6 +29,7 @@ export function SuppliersTab({
   loading,
   onReload,
 }: SuppliersTabProps) {
+  const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<SupplierFormData | null>(null);
 
@@ -61,12 +65,13 @@ export function SuppliersTab({
         setShowModal(false);
         setEditingSupplier(null);
         onReload();
+        toast.success(editingSupplier.id ? "Поставщик обновлен" : "Поставщик создан");
       } else {
-        alert(data.error || "Ошибка при сохранении поставщика");
+        toast.error(data.error || "Ошибка при сохранении поставщика");
       }
     } catch (error) {
       console.error("Error saving supplier:", error);
-      alert("Ошибка при сохранении поставщика");
+      toast.error("Ошибка при сохранении поставщика");
     }
   };
 
@@ -81,20 +86,28 @@ export function SuppliersTab({
 
       if (data.success) {
         setSuppliers(suppliers.filter((s) => s.id !== supplierId));
+        toast.success("Поставщик удален");
       } else {
-        alert(data.error || "Ошибка при удалении поставщика");
+        toast.error(data.error || "Ошибка при удалении поставщика");
       }
     } catch (error) {
       console.error("Error deleting supplier:", error);
-      alert("Ошибка при удалении поставщика");
+      toast.error("Ошибка при удалении поставщика");
     }
   };
 
   if (loading) {
     return (
-      <div className="p-12 text-center">
-        <div className="animate-spin h-10 w-10 border-b-2 border-blue-500 rounded-full mx-auto mb-4" />
-        <p className="text-gray-500">Загрузка поставщиков...</p>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <div className="h-7 w-40 bg-gray-200 rounded animate-pulse" />
+          <div className="h-10 w-44 bg-gray-200 rounded animate-pulse" />
+        </div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -107,7 +120,15 @@ export function SuppliersTab({
       </div>
 
       {suppliers.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">Нет поставщиков</p>
+        <EmptyStateIllustrated
+          type="suppliers"
+          title="Нет поставщиков"
+          description="Добавьте первого поставщика"
+          action={{
+            label: "+ Добавить поставщика",
+            onClick: handleCreate,
+          }}
+        />
       ) : (
         <div className="grid gap-4">
           {suppliers.map((supplier) => (

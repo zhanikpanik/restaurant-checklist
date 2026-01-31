@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
+import { useToast } from "@/components/ui/Toast";
+import { SkeletonCard } from "@/components/ui/Skeleton";
+import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
 import type { Section } from "@/types";
 
 interface SectionFormData {
@@ -30,6 +33,7 @@ export function DepartmentsTab({
   onSync,
   syncing,
 }: DepartmentsTabProps) {
+  const toast = useToast();
   const [showModal, setShowModal] = useState(false);
   const [editingSection, setEditingSection] = useState<SectionFormData | null>(null);
 
@@ -65,12 +69,13 @@ export function DepartmentsTab({
         setShowModal(false);
         setEditingSection(null);
         onReload();
+        toast.success(editingSection.id ? "Секция обновлена" : "Секция создана");
       } else {
-        alert(data.error || "Ошибка при сохранении секции");
+        toast.error(data.error || "Ошибка при сохранении секции");
       }
     } catch (error) {
       console.error("Error saving section:", error);
-      alert("Ошибка при сохранении секции");
+      toast.error("Ошибка при сохранении секции");
     }
   };
 
@@ -85,20 +90,31 @@ export function DepartmentsTab({
 
       if (data.success) {
         setSections(sections.filter((s) => s.id !== sectionId));
+        toast.success("Секция удалена");
       } else {
-        alert(data.error || "Ошибка при удалении секции");
+        toast.error(data.error || "Ошибка при удалении секции");
       }
     } catch (error) {
       console.error("Error deleting section:", error);
-      alert("Ошибка при удалении секции");
+      toast.error("Ошибка при удалении секции");
     }
   };
 
   if (loading) {
     return (
-      <div className="p-12 text-center">
-        <div className="animate-spin h-10 w-10 border-b-2 border-blue-500 rounded-full mx-auto mb-4" />
-        <p className="text-gray-500">Загрузка отделов...</p>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <div className="h-7 w-32 bg-gray-200 rounded animate-pulse" />
+          <div className="flex gap-2">
+            <div className="h-10 w-52 bg-gray-200 rounded animate-pulse" />
+            <div className="h-10 w-40 bg-gray-200 rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="grid gap-4">
+          {[1, 2, 3].map((i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -127,7 +143,15 @@ export function DepartmentsTab({
       </div>
 
       {sections.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">Нет секций</p>
+        <EmptyStateIllustrated
+          type="departments"
+          title="Нет секций"
+          description="Создайте первую секцию или синхронизируйте из Poster"
+          action={{
+            label: "+ Добавить секцию",
+            onClick: handleCreate,
+          }}
+        />
       ) : (
         <div className="grid gap-4">
           {sections.map((section) => (

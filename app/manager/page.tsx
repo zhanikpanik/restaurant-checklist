@@ -1,22 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useRestaurant } from "@/store/useStore";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { TabNavigation } from "@/components/layout/TabNavigation";
 import { OrdersTab } from "@/components/manager/OrdersTab";
-import { DeliveredTab } from "@/components/manager/DeliveredTab";
 import { CategoriesTab } from "@/components/manager/CategoriesTab";
 import { SuppliersTab } from "@/components/manager/SuppliersTab";
 import { DepartmentsTab } from "@/components/manager/DepartmentsTab";
 import { ProductsTab } from "@/components/manager/ProductsTab";
 import { UsersTab } from "@/components/manager/UsersTab";
 import { SettingsTab } from "@/components/manager/SettingsTab";
+import { useToast } from "@/components/ui/Toast";
 import type { Order, Supplier, ProductCategory, Product, Section } from "@/types";
 
 type TabType =
   | "orders"
-  | "delivered"
   | "categories"
   | "suppliers"
   | "departments"
@@ -26,7 +27,6 @@ type TabType =
 
 const TABS = [
   { id: "orders", label: "Заказы", icon: "📋" },
-  { id: "delivered", label: "Доставлено", icon: "✅" },
   { id: "categories", label: "Категории", icon: "🏷️" },
   { id: "suppliers", label: "Поставщики", icon: "🏢" },
   { id: "departments", label: "Отделы", icon: "🏪" },
@@ -36,7 +36,10 @@ const TABS = [
 ];
 
 export default function ManagerPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const restaurant = useRestaurant();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<TabType>("orders");
   const [orders, setOrders] = useState<Order[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -46,6 +49,30 @@ export default function ManagerPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+
+  // Role-based access control
+  useEffect(() => {
+    if (status === "loading") return;
+    
+    const role = session?.user?.role;
+    const canAccess = role === "admin" || role === "manager";
+    
+    if (!canAccess) {
+      router.replace("/");
+    }
+  }, [session, status, router]);
+
+  // Show loading while checking auth
+  if (status === "loading" || (status === "authenticated" && !["admin", "manager"].includes(session?.user?.role || ""))) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4" />
+          <p className="text-gray-600">Проверка доступа...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Load form data on mount (sections, categories, suppliers for dropdowns)
   useEffect(() => {
@@ -80,15 +107,10 @@ export default function ManagerPage() {
     try {
       switch (activeTab) {
         case "orders":
-          const ordersRes = await fetch("/api/orders");
+          // Load ALL orders (filtering is done in OrdersTab)
+          const ordersRes = await fetch("/api/orders?all=true");
           const ordersData = await ordersRes.json();
           if (ordersData.success) setOrders(ordersData.data);
-          break;
-
-        case "delivered":
-          const deliveredRes = await fetch("/api/orders?status=delivered");
-          const deliveredData = await deliveredRes.json();
-          if (deliveredData.success) setOrders(deliveredData.data);
           break;
 
         case "suppliers":
@@ -138,6 +160,7 @@ export default function ManagerPage() {
       }
     } catch (error) {
       console.error("Error loading data:", error);
+      toast.error("Ошибка загрузки данных");
     } finally {
       setLoading(false);
     }
@@ -151,24 +174,17 @@ export default function ManagerPage() {
 
       if (data.success) {
         const { syncedCount, ingredientsSynced } = data.data;
-        alert(`Синхронизировано: ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`);
+        toast.success(`Синхронизировано: ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`);
         loadData();
       } else {
-        alert(data.error || "Ошибка синхронизации");
+        toast.error(data.error || "Ошибка синхронизации");
       }
     } catch (error) {
       console.error("Error syncing from Poster:", error);
-      alert("Ошибка синхронизации с Poster");
+      toast.error("Ошибка синхронизации с Poster");
     } finally {
       setSyncing(false);
     }
-  };
-
-  // Handler for DeliveredTab to view order details (placeholder for now)
-  const handleViewDeliveredOrder = (order: Order) => {
-    // For delivered orders, switch to orders tab and the modal will open there
-    // This is a simplified approach - could enhance later
-    alert(`Заказ #${order.id}\nТоваров: ${order.order_data.items?.length || 0}`);
   };
 
   return (
@@ -194,14 +210,7 @@ export default function ManagerPage() {
               products={products}
               loading={loading}
               restaurantName={restaurant.current?.name || "Ресторан"}
-            />
-          )}
-
-          {activeTab === "delivered" && (
-            <DeliveredTab
-              orders={orders}
-              loading={loading}
-              onViewOrder={handleViewDeliveredOrder}
+              onReload={loadData}
             />
           )}
 

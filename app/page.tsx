@@ -31,6 +31,7 @@ export default function HomePage() {
   
   const isAdmin = session?.user?.role === "admin";
   const isManager = session?.user?.role === "manager";
+  const isDelivery = session?.user?.role === "delivery";
 
   useEffect(() => {
     loadTenantInfo();
@@ -130,7 +131,8 @@ export default function HomePage() {
   };
 
   // Show message for staff with no assigned sections
-  const hasNoAssignedSections = !isAdmin && !isManager && userSectionIds.length === 0 && allSections.length > 0;
+  // Delivery users don't need sections - they only access /delivery
+  const hasNoAssignedSections = !isAdmin && !isManager && !isDelivery && userSectionIds.length === 0 && allSections.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">

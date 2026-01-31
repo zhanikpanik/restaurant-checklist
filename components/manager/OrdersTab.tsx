@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
+import { Skeleton, SkeletonCard } from "@/components/ui/Skeleton";
+import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
+import { useToast } from "@/components/ui/Toast";
 import type { Order, Supplier, Product } from "@/types";
+
+type OrderStatusFilter = "all" | "pending" | "sent" | "delivered" | "cancelled";
 
 interface OrdersTabProps {
   orders: Order[];
@@ -13,6 +18,7 @@ interface OrdersTabProps {
   products: Product[];
   loading: boolean;
   restaurantName: string;
+  onReload: () => void;
 }
 
 export function OrdersTab({
@@ -22,12 +28,30 @@ export function OrdersTab({
   products,
   loading,
   restaurantName,
+  onReload,
 }: OrdersTabProps) {
+  const toast = useToast();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingOrderItems, setEditingOrderItems] = useState<any[]>([]);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [expandedSupplier, setExpandedSupplier] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("all");
+
+  // Filter orders by status
+  const filteredOrders = orders.filter((order) => {
+    if (statusFilter === "all") return true;
+    return order.status === statusFilter;
+  });
+
+  // Count orders by status for filter badges
+  const statusCounts = {
+    all: orders.length,
+    pending: orders.filter((o) => o.status === "pending").length,
+    sent: orders.filter((o) => o.status === "sent").length,
+    delivered: orders.filter((o) => o.status === "delivered").length,
+    cancelled: orders.filter((o) => o.status === "cancelled").length,
+  };
 
   const handleDeleteOrder = async (orderId: number) => {
     if (!confirm("Удалить этот заказ?")) return;
@@ -40,9 +64,13 @@ export function OrdersTab({
 
       if (data.success) {
         setOrders(orders.filter((o) => o.id !== orderId));
+        toast.success("Заказ удален");
+      } else {
+        toast.error(data.error || "Ошибка при удалении заказа");
       }
     } catch (error) {
       console.error("Error deleting order:", error);
+      toast.error("Ошибка при удалении заказа");
     }
   };
 
@@ -85,13 +113,33 @@ export function OrdersTab({
           ...selectedOrder,
           order_data: { ...selectedOrder.order_data, items: editingOrderItems },
         });
-        alert("Заказ обновлен");
+        toast.success("Заказ обновлен");
       } else {
-        alert("Ошибка при обновлении заказа: " + data.error);
+        toast.error("Ошибка при обновлении заказа: " + data.error);
       }
     } catch (error) {
       console.error("Error updating order:", error);
-      alert("Ошибка при обновлении заказа");
+      toast.error("Ошибка при обновлении заказа");
+    }
+  };
+
+  const handleUpdateStatus = async (orderId: number, newStatus: string) => {
+    try {
+      const response = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: orderId, status: newStatus }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setOrders(orders.map((o) => (o.id === orderId ? { ...o, status: newStatus as Order["status"] } : o)));
+        toast.success(`Статус изменен на "${getStatusLabel(newStatus)}"`);
+      } else {
+        toast.error(data.error || "Ошибка при изменении статуса");
+      }
+    } catch (error) {
+      toast.error("Ошибка при изменении статуса");
     }
   };
 
@@ -157,14 +205,14 @@ export function OrdersTab({
     const supplier = suppliers.find((s) => s.name === supplierName);
 
     if (!supplier?.phone) {
-      alert(`Номер телефона для поставщика "${supplierName}" не найден`);
+      toast.warning(`Номер телефона для поставщика "${supplierName}" не найден`);
       return;
     }
 
     const cleanPhone = supplier.phone.replace(/\D/g, "");
 
     if (!cleanPhone || cleanPhone.length < 10) {
-      alert(`Неверный формат номера телефона для поставщика "${supplierName}"`);
+      toast.warning(`Неверный формат номера телефона для поставщика "${supplierName}"`);
       return;
     }
 
@@ -190,9 +238,10 @@ export function OrdersTab({
     if (whatsappUrl.length > 2000) {
       const fallbackUrl = `https://wa.me/${cleanPhone}`;
       window.open(fallbackUrl, "_blank");
-      alert("Сообщение слишком длинное. WhatsApp открыт без текста. Скопируйте заказ вручную.");
+      toast.info("Сообщение слишком длинное. WhatsApp открыт без текста.");
     } else {
       window.open(whatsappUrl, "_blank");
+      toast.success("WhatsApp открыт");
     }
   };
 
@@ -234,6 +283,16 @@ export function OrdersTab({
     });
   };
 
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: "Ожидает",
+      sent: "Отправлен",
+      delivered: "Доставлен",
+      cancelled: "Отменен",
+    };
+    return labels[status] || status;
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: { label: "Ожидает", variant: "warning" as const },
@@ -246,33 +305,73 @@ export function OrdersTab({
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  if (loading) {
-    return (
-      <div className="p-12 text-center">
-        <div className="animate-spin h-10 w-10 border-b-2 border-blue-500 rounded-full mx-auto mb-4" />
-        <p className="text-gray-500">Загрузка заказов...</p>
+  // Skeleton loader for orders
+  const OrdersSkeleton = () => (
+    <div className="p-4 md:p-6 space-y-4">
+      <div className="flex gap-2 mb-6">
+        {[1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} width="5rem" height="2.5rem" variant="rectangular" />
+        ))}
       </div>
-    );
+      {[1, 2, 3].map((i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+
+  if (loading) {
+    return <OrdersSkeleton />;
   }
 
   return (
     <div className="p-4 md:p-6">
-      {/* By Supplier Section */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <h2 className="text-lg md:text-xl font-semibold">
-            По поставщикам
-          </h2>
-          <span className="text-sm text-gray-500">(активные заказы)</span>
-        </div>
-        {Array.from(groupPendingOrdersBySupplier()).length === 0 ? (
-          <p className="text-gray-500 text-center py-6 bg-gray-50 rounded-lg">
-            Нет активных заказов
-          </p>
-        ) : (
-          <>
+      {/* Status Filter Pills */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {(["all", "pending", "sent", "delivered", "cancelled"] as OrderStatusFilter[]).map(
+          (status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                statusFilter === status
+                  ? "bg-blue-500 text-white shadow-md"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {status === "all"
+                ? "Все"
+                : status === "pending"
+                ? "Ожидает"
+                : status === "sent"
+                ? "Отправлено"
+                : status === "delivered"
+                ? "Доставлено"
+                : "Отменено"}
+              {statusCounts[status] > 0 && (
+                <span
+                  className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                    statusFilter === status ? "bg-white/20" : "bg-gray-200"
+                  }`}
+                >
+                  {statusCounts[status]}
+                </span>
+              )}
+            </button>
+          )
+        )}
+      </div>
+
+      {/* By Supplier Section (only for pending filter or all with pending orders) */}
+      {(statusFilter === "all" || statusFilter === "pending") &&
+        statusCounts.pending > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <h2 className="text-lg md:text-xl font-semibold">По поставщикам</h2>
+              <span className="text-sm text-gray-500">(активные заказы)</span>
+            </div>
+            
             {/* Mobile Card View - Supplier Groups */}
-            <div className="space-y-3 md:hidden">
+            <div className="space-y-3">
               {Array.from(groupPendingOrdersBySupplier()).map(([supplierName, group]) => {
                 const isExpanded = expandedSupplier === supplierName;
                 return (
@@ -289,9 +388,7 @@ export function OrdersTab({
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">📦</span>
                           <div>
-                            <h3 className="text-lg font-bold text-gray-900">
-                              {supplierName}
-                            </h3>
+                            <h3 className="text-lg font-bold text-gray-900">{supplierName}</h3>
                             <p className="text-xs text-gray-500">
                               {group.orders.length}{" "}
                               {group.orders.length === 1
@@ -320,13 +417,9 @@ export function OrdersTab({
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <p className="text-xs text-gray-500">Товаров</p>
-                            <p className="text-sm font-medium text-gray-900">
-                              {group.totalItems} шт
-                            </p>
-                          </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Товаров</p>
+                          <p className="text-sm font-medium text-gray-900">{group.totalItems} шт</p>
                         </div>
                         <Button
                           variant="success"
@@ -339,7 +432,7 @@ export function OrdersTab({
                           <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
                           </svg>
-                          Отправить
+                          WhatsApp
                         </Button>
                       </div>
                     </div>
@@ -349,7 +442,10 @@ export function OrdersTab({
                       <div className="border-t bg-gray-50 p-4">
                         <div className="space-y-3">
                           {group.items.map((item, idx) => (
-                            <div key={idx} className="bg-white rounded-lg p-3 border border-gray-200">
+                            <div
+                              key={idx}
+                              className="bg-white rounded-lg p-3 border border-gray-200"
+                            >
                               <div className="flex justify-between items-start mb-2">
                                 <div className="flex-1">
                                   <p className="font-medium text-gray-900">{item.name}</p>
@@ -381,83 +477,34 @@ export function OrdersTab({
                 );
               })}
             </div>
-
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b-2 border-gray-200 bg-gray-50">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">ID</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Дата</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Отдел</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Товаров</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-700">Статус</th>
-                    <th className="text-center py-3 px-4 font-semibold text-gray-700">Действия</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => (
-                    <tr
-                      key={order.id}
-                      onClick={() => handleViewOrder(order)}
-                      className="border-b border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
-                    >
-                      <td className="py-3 px-4 font-semibold text-gray-900">#{order.id}</td>
-                      <td className="py-3 px-4 text-gray-700">{formatDate(order.created_at)}</td>
-                      <td className="py-3 px-4 text-gray-700">
-                        {order.order_data.department || "—"}
-                      </td>
-                      <td className="py-3 px-4 text-gray-700">
-                        {order.order_data.items?.length || 0} шт
-                      </td>
-                      <td className="py-3 px-4">{getStatusBadge(order.status)}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteOrder(order.id);
-                            }}
-                          >
-                            <svg
-                              className="w-5 h-5"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
+          </div>
         )}
-      </div>
 
-      {/* Recent Orders Section */}
-      <div className="border-t pt-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-4">Все заказы</h2>
-        {orders.length === 0 ? (
-          <p className="text-gray-500 text-center py-6 bg-gray-50 rounded-lg">Нет заказов</p>
+      {/* Orders List */}
+      <div className={statusFilter === "pending" || (statusFilter === "all" && statusCounts.pending > 0) ? "border-t pt-6" : ""}>
+        <h2 className="text-lg md:text-xl font-semibold mb-4">
+          {statusFilter === "all" ? "Все заказы" : `Заказы: ${getStatusLabel(statusFilter)}`}
+        </h2>
+        
+        {filteredOrders.length === 0 ? (
+          <EmptyStateIllustrated
+            type="orders"
+            title={statusFilter === "all" ? "Нет заказов" : `Нет заказов со статусом "${getStatusLabel(statusFilter)}"`}
+            description="Заказы появятся здесь после создания"
+          />
         ) : (
           <div className="space-y-3">
-            {orders.map((order) => (
+            {filteredOrders.map((order) => (
               <div
                 key={order.id}
                 onClick={() => handleViewOrder(order)}
-                className="bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-300 transition-all shadow-sm cursor-pointer"
+                className={`border rounded-xl p-4 transition-all shadow-sm cursor-pointer ${
+                  order.status === "delivered"
+                    ? "bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 hover:border-green-300"
+                    : order.status === "cancelled"
+                    ? "bg-gray-50 border-gray-200 hover:border-gray-300 opacity-75"
+                    : "bg-white border-gray-200 hover:border-blue-300"
+                }`}
               >
                 {/* Header Row */}
                 <div className="flex items-center justify-between mb-3">
@@ -467,23 +514,37 @@ export function OrdersTab({
                     </span>
                     {getStatusBadge(order.status)}
                   </div>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteOrder(order.id);
-                    }}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {order.status === "pending" && (
+                      <Button
+                        variant="success"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleUpdateStatus(order.id, "delivered");
+                        }}
+                      >
+                        ✓
+                      </Button>
+                    )}
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteOrder(order.id);
+                      }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Info Row */}
@@ -496,9 +557,7 @@ export function OrdersTab({
                   {order.order_data.department && (
                     <>
                       <span className="text-gray-400">•</span>
-                      <span className="text-gray-900 font-medium">
-                        {order.order_data.department}
-                      </span>
+                      <span className="text-gray-900 font-medium">{order.order_data.department}</span>
                     </>
                   )}
                 </div>
@@ -528,7 +587,23 @@ export function OrdersTab({
               </div>
               <div>
                 <p className="text-sm text-gray-500">Статус</p>
-                <div className="mt-1">{getStatusBadge(selectedOrder.status)}</div>
+                <div className="mt-1 flex items-center gap-2">
+                  {getStatusBadge(selectedOrder.status)}
+                  <select
+                    value={selectedOrder.status}
+                    onChange={(e) => {
+                      const newStatus = e.target.value as Order["status"];
+                      handleUpdateStatus(selectedOrder.id, newStatus);
+                      setSelectedOrder({ ...selectedOrder, status: newStatus });
+                    }}
+                    className="text-sm border rounded px-2 py-1"
+                  >
+                    <option value="pending">Ожидает</option>
+                    <option value="sent">Отправлен</option>
+                    <option value="delivered">Доставлен</option>
+                    <option value="cancelled">Отменен</option>
+                  </select>
+                </div>
               </div>
               {selectedOrder.order_data.department && (
                 <div>
@@ -538,7 +613,7 @@ export function OrdersTab({
               )}
               <div>
                 <p className="text-sm text-gray-500">Всего товаров</p>
-                <p className="font-medium">{selectedOrder.order_data.items?.length || 0}</p>
+                <p className="font-medium">{editingOrderItems.length}</p>
               </div>
             </div>
 
@@ -550,75 +625,62 @@ export function OrdersTab({
                   + Добавить товар
                 </Button>
               </div>
-              {Array.from(groupItemsBySupplier(editingOrderItems)).map(
-                ([supplierName, items]) => (
-                  <div key={supplierName} className="border rounded-lg p-3 bg-gray-50">
-                    <div className="flex justify-between items-center mb-2">
-                      <h4 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
-                        <span>📦</span>
-                        {supplierName}
-                      </h4>
-                      <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() =>
-                          sendToWhatsApp(supplierName, items, selectedOrder.created_at)
-                        }
-                      >
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                        </svg>
-                        WhatsApp
-                      </Button>
-                    </div>
-                    <div className="space-y-1">
-                      {items.map((item, idx) => {
-                        const globalIdx = editingOrderItems.findIndex((i) => i === item);
-                        return (
-                          <div key={idx} className="flex justify-between items-center py-1.5 border-t">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-900 truncate">
-                                {item.name}
-                              </p>
-                              {item.category && (
-                                <p className="text-xs text-gray-500">{item.category}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 ml-2">
-                              <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">
-                                {item.quantity} {item.unit || "шт"}
-                              </p>
-                              <button
-                                onClick={() => handleRemoveItemFromOrder(globalIdx)}
-                                className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
-                              >
-                                <svg
-                                  className="w-4 h-4"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="mt-2 pt-2 border-t">
-                      <p className="text-xs text-gray-600">
-                        Всего позиций: <span className="font-semibold">{items.length}</span>
-                      </p>
-                    </div>
+              {Array.from(groupItemsBySupplier(editingOrderItems)).map(([supplierName, items]) => (
+                <div key={supplierName} className="border rounded-lg p-3 bg-gray-50">
+                  <div className="flex justify-between items-center mb-2">
+                    <h4 className="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+                      <span>📦</span>
+                      {supplierName}
+                    </h4>
+                    <Button
+                      variant="success"
+                      size="sm"
+                      onClick={() => sendToWhatsApp(supplierName, items, selectedOrder.created_at)}
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                      </svg>
+                      WhatsApp
+                    </Button>
                   </div>
-                )
-              )}
+                  <div className="space-y-1">
+                    {items.map((item, idx) => {
+                      const globalIdx = editingOrderItems.findIndex((i) => i === item);
+                      return (
+                        <div key={idx} className="flex justify-between items-center py-1.5 border-t">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                            {item.category && <p className="text-xs text-gray-500">{item.category}</p>}
+                          </div>
+                          <div className="flex items-center gap-2 ml-2">
+                            <p className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                              {item.quantity} {item.unit || "шт"}
+                            </p>
+                            <button
+                              onClick={() => handleRemoveItemFromOrder(globalIdx)}
+                              className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-2 pt-2 border-t">
+                    <p className="text-xs text-gray-600">
+                      Всего позиций: <span className="font-semibold">{items.length}</span>
+                    </p>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Save Button */}
@@ -666,6 +728,7 @@ export function OrdersTab({
                   },
                 ]);
                 setShowAddProductModal(false);
+                toast.success(`${product.name} добавлен`);
               }}
             >
               <option value="">-- Выберите товар --</option>
