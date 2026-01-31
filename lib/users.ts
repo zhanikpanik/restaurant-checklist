@@ -145,7 +145,7 @@ export async function getUserByEmail(email: string) {
 
 /**
  * Get all users for a restaurant
- * Uses withTenant for proper tenant isolation
+ * Uses explicit WHERE clause for tenant filtering (RLS may not be enabled on users table)
  */
 export async function getUsersByRestaurant(restaurantId: string) {
   if (!pool) {
@@ -156,7 +156,9 @@ export async function getUsersByRestaurant(restaurantId: string) {
     const result = await client.query(
       `SELECT id, email, name, role, is_active, last_login, created_at
        FROM users
-       ORDER BY created_at DESC`
+       WHERE restaurant_id = $1
+       ORDER BY created_at DESC`,
+      [restaurantId]
     );
 
     return result.rows;
