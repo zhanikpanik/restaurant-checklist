@@ -81,7 +81,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission> = {
     canViewLeftovers: true,
     canEditLeftovers: true,
     
-    canManageUsers: false,
+    canManageUsers: true,
     canManageSuppliers: true,
     canManageCategories: true,
     canManageSections: true,

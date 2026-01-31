@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import pool from "@/lib/db";
+import { auth } from "@/lib/auth-config";
 
 export interface AuthContext {
   restaurantId: string;
   isAuthenticated: boolean;
+  userId?: number;
+  userRole?: string;
 }
 
 /**
@@ -39,11 +42,11 @@ export async function verifyRestaurant(restaurantId: string): Promise<boolean> {
 
 /**
  * Middleware to require authentication on API routes
- * Returns restaurant_id if authenticated, or sends error response
+ * Returns restaurant_id and user info if authenticated, or sends error response
  */
 export async function requireAuth(
   request: NextRequest
-): Promise<{ restaurantId: string } | NextResponse> {
+): Promise<{ restaurantId: string; userId?: number; userRole?: string } | NextResponse> {
   const restaurantId = getRestaurantIdFromRequest(request);
 
   if (!restaurantId) {
@@ -70,7 +73,14 @@ export async function requireAuth(
     );
   }
 
-  return { restaurantId };
+  // Get session for user info
+  const session = await auth();
+  
+  return { 
+    restaurantId,
+    userId: session?.user?.id ? parseInt(session.user.id) : undefined,
+    userRole: session?.user?.role,
+  };
 }
 
 /**

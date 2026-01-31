@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create new user (admin only)
+// POST - Create new user (admin/manager only)
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -49,10 +49,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only admin can create users
-    if (session.user.role !== "admin") {
+    // Only admin and manager can create users
+    if (!["admin", "manager"].includes(session.user.role)) {
       return NextResponse.json(
-        { success: false, error: "Only admins can create users" },
+        { success: false, error: "Only admins and managers can create users" },
         { status: 403 }
       );
     }
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH - Update user (admin only)
+// PATCH - Update user (admin/manager only)
 export async function PATCH(request: NextRequest) {
   try {
     const session = await auth();
@@ -125,9 +125,9 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== "admin") {
+    if (!["admin", "manager"].includes(session.user.role)) {
       return NextResponse.json(
-        { success: false, error: "Only admins can update users" },
+        { success: false, error: "Only admins and managers can update users" },
         { status: 403 }
       );
     }
@@ -165,7 +165,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE - Deactivate user (admin only)
+// DELETE - Deactivate user (admin/manager only)
 export async function DELETE(request: NextRequest) {
   try {
     const session = await auth();
@@ -177,9 +177,9 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    if (session.user.role !== "admin") {
+    if (!["admin", "manager"].includes(session.user.role)) {
       return NextResponse.json(
-        { success: false, error: "Only admins can deactivate users" },
+        { success: false, error: "Only admins and managers can deactivate users" },
         { status: 403 }
       );
     }

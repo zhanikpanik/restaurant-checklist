@@ -50,6 +50,7 @@ export default function CartPage() {
         },
         body: JSON.stringify({
           department: currentSection?.name || "Общий",
+          section_id: currentSection?.id,
           items: formattedItems,
           notes: notes,
           created_by: "user",

@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     if (auth instanceof NextResponse) {
       return auth;
     }
-    const { restaurantId } = auth;
+    const { restaurantId, userId, userRole } = auth;
 
     const orderData = await request.json();
     console.log("💾 Creating new order...", orderData);
@@ -71,6 +71,33 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+    }
+
+    // Check section access for non-admin/manager users
+    if (userId && userRole && !["admin", "manager"].includes(userRole)) {
+      // Get the section ID from section_id parameter if provided
+      const sectionId = orderData.section_id;
+      
+      if (sectionId) {
+        // Verify user has access to this section
+        const hasAccess = await withTenant(restaurantId, async (client) => {
+          const result = await client.query(
+            `SELECT 1 FROM user_sections WHERE user_id = $1 AND section_id = $2`,
+            [userId, sectionId]
+          );
+          return result.rows.length > 0;
+        });
+
+        if (!hasAccess) {
+          return NextResponse.json<ApiResponse>(
+            {
+              success: false,
+              error: "You do not have access to create orders for this section",
+            },
+            { status: 403 }
+          );
+        }
+      }
     }
 
     for (const item of orderData.items) {

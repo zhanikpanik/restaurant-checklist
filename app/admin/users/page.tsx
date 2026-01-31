@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -16,6 +17,13 @@ interface User {
   role: "admin" | "manager" | "staff" | "delivery";
   is_active: boolean;
   last_login?: string;
+  assigned_sections?: Section[];
+}
+
+interface Section {
+  id: number;
+  name: string;
+  emoji: string;
 }
 
 interface UserFormData {
@@ -43,10 +51,13 @@ export default function AdminUsersPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSectionsModalOpen, setIsSectionsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedSectionIds, setSelectedSectionIds] = useState<number[]>([]);
   const [formData, setFormData] = useState<UserFormData>({
     email: "",
     password: "",
@@ -64,6 +75,7 @@ export default function AdminUsersPage() {
         return;
       }
       fetchUsers();
+      fetchSections();
     }
   }, [status, session, router]);
 
@@ -72,12 +84,35 @@ export default function AdminUsersPage() {
       const res = await fetch("/api/users");
       const data = await res.json();
       if (data.success) {
-        setUsers(data.data);
+        // Fetch sections for each user
+        const usersWithSections = await Promise.all(
+          data.data.map(async (user: User) => {
+            const sectionsRes = await fetch(`/api/user-sections?user_id=${user.id}`);
+            const sectionsData = await sectionsRes.json();
+            return {
+              ...user,
+              assigned_sections: sectionsData.success ? sectionsData.data : [],
+            };
+          })
+        );
+        setUsers(usersWithSections);
       }
     } catch (err) {
       console.error("Error fetching users:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSections = async () => {
+    try {
+      const res = await fetch("/api/sections");
+      const data = await res.json();
+      if (data.success) {
+        setSections(data.data);
+      }
+    } catch (err) {
+      console.error("Error fetching sections:", err);
     }
   };
 
@@ -119,7 +154,7 @@ export default function AdminUsersPage() {
       const data = await res.json();
 
       if (data.success) {
-        setUsers((prev) => [...prev, data.data]);
+        setUsers((prev) => [...prev, { ...data.data, assigned_sections: [] }]);
         setIsAddModalOpen(false);
         resetForm();
       } else {
@@ -161,6 +196,44 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleSaveSections = async () => {
+    if (!selectedUser) return;
+
+    try {
+      const res = await fetch("/api/user-sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: selectedUser.id,
+          section_ids: selectedSectionIds,
+        }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        // Update user's sections in local state
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === selectedUser.id
+              ? {
+                  ...u,
+                  assigned_sections: sections.filter((s) =>
+                    selectedSectionIds.includes(s.id)
+                  ),
+                }
+              : u
+          )
+        );
+        setIsSectionsModalOpen(false);
+        setSelectedUser(null);
+      } else {
+        alert(data.error || "Ошибка при сохранении отделов");
+      }
+    } catch (err) {
+      alert("Ошибка сети");
+    }
+  };
+
   const handleDeactivate = async (user: User) => {
     if (!confirm(`Вы уверены, что хотите деактивировать пользователя ${user.name}?`)) {
       return;
@@ -190,9 +263,23 @@ export default function AdminUsersPage() {
       email: user.email,
       name: user.name,
       role: user.role,
-      password: "", // Password not editable here
+      password: "",
     });
     setIsEditModalOpen(true);
+  };
+
+  const openSectionsModal = (user: User) => {
+    setSelectedUser(user);
+    setSelectedSectionIds(user.assigned_sections?.map((s) => s.id) || []);
+    setIsSectionsModalOpen(true);
+  };
+
+  const toggleSection = (sectionId: number) => {
+    setSelectedSectionIds((prev) =>
+      prev.includes(sectionId)
+        ? prev.filter((id) => id !== sectionId)
+        : [...prev, sectionId]
+    );
   };
 
   if (status === "loading" || loading) {
@@ -206,13 +293,21 @@ export default function AdminUsersPage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Пользователи
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">
-            Управление доступом сотрудников
-          </p>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/"
+            className="text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            ← Назад
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Пользователи
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 mt-1">
+              Управление доступом сотрудников
+            </p>
+          </div>
         </div>
         <Button
           onClick={() => {
@@ -275,6 +370,26 @@ export default function AdminUsersPage() {
                 </Badge>
               </div>
               
+              <div className="text-sm">
+                <span className="text-gray-500 dark:text-gray-400">Отделы:</span>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {user.assigned_sections && user.assigned_sections.length > 0 ? (
+                    user.assigned_sections.map((section) => (
+                      <span
+                        key={section.id}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded text-xs"
+                      >
+                        {section.emoji} {section.name}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-gray-400 text-xs italic">
+                      Нет назначенных отделов
+                    </span>
+                  )}
+                </div>
+              </div>
+
               {user.last_login && (
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500 dark:text-gray-400">Вход:</span>
@@ -289,10 +404,18 @@ export default function AdminUsersPage() {
               <Button
                 variant="ghost"
                 size="sm"
+                onClick={() => openSectionsModal(user)}
+                disabled={!user.is_active}
+              >
+                Отделы
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => openEditModal(user)}
                 disabled={!user.is_active}
               >
-                Изменить роль
+                Роль
               </Button>
               {user.is_active && user.id !== parseInt(session?.user?.id || "0") && (
                 <Button
@@ -452,6 +575,67 @@ export default function AdminUsersPage() {
             <Button type="submit">Сохранить</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Sections Assignment Modal */}
+      <Modal
+        isOpen={isSectionsModalOpen}
+        onClose={() => setIsSectionsModalOpen(false)}
+        title="Назначение отделов"
+      >
+        <div className="space-y-4">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Пользователь: <span className="font-medium text-gray-900 dark:text-white">{selectedUser?.name}</span>
+            </p>
+            <p className="text-xs text-gray-500 mt-1">
+              Выберите отделы, к которым пользователь будет иметь доступ
+            </p>
+          </div>
+
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {sections.length === 0 ? (
+              <p className="text-gray-500 text-center py-4">
+                Нет доступных отделов. Сначала синхронизируйте отделы из Poster.
+              </p>
+            ) : (
+              sections.map((section) => (
+                <label
+                  key={section.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selectedSectionIds.includes(section.id)
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                      : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedSectionIds.includes(section.id)}
+                    onChange={() => toggleSection(section.id)}
+                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-xl">{section.emoji}</span>
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {section.name}
+                  </span>
+                </label>
+              ))
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6 pt-4 border-t dark:border-gray-700">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setIsSectionsModalOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button onClick={handleSaveSections}>
+              Сохранить ({selectedSectionIds.length} отделов)
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

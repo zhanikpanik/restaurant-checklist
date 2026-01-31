@@ -13,8 +13,6 @@ interface Section {
   custom_products_count?: number;
 }
 
-type SyncStatus = 'idle' | 'syncing' | 'success' | 'error';
-
 interface Restaurant {
   id: string;
   name: string;
@@ -22,13 +20,13 @@ interface Restaurant {
 }
 
 export default function HomePage() {
-  const { data: session } = useSession();
-  const [sections, setSections] = useState<Section[]>([]);
+  const { data: session, status } = useSession();
+  const [allSections, setAllSections] = useState<Section[]>([]);
+  const [userSectionIds, setUserSectionIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTenant, setCurrentTenant] = useState<string>("unknown");
   const [tenantName, setTenantName] = useState<string>("Загрузка...");
-  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
   const router = useRouter();
   
   const isAdmin = session?.user?.role === "admin";
@@ -36,8 +34,17 @@ export default function HomePage() {
 
   useEffect(() => {
     loadTenantInfo();
-    loadSections();
   }, []);
+
+  // Load sections when session is available
+  useEffect(() => {
+    if (status === "authenticated") {
+      loadSections();
+      loadUserSections();
+    } else if (status === "unauthenticated") {
+      setLoading(false);
+    }
+  }, [status, session]);
 
   const getCurrentTenant = () => {
     const cookies = document.cookie.split(";");
@@ -71,10 +78,9 @@ export default function HomePage() {
       const data = await response.json();
 
       if (data.success) {
-        setSections(data.data || []);
+        setAllSections(data.data || []);
         setError(null);
       } else {
-        // If database is not available, show a friendly message
         setError("База данных недоступна. Проверьте подключение.");
       }
     } catch (err) {
@@ -84,27 +90,24 @@ export default function HomePage() {
     }
   };
 
-const syncSections = async () => {
+  const loadUserSections = async () => {
     try {
-      setSyncStatus('syncing');
-      const response = await fetch("/api/sync-sections");
+      const response = await fetch("/api/user-sections");
       const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error);
+      if (data.success) {
+        setUserSectionIds(data.data.map((s: Section) => parseInt(s.id)));
       }
-
-      setSyncStatus('success');
-      await loadSections();
-      
-      // Reset status after 3 seconds
-      setTimeout(() => setSyncStatus('idle'), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to sync sections");
-      setSyncStatus('error');
-      setTimeout(() => setSyncStatus('idle'), 3000);
+      console.error("Error loading user sections:", err);
     }
   };
+
+  // Filter sections based on user assignments
+  // Admin and Manager see all sections
+  // Staff/delivery see only assigned sections
+  const sections = (isAdmin || isManager)
+    ? allSections
+    : allSections.filter((section) => userSectionIds.includes(parseInt(section.id)));
 
   const getSectionColors = (name: string) => {
     const lowerName = name.toLowerCase();
@@ -126,6 +129,9 @@ const syncSections = async () => {
     return "Управление товарами";
   };
 
+  // Show message for staff with no assigned sections
+  const hasNoAssignedSections = !isAdmin && !isManager && userSectionIds.length === 0 && allSections.length > 0;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
@@ -140,51 +146,11 @@ const syncSections = async () => {
                 {tenantName}
               </span>
             </div>
-            <div className="flex items-center gap-3">
-              {(isAdmin || isManager) && (
-                <button
-                  onClick={syncSections}
-                  disabled={syncStatus === 'syncing'}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                    syncStatus === 'syncing'
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : syncStatus === 'success'
-                      ? 'bg-green-100 text-green-700'
-                      : syncStatus === 'error'
-                      ? 'bg-red-100 text-red-700'
-                      : 'bg-green-500 hover:bg-green-600 text-white'
-                  }`}
-                  title="Синхронизировать отделы и товары из Poster"
-                >
-                  {syncStatus === 'syncing' ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full" />
-                      <span className="hidden sm:inline">Синхронизация...</span>
-                    </>
-                  ) : syncStatus === 'success' ? (
-                    <>
-                      <span>✓</span>
-                      <span className="hidden sm:inline">Готово!</span>
-                    </>
-                  ) : syncStatus === 'error' ? (
-                    <>
-                      <span>✕</span>
-                      <span className="hidden sm:inline">Ошибка</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🔄</span>
-                      <span className="hidden sm:inline">Синхронизировать</span>
-                    </>
-                  )}
-                </button>
-              )}
-              {session?.user && (
-                <div className="text-sm text-gray-600">
-                  👤 {session.user.name}
-                </div>
-              )}
-            </div>
+            {session?.user && (
+              <div className="text-sm text-gray-600">
+                👤 {session.user.name}
+              </div>
+            )}
           </div>
         </div>
 
@@ -209,7 +175,17 @@ const syncSections = async () => {
                 Попробовать снова
               </button>
             </div>
-          ) : sections.length === 0 ? (
+          ) : hasNoAssignedSections ? (
+            <div className="col-span-full text-center py-8">
+              <div className="text-6xl mb-4">🔒</div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">
+                Нет доступных отделов
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Вам не назначены отделы. Обратитесь к администратору.
+              </p>
+            </div>
+          ) : allSections.length === 0 ? (
             <div className="col-span-full text-center py-8">
               <div className="text-6xl mb-4">📭</div>
               <h3 className="text-xl font-semibold text-gray-700 mb-2">
@@ -219,12 +195,12 @@ const syncSections = async () => {
                 Для текущего ресторана отделы не настроены
               </p>
               <div className="space-y-2">
-                <button
-                  onClick={syncSections}
+                <Link
+                  href="/manager"
                   className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
                 >
-                  Синхронизировать отделы из Poster
-                </button>
+                  Перейти в панель менеджера
+                </Link>
                 <br />
                 {process.env.NODE_ENV === 'development' && (
                   <Link
@@ -239,7 +215,7 @@ const syncSections = async () => {
           ) : (
             <>
               {/* Admin Section - Only for admins */}
-              {isAdmin && (
+              {(isAdmin || isManager) && (
                 <Link
                   href="/admin/users"
                   className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
@@ -254,35 +230,39 @@ const syncSections = async () => {
                 </Link>
               )}
 
-              {/* Manager Section */}
-              <Link
-                href="/manager"
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
-              >
-                <span className="text-3xl mr-4">👨‍💼</span>
-                <div className="text-left">
-                  <div className="font-semibold text-lg">Менеджер</div>
-                  <div className="text-sm opacity-90">
-                    Управление заказами и поставщиками
+              {/* Manager Section - Only for admin/manager */}
+              {(isAdmin || isManager) && (
+                <Link
+                  href="/manager"
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                >
+                  <span className="text-3xl mr-4">👨‍💼</span>
+                  <div className="text-left">
+                    <div className="font-semibold text-lg">Менеджер</div>
+                    <div className="text-sm opacity-90">
+                      Управление заказами и поставщиками
+                    </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+              )}
 
-              {/* Delivery Section */}
-              <Link
-                href="/delivery"
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
-              >
-                <span className="text-3xl mr-4">🚚</span>
-                <div className="text-left">
-                  <div className="font-semibold text-lg">Доставка</div>
-                  <div className="text-sm opacity-90">
-                    Мои заказы и отслеживание
+              {/* Delivery Section - Only for admin/manager/delivery */}
+              {(isAdmin || isManager || session?.user?.role === "delivery") && (
+                <Link
+                  href="/delivery"
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                >
+                  <span className="text-3xl mr-4">🚚</span>
+                  <div className="text-left">
+                    <div className="font-semibold text-lg">Доставка</div>
+                    <div className="text-sm opacity-90">
+                      Мои заказы и отслеживание
+                    </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+              )}
 
-              {/* Dynamic Sections */}
+              {/* Dynamic Sections - Filtered by user assignments */}
               {sections.map((section) => (
                 <Link
                   key={section.id}

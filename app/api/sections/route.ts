@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
           s.name,
           s.emoji,
           s.poster_storage_id,
-          COUNT(cp.id) as custom_products_count
+          COUNT(sp.id) as custom_products_count
         FROM sections s
-        LEFT JOIN custom_products cp ON cp.section_id = s.id
+        LEFT JOIN section_products sp ON sp.section_id = s.id AND sp.is_active = true
         GROUP BY s.id, s.name, s.emoji, s.poster_storage_id
         ORDER BY s.name`
       );

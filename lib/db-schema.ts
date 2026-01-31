@@ -164,7 +164,7 @@ export async function setupDatabaseSchema() {
       );
     `);
 
-    // Create section_leftovers table (Inventory for each section)
+// Create section_leftovers table (Inventory for each section)
     await client.query(`
       CREATE TABLE IF NOT EXISTS section_leftovers (
         id SERIAL PRIMARY KEY,
@@ -173,6 +173,17 @@ export async function setupDatabaseSchema() {
         quantity NUMERIC(10, 3) DEFAULT 0,
         last_synced_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(section_id, section_product_id)
+      );
+    `);
+
+    // Create user_sections junction table (Many-to-many: users <-> sections)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS user_sections (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        section_id INTEGER NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, section_id)
       );
     `);
 
@@ -198,8 +209,10 @@ export async function setupDatabaseSchema() {
       CREATE INDEX IF NOT EXISTS idx_sections_active ON sections(tenant_id, is_active);
       CREATE INDEX IF NOT EXISTS idx_section_products_section_id ON section_products(section_id);
       CREATE INDEX IF NOT EXISTS idx_section_products_ingredient_id ON section_products(poster_ingredient_id);
-      CREATE INDEX IF NOT EXISTS idx_section_leftovers_section_id ON section_leftovers(section_id);
+CREATE INDEX IF NOT EXISTS idx_section_leftovers_section_id ON section_leftovers(section_id);
       CREATE INDEX IF NOT EXISTS idx_section_leftovers_product_id ON section_leftovers(section_product_id);
+      CREATE INDEX IF NOT EXISTS idx_user_sections_user_id ON user_sections(user_id);
+      CREATE INDEX IF NOT EXISTS idx_user_sections_section_id ON user_sections(section_id);
     `);
 
     console.log("✅ Database schema setup complete");

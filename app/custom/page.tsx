@@ -88,24 +88,34 @@ const [sectionName, setSectionName] = useState("");
   };
 
   const handleIncreaseQuantity = (product: Product) => {
-    const newQty = (productQuantities[product.id] || 0) + 1;
+    const currentQty = productQuantities[product.id] || 0;
+    const newQty = currentQty + 1;
     setProductQuantities((prev) => ({
       ...prev,
       [product.id]: newQty,
     }));
 
-    // Add to cart immediately
-    cart.add({
-      cartId: `${product.id}-${Date.now()}`,
-      productId: product.id,
-      name: product.name,
-      quantity: 1,
-      unit: product.unit,
-      category: product.category_name,
-      supplier: (product as any).supplier_name || "",
-      supplier_id: (product as any).supplier_id,
-      poster_id: product.poster_ingredient_id,
-    });
+    // Use stable cartId based on productId so we can find and update existing items
+    const cartId = `product-${product.id}`;
+    const existingItem = cart.items.find(item => item.cartId === cartId);
+    
+    if (existingItem) {
+      // Increment quantity of existing cart item
+      cart.updateQuantity(cartId, existingItem.quantity + 1);
+    } else {
+      // First click - add new item to cart
+      cart.add({
+        cartId,
+        productId: product.id,
+        name: product.name,
+        quantity: 1,
+        unit: product.unit,
+        category: product.category_name,
+        supplier: (product as any).supplier_name || "",
+        supplier_id: (product as any).supplier_id,
+        poster_id: product.poster_ingredient_id,
+      });
+    }
   };
 
   const handleDecreaseQuantity = (product: Product) => {
@@ -124,14 +134,16 @@ const [sectionName, setSectionName] = useState("");
       }));
     }
 
-    // Remove 1 from cart
-    const cartItem = cart.items.find(item => item.productId === product.id);
+    // Use stable cartId based on productId
+    const cartId = `product-${product.id}`;
+    const cartItem = cart.items.find(item => item.cartId === cartId);
+    
     if (cartItem && cartItem.quantity > 1) {
-      cart.updateQuantity(cartItem.cartId, cartItem.quantity - 1);
+      cart.updateQuantity(cartId, cartItem.quantity - 1);
     } else if (cartItem) {
-      cart.remove(cartItem.cartId);
+      cart.remove(cartId);
     }
-};
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -224,8 +236,8 @@ const [sectionName, setSectionName] = useState("");
               {searchQuery ? "Товары не найдены" : "Нет товаров"}
             </p>
           </div>
-        ) : (
-          <div className="space-y-3">
+) : (
+          <div className="divide-y divide-gray-200">
             {filteredProducts.map((product) => {
               const quantity = productQuantities[product.id] || 0;
               const hasQuantity = quantity > 0;
@@ -233,7 +245,7 @@ const [sectionName, setSectionName] = useState("");
               return (
                 <div
                   key={product.id}
-                  className="bg-white p-4 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="bg-white py-4 hover:bg-gray-50 transition-colors border-b border-gray-200 last:border-b-0"
                 >
                   <div className="flex items-center justify-between">
 <div className="flex-1">
@@ -243,7 +255,7 @@ const [sectionName, setSectionName] = useState("");
                     {!hasQuantity ? (
                       <button
                         onClick={() => handleIncreaseQuantity(product)}
-                        className="ml-3 w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
+                        className="ml-3 w-9 h-9 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
                       >
                         +
                       </button>
@@ -251,7 +263,7 @@ const [sectionName, setSectionName] = useState("");
                       <div className="flex items-center gap-2 ml-3">
                         <button
                           onClick={() => handleDecreaseQuantity(product)}
-                          className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
+                          className="w-9 h-9 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
                         >
                           −
                         </button>
@@ -260,7 +272,7 @@ const [sectionName, setSectionName] = useState("");
                         </span>
                         <button
                           onClick={() => handleIncreaseQuantity(product)}
-                          className="w-10 h-10 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
+                          className="w-9 h-9 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
                         >
                           +
                         </button>
