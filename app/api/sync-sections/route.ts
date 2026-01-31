@@ -65,10 +65,10 @@ export async function GET(request: NextRequest) {
       for (const storage of storages) {
         const emoji = getStorageEmoji(storage.storage_name);
 
-        // Check if section already exists
+        // Check if section already exists for this restaurant
         const existingSection = await client.query(
-          "SELECT id FROM sections WHERE poster_storage_id = $1",
-          [storage.storage_id]
+          "SELECT id FROM sections WHERE poster_storage_id = $1 AND restaurant_id = $2",
+          [storage.storage_id, restaurantId]
         );
 
         if (existingSection.rows.length > 0) {
@@ -76,8 +76,8 @@ export async function GET(request: NextRequest) {
           await client.query(
             `UPDATE sections
              SET name = $1, emoji = $2, is_active = true
-             WHERE poster_storage_id = $3`,
-            [storage.storage_name, emoji, storage.storage_id]
+             WHERE poster_storage_id = $3 AND restaurant_id = $4`,
+            [storage.storage_name, emoji, storage.storage_id, restaurantId]
           );
         } else {
           // Create new section
@@ -138,7 +138,8 @@ async function syncIngredientsForSections(
   // Get all sections for this restaurant
   const sections = await withTenant(restaurantId, async (client) => {
     const result = await client.query(
-      "SELECT id, poster_storage_id FROM sections WHERE poster_storage_id IS NOT NULL"
+      "SELECT id, poster_storage_id FROM sections WHERE poster_storage_id IS NOT NULL AND restaurant_id = $1",
+      [restaurantId]
     );
     return result.rows;
   });

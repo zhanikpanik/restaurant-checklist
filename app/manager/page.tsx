@@ -50,32 +50,23 @@ export default function ManagerPage() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
-  // Role-based access control
+  // Compute access check
+  const isAuthorized = status === "authenticated" && ["admin", "manager"].includes(session?.user?.role || "");
+
+  // Role-based access control - redirect unauthorized users
   useEffect(() => {
     if (status === "loading") return;
     
-    const role = session?.user?.role;
-    const canAccess = role === "admin" || role === "manager";
-    
-    if (!canAccess) {
+    if (status === "authenticated" && !["admin", "manager"].includes(session?.user?.role || "")) {
       router.replace("/");
     }
   }, [session, status, router]);
 
-  // Show loading while checking auth
-  if (status === "loading" || (status === "authenticated" && !["admin", "manager"].includes(session?.user?.role || ""))) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4" />
-          <p className="text-gray-600">Проверка доступа...</p>
-        </div>
-      </div>
-    );
-  }
-
   // Load form data on mount (sections, categories, suppliers for dropdowns)
+  // Only load when authorized
   useEffect(() => {
+    if (!isAuthorized) return;
+    
     const loadFormData = async () => {
       try {
         const [sectionsRes, categoriesRes, suppliersRes] = await Promise.all([
@@ -95,12 +86,25 @@ export default function ManagerPage() {
       }
     };
     loadFormData();
-  }, []);
+  }, [isAuthorized]);
 
   // Load tab-specific data when tab changes
   useEffect(() => {
+    if (!isAuthorized) return;
     loadData();
-  }, [activeTab]);
+  }, [activeTab, isAuthorized]);
+
+  // Show loading while checking auth
+  if (status === "loading" || !isAuthorized) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4" />
+          <p className="text-gray-600">Проверка доступа...</p>
+        </div>
+      </div>
+    );
+  }
 
   const loadData = async () => {
     setLoading(true);
