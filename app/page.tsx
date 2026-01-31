@@ -214,22 +214,6 @@ export default function HomePage() {
             </div>
           ) : (
             <>
-              {/* Admin Section - Only for admins */}
-              {(isAdmin || isManager) && (
-                <Link
-                  href="/admin/users"
-                  className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-6 px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
-                >
-                  <span className="text-3xl mr-4">👥</span>
-                  <div className="text-left">
-                    <div className="font-semibold text-lg">Пользователи</div>
-                    <div className="text-sm opacity-90">
-                      Управление доступом сотрудников
-                    </div>
-                  </div>
-                </Link>
-              )}
-
               {/* Manager Section - Only for admin/manager */}
               {(isAdmin || isManager) && (
                 <Link

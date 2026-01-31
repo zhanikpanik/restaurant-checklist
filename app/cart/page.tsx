@@ -158,7 +158,7 @@ export default function CartPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Link
-                href="/"
+                href={currentSection ? `/custom?section_id=${currentSection.id}&dept=${encodeURIComponent(currentSection.name)}` : "/"}
                 className="text-gray-600 hover:text-gray-800 transition-colors"
               >
                 ← Назад

@@ -1,0 +1,217 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/Input";
+import type { ProductCategory, Supplier } from "@/types";
+
+interface CategoryFormData {
+  id?: number;
+  name: string;
+  supplier_id: number | null;
+}
+
+interface CategoriesTabProps {
+  categories: ProductCategory[];
+  setCategories: React.Dispatch<React.SetStateAction<ProductCategory[]>>;
+  suppliers: Supplier[];
+  loading: boolean;
+  onReload: () => void;
+}
+
+export function CategoriesTab({
+  categories,
+  setCategories,
+  suppliers,
+  loading,
+  onReload,
+}: CategoriesTabProps) {
+  const [showModal, setShowModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CategoryFormData | null>(null);
+
+  const handleCreate = () => {
+    setEditingCategory({ name: "", supplier_id: null });
+    setShowModal(true);
+  };
+
+  const handleEdit = (category: ProductCategory) => {
+    setEditingCategory({
+      id: category.id,
+      name: category.name,
+      supplier_id: category.supplier_id ?? null,
+    });
+    setShowModal(true);
+  };
+
+  const handleSave = async () => {
+    if (!editingCategory) return;
+
+    try {
+      const method = editingCategory.id ? "PATCH" : "POST";
+      const response = await fetch("/api/categories", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editingCategory),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setShowModal(false);
+        setEditingCategory(null);
+        onReload();
+      } else {
+        alert(data.error || "Ошибка при сохранении категории");
+      }
+    } catch (error) {
+      console.error("Error saving category:", error);
+      alert("Ошибка при сохранении категории");
+    }
+  };
+
+  const handleDelete = async (categoryId: number) => {
+    if (!confirm("Удалить эту категорию?")) return;
+
+    try {
+      const response = await fetch(`/api/categories?id=${categoryId}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setCategories(categories.filter((c) => c.id !== categoryId));
+      } else {
+        alert(data.error || "Ошибка при удалении категории");
+      }
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      alert("Ошибка при удалении категории");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-12 text-center">
+        <div className="animate-spin h-10 w-10 border-b-2 border-blue-500 rounded-full mx-auto mb-4" />
+        <p className="text-gray-500">Загрузка категорий...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">Категории товаров ({categories.length})</h2>
+        <Button onClick={handleCreate}>+ Добавить категорию</Button>
+      </div>
+
+      {categories.length === 0 ? (
+        <p className="text-gray-500 text-center py-8">Нет категорий</p>
+      ) : (
+        <div className="grid gap-4">
+          {categories.map((category) => (
+            <div
+              key={category.id}
+              onClick={() => handleEdit(category)}
+              className="border rounded-lg p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+            >
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <h3 className="font-medium text-gray-900">{category.name}</h3>
+                  {(category as any).supplier_name ? (
+                    <p className="text-sm text-gray-600 mt-1">
+                      📦 Поставщик: {(category as any).supplier_name}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-400 mt-1">Поставщик не назначен</p>
+                  )}
+                  {(category as any).poster_category_id && (
+                    <p className="text-xs text-gray-400 italic mt-1">
+                      Из Poster (ID: {(category as any).poster_category_id})
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Category Modal */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setEditingCategory(null);
+        }}
+        title={editingCategory?.id ? "Редактировать категорию" : "Создать категорию"}
+      >
+        {editingCategory && (
+          <div className="space-y-4">
+            <Input
+              label="Название категории"
+              value={editingCategory.name}
+              onChange={(e) =>
+                setEditingCategory({ ...editingCategory, name: e.target.value })
+              }
+              placeholder="Название"
+            />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Поставщик</label>
+              <select
+                value={editingCategory.supplier_id || ""}
+                onChange={(e) =>
+                  setEditingCategory({
+                    ...editingCategory,
+                    supplier_id: e.target.value ? Number(e.target.value) : null,
+                  })
+                }
+                className="w-full border rounded-lg px-3 py-2"
+              >
+                <option value="">Без поставщика</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-3 mt-6">
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowModal(false);
+                    setEditingCategory(null);
+                  }}
+                  className="flex-1"
+                >
+                  Отмена
+                </Button>
+                <Button onClick={handleSave} className="flex-1">
+                  Сохранить
+                </Button>
+              </div>
+              {editingCategory.id && !(editingCategory as any).poster_category_id && (
+                <Button
+                  variant="danger"
+                  onClick={() => {
+                    handleDelete(editingCategory.id!);
+                    setShowModal(false);
+                    setEditingCategory(null);
+                  }}
+                  className="w-full"
+                >
+                  Удалить категорию
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
