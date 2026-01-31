@@ -18,7 +18,9 @@ export async function GET(request: NextRequest) {
         `SELECT pc.*, s.name as supplier_name
          FROM product_categories pc
          LEFT JOIN suppliers s ON pc.supplier_id = s.id
-         ORDER BY pc.name`
+         WHERE pc.restaurant_id = $1
+         ORDER BY pc.name`,
+        [restaurantId]
       );
       return result.rows;
     });
@@ -63,10 +65,10 @@ export async function POST(request: NextRequest) {
     }
 
     const category = await withTenant(restaurantId, async (client) => {
-      // Check if category already exists
+      // Check if category already exists for this restaurant
       const existingCheck = await client.query(
-        `SELECT id FROM product_categories WHERE name = $1`,
-        [categoryData.name]
+        `SELECT id FROM product_categories WHERE name = $1 AND restaurant_id = $2`,
+        [categoryData.name, restaurantId]
       );
 
       if (existingCheck.rows.length > 0) {
@@ -141,9 +143,9 @@ export async function PATCH(request: NextRequest) {
          SET name = COALESCE($1, name),
              supplier_id = $2,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3
+         WHERE id = $3 AND restaurant_id = $4
          RETURNING *`,
-        [name, supplier_id, id]
+        [name, supplier_id, id, restaurantId]
       );
       return result.rows[0];
     });
@@ -196,9 +198,10 @@ export async function DELETE(request: NextRequest) {
       // Check if category has associated products
       const associatedCheck = await client.query(
         `SELECT COUNT(*) as products_count
-         FROM section_products
-         WHERE category_id = $1`,
-        [categoryId]
+         FROM section_products sp
+         JOIN product_categories pc ON sp.category_id = pc.id
+         WHERE sp.category_id = $1 AND pc.restaurant_id = $2`,
+        [categoryId, restaurantId]
       );
 
       const { products_count } = associatedCheck.rows[0];
@@ -208,8 +211,8 @@ export async function DELETE(request: NextRequest) {
       }
 
       const deleteResult = await client.query(
-        `DELETE FROM product_categories WHERE id = $1 RETURNING id`,
-        [categoryId]
+        `DELETE FROM product_categories WHERE id = $1 AND restaurant_id = $2 RETURNING id`,
+        [categoryId, restaurantId]
       );
 
       return { deleted: deleteResult.rowCount && deleteResult.rowCount > 0 };

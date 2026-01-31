@@ -32,22 +32,18 @@ export async function GET(request: NextRequest) {
         FROM section_products sp
         LEFT JOIN product_categories pc ON sp.category_id = pc.id
         LEFT JOIN suppliers sup ON pc.supplier_id = sup.id
-        LEFT JOIN sections s ON sp.section_id = s.id`;
+        LEFT JOIN sections s ON sp.section_id = s.id
+        WHERE s.restaurant_id = $1`;
       
-      const conditions: string[] = [];
-      const params: any[] = [];
+      const params: any[] = [restaurantId];
       
       if (sectionId) {
         params.push(Number(sectionId));
-        conditions.push(`sp.section_id = $${params.length}`);
+        query += ` AND sp.section_id = $${params.length}`;
       }
       
       if (activeOnly) {
-        conditions.push(`sp.is_active = true`);
-      }
-      
-      if (conditions.length > 0) {
-        query += ` WHERE ${conditions.join(" AND ")}`;
+        query += ` AND sp.is_active = true`;
       }
       
       query += ` ORDER BY sp.name`;
@@ -142,16 +138,17 @@ export async function PATCH(request: NextRequest) {
 
     const product = await withTenant(restaurantId, async (client) => {
       const result = await client.query(
-        `UPDATE section_products
-         SET name = COALESCE($1, name),
-             unit = COALESCE($2, unit),
-             section_id = COALESCE($3, section_id),
-             category_id = COALESCE($4, category_id),
-             is_active = COALESCE($5, is_active),
+        `UPDATE section_products sp
+         SET name = COALESCE($1, sp.name),
+             unit = COALESCE($2, sp.unit),
+             section_id = COALESCE($3, sp.section_id),
+             category_id = COALESCE($4, sp.category_id),
+             is_active = COALESCE($5, sp.is_active),
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $6
-         RETURNING *`,
-        [name, unit, section_id, category_id, is_active, id]
+         FROM sections s
+         WHERE sp.id = $6 AND sp.section_id = s.id AND s.restaurant_id = $7
+         RETURNING sp.*`,
+        [name, unit, section_id, category_id, is_active, id, restaurantId]
       );
       return result.rows[0];
     });
@@ -200,23 +197,31 @@ export async function DELETE(request: NextRequest) {
     const { restaurantId } = auth;
 
     const result = await withTenant(restaurantId, async (client) => {
-      // Check if product is from Poster (non-custom)
+      // Check if product is from Poster (non-custom) and belongs to this restaurant
       const checkResult = await client.query(
-        `SELECT poster_ingredient_id FROM section_products WHERE id = $1`,
-        [productId]
+        `SELECT sp.poster_ingredient_id 
+         FROM section_products sp
+         JOIN sections s ON sp.section_id = s.id
+         WHERE sp.id = $1 AND s.restaurant_id = $2`,
+        [productId, restaurantId]
       );
 
-      if (checkResult.rows.length > 0) {
-        const ingredientId = checkResult.rows[0].poster_ingredient_id;
-        // Only allow deletion of custom products (prefixed with 'custom_')
-        if (ingredientId && !ingredientId.startsWith('custom_')) {
-          return { error: "Невозможно удалить товар из Poster" };
-        }
+      if (checkResult.rows.length === 0) {
+        return { error: "Product not found" };
+      }
+
+      const ingredientId = checkResult.rows[0].poster_ingredient_id;
+      // Only allow deletion of custom products (prefixed with 'custom_')
+      if (ingredientId && !ingredientId.startsWith('custom_')) {
+        return { error: "Невозможно удалить товар из Poster" };
       }
 
       const deleteResult = await client.query(
-        `DELETE FROM section_products WHERE id = $1 RETURNING id`,
-        [productId]
+        `DELETE FROM section_products sp
+         USING sections s
+         WHERE sp.id = $1 AND sp.section_id = s.id AND s.restaurant_id = $2
+         RETURNING sp.id`,
+        [productId, restaurantId]
       );
 
       return { deleted: deleteResult.rowCount && deleteResult.rowCount > 0 };

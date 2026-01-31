@@ -16,8 +16,10 @@ export async function GET(request: NextRequest) {
     const orders = await withTenant(restaurantId, async (client) => {
       const result = await client.query<Order>(
         `SELECT * FROM orders
+         WHERE restaurant_id = $1
          ORDER BY created_at DESC
-         LIMIT 100`
+         LIMIT 100`,
+        [restaurantId]
       );
       return result.rows;
     });
@@ -196,9 +198,9 @@ export async function PATCH(request: NextRequest) {
              order_data = COALESCE($2, order_data),
              delivered_at = CASE WHEN $1 = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END,
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $3
+         WHERE id = $3 AND restaurant_id = $4
          RETURNING *`,
-        [status, order_data ? JSON.stringify(order_data) : null, id]
+        [status, order_data ? JSON.stringify(order_data) : null, id, restaurantId]
       );
       return result.rows[0];
     });
@@ -250,9 +252,9 @@ export async function DELETE(request: NextRequest) {
     const deleted = await withTenant(restaurantId, async (client) => {
       const result = await client.query(
         `DELETE FROM orders
-         WHERE id = $1
+         WHERE id = $1 AND restaurant_id = $2
          RETURNING id`,
-        [orderId]
+        [orderId, restaurantId]
       );
       return result.rowCount && result.rowCount > 0;
     });

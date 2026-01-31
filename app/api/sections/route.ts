@@ -21,8 +21,10 @@ export async function GET(request: NextRequest) {
           COUNT(sp.id) as custom_products_count
         FROM sections s
         LEFT JOIN section_products sp ON sp.section_id = s.id AND sp.is_active = true
+        WHERE s.restaurant_id = $1
         GROUP BY s.id, s.name, s.emoji, s.poster_storage_id
-        ORDER BY s.name`
+        ORDER BY s.name`,
+        [restaurantId]
       );
       return result.rows;
     });
@@ -115,9 +117,9 @@ export async function PATCH(request: NextRequest) {
              emoji = COALESCE($2, emoji),
              poster_storage_id = COALESCE($3, poster_storage_id),
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = $4
+         WHERE id = $4 AND restaurant_id = $5
          RETURNING *`,
-        [name, emoji, poster_storage_id, id]
+        [name, emoji, poster_storage_id, id, restaurantId]
       );
       return result.rows[0];
     });
@@ -168,8 +170,8 @@ export async function DELETE(request: NextRequest) {
     const result = await withTenant(restaurantId, async (client) => {
       // Check if section is from Poster
       const checkResult = await client.query(
-        `SELECT poster_storage_id FROM sections WHERE id = $1`,
-        [sectionId]
+        `SELECT poster_storage_id FROM sections WHERE id = $1 AND restaurant_id = $2`,
+        [sectionId, restaurantId]
       );
 
       if (checkResult.rows.length > 0 && checkResult.rows[0].poster_storage_id) {
@@ -177,8 +179,8 @@ export async function DELETE(request: NextRequest) {
       }
 
       const deleteResult = await client.query(
-        `DELETE FROM sections WHERE id = $1 RETURNING id`,
-        [sectionId]
+        `DELETE FROM sections WHERE id = $1 AND restaurant_id = $2 RETURNING id`,
+        [sectionId, restaurantId]
       );
 
       return { deleted: deleteResult.rowCount && deleteResult.rowCount > 0 };

@@ -19,8 +19,10 @@ export async function GET(request: NextRequest) {
                 COUNT(DISTINCT pc.id) as categories_count
          FROM suppliers s
          LEFT JOIN product_categories pc ON pc.supplier_id = s.id
+         WHERE s.restaurant_id = $1
          GROUP BY s.id
-         ORDER BY s.name`
+         ORDER BY s.name`,
+        [restaurantId]
       );
       return result.rows;
     });
@@ -65,10 +67,10 @@ export async function POST(request: NextRequest) {
     }
 
     const supplier = await withTenant(restaurantId, async (client) => {
-      // Check if supplier already exists
+      // Check if supplier already exists for this restaurant
       const existingCheck = await client.query(
-        `SELECT id FROM suppliers WHERE name = $1`,
-        [supplierData.name]
+        `SELECT id FROM suppliers WHERE name = $1 AND restaurant_id = $2`,
+        [supplierData.name, restaurantId]
       );
 
       if (existingCheck.rows.length > 0) {
@@ -163,10 +165,10 @@ export async function PATCH(request: NextRequest) {
       const query = `
         UPDATE suppliers
         SET ${setClause}, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $1
+        WHERE id = $1 AND restaurant_id = $${fields.length + 2}
         RETURNING *
       `;
-      const result = await client.query<Supplier>(query, [id, ...values]);
+      const result = await client.query<Supplier>(query, [id, ...values, restaurantId]);
       return result.rows[0];
     });
 
@@ -217,8 +219,10 @@ export async function DELETE(request: NextRequest) {
     const result = await withTenant(restaurantId, async (client) => {
       // Check if supplier has associated categories
       const associatedCheck = await client.query(
-        `SELECT COUNT(*) as categories_count FROM product_categories WHERE supplier_id = $1`,
-        [supplierId]
+        `SELECT COUNT(*) as categories_count 
+         FROM product_categories 
+         WHERE supplier_id = $1 AND restaurant_id = $2`,
+        [supplierId, restaurantId]
       );
 
       const { categories_count } = associatedCheck.rows[0];
@@ -228,8 +232,8 @@ export async function DELETE(request: NextRequest) {
       }
 
       const deleteResult = await client.query(
-        `DELETE FROM suppliers WHERE id = $1 RETURNING id`,
-        [supplierId]
+        `DELETE FROM suppliers WHERE id = $1 AND restaurant_id = $2 RETURNING id`,
+        [supplierId, restaurantId]
       );
 
       return { deleted: deleteResult.rowCount && deleteResult.rowCount > 0 };
