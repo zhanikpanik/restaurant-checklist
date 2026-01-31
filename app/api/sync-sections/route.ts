@@ -98,17 +98,19 @@ export async function GET(request: NextRequest) {
 
     // Also sync ingredients for all sections
     let ingredientsSynced = 0;
+    let ingredientError: string | null = null;
     try {
       ingredientsSynced = await syncIngredientsForSections(restaurantId, poster_token, poster_account_name);
       console.log(`Synced ${ingredientsSynced} ingredients`);
-    } catch (ingredientError) {
-      console.error("Error syncing ingredients:", ingredientError);
+    } catch (err) {
+      console.error("Error syncing ingredients:", err);
+      ingredientError = err instanceof Error ? err.message : "Unknown error";
       // Continue - sections were synced successfully
     }
 
     return NextResponse.json({
       success: true,
-      data: { syncedCount, ingredientsSynced },
+      data: { syncedCount, ingredientsSynced, ingredientError },
     });
   } catch (error) {
     console.error("Sync sections error:", error);
@@ -126,14 +128,17 @@ async function syncIngredientsForSections(
 ): Promise<number> {
   // Fetch all ingredients from Poster
   const ingredientsUrl = `https://${posterAccountName}.joinposter.com/api/menu.getIngredients?token=${posterToken}`;
+  console.log("Fetching ingredients from:", ingredientsUrl.replace(posterToken, "***"));
   const ingredientsResponse = await fetch(ingredientsUrl);
 
   if (!ingredientsResponse.ok) {
+    console.error("Failed to fetch ingredients:", ingredientsResponse.status);
     throw new Error("Failed to fetch ingredients from Poster");
   }
 
   const ingredientsData = await ingredientsResponse.json();
   const ingredients = ingredientsData.response || [];
+  console.log(`Found ${ingredients.length} ingredients from Poster`);
 
   // Get all sections for this restaurant
   const sections = await withTenant(restaurantId, async (client) => {
@@ -144,7 +149,10 @@ async function syncIngredientsForSections(
     return result.rows;
   });
 
+  console.log(`Found ${sections.length} sections with poster_storage_id for restaurant ${restaurantId}`);
+
   if (sections.length === 0) {
+    console.log("No sections with poster_storage_id found, skipping ingredient sync");
     return 0;
   }
 
@@ -181,7 +189,7 @@ async function syncIngredientsForSections(
         // If storage has leftovers, only sync ingredients that exist in this storage
         // If storage is empty, sync ALL ingredients so user can use any
         if (hasLeftovers) {
-          const leftover = leftoverMap.get(ingredient.ingredient_id);
+          const leftover = leftoverMap.get(String(ingredient.ingredient_id));
           if (!leftover) continue;
         }
 

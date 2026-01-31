@@ -1,8 +1,40 @@
 import { NextRequest, NextResponse } from "next/server";
-import { posterAPI } from "@/lib/poster-api";
+import { auth } from "@/lib/auth-config";
+import { withoutTenant } from "@/lib/db";
+import { PosterAPI } from "@/lib/poster-api";
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+    
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required" },
+        { status: 401 }
+      );
+    }
+
+    const restaurantId = session.user.restaurantId;
+
+    // Get restaurant's Poster token
+    const restaurant = await withoutTenant(async (client) => {
+      const result = await client.query(
+        "SELECT poster_token, poster_account_name FROM restaurants WHERE id = $1",
+        [restaurantId]
+      );
+      return result.rows[0];
+    });
+
+    if (!restaurant?.poster_token) {
+      return NextResponse.json(
+        { success: false, error: "Poster integration not configured for this restaurant" },
+        { status: 400 }
+      );
+    }
+
+    // Create a PosterAPI instance with this restaurant's token
+    const posterAPI = new PosterAPI(restaurant.poster_token);
+
     const body = await request.json();
     const { supplier_id, storage_id, items, comment } = body;
 

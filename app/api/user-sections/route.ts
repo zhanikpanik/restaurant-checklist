@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-config";
-import { withTenant, withoutTenant } from "@/lib/db";
+import { withTenant } from "@/lib/db";
 
 // GET - Get sections assigned to a user
 export async function GET(request: NextRequest) {
@@ -79,12 +79,12 @@ export async function POST(request: NextRequest) {
     }
 
     await withTenant(session.user.restaurantId, async (client) => {
-      // First, remove all existing assignments for this user
+      // First, remove all existing assignments for this user (only for sections in this restaurant)
       await client.query(
         `DELETE FROM user_sections 
          WHERE user_id = $1 
-         AND section_id IN (SELECT id FROM sections)`,
-        [user_id]
+         AND section_id IN (SELECT id FROM sections WHERE restaurant_id = $2)`,
+        [user_id, session.user.restaurantId]
       );
 
       // Then, insert new assignments
@@ -144,10 +144,14 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await withoutTenant(async (client) => {
+    await withTenant(session.user.restaurantId, async (client) => {
+      // Verify section belongs to this restaurant before deleting
       await client.query(
-        `DELETE FROM user_sections WHERE user_id = $1 AND section_id = $2`,
-        [parseInt(userId), parseInt(sectionId)]
+        `DELETE FROM user_sections 
+         WHERE user_id = $1 
+         AND section_id = $2
+         AND section_id IN (SELECT id FROM sections WHERE restaurant_id = $3)`,
+        [parseInt(userId), parseInt(sectionId), session.user.restaurantId]
       );
     });
 

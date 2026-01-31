@@ -70,7 +70,8 @@ export async function GET(request: NextRequest) {
     // Get all sections for this restaurant
     const sections = await withTenant(restaurantId, async (client) => {
       const result = await client.query(
-        "SELECT id, poster_storage_id FROM sections WHERE poster_storage_id IS NOT NULL"
+        "SELECT id, poster_storage_id FROM sections WHERE poster_storage_id IS NOT NULL AND restaurant_id = $1",
+        [restaurantId]
       );
       return result.rows;
     });
@@ -120,7 +121,7 @@ export async function GET(request: NextRequest) {
           // If storage has leftovers, only sync ingredients that exist in this storage
           // If storage is empty, sync ALL ingredients so user can use any
           if (hasLeftovers) {
-            const leftover = leftoverMap.get(ingredient.ingredient_id);
+            const leftover = leftoverMap.get(String(ingredient.ingredient_id));
             if (!leftover) continue;
           }
 
