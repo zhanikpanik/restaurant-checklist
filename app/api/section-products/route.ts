@@ -91,6 +91,16 @@ export async function POST(request: NextRequest) {
     const ingredientId = poster_ingredient_id || `custom_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     const product = await withTenant(restaurantId, async (client) => {
+      // Verify section belongs to this restaurant
+      const sectionCheck = await client.query(
+        `SELECT id FROM sections WHERE id = $1 AND restaurant_id = $2`,
+        [section_id, restaurantId]
+      );
+      
+      if (sectionCheck.rows.length === 0) {
+        return null; // Section not found or doesn't belong to this restaurant
+      }
+
       const result = await client.query(
         `INSERT INTO section_products (name, unit, section_id, category_id, is_active, poster_ingredient_id)
          VALUES ($1, $2, $3, $4, $5, $6)
@@ -99,6 +109,13 @@ export async function POST(request: NextRequest) {
       );
       return result.rows[0];
     });
+
+    if (!product) {
+      return NextResponse.json(
+        { success: false, error: "Section not found" },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,

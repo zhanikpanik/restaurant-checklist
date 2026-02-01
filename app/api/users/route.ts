@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-config";
-import { createUser, getUsersByRestaurant, updateUserRole, deactivateUser } from "@/lib/users";
+import { createUser, getUsersByRestaurant, getUsersWithSections, updateUserRole, deactivateUser } from "@/lib/users";
+import { validateBody, validateId, createUserSchema, updateUserSchema } from "@/lib/validations";
 
 // GET - List users (admin/manager only)
 export async function GET(request: NextRequest) {
@@ -22,7 +23,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const users = await getUsersByRestaurant(session.user.restaurantId);
+    // Check if sections should be included (avoids N+1 on client)
+    const { searchParams } = new URL(request.url);
+    const includeSections = searchParams.get("include_sections") === "true";
+
+    const users = includeSections
+      ? await getUsersWithSections(session.user.restaurantId)
+      : await getUsersByRestaurant(session.user.restaurantId);
 
     return NextResponse.json({
       success: true,
@@ -57,31 +64,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { email, password, name, role } = body;
-
-    if (!email || !password || !name || !role) {
+    // Validate request body
+    const validation = await validateBody(request, createUserSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: "All fields are required" },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
 
-    // Validate role
-    if (!["admin", "manager", "staff", "delivery"].includes(role)) {
-      return NextResponse.json(
-        { success: false, error: "Invalid role" },
-        { status: 400 }
-      );
-    }
-
-    // Validate password length
-    if (password.length < 6) {
-      return NextResponse.json(
-        { success: false, error: "Password must be at least 6 characters" },
-        { status: 400 }
-      );
-    }
+    const { email, password, name, role } = validation.data;
 
     const user = await createUser({
       email,
@@ -132,23 +124,18 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { id, role } = body;
-
-    if (!id) {
+    // Validate request body
+    const validation = await validateBody(request, updateUserSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: "User ID is required" },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
 
+    const { id, role } = validation.data;
+
     if (role) {
-      if (!["admin", "manager", "staff", "delivery"].includes(role)) {
-        return NextResponse.json(
-          { success: false, error: "Invalid role" },
-          { status: 400 }
-        );
-      }
       await updateUserRole(id, role);
     }
 
@@ -185,24 +172,26 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("id");
-
-    if (!userId) {
+    const idValidation = validateId(searchParams.get("id"));
+    
+    if (!idValidation.success) {
       return NextResponse.json(
-        { success: false, error: "User ID is required" },
+        { success: false, error: idValidation.error },
         { status: 400 }
       );
     }
 
+    const userId = idValidation.data;
+
     // Prevent self-deactivation
-    if (userId === session.user.id) {
+    if (userId === parseInt(session.user.id)) {
       return NextResponse.json(
         { success: false, error: "Cannot deactivate your own account" },
         { status: 400 }
       );
     }
 
-    await deactivateUser(parseInt(userId));
+    await deactivateUser(userId);
 
     return NextResponse.json({
       success: true,

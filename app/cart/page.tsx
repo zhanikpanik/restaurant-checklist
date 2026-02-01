@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart, useRestaurant, useStore } from "@/store/useStore";
+import { api } from "@/lib/api-client";
 import type { CartItem } from "@/types";
 
 type SubmitState = 'idle' | 'submitting' | 'success' | 'error';
@@ -43,28 +44,20 @@ export default function CartPage() {
         productId: item.productId,
       }));
 
-      const response = await fetch("/api/orders", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          department: currentSection?.name || "Общий",
-          section_id: currentSection?.id,
-          items: formattedItems,
-          notes: notes,
-          created_by: "user",
-        }),
+      const response = await api.post<{ id?: number }>("/api/orders", {
+        department: currentSection?.name || "Общий",
+        section_id: currentSection?.id,
+        items: formattedItems,
+        notes: notes,
+        created_by: "user",
       });
 
-      const data = await response.json();
-
-      if (data.success) {
-        setSubmittedOrderId(data.data?.id || null);
+      if (response.success) {
+        setSubmittedOrderId(response.data?.id || null);
         setSubmitState('success');
         // Don't clear cart immediately - allow user to add more
       } else {
-        throw new Error(data.error || "Failed to submit order");
+        throw new Error(response.error || "Failed to submit order");
       }
     } catch (error) {
       console.error("Error submitting order:", error);

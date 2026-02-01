@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
+import { api } from "@/lib/api-client";
 import type { ProductCategory, Supplier } from "@/types";
 
 interface CategoryFormData {
@@ -52,22 +53,17 @@ export function CategoriesTab({
     if (!editingCategory) return;
 
     try {
-      const method = editingCategory.id ? "PATCH" : "POST";
-      const response = await fetch("/api/categories", {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingCategory),
-      });
+      const response = editingCategory.id 
+        ? await api.patch("/api/categories", editingCategory)
+        : await api.post("/api/categories", editingCategory);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         setShowModal(false);
         setEditingCategory(null);
         onReload();
         toast.success(editingCategory.id ? "Категория обновлена" : "Категория создана");
       } else {
-        toast.error(data.error || "Ошибка при сохранении категории");
+        toast.error(response.error || "Ошибка при сохранении категории");
       }
     } catch (error) {
       console.error("Error saving category:", error);
@@ -79,16 +75,13 @@ export function CategoriesTab({
     if (!confirm("Удалить эту категорию?")) return;
 
     try {
-      const response = await fetch(`/api/categories?id=${categoryId}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
+      const response = await api.delete(`/api/categories?id=${categoryId}`);
 
-      if (data.success) {
+      if (response.success) {
         setCategories(categories.filter((c) => c.id !== categoryId));
         toast.success("Категория удалена");
       } else {
-        toast.error(data.error || "Ошибка при удалении категории");
+        toast.error(response.error || "Ошибка при удалении категории");
       }
     } catch (error) {
       console.error("Error deleting category:", error);

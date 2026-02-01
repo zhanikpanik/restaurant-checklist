@@ -166,6 +166,64 @@ export async function getUsersByRestaurant(restaurantId: string) {
 }
 
 /**
+ * Get all users for a restaurant WITH their assigned sections (avoids N+1 queries)
+ * Returns users with assigned_sections array populated
+ */
+export async function getUsersWithSections(restaurantId: string) {
+  if (!pool) {
+    throw new Error("Database pool not initialized");
+  }
+
+  return await withTenant(restaurantId, async (client) => {
+    // Get all users
+    const usersResult = await client.query(
+      `SELECT id, email, name, role, is_active, last_login, created_at
+       FROM users
+       WHERE restaurant_id = $1
+       ORDER BY created_at DESC`,
+      [restaurantId]
+    );
+
+    const users = usersResult.rows;
+
+    if (users.length === 0) {
+      return [];
+    }
+
+    // Get all user-section assignments for these users in one query
+    const userIds = users.map((u: any) => u.id);
+    const sectionsResult = await client.query(
+      `SELECT us.user_id, s.id, s.name, s.emoji
+       FROM user_sections us
+       JOIN sections s ON s.id = us.section_id
+       WHERE us.user_id = ANY($1) AND s.restaurant_id = $2 AND s.is_active = true
+       ORDER BY s.name`,
+      [userIds, restaurantId]
+    );
+
+    // Group sections by user_id
+    const sectionsByUser = new Map<number, any[]>();
+    for (const row of sectionsResult.rows) {
+      const userId = row.user_id;
+      if (!sectionsByUser.has(userId)) {
+        sectionsByUser.set(userId, []);
+      }
+      sectionsByUser.get(userId)!.push({
+        id: row.id,
+        name: row.name,
+        emoji: row.emoji,
+      });
+    }
+
+    // Attach sections to each user
+    return users.map((user: any) => ({
+      ...user,
+      assigned_sections: sectionsByUser.get(user.id) || [],
+    }));
+  });
+}
+
+/**
  * Update user password
  * Uses withoutTenant since we're updating by user ID (already verified ownership)
  */

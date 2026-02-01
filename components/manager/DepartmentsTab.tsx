@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
+import { api } from "@/lib/api-client";
 import type { Section } from "@/types";
 
 interface SectionFormData {
@@ -56,22 +57,17 @@ export function DepartmentsTab({
     if (!editingSection) return;
 
     try {
-      const method = editingSection.id ? "PATCH" : "POST";
-      const response = await fetch("/api/sections", {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingSection),
-      });
+      const response = editingSection.id
+        ? await api.patch("/api/sections", editingSection)
+        : await api.post("/api/sections", editingSection);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         setShowModal(false);
         setEditingSection(null);
         onReload();
         toast.success(editingSection.id ? "Секция обновлена" : "Секция создана");
       } else {
-        toast.error(data.error || "Ошибка при сохранении секции");
+        toast.error(response.error || "Ошибка при сохранении секции");
       }
     } catch (error) {
       console.error("Error saving section:", error);
@@ -83,16 +79,13 @@ export function DepartmentsTab({
     if (!confirm("Удалить эту секцию?")) return;
 
     try {
-      const response = await fetch(`/api/sections?id=${sectionId}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
+      const response = await api.delete(`/api/sections?id=${sectionId}`);
 
-      if (data.success) {
+      if (response.success) {
         setSections(sections.filter((s) => s.id !== sectionId));
         toast.success("Секция удалена");
       } else {
-        toast.error(data.error || "Ошибка при удалении секции");
+        toast.error(response.error || "Ошибка при удалении секции");
       }
     } catch (error) {
       console.error("Error deleting section:", error);

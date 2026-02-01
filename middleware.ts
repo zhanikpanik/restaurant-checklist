@@ -1,9 +1,18 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth-config";
+import { validateCSRFToken, requiresCSRFValidation, getSessionIdentifier } from "@/lib/csrf";
 
 // Routes that don't require authentication
 const publicRoutes = ["/login", "/setup", "/api/auth", "/api/health", "/api/debug-auth", "/api/poster/oauth"];
+
+// API routes exempt from CSRF (webhooks, OAuth callbacks, etc.)
+const csrfExemptRoutes = [
+  "/api/auth",
+  "/api/poster/oauth",
+  "/api/health",
+  "/api/csrf", // CSRF token endpoint itself
+];
 
 // Role-based route access
 const roleRoutes: Record<string, string[]> = {
@@ -15,6 +24,7 @@ const roleRoutes: Record<string, string[]> = {
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
+  const method = req.method;
   
   // Allow public routes
   if (publicRoutes.some((route) => pathname.startsWith(route))) {
@@ -36,6 +46,7 @@ export default auth((req) => {
   // Debug logging
   console.log("Middleware check:", { 
     pathname, 
+    method,
     hasSession: !!session,
     sessionRole: session?.user?.role,
     sessionRestaurant: session?.user?.restaurantId,
@@ -54,6 +65,35 @@ export default auth((req) => {
       { success: false, error: "Authentication required" },
       { status: 401 }
     );
+  }
+
+  // CSRF validation for mutating API requests
+  if (pathname.startsWith("/api") && requiresCSRFValidation(method)) {
+    // Check if route is exempt from CSRF
+    const isExempt = csrfExemptRoutes.some((route) => pathname.startsWith(route));
+    
+    if (!isExempt) {
+      const csrfToken = req.headers.get("X-CSRF-Token");
+      const csrfSessionId = req.cookies.get("csrf-session-id")?.value;
+      
+      // Get session identifier for validation
+      const sessionTokenCookie = req.cookies.get("authjs.session-token")?.value 
+        || req.cookies.get("__Secure-authjs.session-token")?.value;
+      const expectedSessionId = getSessionIdentifier(sessionTokenCookie, session.user?.id);
+      
+      // Validate CSRF token
+      if (!csrfToken || !validateCSRFToken(csrfToken, expectedSessionId)) {
+        console.log("CSRF validation failed:", { 
+          pathname, 
+          hasToken: !!csrfToken,
+          hasSessionId: !!csrfSessionId,
+        });
+        return NextResponse.json(
+          { success: false, error: "CSRF token invalid or missing" },
+          { status: 403 }
+        );
+      }
+    }
   }
 
   // Check role-based access

@@ -142,20 +142,11 @@ export default function ManagerPage() {
           break;
 
         case "users":
-          const usersRes = await fetch("/api/users");
+          // Use include_sections=true to get users with sections in one query (avoids N+1)
+          const usersRes = await fetch("/api/users?include_sections=true");
           const usersData = await usersRes.json();
           if (usersData.success) {
-            const usersWithSections = await Promise.all(
-              usersData.data.map(async (user: any) => {
-                const sectionsRes = await fetch(`/api/user-sections?user_id=${user.id}`);
-                const sectionsData = await sectionsRes.json();
-                return {
-                  ...user,
-                  assigned_sections: sectionsData.success ? sectionsData.data : [],
-                };
-              })
-            );
-            setUsers(usersWithSections);
+            setUsers(usersData.data);
           }
           break;
 

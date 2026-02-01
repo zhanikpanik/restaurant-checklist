@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { api } from "@/lib/api-client";
 
 interface User {
   id: number;
@@ -97,19 +98,14 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
     }
 
     try {
-      const res = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      const data = await res.json();
+      const response = await api.post<User>("/api/users", formData);
 
-      if (data.success) {
-        setUsers((prev) => [...prev, { ...data.data, assigned_sections: [] }]);
+      if (response.success && response.data) {
+        setUsers((prev) => [...prev, { ...response.data as User, assigned_sections: [] }]);
         setIsAddModalOpen(false);
         resetForm();
       } else {
-        setError(data.error || "Ошибка при создании пользователя");
+        setError(response.error || "Ошибка при создании пользователя");
       }
     } catch (err) {
       setError("Ошибка сети");
@@ -121,17 +117,12 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
     if (!selectedUser) return;
 
     try {
-      const res = await fetch("/api/users", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: selectedUser.id,
-          role: formData.role,
-        }),
+      const response = await api.patch("/api/users", {
+        id: selectedUser.id,
+        role: formData.role,
       });
-      const data = await res.json();
 
-      if (data.success) {
+      if (response.success) {
         setUsers((prev) =>
           prev.map((u) =>
             u.id === selectedUser.id ? { ...u, role: formData.role } : u
@@ -140,7 +131,7 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
         setIsEditModalOpen(false);
         setSelectedUser(null);
       } else {
-        setError(data.error || "Ошибка при обновлении роли");
+        setError(response.error || "Ошибка при обновлении роли");
       }
     } catch (err) {
       setError("Ошибка сети");
@@ -151,17 +142,12 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
     if (!selectedUser) return;
 
     try {
-      const res = await fetch("/api/user-sections", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: selectedUser.id,
-          section_ids: selectedSectionIds,
-        }),
+      const response = await api.post("/api/user-sections", {
+        user_id: selectedUser.id,
+        section_ids: selectedSectionIds,
       });
-      const data = await res.json();
 
-      if (data.success) {
+      if (response.success) {
         setUsers((prev) =>
           prev.map((u) =>
             u.id === selectedUser.id
@@ -177,7 +163,7 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
         setIsSectionsModalOpen(false);
         setSelectedUser(null);
       } else {
-        alert(data.error || "Ошибка при сохранении отделов");
+        alert(response.error || "Ошибка при сохранении отделов");
       }
     } catch (err) {
       alert("Ошибка сети");
@@ -190,17 +176,14 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
     }
 
     try {
-      const res = await fetch(`/api/users?id=${user.id}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
+      const response = await api.delete(`/api/users?id=${user.id}`);
 
-      if (data.success) {
+      if (response.success) {
         setUsers((prev) =>
           prev.map((u) => (u.id === user.id ? { ...u, is_active: false } : u))
         );
       } else {
-        alert(data.error || "Ошибка при деактивации");
+        alert(response.error || "Ошибка при деактивации");
       }
     } catch (err) {
       alert("Ошибка сети");

@@ -7,6 +7,7 @@ import { Input, Textarea } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { SkeletonCard } from "@/components/ui/Skeleton";
 import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
+import { api } from "@/lib/api-client";
 import type { Supplier } from "@/types";
 
 interface SupplierFormData {
@@ -52,22 +53,17 @@ export function SuppliersTab({
     if (!editingSupplier) return;
 
     try {
-      const method = editingSupplier.id ? "PATCH" : "POST";
-      const response = await fetch("/api/suppliers", {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editingSupplier),
-      });
+      const response = editingSupplier.id
+        ? await api.patch("/api/suppliers", editingSupplier)
+        : await api.post("/api/suppliers", editingSupplier);
 
-      const data = await response.json();
-
-      if (data.success) {
+      if (response.success) {
         setShowModal(false);
         setEditingSupplier(null);
         onReload();
         toast.success(editingSupplier.id ? "Поставщик обновлен" : "Поставщик создан");
       } else {
-        toast.error(data.error || "Ошибка при сохранении поставщика");
+        toast.error(response.error || "Ошибка при сохранении поставщика");
       }
     } catch (error) {
       console.error("Error saving supplier:", error);
@@ -79,16 +75,13 @@ export function SuppliersTab({
     if (!confirm("Удалить этого поставщика?")) return;
 
     try {
-      const response = await fetch(`/api/suppliers?id=${supplierId}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
+      const response = await api.delete(`/api/suppliers?id=${supplierId}`);
 
-      if (data.success) {
+      if (response.success) {
         setSuppliers(suppliers.filter((s) => s.id !== supplierId));
         toast.success("Поставщик удален");
       } else {
-        toast.error(data.error || "Ошибка при удалении поставщика");
+        toast.error(response.error || "Ошибка при удалении поставщика");
       }
     } catch (error) {
       console.error("Error deleting supplier:", error);
