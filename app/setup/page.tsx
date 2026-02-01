@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -14,6 +14,50 @@ function SetupContent() {
   
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncComplete, setSyncComplete] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Auto-sync Poster data after successful OAuth
+  useEffect(() => {
+    if (success === "oauth" && !syncComplete && !syncing) {
+      runAutoSync();
+    }
+  }, [success]);
+
+  const runAutoSync = async () => {
+    setSyncing(true);
+    setSyncError(null);
+    
+    try {
+      // Sync sections (storages) first
+      const sectionsRes = await fetch("/api/sync-sections");
+      const sectionsData = await sectionsRes.json();
+      
+      if (!sectionsData.success) {
+        console.warn("Sections sync warning:", sectionsData.error);
+      }
+      
+      // Then sync ingredients
+      const ingredientsRes = await fetch("/api/sync-ingredients");
+      const ingredientsData = await ingredientsRes.json();
+      
+      if (!ingredientsData.success) {
+        console.warn("Ingredients sync warning:", ingredientsData.error);
+      }
+      
+      setSyncComplete(true);
+      console.log("Auto-sync complete:", {
+        sections: sectionsData.data?.syncedCount || 0,
+        ingredients: ingredientsData.data?.syncedCount || 0
+      });
+    } catch (err) {
+      console.error("Auto-sync error:", err);
+      setSyncError("Ошибка синхронизации. Вы можете синхронизировать позже в панели менеджера.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const getErrorMessage = (errorCode: string | null) => {
     if (!errorCode) return "";
@@ -81,8 +125,34 @@ function SetupContent() {
           </div>
         )}
 
+        {/* Sync Status */}
+        {success === "oauth" && syncing && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center">
+              <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full mr-3" />
+              <div>
+                <h3 className="text-sm font-medium text-blue-800">Синхронизация данных...</h3>
+                <p className="text-sm text-blue-600 mt-1">Загружаем отделы и товары из Poster</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sync Error */}
+        {success === "oauth" && syncError && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 text-yellow-500">⚠️</div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-yellow-800">Предупреждение</h3>
+                <div className="mt-1 text-sm text-yellow-700">{syncError}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Success Alert */}
-        {success === "oauth" && (
+        {success === "oauth" && !syncing && (
           <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-start">
               <div className="flex-shrink-0">
@@ -99,9 +169,13 @@ function SetupContent() {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-green-800">Success!</h3>
+                <h3 className="text-sm font-medium text-green-800">
+                  {syncComplete ? "Готово!" : "Успешно!"}
+                </h3>
                 <div className="mt-1 text-sm text-green-700">
-                  Your restaurant has been connected successfully!
+                  {syncComplete 
+                    ? "Ресторан подключен и данные синхронизированы!"
+                    : "Ваш ресторан успешно подключен!"}
                 </div>
               </div>
             </div>

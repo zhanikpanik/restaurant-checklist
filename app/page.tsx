@@ -13,29 +13,17 @@ interface Section {
   custom_products_count?: number;
 }
 
-interface Restaurant {
-  id: string;
-  name: string;
-  logo?: string;
-}
-
 export default function HomePage() {
   const { data: session, status } = useSession();
   const [allSections, setAllSections] = useState<Section[]>([]);
   const [userSectionIds, setUserSectionIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentTenant, setCurrentTenant] = useState<string>("unknown");
-  const [tenantName, setTenantName] = useState<string>("Загрузка...");
   const router = useRouter();
   
   const isAdmin = session?.user?.role === "admin";
   const isManager = session?.user?.role === "manager";
   const isDelivery = session?.user?.role === "delivery";
-
-  useEffect(() => {
-    loadTenantInfo();
-  }, []);
 
   // Load sections when session is available
   useEffect(() => {
@@ -46,31 +34,6 @@ export default function HomePage() {
       setLoading(false);
     }
   }, [status, session]);
-
-  const getCurrentTenant = () => {
-    const cookies = document.cookie.split(";");
-    const restaurantCookie = cookies.find((c) => c.trim().startsWith("restaurant_id="));
-    return restaurantCookie ? restaurantCookie.split("=")[1].trim() : "unknown";
-  };
-
-  const loadTenantInfo = async () => {
-    const tenant = getCurrentTenant();
-    setCurrentTenant(tenant);
-    setTenantName(tenant);
-
-    try {
-      const response = await fetch("/api/restaurants");
-      const data = await response.json();
-      if (data.success) {
-        const restaurant = data.data.find((r: Restaurant) => r.id === tenant);
-        if (restaurant) {
-          setTenantName(`${restaurant.logo || "🍽️"} ${restaurant.name}`);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching restaurant info:", error);
-    }
-  };
 
   const loadSections = async () => {
     try {
@@ -137,26 +100,6 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
-        {/* Current Restaurant Indicator */}
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-blue-800">
-                Текущий ресторан:
-              </span>
-              <span className="text-sm text-blue-600 font-semibold">
-                {tenantName}
-              </span>
-            </div>
-            {session?.user && (
-              <div className="text-sm text-gray-600">
-                👤 {session.user.name}
-              </div>
-            )}
-          </div>
-        </div>
-
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {loading ? (
             <div className="col-span-full text-center py-8">

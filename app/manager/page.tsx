@@ -12,7 +12,6 @@ import { SuppliersTab } from "@/components/manager/SuppliersTab";
 import { DepartmentsTab } from "@/components/manager/DepartmentsTab";
 import { ProductsTab } from "@/components/manager/ProductsTab";
 import { UsersTab } from "@/components/manager/UsersTab";
-import { SettingsTab } from "@/components/manager/SettingsTab";
 import { useToast } from "@/components/ui/Toast";
 import type { Order, Supplier, ProductCategory, Product, Section } from "@/types";
 
@@ -22,8 +21,7 @@ type TabType =
   | "suppliers"
   | "departments"
   | "products"
-  | "users"
-  | "settings";
+  | "users";
 
 const TABS = [
   { id: "orders", label: "Заказы", icon: "📋" },
@@ -32,7 +30,6 @@ const TABS = [
   { id: "departments", label: "Отделы", icon: "🏪" },
   { id: "products", label: "Товары", icon: "📦" },
   { id: "users", label: "Пользователи", icon: "👥" },
-  { id: "settings", label: "Настройки", icon: "⚙️" },
 ];
 
 export default function ManagerPage() {
@@ -149,9 +146,6 @@ export default function ManagerPage() {
             setUsers(usersData.data);
           }
           break;
-
-        case "settings":
-          break;
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -186,7 +180,26 @@ export default function ManagerPage() {
     <div className="min-h-screen bg-gray-50">
       <PageHeader
         title="👨‍💼 Панель менеджера"
-        rightContent={restaurant.current?.name || "Ресторан"}
+        rightContent={
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSyncFromPoster}
+              disabled={syncing}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+            >
+              {syncing ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                  Синхронизация...
+                </>
+              ) : (
+                <>🔄 Синхронизировать</>
+              )}
+            </button>
+            <span className="text-gray-500">|</span>
+            <span>{restaurant.current?.name || "Ресторан"}</span>
+          </div>
+        }
       />
 
       <div className="max-w-7xl mx-auto px-4 py-4">
@@ -234,8 +247,6 @@ export default function ManagerPage() {
               setSections={setSections}
               loading={loading}
               onReload={loadData}
-              onSync={handleSyncFromPoster}
-              syncing={syncing}
             />
           )}
 
@@ -258,8 +269,6 @@ export default function ManagerPage() {
               loading={loading}
             />
           )}
-
-          {activeTab === "settings" && <SettingsTab />}
         </div>
       </div>
     </div>

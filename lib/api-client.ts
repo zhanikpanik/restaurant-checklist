@@ -114,6 +114,16 @@ class ApiClient {
         body: body ? JSON.stringify(body) : undefined,
       });
 
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        // Likely an HTML redirect (auth redirect) or server error page
+        if (response.status === 401 || response.status === 403) {
+          return { success: false, error: "Сессия истекла. Пожалуйста, войдите снова." };
+        }
+        return { success: false, error: "Ошибка сервера. Попробуйте обновить страницу." };
+      }
+
       const data = await response.json();
 
       // If CSRF error, refresh token and retry once
@@ -128,6 +138,11 @@ class ApiClient {
           credentials: "include",
           body: body ? JSON.stringify(body) : undefined,
         });
+
+        const retryContentType = retryResponse.headers.get("content-type");
+        if (!retryContentType || !retryContentType.includes("application/json")) {
+          return { success: false, error: "Ошибка сервера после повторной попытки" };
+        }
 
         return await retryResponse.json();
       }

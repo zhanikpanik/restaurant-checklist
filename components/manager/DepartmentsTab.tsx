@@ -22,8 +22,6 @@ interface DepartmentsTabProps {
   setSections: React.Dispatch<React.SetStateAction<Section[]>>;
   loading: boolean;
   onReload: () => void;
-  onSync: () => Promise<void>;
-  syncing: boolean;
 }
 
 export function DepartmentsTab({
@@ -31,8 +29,6 @@ export function DepartmentsTab({
   setSections,
   loading,
   onReload,
-  onSync,
-  syncing,
 }: DepartmentsTabProps) {
   const toast = useToast();
   const [showModal, setShowModal] = useState(false);
@@ -116,23 +112,7 @@ export function DepartmentsTab({
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Секции ({sections.length})</h2>
-        <div className="flex gap-2">
-          <Button
-            variant="success"
-            onClick={onSync}
-            disabled={syncing}
-          >
-            {syncing ? (
-              <>
-                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                Синхронизация...
-              </>
-            ) : (
-              <>🔄 Синхронизировать из Poster</>
-            )}
-          </Button>
-          <Button onClick={handleCreate}>+ Добавить секцию</Button>
-        </div>
+        <Button onClick={handleCreate}>+ Добавить секцию</Button>
       </div>
 
       {sections.length === 0 ? (
