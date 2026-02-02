@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useCart, useSections } from '@/store/useStore';
 import { api } from '@/lib/api-client';
-import type { SectionProduct } from '@/types';
+import type { SectionProduct, ProductCategory } from '@/types';
 
 interface ProductQuantity {
   [productId: number]: number;
@@ -19,10 +19,35 @@ export default function CustomProductsPage() {
 
   const [products, setProducts] = useState<SectionProduct[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<SectionProduct[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [sectionName, setSectionName] = useState('');
   const [productQuantities, setProductQuantities] = useState<ProductQuantity>({});
+
+  // Category filter scroll state
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftFade, setShowLeftFade] = useState(false);
+  const [showRightFade, setShowRightFade] = useState(false);
+
+  const checkCategoryScroll = () => {
+    if (!categoryScrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = categoryScrollRef.current;
+    setShowLeftFade(scrollLeft > 0);
+    setShowRightFade(scrollLeft < scrollWidth - clientWidth - 10);
+  };
+
+  useEffect(() => {
+    checkCategoryScroll();
+    const ref = categoryScrollRef.current;
+    ref?.addEventListener('scroll', checkCategoryScroll);
+    window.addEventListener('resize', checkCategoryScroll);
+    return () => {
+      ref?.removeEventListener('scroll', checkCategoryScroll);
+      window.removeEventListener('resize', checkCategoryScroll);
+    };
+  }, [categories]);
 
   useEffect(() => {
     if (!sectionId) {
@@ -32,23 +57,32 @@ export default function CustomProductsPage() {
     loadProducts();
   }, [sectionId, navigate]);
 
+  // Filter products by search AND category
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredProducts(products);
-    } else {
-      const filtered = products.filter((product) =>
+    let filtered = products;
+    
+    // Filter by category first
+    if (selectedCategoryId !== null) {
+      filtered = filtered.filter((product) => product.category_id === selectedCategoryId);
+    }
+    
+    // Then filter by search
+    if (searchQuery.trim() !== '') {
+      filtered = filtered.filter((product) =>
         product.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredProducts(filtered);
     }
-  }, [searchQuery, products]);
+    
+    setFilteredProducts(filtered);
+  }, [searchQuery, products, selectedCategoryId]);
 
   const loadProducts = async () => {
     setLoading(true);
     try {
-      const [sectionsRes, productsRes] = await Promise.all([
+      const [sectionsRes, productsRes, categoriesRes] = await Promise.all([
         api.get<any[]>('/api/sections'),
-        api.get<SectionProduct[]>(`/api/section-products?section_id=${sectionId}&active=true`)
+        api.get<SectionProduct[]>(`/api/section-products?section_id=${sectionId}&active=true`),
+        api.get<ProductCategory[]>('/api/categories')
       ]);
 
       if (sectionsRes.success && sectionsRes.data) {
@@ -64,6 +98,17 @@ export default function CustomProductsPage() {
       if (productsRes.success && productsRes.data) {
         setProducts(productsRes.data);
         setFilteredProducts(productsRes.data);
+        
+        // Extract unique categories that have products in this section
+        if (categoriesRes.success && categoriesRes.data) {
+          const productCategoryIds = new Set(
+            productsRes.data.map(p => p.category_id).filter(Boolean)
+          );
+          const relevantCategories = categoriesRes.data.filter(
+            c => productCategoryIds.has(c.id)
+          );
+          setCategories(relevantCategories);
+        }
       }
     } catch (error) {
       console.error('Error loading products:', error);
@@ -158,7 +203,7 @@ export default function CustomProductsPage() {
       {/* Main Content */}
       <main className="max-w-md mx-auto px-4 py-6">
         {/* Search Field */}
-        <div className="sticky top-0 z-10 bg-white pb-4 mb-4">
+        <div className="sticky top-0 z-10 bg-white pb-2">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg
@@ -204,21 +249,83 @@ export default function CustomProductsPage() {
               </button>
             )}
           </div>
+
+          {/* Category Filter Pills */}
+          {categories.length > 0 && (
+            <div className="relative mt-3">
+              {/* Left fade indicator */}
+              {showLeftFade && (
+                <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
+              )}
+              
+              {/* Right fade indicator */}
+              {showRightFade && (
+                <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
+              )}
+
+              <div
+                ref={categoryScrollRef}
+                className="flex gap-2 overflow-x-auto scrollbar-hide py-1 -mx-1 px-1"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {/* "All" pill */}
+                <button
+                  onClick={() => setSelectedCategoryId(null)}
+                  className={`flex-shrink-0 py-2 px-4 rounded-full text-sm font-medium transition-all ${
+                    selectedCategoryId === null
+                      ? 'bg-purple-600 text-white shadow-md'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                  }`}
+                >
+                  Все
+                </button>
+                
+                {/* Category pills */}
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => setSelectedCategoryId(category.id)}
+                    className={`flex-shrink-0 py-2 px-4 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                      selectedCategoryId === category.id
+                        ? 'bg-purple-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 active:bg-gray-300'
+                    }`}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Products List */}
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500" />
-          </div>
-        ) : filteredProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500">
-              {searchQuery ? 'Товары не найдены' : 'Нет товаров'}
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
+        <div className="mt-4">
+          {loading ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500" />
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">
+                {searchQuery || selectedCategoryId !== null 
+                  ? 'Товары не найдены' 
+                  : 'Нет товаров'}
+              </p>
+              {(searchQuery || selectedCategoryId !== null) && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedCategoryId(null);
+                  }}
+                  className="mt-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
+                >
+                  Сбросить фильтры
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
             {filteredProducts.map((product) => {
               const quantity = productQuantities[product.id] || 0;
               const hasQuantity = quantity > 0;
@@ -263,8 +370,9 @@ export default function CustomProductsPage() {
                 </div>
               );
             })}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
       </main>
 
       {/* Cart Button */}

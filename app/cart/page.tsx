@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart, useRestaurant, useStore } from "@/store/useStore";
@@ -17,6 +17,27 @@ export default function CartPage() {
   const [submitState, setSubmitState] = useState<SubmitState>('idle');
   const [notes, setNotes] = useState("");
   const [submittedOrderId, setSubmittedOrderId] = useState<number | null>(null);
+
+  // Group items by supplier
+  const itemsBySupplier = useMemo(() => {
+    const grouped: Record<string, CartItem[]> = {};
+    const noSupplier: CartItem[] = [];
+
+    cart.items.forEach((item) => {
+      if (item.supplier) {
+        if (!grouped[item.supplier]) {
+          grouped[item.supplier] = [];
+        }
+        grouped[item.supplier].push(item);
+      } else {
+        noSupplier.push(item);
+      }
+    });
+
+    return { grouped, noSupplier };
+  }, [cart.items]);
+
+  const supplierNames = Object.keys(itemsBySupplier.grouped).sort();
 
   const handleQuantityChange = (cartId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
@@ -187,72 +208,56 @@ export default function CartPage() {
           </div>
         ) : (
           <>
-            {/* Items List - No card wrapper */}
-            <div className="space-y-0">
-              {cart.items.map((item, index) => (
-                <div
-                  key={item.cartId}
-                  className={`py-4 ${index !== cart.items.length - 1 ? 'border-b border-gray-200' : ''}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0 pr-4">
-                      <h4 className="font-medium text-gray-800 truncate">
-                        {item.name}
-                      </h4>
-                      <p className="text-sm text-gray-500">
-                        {item.unit}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {/* Quantity controls - 36px buttons */}
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() =>
-                            handleQuantityChange(
-                              item.cartId,
-                              item.quantity - 1
-                            )
-                          }
-                          className="w-9 h-9 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors text-lg font-medium"
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            handleQuantityChange(
-                              item.cartId,
-                              parseInt(e.target.value) || 0
-                            )
-                          }
-                          className="w-14 text-center border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-                        />
-                        <button
-                          onClick={() =>
-                            handleQuantityChange(
-                              item.cartId,
-                              item.quantity + 1
-                            )
-                          }
-                          className="w-9 h-9 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors text-lg font-medium"
-                        >
-                          +
-                        </button>
-                      </div>
-                      {/* Delete button - moved to far right, subtle */}
-                      <button
-                        onClick={() => cart.remove(item.cartId)}
-                        className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
+            {/* Items List - Grouped by Supplier */}
+            <div className="space-y-6">
+              {supplierNames.map((supplierName) => (
+                <div key={supplierName}>
+                  {/* Supplier Header */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">🏢</span>
+                    <h3 className="font-semibold text-gray-800">{supplierName}</h3>
+                    <span className="text-sm text-gray-500">
+                      ({itemsBySupplier.grouped[supplierName].length} товаров)
+                    </span>
+                  </div>
+                  
+                  {/* Items for this supplier */}
+                  <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+                    {itemsBySupplier.grouped[supplierName].map((item) => (
+                      <CartItemRow
+                        key={item.cartId}
+                        item={item}
+                        onQuantityChange={handleQuantityChange}
+                        onRemove={() => cart.remove(item.cartId)}
+                      />
+                    ))}
                   </div>
                 </div>
               ))}
+
+              {/* Items without supplier */}
+              {itemsBySupplier.noSupplier.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg">📦</span>
+                    <h3 className="font-semibold text-gray-800">Без поставщика</h3>
+                    <span className="text-sm text-gray-500">
+                      ({itemsBySupplier.noSupplier.length} товаров)
+                    </span>
+                  </div>
+                  
+                  <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+                    {itemsBySupplier.noSupplier.map((item) => (
+                      <CartItemRow
+                        key={item.cartId}
+                        item={item}
+                        onQuantityChange={handleQuantityChange}
+                        onRemove={() => cart.remove(item.cartId)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Notes Section - No card wrapper */}
@@ -308,6 +313,65 @@ export default function CartPage() {
             )}
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// === CartItemRow Component ===
+function CartItemRow({
+  item,
+  onQuantityChange,
+  onRemove,
+}: {
+  item: CartItem;
+  onQuantityChange: (cartId: string, quantity: number) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between">
+        <div className="flex-1 min-w-0 pr-4">
+          <h4 className="font-medium text-gray-800 truncate">{item.name}</h4>
+          <p className="text-sm text-gray-500">{item.unit}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onQuantityChange(item.cartId, item.quantity - 1)}
+              className="w-9 h-9 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors text-lg font-medium"
+            >
+              −
+            </button>
+            <input
+              type="number"
+              value={item.quantity}
+              onChange={(e) =>
+                onQuantityChange(item.cartId, parseInt(e.target.value) || 0)
+              }
+              className="w-14 text-center border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+            />
+            <button
+              onClick={() => onQuantityChange(item.cartId, item.quantity + 1)}
+              className="w-9 h-9 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors text-lg font-medium"
+            >
+              +
+            </button>
+          </div>
+          <button
+            onClick={onRemove}
+            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

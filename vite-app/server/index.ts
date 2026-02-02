@@ -13,6 +13,7 @@ import suppliersRoutes from './routes/suppliers';
 import productsRoutes from './routes/products';
 import usersRoutes from './routes/users';
 import userSectionsRoutes from './routes/user-sections';
+import syncSectionsRoutes from './routes/sync-sections';
 
 const app = express();
 const PORT = process.env.PORT || 3001;

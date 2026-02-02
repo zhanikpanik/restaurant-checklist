@@ -45,7 +45,6 @@ export default function ManagerPage() {
   const [sections, setSections] = useState<Section[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
 
   // Compute access check
   const isAuthorized = status === "authenticated" && ["admin", "manager"].includes(session?.user?.role || "");
@@ -155,51 +154,12 @@ export default function ManagerPage() {
     }
   };
 
-  const handleSyncFromPoster = async () => {
-    try {
-      setSyncing(true);
-      const response = await fetch("/api/sync-sections");
-      const data = await response.json();
-
-      if (data.success) {
-        const { syncedCount, ingredientsSynced } = data.data;
-        toast.success(`Синхронизировано: ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`);
-        loadData();
-      } else {
-        toast.error(data.error || "Ошибка синхронизации");
-      }
-    } catch (error) {
-      console.error("Error syncing from Poster:", error);
-      toast.error("Ошибка синхронизации с Poster");
-    } finally {
-      setSyncing(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader
         title="👨‍💼 Панель менеджера"
         rightContent={
-          <div className="flex items-center gap-2 md:gap-3">
-            <button
-              onClick={handleSyncFromPoster}
-              disabled={syncing}
-              className="flex items-center justify-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors min-w-[40px] md:min-w-0"
-              title="Синхронизировать из Poster"
-            >
-              {syncing ? (
-                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-              ) : (
-                <>
-                  <span>🔄</span>
-                  <span className="hidden md:inline">Синхронизировать</span>
-                </>
-              )}
-            </button>
-            <span className="hidden md:inline text-gray-400">|</span>
-            <span className="hidden md:inline">{restaurant.current?.name || "Ресторан"}</span>
-          </div>
+          <span className="hidden md:inline text-gray-600">{restaurant.current?.name || "Ресторан"}</span>
         }
       />
 

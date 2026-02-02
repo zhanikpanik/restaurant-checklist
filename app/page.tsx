@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useToast } from "@/components/ui/Toast";
+import type { Order } from "@/types";
 
 interface Section {
   id: string;
@@ -17,9 +19,12 @@ export default function HomePage() {
   const { data: session, status } = useSession();
   const [allSections, setAllSections] = useState<Section[]>([]);
   const [userSectionIds, setUserSectionIds] = useState<number[]>([]);
+  const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const toast = useToast();
   
   const isAdmin = session?.user?.role === "admin";
   const isManager = session?.user?.role === "manager";
@@ -30,6 +35,7 @@ export default function HomePage() {
     if (status === "authenticated") {
       loadSections();
       loadUserSections();
+      loadLastOrder();
     } else if (status === "unauthenticated") {
       setLoading(false);
     }
@@ -66,6 +72,74 @@ export default function HomePage() {
     }
   };
 
+  const handleSyncFromPoster = async () => {
+    try {
+      setSyncing(true);
+      const response = await fetch("/api/sync-sections");
+      const data = await response.json();
+
+      if (data.success) {
+        const { syncedCount, ingredientsSynced } = data.data;
+        toast.success(`Синхронизировано: ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`);
+        loadSections();
+      } else {
+        toast.error(data.error || "Ошибка синхронизации");
+      }
+    } catch (error) {
+      console.error("Error syncing from Poster:", error);
+      toast.error("Ошибка синхронизации с Poster");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  const loadLastOrder = async () => {
+    try {
+      const response = await fetch("/api/orders?my=true&limit=1");
+      const data = await response.json();
+      if (data.success && data.data.length > 0) {
+        setLastOrder(data.data[0]);
+      }
+    } catch (err) {
+      console.error("Error loading last order:", err);
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "pending": return "Ожидает";
+      case "sent": return "Отправлен";
+      case "delivered": return "Доставлен";
+      case "cancelled": return "Отменен";
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "sent": return "bg-blue-100 text-blue-800";
+      case "delivered": return "bg-green-100 text-green-800";
+      case "cancelled": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const formatRelativeDate = (date: Date | string) => {
+    const orderDate = new Date(date);
+    const now = new Date();
+    const diffMs = now.getTime() - orderDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "только что";
+    if (diffMins < 60) return `${diffMins} мин. назад`;
+    if (diffHours < 24) return `${diffHours} ч. назад`;
+    if (diffDays === 1) return "вчера";
+    return orderDate.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  };
+
   // Filter sections based on user assignments
   // Admin and Manager see all sections
   // Staff/delivery see only assigned sections
@@ -100,6 +174,27 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-3 md:p-4">
       <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-4 md:p-8">
+        {/* Header with Sync Button for Admin/Manager */}
+        {(isAdmin || isManager) && (
+          <div className="flex items-center justify-end mb-4">
+            <button
+              onClick={handleSyncFromPoster}
+              disabled={syncing}
+              className="flex items-center justify-center gap-1.5 md:gap-2 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              title="Синхронизировать из Poster"
+            >
+              {syncing ? (
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <>
+                  <span>🔄</span>
+                  <span className="hidden sm:inline">Синхронизировать</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 gap-3 md:gap-4">
           {loading ? (
             <div className="col-span-full text-center py-8">
@@ -210,6 +305,54 @@ export default function HomePage() {
                   </div>
                 </Link>
               ))}
+
+              {/* Create Department Button - Only for admin/manager */}
+              {(isAdmin || isManager) && (
+                <Link
+                  href="/manager?tab=departments&action=create"
+                  className="w-full border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 active:bg-gray-100 text-gray-500 hover:text-gray-600 font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-all duration-200 flex items-center justify-start"
+                >
+                  <span className="text-2xl md:text-3xl mr-3 md:mr-4">➕</span>
+                  <div className="text-left">
+                    <div className="font-semibold text-base md:text-lg">Создать отдел</div>
+                    <div className="text-xs md:text-sm opacity-75">
+                      Добавить новый отдел
+                    </div>
+                  </div>
+                </Link>
+              )}
+
+              {/* Last Order Card - Show for all authenticated users */}
+              {lastOrder && (
+                <div className="w-full bg-white border border-gray-200 rounded-lg p-4 md:p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-800">📋 Последний заказ</h3>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(lastOrder.status)}`}>
+                      {getStatusLabel(lastOrder.status)}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-600 mb-2">
+                    <span className="font-medium">{lastOrder.order_data.department}</span>
+                    <span className="mx-2">•</span>
+                    <span>{lastOrder.order_data.items?.length || 0} товаров</span>
+                    <span className="mx-2">•</span>
+                    <span>{formatRelativeDate(lastOrder.created_at)}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 truncate mb-3">
+                    {lastOrder.order_data.items?.slice(0, 3).map(item => item.name).join(", ")}
+                    {(lastOrder.order_data.items?.length || 0) > 3 && "..."}
+                  </div>
+                  <Link
+                    href="/my-orders"
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1"
+                  >
+                    Все мои заказы
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+              )}
             </>
           )}
         </div>

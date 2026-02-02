@@ -11,15 +11,47 @@ export async function GET(request: NextRequest) {
     if (auth instanceof NextResponse) {
       return auth; // Return error response
     }
-    const { restaurantId } = auth;
+    const { restaurantId, userId, userRole } = auth;
+
+    const { searchParams } = new URL(request.url);
+    const myOrders = searchParams.get("my") === "true";
+    const limit = parseInt(searchParams.get("limit") || "100");
 
     const orders = await withTenant(restaurantId, async (client) => {
+      // If user wants "my orders" and is not admin/manager, filter by their sections
+      if (myOrders && userId && userRole && !["admin", "manager"].includes(userRole)) {
+        // Get user's section names
+        const sectionsResult = await client.query(
+          `SELECT s.name FROM sections s
+           JOIN user_sections us ON us.section_id = s.id
+           WHERE us.user_id = $1 AND s.restaurant_id = $2`,
+          [userId, restaurantId]
+        );
+        const sectionNames = sectionsResult.rows.map((r: any) => r.name);
+
+        if (sectionNames.length === 0) {
+          return [];
+        }
+
+        // Filter orders by department (section name) in order_data
+        const result = await client.query<Order>(
+          `SELECT * FROM orders
+           WHERE restaurant_id = $1
+           AND order_data->>'department' = ANY($2)
+           ORDER BY created_at DESC
+           LIMIT $3`,
+          [restaurantId, sectionNames, limit]
+        );
+        return result.rows;
+      }
+
+      // Default: return all orders for admin/manager
       const result = await client.query<Order>(
         `SELECT * FROM orders
          WHERE restaurant_id = $1
          ORDER BY created_at DESC
-         LIMIT 100`,
-        [restaurantId]
+         LIMIT $2`,
+        [restaurantId, limit]
       );
       return result.rows;
     });
