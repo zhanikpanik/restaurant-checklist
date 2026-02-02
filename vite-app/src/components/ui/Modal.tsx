@@ -1,4 +1,3 @@
-"use client";
 
 import { Fragment, ReactNode, useEffect } from "react";
 import { clsx } from "clsx";

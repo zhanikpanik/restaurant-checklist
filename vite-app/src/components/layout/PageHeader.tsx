@@ -1,6 +1,4 @@
-"use client";
-
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { ReactNode } from "react";
 
 interface PageHeaderProps {
@@ -25,7 +23,7 @@ export function PageHeader({
         <div className="flex flex-col gap-2 md:hidden">
           <div className="flex items-center justify-between">
             <Link
-              href={backHref}
+              to={backHref}
               className="text-gray-600 hover:text-gray-800 transition-colors text-sm"
             >
               ← {backLabel}
@@ -44,7 +42,7 @@ export function PageHeader({
         <div className="hidden md:flex md:items-center md:justify-between">
           <div className="flex items-center gap-4">
             <Link
-              href={backHref}
+              to={backHref}
               className="text-gray-600 hover:text-gray-800 transition-colors"
             >
               ← {backLabel}

@@ -181,23 +181,24 @@ export default function ManagerPage() {
       <PageHeader
         title="👨‍💼 Панель менеджера"
         rightContent={
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 md:gap-3">
             <button
               onClick={handleSyncFromPoster}
               disabled={syncing}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
+              className="flex items-center justify-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors min-w-[40px] md:min-w-0"
+              title="Синхронизировать из Poster"
             >
               {syncing ? (
-                <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  Синхронизация...
-                </>
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
               ) : (
-                <>🔄 Синхронизировать</>
+                <>
+                  <span>🔄</span>
+                  <span className="hidden md:inline">Синхронизировать</span>
+                </>
               )}
             </button>
-            <span className="text-gray-500">|</span>
-            <span>{restaurant.current?.name || "Ресторан"}</span>
+            <span className="hidden md:inline text-gray-400">|</span>
+            <span className="hidden md:inline">{restaurant.current?.name || "Ресторан"}</span>
           </div>
         }
       />

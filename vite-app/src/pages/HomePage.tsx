@@ -1,54 +1,42 @@
-"use client";
-
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-
-interface Section {
-  id: string;
-  name: string;
-  emoji: string;
-  poster_storage_id?: string;
-  custom_products_count?: number;
-}
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { api } from '@/lib/api-client';
+import type { Section } from '@/types';
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
+  const { user, isLoading: authLoading } = useAuth();
   const [allSections, setAllSections] = useState<Section[]>([]);
   const [userSectionIds, setUserSectionIds] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-  
-  const isAdmin = session?.user?.role === "admin";
-  const isManager = session?.user?.role === "manager";
-  const isDelivery = session?.user?.role === "delivery";
 
-  // Load sections when session is available
+  const isAdmin = user?.role === 'admin';
+  const isManager = user?.role === 'manager';
+  const isDelivery = user?.role === 'delivery';
+
   useEffect(() => {
-    if (status === "authenticated") {
+    if (!authLoading && user) {
       loadSections();
       loadUserSections();
-    } else if (status === "unauthenticated") {
+    } else if (!authLoading && !user) {
       setLoading(false);
     }
-  }, [status, session]);
+  }, [authLoading, user]);
 
   const loadSections = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/sections");
-      const data = await response.json();
+      const response = await api.get<Section[]>('/api/sections');
 
-      if (data.success) {
-        setAllSections(data.data || []);
+      if (response.success) {
+        setAllSections(response.data || []);
         setError(null);
       } else {
-        setError("База данных недоступна. Проверьте подключение.");
+        setError('База данных недоступна. Проверьте подключение.');
       }
     } catch (err) {
-      setError("Не удалось загрузить данные. Проверьте подключение к базе данных.");
+      setError('Не удалось загрузить данные. Проверьте подключение к базе данных.');
     } finally {
       setLoading(false);
     }
@@ -56,45 +44,40 @@ export default function HomePage() {
 
   const loadUserSections = async () => {
     try {
-      const response = await fetch("/api/user-sections");
-      const data = await response.json();
-      if (data.success) {
-        setUserSectionIds(data.data.map((s: Section) => parseInt(s.id)));
+      const response = await api.get<Section[]>('/api/user-sections');
+      if (response.success && response.data) {
+        setUserSectionIds(response.data.map((s) => s.id));
       }
     } catch (err) {
-      console.error("Error loading user sections:", err);
+      console.error('Error loading user sections:', err);
     }
   };
 
   // Filter sections based on user assignments
-  // Admin and Manager see all sections
-  // Staff/delivery see only assigned sections
   const sections = (isAdmin || isManager)
     ? allSections
-    : allSections.filter((section) => userSectionIds.includes(parseInt(section.id)));
+    : allSections.filter((section) => userSectionIds.includes(section.id));
 
   const getSectionColors = (name: string) => {
     const lowerName = name.toLowerCase();
-    if (lowerName.includes("кухня")) return "bg-orange-500 hover:bg-orange-600";
-    if (lowerName.includes("бар")) return "bg-purple-500 hover:bg-purple-600";
-    if (lowerName.includes("горничная")) return "bg-pink-500 hover:bg-pink-600";
-    if (lowerName.includes("склад")) return "bg-gray-500 hover:bg-gray-600";
-    if (lowerName.includes("офис")) return "bg-blue-500 hover:bg-blue-600";
-    if (lowerName.includes("ресепшн")) return "bg-indigo-500 hover:bg-indigo-600";
-    return "bg-teal-500 hover:bg-teal-600";
+    if (lowerName.includes('кухня')) return 'bg-orange-500 hover:bg-orange-600';
+    if (lowerName.includes('бар')) return 'bg-purple-500 hover:bg-purple-600';
+    if (lowerName.includes('горничная')) return 'bg-pink-500 hover:bg-pink-600';
+    if (lowerName.includes('склад')) return 'bg-gray-500 hover:bg-gray-600';
+    if (lowerName.includes('офис')) return 'bg-blue-500 hover:bg-blue-600';
+    if (lowerName.includes('ресепшн')) return 'bg-indigo-500 hover:bg-indigo-600';
+    return 'bg-teal-500 hover:bg-teal-600';
   };
 
-  const getSectionDescription = (name: string, posterStorageId?: string) => {
+  const getSectionDescription = (name: string, posterStorageId?: number) => {
     const lowerName = name.toLowerCase();
-    if (lowerName.includes("кухня")) return "Заказы для кухни";
-    if (lowerName.includes("бар")) return "Заказы для бара";
-    if (lowerName.includes("горничная")) return "Хозяйственные товары";
-    if (posterStorageId) return "Товары из Poster";
-    return "Управление товарами";
+    if (lowerName.includes('кухня')) return 'Заказы для кухни';
+    if (lowerName.includes('бар')) return 'Заказы для бара';
+    if (lowerName.includes('горничная')) return 'Хозяйственные товары';
+    if (posterStorageId) return 'Товары из Poster';
+    return 'Управление товарами';
   };
 
-  // Show message for staff with no assigned sections
-  // Delivery users don't need sections - they only access /delivery
   const hasNoAssignedSections = !isAdmin && !isManager && !isDelivery && userSectionIds.length === 0 && allSections.length > 0;
 
   return (
@@ -139,30 +122,19 @@ export default function HomePage() {
               <p className="text-gray-600 mb-4">
                 Для текущего ресторана отделы не настроены
               </p>
-              <div className="space-y-2">
-                <Link
-                  href="/manager"
-                  className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
-                >
-                  Перейти в панель менеджера
-                </Link>
-                <br />
-                {process.env.NODE_ENV === 'development' && (
-                  <Link
-                    href="/dev/switch-restaurant"
-                    className="inline-block bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg"
-                  >
-                    🔧 Dev: Выбрать другой ресторан
-                  </Link>
-                )}
-              </div>
+              <Link
+                to="/manager"
+                className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
+              >
+                Перейти в панель менеджера
+              </Link>
             </div>
           ) : (
             <>
               {/* Manager Section - Only for admin/manager */}
               {(isAdmin || isManager) && (
                 <Link
-                  href="/manager"
+                  to="/manager"
                   className="w-full bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
                 >
                   <span className="text-2xl md:text-3xl mr-3 md:mr-4">👨‍💼</span>
@@ -176,9 +148,9 @@ export default function HomePage() {
               )}
 
               {/* Delivery Section - Only for admin/manager/delivery */}
-              {(isAdmin || isManager || session?.user?.role === "delivery") && (
+              {(isAdmin || isManager || isDelivery) && (
                 <Link
-                  href="/delivery"
+                  to="/delivery"
                   className="w-full bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
                 >
                   <span className="text-2xl md:text-3xl mr-3 md:mr-4">🚚</span>
@@ -191,11 +163,11 @@ export default function HomePage() {
                 </Link>
               )}
 
-              {/* Dynamic Sections - Filtered by user assignments */}
+              {/* Dynamic Sections */}
               {sections.map((section) => (
                 <Link
                   key={section.id}
-                  href={`/custom?section_id=${section.id}&dept=${encodeURIComponent(section.name)}`}
+                  to={`/custom?section_id=${section.id}&dept=${encodeURIComponent(section.name)}`}
                   className={`w-full ${getSectionColors(section.name)} active:opacity-90 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start`}
                 >
                   <span className="text-2xl md:text-3xl mr-3 md:mr-4">{section.emoji}</span>
@@ -205,7 +177,7 @@ export default function HomePage() {
                       {getSectionDescription(section.name, section.poster_storage_id)}
                       {section.custom_products_count
                         ? ` • ${section.custom_products_count} товаров`
-                        : ""}
+                        : ''}
                     </div>
                   </div>
                 </Link>
