@@ -72,6 +72,9 @@ function CustomPageContent() {
   
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
+  
+  // Pending orders count for this department (managers only)
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
 
   useEffect(() => {
     if (!sectionId) {
@@ -84,19 +87,22 @@ function CustomPageContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sectionsRes, productsRes, suppliersRes, categoriesRes] = await Promise.all([
+      const [sectionsRes, productsRes, suppliersRes, categoriesRes, ordersRes] = await Promise.all([
         fetch("/api/sections"),
         fetch(`/api/section-products?section_id=${sectionId}&active=true`),
         fetch("/api/suppliers"),
         fetch("/api/categories"),
+        canManage ? fetch("/api/orders?all=true") : Promise.resolve(null),
       ]);
 
       const sectionsData = await sectionsRes.json();
+      let currentSectionName = "";
       if (sectionsData.success) {
         const section = sectionsData.data.find(
           (s: any) => s.id === Number(sectionId)
         );
         if (section) {
+          currentSectionName = section.name;
           setSectionName(section.name);
           sectionsStore.setCurrent(section);
         }
@@ -123,6 +129,18 @@ function CustomPageContent() {
       const categoriesData = await categoriesRes.json();
       if (categoriesData.success) {
         setCategories(categoriesData.data);
+      }
+
+      // Load pending orders count for this department (managers only)
+      if (ordersRes && currentSectionName) {
+        const ordersData = await ordersRes.json();
+        if (ordersData.success) {
+          const pendingCount = ordersData.data.filter(
+            (o: any) => (o.status === "pending" || o.status === "sent") && 
+                        o.order_data?.department === currentSectionName
+          ).length;
+          setPendingOrdersCount(pendingCount);
+        }
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -453,8 +471,8 @@ function CustomPageContent() {
     );
   }
 
-  // === RENDER: No Suppliers (First Time Setup) ===
-  if (suppliers.length === 0) {
+// === RENDER: No Suppliers (First Time Setup) - but show products if they exist ===
+  if (suppliers.length === 0 && products.length === 0) {
     return (
       <div className="min-h-screen bg-white">
         <Header
@@ -462,6 +480,7 @@ function CustomPageContent() {
           dept={dept}
           canManage={canManage}
           editMode={editMode}
+          pendingOrdersCount={pendingOrdersCount}
           onToggleEditMode={() => setEditMode(!editMode)}
           onAddSupplier={() => setShowSupplierModal(true)}
         />
@@ -498,23 +517,210 @@ function CustomPageContent() {
             label="Название"
             value={supplierForm.name}
             onChange={(v) => setSupplierForm({ ...supplierForm, name: v })}
-            placeholder="Например: Фрукт-Алма"
-            required
-            autoFocus
+            placeholder="Например: Оптовая база"
           />
           <FormInput
             label="Телефон (WhatsApp)"
             value={supplierForm.phone}
             onChange={(v) => setSupplierForm({ ...supplierForm, phone: v })}
-            placeholder="+7 777 123 4567"
-            type="tel"
+            placeholder="+7 XXX XXX XX XX"
           />
-          <div className="mt-6">
-            <FormButton onClick={handleCreateSupplier} loading={submitting}>
-              Создать поставщика
-            </FormButton>
-          </div>
+          <FormButton onClick={handleCreateSupplier} loading={submitting}>
+            Создать
+          </FormButton>
         </BottomSheet>
+      </div>
+    );
+  }
+
+  // === RENDER: No Suppliers but Products exist (synced from Poster) ===
+  if (suppliers.length === 0 && products.length > 0) {
+    // Filter products by search when no suppliers
+    const ungroupedFilteredProducts = products.filter((p) =>
+      searchQuery.trim()
+        ? p.name.toLowerCase().includes(searchQuery.toLowerCase())
+        : true
+    );
+
+    return (
+      <div className="min-h-screen bg-white">
+        <Header
+          sectionName={sectionName}
+          dept={dept}
+          canManage={canManage}
+          editMode={editMode}
+          pendingOrdersCount={pendingOrdersCount}
+          onToggleEditMode={() => setEditMode(!editMode)}
+          onAddSupplier={() => setShowSupplierModal(true)}
+        />
+
+        {/* Info banner for managers */}
+        {canManage && (
+          <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
+            <div className="max-w-md mx-auto flex items-center gap-2 text-sm text-blue-700">
+              <span>💡</span>
+              <span>Создайте поставщиков и категории для группировки товаров</span>
+              <button
+                onClick={() => setShowSupplierModal(true)}
+                className="ml-auto text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+              >
+                + Поставщик
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Search */}
+        <div className="max-w-md mx-auto px-4 py-3">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg
+                className="h-5 w-5 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
+              placeholder="🔍 Поиск товаров..."
+              autoComplete="off"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <svg
+                  className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Ungrouped Products List */}
+        <main className="max-w-md mx-auto px-4 pb-24">
+          {ungroupedFilteredProducts.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500">
+                {searchQuery ? "Товары не найдены" : "Нет товаров"}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {ungroupedFilteredProducts.map((product) => {
+                const quantity = productQuantities[product.id] || 0;
+                const hasQuantity = quantity > 0;
+
+                return (
+                  <div
+                    key={product.id}
+                    className="bg-white py-4 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gray-900 truncate">
+                          {product.name}
+                        </h3>
+                        {product.category_name && (
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {product.category_name}
+                          </p>
+                        )}
+                      </div>
+
+                      {!hasQuantity ? (
+                        <button
+                          onClick={() => handleIncreaseQuantity(product)}
+                          className="ml-3 w-9 h-9 flex items-center justify-center bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors text-xl font-bold"
+                        >
+                          +
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-2 ml-3">
+                          <button
+                            onClick={() => handleDecreaseQuantity(product)}
+                            className="w-9 h-9 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors text-xl font-bold"
+                          >
+                            −
+                          </button>
+                          <span className="w-8 text-center font-semibold text-gray-900">
+                            {quantity}
+                          </span>
+                          <button
+                            onClick={() => handleIncreaseQuantity(product)}
+                            className="w-9 h-9 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-xl font-bold"
+                          >
+                            +
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </main>
+
+        {/* Cart FAB */}
+        {cart.count > 0 && (
+          <div className="fixed bottom-4 right-4">
+            <Link
+              href="/cart"
+              className="flex items-center justify-center w-14 h-14 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg transition-colors"
+            >
+              <span className="text-xl">🛒</span>
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+                {cart.count}
+              </span>
+            </Link>
+          </div>
+        )}
+
+        {/* Modals */}
+        <SupplierModal
+          isOpen={showSupplierModal}
+          onClose={() => setShowSupplierModal(false)}
+          form={supplierForm}
+          setForm={setSupplierForm}
+          onSubmit={handleCreateSupplier}
+          submitting={submitting}
+        />
+        <ProductModal
+          isOpen={showProductModal}
+          onClose={() => {
+            setShowProductModal(false);
+            setEditingProduct(null);
+            setProductForm({ name: "", unit: "шт", category_id: "" });
+          }}
+          form={productForm}
+          setForm={setProductForm}
+          onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
+          submitting={submitting}
+          categories={categoriesForSupplier}
+        />
       </div>
     );
   }
@@ -528,6 +734,7 @@ function CustomPageContent() {
           dept={dept}
           canManage={canManage}
           editMode={editMode}
+          pendingOrdersCount={pendingOrdersCount}
           onToggleEditMode={() => setEditMode(!editMode)}
           onAddSupplier={() => setShowSupplierModal(true)}
         />
@@ -589,6 +796,7 @@ function CustomPageContent() {
         dept={dept}
         canManage={canManage}
         editMode={editMode}
+        pendingOrdersCount={pendingOrdersCount}
         onToggleEditMode={() => setEditMode(!editMode)}
         onAddSupplier={() => setShowSupplierModal(true)}
       />
@@ -812,6 +1020,7 @@ function Header({
   dept,
   canManage,
   editMode,
+  pendingOrdersCount,
   onToggleEditMode,
   onAddSupplier,
 }: {
@@ -819,6 +1028,7 @@ function Header({
   dept: string | null;
   canManage: boolean;
   editMode: boolean;
+  pendingOrdersCount: number;
   onToggleEditMode: () => void;
   onAddSupplier: () => void;
 }) {
@@ -844,9 +1054,22 @@ function Header({
           </svg>
         </Link>
 
-        <h1 className="flex-1 text-center text-lg font-semibold truncate px-2">
-          {sectionName || dept || "Товары"}
-        </h1>
+        <div className="flex-1 text-center px-2">
+          <h1 className="text-lg font-semibold truncate">
+            {sectionName || dept || "Товары"}
+          </h1>
+          {canManage && pendingOrdersCount > 0 && (
+            <Link
+              href="/orders"
+              className="inline-flex items-center gap-1 text-xs text-white/80 hover:text-white"
+            >
+              <span className="bg-yellow-500 text-yellow-900 px-1.5 py-0.5 rounded-full text-xs font-medium">
+                {pendingOrdersCount}
+              </span>
+              <span>активных заказов</span>
+            </Link>
+          )}
+        </div>
 
         {canManage ? (
           <div className="flex items-center gap-1">

@@ -15,7 +15,8 @@ interface OrderItem {
 export default function DeliveryPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "pending" | "delivered">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "sent" | "delivered">("all");
+  const [updating, setUpdating] = useState<number | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
   const [itemInputs, setItemInputs] = useState<Record<string, { quantity: string; price: string }>>({});
 
@@ -66,11 +67,42 @@ export default function DeliveryPage() {
     }
   };
 
-  const filteredOrders = orders.filter((order) => {
+const filteredOrders = orders.filter((order) => {
     if (filter === "pending") return order.status === "pending";
+    if (filter === "sent") return order.status === "sent";
     if (filter === "delivered") return order.status === "delivered";
     return true;
   });
+
+  const handleMarkAsSent = async (order: Order) => {
+    setUpdating(order.id);
+    try {
+      const response = await fetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: order.id,
+          status: "sent",
+          order_data: {
+            ...order.order_data,
+            sentAt: new Date().toISOString(),
+          },
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        loadOrders();
+      } else {
+        alert("Ошибка: " + data.error);
+      }
+    } catch (error) {
+      console.error("Error marking as sent:", error);
+      alert("Ошибка при отправке заказа");
+    } finally {
+      setUpdating(null);
+    }
+  };
 
   const handleToggleOrder = (orderId: number) => {
     setExpandedOrder(expandedOrder === orderId ? null : orderId);
@@ -236,11 +268,11 @@ export default function DeliveryPage() {
 
       {/* Main Content */}
       <main className="max-w-md mx-auto px-4 py-6">
-        {/* Filter Buttons */}
-        <div className="flex space-x-2 mb-4">
+{/* Filter Buttons */}
+        <div className="flex space-x-2 mb-4 overflow-x-auto">
           <button
             onClick={() => setFilter("all")}
-            className={`px-3 py-2 rounded-lg ${
+            className={`px-3 py-2 rounded-lg whitespace-nowrap ${
               filter === "all"
                 ? "bg-green-600 text-white"
                 : "bg-gray-200 text-gray-700"
@@ -250,7 +282,7 @@ export default function DeliveryPage() {
           </button>
           <button
             onClick={() => setFilter("pending")}
-            className={`px-3 py-2 rounded-lg ${
+            className={`px-3 py-2 rounded-lg whitespace-nowrap ${
               filter === "pending"
                 ? "bg-green-600 text-white"
                 : "bg-gray-200 text-gray-700"
@@ -259,8 +291,18 @@ export default function DeliveryPage() {
             Ожидают
           </button>
           <button
+            onClick={() => setFilter("sent")}
+            className={`px-3 py-2 rounded-lg whitespace-nowrap ${
+              filter === "sent"
+                ? "bg-green-600 text-white"
+                : "bg-gray-200 text-gray-700"
+            }`}
+          >
+            Отправлены
+          </button>
+          <button
             onClick={() => setFilter("delivered")}
-            className={`px-3 py-2 rounded-lg ${
+            className={`px-3 py-2 rounded-lg whitespace-nowrap ${
               filter === "delivered"
                 ? "bg-green-600 text-white"
                 : "bg-gray-200 text-gray-700"
@@ -286,11 +328,25 @@ export default function DeliveryPage() {
         ) : (
           <div className="space-y-4">
             {filteredOrders.map((order) => {
-              const items = order.order_data.items || [];
+const items = order.order_data.items || [];
               const isExpanded = expandedOrder === order.id;
               const isPending = order.status === "pending";
+              const isSent = order.status === "sent";
+              const canConfirmDelivery = isPending || isSent;
 
-              return (
+const getStatusBadge = (status: string) => {
+                        switch (status) {
+                          case "delivered":
+                            return { bg: "bg-green-100 text-green-800", label: "Доставлено" };
+                          case "sent":
+                            return { bg: "bg-blue-100 text-blue-800", label: "Отправлен" };
+                          default:
+                            return { bg: "bg-yellow-100 text-yellow-800", label: "Ожидает" };
+                        }
+                      };
+                      const badge = getStatusBadge(order.status);
+
+                      return (
                 <div
                   key={order.id}
                   className="bg-white border rounded-lg overflow-hidden"
@@ -310,18 +366,35 @@ export default function DeliveryPage() {
                         </p>
                       </div>
                       <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          order.status === "delivered"
-                            ? "bg-green-100 text-green-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${badge.bg}`}
                       >
-                        {order.status === "delivered" ? "Доставлено" : "Ожидает"}
+                        {badge.label}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">
                       Товаров: {items.length}
                     </p>
+
+                    {/* Quick "Mark as Sent" button for pending orders */}
+                    {isPending && !isExpanded && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMarkAsSent(order);
+                        }}
+                        disabled={updating === order.id}
+                        className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                      >
+                        {updating === order.id ? (
+                          <span className="inline-flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Отправка...
+                          </span>
+                        ) : (
+                          "Отправить"
+                        )}
+                      </button>
+                    )}
                   </div>
 
                   {/* Order Items (Expanded) */}
@@ -344,7 +417,7 @@ export default function DeliveryPage() {
                                 Заказано: {item.quantity} {item.unit}
                               </div>
 
-                              {isPending && (
+{canConfirmDelivery && (
                                 <div className="space-y-2">
                                   <div className="flex gap-2">
                                     <div className="flex-1">
@@ -381,7 +454,7 @@ export default function DeliveryPage() {
                                 </div>
                               )}
 
-                              {!isPending && item.actualQuantity && (
+                              {!canConfirmDelivery && item.actualQuantity && (
                                 <div className="text-sm text-gray-600">
                                   Получено: {item.actualQuantity} {item.unit}
                                   {item.actualPrice && ` по ${item.actualPrice} ₸`}
@@ -392,12 +465,20 @@ export default function DeliveryPage() {
                         })}
                       </div>
 
-                      {isPending && (
+{canConfirmDelivery && (
                         <button
                           onClick={() => handleConfirmDelivery(order)}
-                          className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition-colors"
+                          disabled={updating === order.id}
+                          className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
                         >
-                          Подтвердить доставку
+                          {updating === order.id ? (
+                            <span className="inline-flex items-center justify-center gap-2">
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Подтверждение...
+                            </span>
+                          ) : (
+                            "Подтвердить доставку"
+                          )}
                         </button>
                       )}
                     </div>
