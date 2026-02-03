@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCart, useSections } from "@/store/useStore";
 import { useToast } from "@/components/ui/Toast";
 import { BottomSheet, FormInput, FormSelect, FormButton } from "@/components/ui/BottomSheet";
+import { api } from "@/lib/api-client";
 
 interface Product {
   id: number;
@@ -159,17 +160,12 @@ function CustomPageContent() {
 
     setSubmitting(true);
     try {
-      const response = await fetch("/api/suppliers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(supplierForm),
-      });
-      const data = await response.json();
+      const data = await api.post("/api/suppliers", supplierForm);
 
       if (data.success) {
         toast.success("Поставщик создан");
-        setSuppliers([...suppliers, data.data]);
-        setSelectedSupplierId(data.data.id);
+        setSuppliers([...suppliers, data.data as Supplier]);
+        setSelectedSupplierId((data.data as Supplier).id);
         setShowSupplierModal(false);
         setSupplierForm({ name: "", phone: "" });
       } else {
@@ -186,10 +182,7 @@ function CustomPageContent() {
     if (!confirm("Удалить поставщика? Это также удалит связь с товарами.")) return;
     
     try {
-      const response = await fetch(`/api/suppliers?id=${id}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
+      const data = await api.delete(`/api/suppliers?id=${id}`);
       
       if (data.success) {
         toast.success("Поставщик удален");
@@ -213,19 +206,14 @@ function CustomPageContent() {
 
     setSubmitting(true);
     try {
-      const response = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: categoryForm.name,
-          supplier_id: selectedSupplierId,
-        }),
+      const data = await api.post("/api/categories", {
+        name: categoryForm.name,
+        supplier_id: selectedSupplierId,
       });
-      const data = await response.json();
 
       if (data.success) {
         toast.success("Категория создана");
-        setCategories([...categories, data.data]);
+        setCategories([...categories, data.data as Category]);
         setShowCategoryModal(false);
         setCategoryForm({ name: "" });
       } else {
@@ -242,10 +230,7 @@ function CustomPageContent() {
     if (!confirm("Удалить категорию?")) return;
     
     try {
-      const response = await fetch(`/api/categories?id=${id}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
+      const data = await api.delete(`/api/categories?id=${id}`);
       
       if (data.success) {
         toast.success("Категория удалена");
@@ -266,18 +251,13 @@ function CustomPageContent() {
 
     setSubmitting(true);
     try {
-      const response = await fetch("/api/section-products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: productForm.name,
-          unit: productForm.unit,
-          section_id: Number(sectionId),
-          category_id: productForm.category_id ? Number(productForm.category_id) : null,
-          is_active: true,
-        }),
+      const data = await api.post("/api/section-products", {
+        name: productForm.name,
+        unit: productForm.unit,
+        section_id: Number(sectionId),
+        category_id: productForm.category_id ? Number(productForm.category_id) : null,
+        is_active: true,
       });
-      const data = await response.json();
 
       if (data.success) {
         toast.success("Товар добавлен");
@@ -299,10 +279,7 @@ function CustomPageContent() {
     if (!confirm("Удалить товар?")) return;
     
     try {
-      const response = await fetch(`/api/section-products?id=${id}`, {
-        method: "DELETE",
-      });
-      const data = await response.json();
+      const data = await api.delete(`/api/section-products?id=${id}`);
       
       if (data.success) {
         toast.success("Товар удален");
@@ -333,16 +310,11 @@ function CustomPageContent() {
 
     setSubmitting(true);
     try {
-      const response = await fetch(`/api/section-products?id=${editingProduct.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: productForm.name,
-          unit: productForm.unit,
-          category_id: productForm.category_id ? Number(productForm.category_id) : null,
-        }),
+      const data = await api.patch(`/api/section-products?id=${editingProduct.id}`, {
+        name: productForm.name,
+        unit: productForm.unit,
+        category_id: productForm.category_id ? Number(productForm.category_id) : null,
       });
-      const data = await response.json();
 
       if (data.success) {
         toast.success("Товар обновлен");
