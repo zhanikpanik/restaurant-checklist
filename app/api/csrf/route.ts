@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth-config";
-import { generateCSRFToken, getSessionIdentifier } from "@/lib/csrf";
+import { generateCSRFToken, getSessionIdentifier } from "@/lib/csrf-edge";
 import { cookies } from "next/headers";
 
 /**
@@ -26,13 +26,13 @@ export async function GET() {
     const sessionTokenCookie = cookieStore.get("authjs.session-token") 
       || cookieStore.get("__Secure-authjs.session-token");
     
-    const sessionIdentifier = getSessionIdentifier(
+    const sessionIdentifier = await getSessionIdentifier(
       sessionTokenCookie?.value,
       session.user.id
     );
 
-    // Generate CSRF token
-    const csrfToken = generateCSRFToken(sessionIdentifier);
+    // Generate CSRF token (async with Web Crypto API)
+    const csrfToken = await generateCSRFToken(sessionIdentifier);
 
     // Return token and set it in a cookie for middleware access
     const response = NextResponse.json({
