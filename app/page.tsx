@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ui/Toast";
+import { BottomSheet, FormInput, FormButton } from "@/components/ui/BottomSheet";
 import type { Order } from "@/types";
 
 interface Section {
@@ -14,6 +15,9 @@ interface Section {
   poster_storage_id?: string;
   custom_products_count?: number;
 }
+
+// Common emoji options for departments
+const EMOJI_OPTIONS = ["🍳", "🍺", "🧹", "📦", "🏪", "🍕", "☕", "🥗", "🧊", "🛒"];
 
 export default function HomePage() {
   const { data: session, status } = useSession();
@@ -25,6 +29,11 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const toast = useToast();
+
+  // Department modal state
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false);
+  const [departmentForm, setDepartmentForm] = useState({ name: "", emoji: "🍳" });
+  const [submitting, setSubmitting] = useState(false);
   
   const isAdmin = session?.user?.role === "admin";
   const isManager = session?.user?.role === "manager";
@@ -102,6 +111,39 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error("Error loading last order:", err);
+    }
+  };
+
+  const handleCreateDepartment = async () => {
+    if (!departmentForm.name.trim()) {
+      toast.error("Введите название отдела");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const response = await fetch("/api/sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: departmentForm.name.trim(),
+          emoji: departmentForm.emoji,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success("Отдел создан");
+        setShowDepartmentModal(false);
+        setDepartmentForm({ name: "", emoji: "🍳" });
+        loadSections();
+      } else {
+        toast.error(data.error || "Ошибка создания отдела");
+      }
+    } catch (error) {
+      toast.error("Ошибка создания отдела");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -254,22 +296,6 @@ export default function HomePage() {
             </div>
           ) : (
             <>
-              {/* Manager Section - Only for admin/manager */}
-              {(isAdmin || isManager) && (
-                <Link
-                  href="/manager"
-                  className="w-full bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
-                >
-                  <span className="text-2xl md:text-3xl mr-3 md:mr-4">👨‍💼</span>
-                  <div className="text-left">
-                    <div className="font-semibold text-base md:text-lg">Менеджер</div>
-                    <div className="text-xs md:text-sm opacity-90">
-                      Управление заказами и поставщиками
-                    </div>
-                  </div>
-                </Link>
-              )}
-
               {/* Delivery Section - Only for admin/manager/delivery */}
               {(isAdmin || isManager || session?.user?.role === "delivery") && (
                 <Link
@@ -308,8 +334,8 @@ export default function HomePage() {
 
               {/* Create Department Button - Only for admin/manager */}
               {(isAdmin || isManager) && (
-                <Link
-                  href="/manager?tab=departments&action=create"
+                <button
+                  onClick={() => setShowDepartmentModal(true)}
                   className="w-full border-2 border-dashed border-gray-300 hover:border-gray-400 hover:bg-gray-50 active:bg-gray-100 text-gray-500 hover:text-gray-600 font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-all duration-200 flex items-center justify-start"
                 >
                   <span className="text-2xl md:text-3xl mr-3 md:mr-4">➕</span>
@@ -319,7 +345,7 @@ export default function HomePage() {
                       Добавить новый отдел
                     </div>
                   </div>
-                </Link>
+                </button>
               )}
 
               {/* Last Order Card - Show for all authenticated users */}
@@ -343,7 +369,7 @@ export default function HomePage() {
                     {(lastOrder.order_data.items?.length || 0) > 3 && "..."}
                   </div>
                   <Link
-                    href="/my-orders"
+                    href="/orders"
                     className="text-sm text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1"
                   >
                     Все мои заказы
@@ -363,6 +389,44 @@ export default function HomePage() {
           </p>
         </div>
       </div>
+
+      {/* Create Department Modal */}
+      <BottomSheet
+        isOpen={showDepartmentModal}
+        onClose={() => setShowDepartmentModal(false)}
+        title="Создать отдел"
+      >
+        <FormInput
+          label="Название отдела"
+          value={departmentForm.name}
+          onChange={(value) => setDepartmentForm({ ...departmentForm, name: value })}
+          placeholder="Например: Кухня"
+        />
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Иконка
+          </label>
+          <div className="grid grid-cols-5 gap-2">
+            {EMOJI_OPTIONS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => setDepartmentForm({ ...departmentForm, emoji })}
+                className={`text-2xl p-2 rounded-lg border-2 transition-colors ${
+                  departmentForm.emoji === emoji
+                    ? "border-blue-500 bg-blue-50"
+                    : "border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+        <FormButton onClick={handleCreateDepartment} loading={submitting}>
+          Создать отдел
+        </FormButton>
+      </BottomSheet>
     </div>
   );
 }

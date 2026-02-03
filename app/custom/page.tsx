@@ -5,11 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useCart, useSections } from "@/store/useStore";
+import { useToast } from "@/components/ui/Toast";
+import { BottomSheet, FormInput, FormSelect, FormButton } from "@/components/ui/BottomSheet";
 
 interface Product {
   id: number;
   name: string;
   unit: string;
+  category_id?: number;
   category_name?: string;
   supplier_id?: number;
   supplier_name?: string;
@@ -23,6 +26,12 @@ interface Supplier {
   phone?: string;
 }
 
+interface Category {
+  id: number;
+  name: string;
+  supplier_id?: number;
+}
+
 interface ProductQuantity {
   [productId: number]: number;
 }
@@ -33,6 +42,7 @@ function CustomPageContent() {
   const { data: session } = useSession();
   const cart = useCart();
   const sectionsStore = useSections();
+  const toast = useToast();
 
   const sectionId = searchParams.get("section_id");
   const dept = searchParams.get("dept");
@@ -43,11 +53,25 @@ function CustomPageContent() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sectionName, setSectionName] = useState("");
   const [productQuantities, setProductQuantities] = useState<ProductQuantity>({});
+
+  // Modal states
+  const [showSupplierModal, setShowSupplierModal] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [supplierForm, setSupplierForm] = useState({ name: "", phone: "" });
+  const [productForm, setProductForm] = useState({ name: "", unit: "шт", category_id: "" });
+  const [categoryForm, setCategoryForm] = useState({ name: "" });
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  
+  // Edit mode state
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     if (!sectionId) {
@@ -60,10 +84,11 @@ function CustomPageContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sectionsRes, productsRes, suppliersRes] = await Promise.all([
+      const [sectionsRes, productsRes, suppliersRes, categoriesRes] = await Promise.all([
         fetch("/api/sections"),
         fetch(`/api/section-products?section_id=${sectionId}&active=true`),
         fetch("/api/suppliers"),
+        fetch("/api/categories"),
       ]);
 
       const sectionsData = await sectionsRes.json();
@@ -85,7 +110,6 @@ function CustomPageContent() {
       const suppliersData = await suppliersRes.json();
       if (suppliersData.success) {
         setSuppliers(suppliersData.data);
-        // Auto-select first supplier that has products, or first supplier
         if (suppliersData.data.length > 0 && productsData.success) {
           const supplierWithProducts = suppliersData.data.find((s: Supplier) =>
             productsData.data.some((p: Product) => p.supplier_id === s.id)
@@ -95,10 +119,226 @@ function CustomPageContent() {
           );
         }
       }
+
+      const categoriesData = await categoriesRes.json();
+      if (categoriesData.success) {
+        setCategories(categoriesData.data);
+      }
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // === CRUD Operations ===
+
+  const handleCreateSupplier = async () => {
+    if (!supplierForm.name.trim()) {
+      toast.error("Введите название поставщика");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(supplierForm),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Поставщик создан");
+        setSuppliers([...suppliers, data.data]);
+        setSelectedSupplierId(data.data.id);
+        setShowSupplierModal(false);
+        setSupplierForm({ name: "", phone: "" });
+      } else {
+        toast.error(data.error || "Ошибка создания");
+      }
+    } catch (error) {
+      toast.error("Ошибка создания поставщика");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteSupplier = async (id: number) => {
+    if (!confirm("Удалить поставщика? Это также удалит связь с товарами.")) return;
+    
+    try {
+      const response = await fetch(`/api/suppliers?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success("Поставщик удален");
+        setSuppliers(suppliers.filter(s => s.id !== id));
+        if (selectedSupplierId === id) {
+          setSelectedSupplierId(suppliers.find(s => s.id !== id)?.id || null);
+        }
+      } else {
+        toast.error(data.error || "Ошибка удаления");
+      }
+    } catch (error) {
+      toast.error("Ошибка удаления поставщика");
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!categoryForm.name.trim()) {
+      toast.error("Введите название категории");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: categoryForm.name,
+          supplier_id: selectedSupplierId,
+        }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Категория создана");
+        setCategories([...categories, data.data]);
+        setShowCategoryModal(false);
+        setCategoryForm({ name: "" });
+      } else {
+        toast.error(data.error || "Ошибка создания");
+      }
+    } catch (error) {
+      toast.error("Ошибка создания категории");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: number) => {
+    if (!confirm("Удалить категорию?")) return;
+    
+    try {
+      const response = await fetch(`/api/categories?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success("Категория удалена");
+        setCategories(categories.filter(c => c.id !== id));
+      } else {
+        toast.error(data.error || "Ошибка удаления");
+      }
+    } catch (error) {
+      toast.error("Ошибка удаления категории");
+    }
+  };
+
+  const handleCreateProduct = async () => {
+    if (!productForm.name.trim()) {
+      toast.error("Введите название товара");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/section-products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: productForm.name,
+          unit: productForm.unit,
+          section_id: Number(sectionId),
+          category_id: productForm.category_id ? Number(productForm.category_id) : null,
+          is_active: true,
+        }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Товар добавлен");
+        // Reload to get fresh data with supplier info
+        await loadData();
+        setShowProductModal(false);
+        setProductForm({ name: "", unit: "шт", category_id: "" });
+      } else {
+        toast.error(data.error || "Ошибка создания");
+      }
+    } catch (error) {
+      toast.error("Ошибка создания товара");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteProduct = async (id: number) => {
+    if (!confirm("Удалить товар?")) return;
+    
+    try {
+      const response = await fetch(`/api/section-products?id=${id}`, {
+        method: "DELETE",
+      });
+      const data = await response.json();
+      
+      if (data.success) {
+        toast.success("Товар удален");
+        setProducts(products.filter(p => p.id !== id));
+      } else {
+        toast.error(data.error || "Ошибка удаления");
+      }
+    } catch (error) {
+      toast.error("Ошибка удаления товара");
+    }
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name,
+      unit: product.unit,
+      category_id: product.category_id ? String(product.category_id) : "",
+    });
+    setShowProductModal(true);
+  };
+
+  const handleUpdateProduct = async () => {
+    if (!editingProduct || !productForm.name.trim()) {
+      toast.error("Введите название товара");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/section-products?id=${editingProduct.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: productForm.name,
+          unit: productForm.unit,
+          category_id: productForm.category_id ? Number(productForm.category_id) : null,
+        }),
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Товар обновлен");
+        await loadData();
+        setShowProductModal(false);
+        setEditingProduct(null);
+        setProductForm({ name: "", unit: "шт", category_id: "" });
+      } else {
+        toast.error(data.error || "Ошибка обновления");
+      }
+    } catch (error) {
+      toast.error("Ошибка обновления товара");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -125,13 +365,13 @@ function CustomPageContent() {
   const currentProducts = useMemo(() => {
     if (!selectedSupplierId) return [];
     let filtered = productsBySupplier.grouped[selectedSupplierId] || [];
-    
+
     if (searchQuery.trim()) {
       filtered = filtered.filter((p) =>
         p.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-    
+
     return filtered;
   }, [selectedSupplierId, productsBySupplier, searchQuery]);
 
@@ -141,6 +381,14 @@ function CustomPageContent() {
       (s) => productsBySupplier.grouped[s.id]?.length > 0
     );
   }, [suppliers, productsBySupplier]);
+
+  // Categories for selected supplier (for product form)
+  const categoriesForSupplier = useMemo(() => {
+    if (!selectedSupplierId) return categories;
+    return categories.filter(
+      (c) => c.supplier_id === selectedSupplierId || !c.supplier_id
+    );
+  }, [categories, selectedSupplierId]);
 
   const handleIncreaseQuantity = (product: Product) => {
     const currentQty = productQuantities[product.id] || 0;
@@ -213,8 +461,9 @@ function CustomPageContent() {
           sectionName={sectionName}
           dept={dept}
           canManage={canManage}
-          sectionId={sectionId}
-          showAddSupplier={false}
+          editMode={editMode}
+          onToggleEditMode={() => setEditMode(!editMode)}
+          onAddSupplier={() => setShowSupplierModal(true)}
         />
         <main className="max-w-md mx-auto px-4 py-12 text-center">
           <div className="text-6xl mb-6">🏢</div>
@@ -225,19 +474,47 @@ function CustomPageContent() {
             Создайте первого поставщика, чтобы начать добавлять товары
           </p>
           {canManage ? (
-            <Link
-              href="/manager?tab=suppliers&action=create"
+            <button
+              onClick={() => setShowSupplierModal(true)}
               className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
             >
               <span className="text-lg">+</span>
               Создать поставщика
-            </Link>
+            </button>
           ) : (
             <p className="text-sm text-gray-400">
               Обратитесь к менеджеру для настройки
             </p>
           )}
         </main>
+
+        {/* Supplier Modal */}
+        <BottomSheet
+          isOpen={showSupplierModal}
+          onClose={() => setShowSupplierModal(false)}
+          title="Новый поставщик"
+        >
+          <FormInput
+            label="Название"
+            value={supplierForm.name}
+            onChange={(v) => setSupplierForm({ ...supplierForm, name: v })}
+            placeholder="Например: Фрукт-Алма"
+            required
+            autoFocus
+          />
+          <FormInput
+            label="Телефон (WhatsApp)"
+            value={supplierForm.phone}
+            onChange={(v) => setSupplierForm({ ...supplierForm, phone: v })}
+            placeholder="+7 777 123 4567"
+            type="tel"
+          />
+          <div className="mt-6">
+            <FormButton onClick={handleCreateSupplier} loading={submitting}>
+              Создать поставщика
+            </FormButton>
+          </div>
+        </BottomSheet>
       </div>
     );
   }
@@ -250,15 +527,18 @@ function CustomPageContent() {
           sectionName={sectionName}
           dept={dept}
           canManage={canManage}
-          sectionId={sectionId}
-          showAddSupplier={canManage}
+          editMode={editMode}
+          onToggleEditMode={() => setEditMode(!editMode)}
+          onAddSupplier={() => setShowSupplierModal(true)}
         />
         <SupplierTabs
           suppliers={suppliers}
           selectedId={selectedSupplierId}
           onSelect={setSelectedSupplierId}
           productCounts={{}}
-          canManage={canManage}
+          editMode={editMode}
+          onDelete={handleDeleteSupplier}
+          onAddNew={() => setShowSupplierModal(true)}
         />
         <main className="max-w-md mx-auto px-4 py-12 text-center">
           <div className="text-6xl mb-6">📦</div>
@@ -269,15 +549,34 @@ function CustomPageContent() {
             Добавьте товары для этого отдела
           </p>
           {canManage && (
-            <Link
-              href={`/manager?tab=products&action=create&section_id=${sectionId}`}
+            <button
+              onClick={() => setShowProductModal(true)}
               className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
             >
               <span className="text-lg">+</span>
               Добавить товар
-            </Link>
+            </button>
           )}
         </main>
+
+        {/* Modals */}
+        <SupplierModal
+          isOpen={showSupplierModal}
+          onClose={() => setShowSupplierModal(false)}
+          form={supplierForm}
+          setForm={setSupplierForm}
+          onSubmit={handleCreateSupplier}
+          submitting={submitting}
+        />
+        <ProductModal
+          isOpen={showProductModal}
+          onClose={() => setShowProductModal(false)}
+          form={productForm}
+          setForm={setProductForm}
+          onSubmit={handleCreateProduct}
+          submitting={submitting}
+          categories={categoriesForSupplier}
+        />
       </div>
     );
   }
@@ -289,8 +588,9 @@ function CustomPageContent() {
         sectionName={sectionName}
         dept={dept}
         canManage={canManage}
-        sectionId={sectionId}
-        showAddSupplier={canManage}
+        editMode={editMode}
+        onToggleEditMode={() => setEditMode(!editMode)}
+        onAddSupplier={() => setShowSupplierModal(true)}
       />
 
       {/* Supplier Tabs */}
@@ -304,8 +604,43 @@ function CustomPageContent() {
             prods.length,
           ])
         )}
-        canManage={canManage}
+        editMode={editMode}
+        onDelete={handleDeleteSupplier}
+        onAddNew={() => setShowSupplierModal(true)}
       />
+
+      {/* Category Chips (Edit Mode) */}
+      {editMode && canManage && (
+        <div className="bg-white border-b">
+          <div className="max-w-md mx-auto px-4 py-3">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-sm font-medium text-gray-600">Категории:</span>
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
+              {categoriesForSupplier.map((category) => (
+                <div key={category.id} className="relative flex items-center">
+                  <span className="px-3 py-1.5 pr-7 rounded-full text-sm bg-gray-100 text-gray-700 whitespace-nowrap">
+                    {category.name}
+                  </span>
+                  <button
+                    onClick={() => handleDeleteCategory(category.id)}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => setShowCategoryModal(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 whitespace-nowrap"
+              >
+                <span>+</span>
+                Добавить
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="max-w-md mx-auto px-4 py-3">
@@ -360,15 +695,15 @@ function CustomPageContent() {
       <main className="max-w-md mx-auto px-4 pb-24">
         {/* Add Product Button (for admin/manager) */}
         {canManage && (
-          <Link
-            href={`/manager?tab=products&action=create&section_id=${sectionId}&supplier_id=${selectedSupplierId}`}
+          <button
+            onClick={() => setShowProductModal(true)}
             className="flex items-center gap-2 w-full py-3 px-4 mb-3 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg text-gray-500 hover:text-purple-600 transition-colors"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             <span className="font-medium">Добавить товар</span>
-          </Link>
+          </button>
         )}
 
         {currentProducts.length === 0 ? (
@@ -448,6 +783,25 @@ function CustomPageContent() {
           </Link>
         </div>
       )}
+
+      {/* Modals */}
+      <SupplierModal
+        isOpen={showSupplierModal}
+        onClose={() => setShowSupplierModal(false)}
+        form={supplierForm}
+        setForm={setSupplierForm}
+        onSubmit={handleCreateSupplier}
+        submitting={submitting}
+      />
+      <ProductModal
+        isOpen={showProductModal}
+        onClose={() => setShowProductModal(false)}
+        form={productForm}
+        setForm={setProductForm}
+        onSubmit={handleCreateProduct}
+        submitting={submitting}
+        categories={categoriesForSupplier}
+      />
     </div>
   );
 }
@@ -457,14 +811,16 @@ function Header({
   sectionName,
   dept,
   canManage,
-  sectionId,
-  showAddSupplier,
+  editMode,
+  onToggleEditMode,
+  onAddSupplier,
 }: {
   sectionName: string;
   dept: string | null;
   canManage: boolean;
-  sectionId: string | null;
-  showAddSupplier: boolean;
+  editMode: boolean;
+  onToggleEditMode: () => void;
+  onAddSupplier: () => void;
 }) {
   return (
     <header className="bg-purple-600 text-white px-4 py-4">
@@ -492,28 +848,49 @@ function Header({
           {sectionName || dept || "Товары"}
         </h1>
 
-        {showAddSupplier ? (
-          <Link
-            href="/manager?tab=suppliers&action=create"
-            className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
-            title="Добавить поставщика"
-          >
-            <svg
-              className="w-6 h-6 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth="2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-          </Link>
+        {canManage ? (
+          <div className="flex items-center gap-1">
+            {editMode ? (
+              <button
+                onClick={onToggleEditMode}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-all text-sm font-medium"
+              >
+                <span>✓</span>
+                <span>Готово</span>
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={onAddSupplier}
+                  className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
+                  title="Добавить поставщика"
+                >
+                  <svg
+                    className="w-6 h-6 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                </button>
+                <button
+                  onClick={onToggleEditMode}
+                  className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
+                  title="Режим редактирования"
+                >
+                  <span className="text-lg">✏️</span>
+                </button>
+              </>
+            )}
+          </div>
         ) : (
-          <div className="w-10" /> // Spacer for centering
+          <div className="w-10" />
         )}
       </div>
     </header>
@@ -526,13 +903,17 @@ function SupplierTabs({
   selectedId,
   onSelect,
   productCounts,
-  canManage,
+  editMode,
+  onDelete,
+  onAddNew,
 }: {
   suppliers: Supplier[];
   selectedId: number | null;
   onSelect: (id: number) => void;
   productCounts: Record<number, number>;
-  canManage: boolean;
+  editMode?: boolean;
+  onDelete?: (id: number) => void;
+  onAddNew?: () => void;
 }) {
   if (suppliers.length === 0) return null;
 
@@ -541,32 +922,155 @@ function SupplierTabs({
       <div className="max-w-md mx-auto">
         <div className="flex gap-1 overflow-x-auto py-3 px-4 scrollbar-hide">
           {suppliers.map((supplier) => (
-            <button
-              key={supplier.id}
-              onClick={() => onSelect(supplier.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                selectedId === supplier.id
-                  ? "bg-purple-600 text-white shadow-sm"
-                  : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
-              }`}
-            >
-              {supplier.name}
-              {productCounts[supplier.id] > 0 && (
-                <span
-                  className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    selectedId === supplier.id
-                      ? "bg-purple-500"
-                      : "bg-gray-100"
-                  }`}
+            <div key={supplier.id} className="relative flex items-center">
+              <button
+                onClick={() => onSelect(supplier.id)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedId === supplier.id
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
+                } ${editMode ? "pr-8" : ""}`}
+              >
+                {supplier.name}
+                {productCounts[supplier.id] > 0 && !editMode && (
+                  <span
+                    className={`text-xs px-1.5 py-0.5 rounded-full ${
+                      selectedId === supplier.id
+                        ? "bg-purple-500"
+                        : "bg-gray-100"
+                    }`}
+                  >
+                    {productCounts[supplier.id]}
+                  </span>
+                )}
+              </button>
+              {editMode && onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(supplier.id);
+                  }}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
                 >
-                  {productCounts[supplier.id]}
-                </span>
+                  ✕
+                </button>
               )}
-            </button>
+            </div>
           ))}
+          {editMode && onAddNew && (
+            <button
+              onClick={onAddNew}
+              className="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-white text-purple-600 hover:bg-purple-50 border-2 border-dashed border-purple-300"
+            >
+              <span>+</span>
+              Добавить
+            </button>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+// === Supplier Modal ===
+function SupplierModal({
+  isOpen,
+  onClose,
+  form,
+  setForm,
+  onSubmit,
+  submitting,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  form: { name: string; phone: string };
+  setForm: (form: { name: string; phone: string }) => void;
+  onSubmit: () => void;
+  submitting: boolean;
+}) {
+  return (
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="Новый поставщик">
+      <FormInput
+        label="Название"
+        value={form.name}
+        onChange={(v) => setForm({ ...form, name: v })}
+        placeholder="Например: Фрукт-Алма"
+        required
+        autoFocus
+      />
+      <FormInput
+        label="Телефон (WhatsApp)"
+        value={form.phone}
+        onChange={(v) => setForm({ ...form, phone: v })}
+        placeholder="+7 777 123 4567"
+        type="tel"
+      />
+      <div className="mt-6">
+        <FormButton onClick={onSubmit} loading={submitting}>
+          Создать поставщика
+        </FormButton>
+      </div>
+    </BottomSheet>
+  );
+}
+
+// === Product Modal ===
+function ProductModal({
+  isOpen,
+  onClose,
+  form,
+  setForm,
+  onSubmit,
+  submitting,
+  categories,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  form: { name: string; unit: string; category_id: string };
+  setForm: (form: { name: string; unit: string; category_id: string }) => void;
+  onSubmit: () => void;
+  submitting: boolean;
+  categories: Category[];
+}) {
+  const unitOptions = [
+    { value: "шт", label: "Штуки" },
+    { value: "кг", label: "Килограммы" },
+    { value: "л", label: "Литры" },
+    { value: "уп", label: "Упаковки" },
+    { value: "бут", label: "Бутылки" },
+  ];
+
+  return (
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="Новый товар">
+      <FormInput
+        label="Название"
+        value={form.name}
+        onChange={(v) => setForm({ ...form, name: v })}
+        placeholder="Например: Яблоки"
+        required
+        autoFocus
+      />
+      <FormSelect
+        label="Единица измерения"
+        value={form.unit}
+        onChange={(v) => setForm({ ...form, unit: v })}
+        options={unitOptions}
+      />
+      {categories.length > 0 && (
+        <FormSelect
+          label="Категория"
+          value={form.category_id}
+          onChange={(v) => setForm({ ...form, category_id: v })}
+          options={categories.map((c) => ({ value: c.id, label: c.name }))}
+          placeholder="Выберите категорию"
+        />
+      )}
+      <div className="mt-6">
+        <FormButton onClick={onSubmit} loading={submitting}>
+          Добавить товар
+        </FormButton>
+      </div>
+    </BottomSheet>
   );
 }
 
