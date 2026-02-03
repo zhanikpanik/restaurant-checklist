@@ -74,21 +74,25 @@ export default auth(async (req) => {
     
     if (!isExempt) {
       const csrfToken = req.headers.get("X-CSRF-Token");
-      const csrfSessionId = req.cookies.get("csrf-session-id")?.value;
       
-      // Get session identifier for validation
+      // Get the session identifier that was used during token generation
+      // It's stored in the csrf-session-id cookie by /api/csrf endpoint
+      const storedSessionId = req.cookies.get("csrf-session-id")?.value;
+      
+      // If we don't have a stored session ID, regenerate it (for backward compat)
       const sessionTokenCookie = req.cookies.get("authjs.session-token")?.value 
         || req.cookies.get("__Secure-authjs.session-token")?.value;
-      const expectedSessionId = await getSessionIdentifier(sessionTokenCookie, session.user?.id);
+      const sessionId = storedSessionId || await getSessionIdentifier(sessionTokenCookie, session.user?.id);
       
       // Validate CSRF token (async with Web Crypto API)
-      const isValid = await validateCSRFToken(csrfToken || "", expectedSessionId);
+      const isValid = await validateCSRFToken(csrfToken || "", sessionId);
       
       if (!csrfToken || !isValid) {
         console.log("CSRF validation failed:", { 
           pathname, 
           hasToken: !!csrfToken,
-          hasSessionId: !!csrfSessionId,
+          hasStoredSessionId: !!storedSessionId,
+          usingStoredId: !!storedSessionId,
         });
         return NextResponse.json(
           { success: false, error: "CSRF token invalid or missing" },
