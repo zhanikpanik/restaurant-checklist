@@ -219,14 +219,6 @@ export default function HomePage() {
         {/* Header with Action Buttons for Admin/Manager */}
         {(isAdmin || isManager) && (
           <div className="flex items-center justify-end gap-2 mb-4">
-            <Link
-              href="/suppliers-categories"
-              className="flex items-center justify-center gap-1.5 md:gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
-              title="Управление поставщиками и категориями"
-            >
-              <span>🏢</span>
-              <span className="hidden sm:inline">Поставщики</span>
-            </Link>
             <button
               onClick={handleSyncFromPoster}
               disabled={syncing}
@@ -315,6 +307,22 @@ export default function HomePage() {
                     <div className="font-semibold text-base md:text-lg">Доставка</div>
                     <div className="text-xs md:text-sm opacity-90">
                       Мои заказы и отслеживание
+                    </div>
+                  </div>
+                </Link>
+              )}
+
+              {/* Suppliers Section - Only for admin/manager */}
+              {(isAdmin || isManager) && (
+                <Link
+                  href="/suppliers-categories"
+                  className="w-full bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                >
+                  <span className="text-2xl md:text-3xl mr-3 md:mr-4">🏢</span>
+                  <div className="text-left">
+                    <div className="font-semibold text-base md:text-lg">Поставщики</div>
+                    <div className="text-xs md:text-sm opacity-90">
+                      Управление поставщиками и категориями
                     </div>
                   </div>
                 </Link>
