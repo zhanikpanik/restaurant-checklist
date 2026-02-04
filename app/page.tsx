@@ -216,9 +216,17 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-3 md:p-4">
       <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-4 md:p-8">
-        {/* Header with Sync Button for Admin/Manager */}
+        {/* Header with Action Buttons for Admin/Manager */}
         {(isAdmin || isManager) && (
-          <div className="flex items-center justify-end mb-4">
+          <div className="flex items-center justify-end gap-2 mb-4">
+            <Link
+              href="/suppliers-categories"
+              className="flex items-center justify-center gap-1.5 md:gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              title="Управление поставщиками и категориями"
+            >
+              <span>🏢</span>
+              <span className="hidden sm:inline">Поставщики</span>
+            </Link>
             <button
               onClick={handleSyncFromPoster}
               disabled={syncing}

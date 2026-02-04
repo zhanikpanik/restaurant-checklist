@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCart, useSections } from "@/store/useStore";
 import { useToast } from "@/components/ui/Toast";
 import { BottomSheet, FormInput, FormSelect, FormButton } from "@/components/ui/BottomSheet";
+import { DepartmentSettingsModal } from "@/components/department/DepartmentSettingsModal";
 import { api } from "@/lib/api-client";
 
 interface Product {
@@ -65,11 +66,17 @@ function CustomPageContent() {
   const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [supplierForm, setSupplierForm] = useState({ name: "", phone: "" });
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [productForm, setProductForm] = useState({ name: "", unit: "шт", category_id: "" });
   const [categoryForm, setCategoryForm] = useState({ name: "" });
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Current section data for settings modal
+  const [currentSection, setCurrentSection] = useState<any>(null);
   
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
@@ -105,6 +112,7 @@ function CustomPageContent() {
         if (section) {
           currentSectionName = section.name;
           setSectionName(section.name);
+          setCurrentSection(section);
           sectionsStore.setCurrent(section);
         }
       }
@@ -178,6 +186,44 @@ function CustomPageContent() {
     }
   };
 
+  const handleUpdateSupplier = async () => {
+    if (!editingSupplier || !supplierForm.name.trim()) {
+      toast.error("Введите название поставщика");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const data = await api.patch("/api/suppliers", {
+        id: editingSupplier.id,
+        ...supplierForm
+      });
+
+      if (data.success) {
+        toast.success("Поставщик обновлен");
+        setSuppliers(suppliers.map(s => s.id === editingSupplier.id ? (data.data as Supplier) : s));
+        setShowSupplierModal(false);
+        setEditingSupplier(null);
+        setSupplierForm({ name: "", phone: "" });
+      } else {
+        toast.error(data.error || "Ошибка обновления");
+      }
+    } catch (error) {
+      toast.error("Ошибка обновления поставщика");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditSupplier = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setSupplierForm({
+      name: supplier.name,
+      phone: supplier.phone || ""
+    });
+    setShowSupplierModal(true);
+  };
+
   const handleDeleteSupplier = async (id: number) => {
     if (!confirm("Удалить поставщика? Это также удалит связь с товарами.")) return;
     
@@ -224,6 +270,42 @@ function CustomPageContent() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleUpdateCategory = async () => {
+    if (!editingCategory || !categoryForm.name.trim()) {
+      toast.error("Введите название категории");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const data = await api.patch("/api/categories", {
+        id: editingCategory.id,
+        name: categoryForm.name,
+        supplier_id: editingCategory.supplier_id
+      });
+
+      if (data.success) {
+        toast.success("Категория обновлена");
+        setCategories(categories.map(c => c.id === editingCategory.id ? (data.data as Category) : c));
+        setShowCategoryModal(false);
+        setEditingCategory(null);
+        setCategoryForm({ name: "" });
+      } else {
+        toast.error(data.error || "Ошибка обновления");
+      }
+    } catch (error) {
+      toast.error("Ошибка обновления категории");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEditCategory = (category: Category) => {
+    setEditingCategory(category);
+    setCategoryForm({ name: category.name });
+    setShowCategoryModal(true);
   };
 
   const handleDeleteCategory = async (id: number) => {
@@ -480,27 +562,20 @@ function CustomPageContent() {
         </main>
 
         {/* Supplier Modal */}
-        <BottomSheet
+        <SupplierModal
           isOpen={showSupplierModal}
-          onClose={() => setShowSupplierModal(false)}
-          title="Новый поставщик"
-        >
-          <FormInput
-            label="Название"
-            value={supplierForm.name}
-            onChange={(v) => setSupplierForm({ ...supplierForm, name: v })}
-            placeholder="Например: Оптовая база"
-          />
-          <FormInput
-            label="Телефон (WhatsApp)"
-            value={supplierForm.phone}
-            onChange={(v) => setSupplierForm({ ...supplierForm, phone: v })}
-            placeholder="+7 XXX XXX XX XX"
-          />
-          <FormButton onClick={handleCreateSupplier} loading={submitting}>
-            Создать
-          </FormButton>
-        </BottomSheet>
+          onClose={() => {
+            setShowSupplierModal(false);
+            setEditingSupplier(null);
+            setSupplierForm({ name: "", phone: "" });
+          }}
+          form={supplierForm}
+          setForm={setSupplierForm}
+          onSubmit={editingSupplier ? handleUpdateSupplier : handleCreateSupplier}
+          submitting={submitting}
+          title={editingSupplier ? "Редактировать поставщика" : "Новый поставщик"}
+          submitLabel={editingSupplier ? "Сохранить" : "Создать"}
+        />
       </div>
     );
   }
@@ -524,6 +599,7 @@ function CustomPageContent() {
           pendingOrdersCount={pendingOrdersCount}
           onToggleEditMode={() => setEditMode(!editMode)}
           onAddSupplier={() => setShowSupplierModal(true)}
+          onOpenSettings={() => setShowSettingsModal(true)}
         />
 
         {/* Info banner for managers */}
@@ -693,6 +769,22 @@ function CustomPageContent() {
           submitting={submitting}
           categories={categoriesForSupplier}
         />
+        
+        {/* Category Modal */}
+        <CategoryModal
+          isOpen={showCategoryModal}
+          onClose={() => {
+            setShowCategoryModal(false);
+            setEditingCategory(null);
+            setCategoryForm({ name: "" });
+          }}
+          form={categoryForm}
+          setForm={setCategoryForm}
+          onSubmit={editingCategory ? handleUpdateCategory : handleCreateCategory}
+          submitting={submitting}
+          title={editingCategory ? "Редактировать категорию" : "Новая категория"}
+          submitLabel={editingCategory ? "Сохранить" : "Создать"}
+        />
       </div>
     );
   }
@@ -709,6 +801,7 @@ function CustomPageContent() {
           pendingOrdersCount={pendingOrdersCount}
           onToggleEditMode={() => setEditMode(!editMode)}
           onAddSupplier={() => setShowSupplierModal(true)}
+          onOpenSettings={() => setShowSettingsModal(true)}
         />
         <SupplierTabs
           suppliers={suppliers}
@@ -717,7 +810,12 @@ function CustomPageContent() {
           productCounts={{}}
           editMode={editMode}
           onDelete={handleDeleteSupplier}
-          onAddNew={() => setShowSupplierModal(true)}
+          onEdit={handleEditSupplier}
+          onAddNew={() => {
+            setEditingSupplier(null);
+            setSupplierForm({ name: "", phone: "" });
+            setShowSupplierModal(true);
+          }}
         />
         <main className="max-w-md mx-auto px-4 py-12 text-center">
           <div className="text-6xl mb-6">📦</div>
@@ -763,15 +861,16 @@ function CustomPageContent() {
   // === RENDER: Normal View (Suppliers + Products) ===
   return (
     <div className="min-h-screen bg-white">
-      <Header
-        sectionName={sectionName}
-        dept={dept}
-        canManage={canManage}
-        editMode={editMode}
-        pendingOrdersCount={pendingOrdersCount}
-        onToggleEditMode={() => setEditMode(!editMode)}
-        onAddSupplier={() => setShowSupplierModal(true)}
-      />
+        <Header
+          sectionName={sectionName}
+          dept={dept}
+          canManage={canManage}
+          editMode={editMode}
+          pendingOrdersCount={pendingOrdersCount}
+          onToggleEditMode={() => setEditMode(!editMode)}
+          onAddSupplier={() => setShowSupplierModal(true)}
+          onOpenSettings={() => setShowSettingsModal(true)}
+        />
 
       {/* Supplier Tabs */}
       <SupplierTabs
@@ -786,7 +885,12 @@ function CustomPageContent() {
         )}
         editMode={editMode}
         onDelete={handleDeleteSupplier}
-        onAddNew={() => setShowSupplierModal(true)}
+        onEdit={handleEditSupplier}
+        onAddNew={() => {
+          setEditingSupplier(null);
+          setSupplierForm({ name: "", phone: "" });
+          setShowSupplierModal(true);
+        }}
       />
 
       {/* Category Chips (Edit Mode) */}
@@ -798,20 +902,37 @@ function CustomPageContent() {
             </div>
             <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
               {categoriesForSupplier.map((category) => (
-                <div key={category.id} className="relative flex items-center">
-                  <span className="px-3 py-1.5 pr-7 rounded-full text-sm bg-gray-100 text-gray-700 whitespace-nowrap">
+                <div key={category.id} className="relative flex items-center group">
+                  <span 
+                    className="px-3 py-1.5 pr-12 rounded-full text-sm bg-gray-100 text-gray-700 whitespace-nowrap cursor-pointer hover:bg-gray-200"
+                    onClick={() => handleEditCategory(category)}
+                  >
                     {category.name}
                   </span>
-                  <button
-                    onClick={() => handleDeleteCategory(category.id)}
-                    className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
-                  >
-                    ✕
-                  </button>
+                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                    <button
+                      onClick={() => handleEditCategory(category)}
+                      className="w-5 h-5 flex items-center justify-center bg-blue-500 text-white rounded-full text-xs hover:bg-blue-600"
+                      title="Редактировать"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(category.id)}
+                      className="w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
+                      title="Удалить"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
               ))}
               <button
-                onClick={() => setShowCategoryModal(true)}
+                onClick={() => {
+                  setEditingCategory(null);
+                  setCategoryForm({ name: "" });
+                  setShowCategoryModal(true);
+                }}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 whitespace-nowrap"
               >
                 <span>+</span>
@@ -964,15 +1085,21 @@ function CustomPageContent() {
         </div>
       )}
 
-      {/* Modals */}
-      <SupplierModal
-        isOpen={showSupplierModal}
-        onClose={() => setShowSupplierModal(false)}
-        form={supplierForm}
-        setForm={setSupplierForm}
-        onSubmit={handleCreateSupplier}
-        submitting={submitting}
-      />
+        {/* Modals */}
+        <SupplierModal
+          isOpen={showSupplierModal}
+          onClose={() => {
+            setShowSupplierModal(false);
+            setEditingSupplier(null);
+            setSupplierForm({ name: "", phone: "" });
+          }}
+          form={supplierForm}
+          setForm={setSupplierForm}
+          onSubmit={editingSupplier ? handleUpdateSupplier : handleCreateSupplier}
+          submitting={submitting}
+          title={editingSupplier ? "Редактировать поставщика" : "Новый поставщик"}
+          submitLabel={editingSupplier ? "Сохранить" : "Создать"}
+        />
       <ProductModal
         isOpen={showProductModal}
         onClose={() => setShowProductModal(false)}
@@ -982,6 +1109,16 @@ function CustomPageContent() {
         submitting={submitting}
         categories={categoriesForSupplier}
       />
+      
+      {/* Department Settings Modal */}
+      {currentSection && (
+        <DepartmentSettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          section={currentSection}
+          onUpdate={loadData}
+        />
+      )}
     </div>
   );
 }
@@ -995,6 +1132,7 @@ function Header({
   pendingOrdersCount,
   onToggleEditMode,
   onAddSupplier,
+  onOpenSettings,
 }: {
   sectionName: string;
   dept: string | null;
@@ -1003,6 +1141,7 @@ function Header({
   pendingOrdersCount: number;
   onToggleEditMode: () => void;
   onAddSupplier: () => void;
+  onOpenSettings?: () => void;
 }) {
   return (
     <header className="bg-purple-600 text-white px-4 py-4">
@@ -1055,6 +1194,15 @@ function Header({
               </button>
             ) : (
               <>
+                {onOpenSettings && (
+                  <button
+                    onClick={onOpenSettings}
+                    className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
+                    title="Настройки отдела"
+                  >
+                    <span className="text-lg">⚙️</span>
+                  </button>
+                )}
                 <button
                   onClick={onAddSupplier}
                   className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
@@ -1100,6 +1248,7 @@ function SupplierTabs({
   productCounts,
   editMode,
   onDelete,
+  onEdit,
   onAddNew,
 }: {
   suppliers: Supplier[];
@@ -1108,6 +1257,7 @@ function SupplierTabs({
   productCounts: Record<number, number>;
   editMode?: boolean;
   onDelete?: (id: number) => void;
+  onEdit?: (supplier: Supplier) => void;
   onAddNew?: () => void;
 }) {
   if (suppliers.length === 0) return null;
@@ -1124,7 +1274,7 @@ function SupplierTabs({
                   selectedId === supplier.id
                     ? "bg-purple-600 text-white shadow-sm"
                     : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
-                } ${editMode ? "pr-8" : ""}`}
+                } ${editMode ? "pr-14" : ""}`}
               >
                 {supplier.name}
                 {productCounts[supplier.id] > 0 && !editMode && (
@@ -1139,16 +1289,33 @@ function SupplierTabs({
                   </span>
                 )}
               </button>
-              {editMode && onDelete && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(supplier.id);
-                  }}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
-                >
-                  ✕
-                </button>
+              {editMode && (
+                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
+                  {onEdit && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(supplier);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center bg-blue-500 text-white rounded-full text-xs hover:bg-blue-600"
+                      title="Редактировать"
+                    >
+                      ✎
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(supplier.id);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
+                      title="Удалить"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ))}
@@ -1175,6 +1342,8 @@ function SupplierModal({
   setForm,
   onSubmit,
   submitting,
+  title = "Новый поставщик",
+  submitLabel = "Создать поставщика"
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -1182,9 +1351,11 @@ function SupplierModal({
   setForm: (form: { name: string; phone: string }) => void;
   onSubmit: () => void;
   submitting: boolean;
+  title?: string;
+  submitLabel?: string;
 }) {
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="Новый поставщик">
+    <BottomSheet isOpen={isOpen} onClose={onClose} title={title}>
       <FormInput
         label="Название"
         value={form.name}
@@ -1202,7 +1373,7 @@ function SupplierModal({
       />
       <div className="mt-6">
         <FormButton onClick={onSubmit} loading={submitting}>
-          Создать поставщика
+          {submitLabel}
         </FormButton>
       </div>
     </BottomSheet>
@@ -1263,6 +1434,45 @@ function ProductModal({
       <div className="mt-6">
         <FormButton onClick={onSubmit} loading={submitting}>
           Добавить товар
+        </FormButton>
+      </div>
+    </BottomSheet>
+  );
+}
+
+// === Category Modal ===
+function CategoryModal({
+  isOpen,
+  onClose,
+  form,
+  setForm,
+  onSubmit,
+  submitting,
+  title = "Новая категория",
+  submitLabel = "Создать"
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  form: { name: string };
+  setForm: (form: { name: string }) => void;
+  onSubmit: () => void;
+  submitting: boolean;
+  title?: string;
+  submitLabel?: string;
+}) {
+  return (
+    <BottomSheet isOpen={isOpen} onClose={onClose} title={title}>
+      <FormInput
+        label="Название"
+        value={form.name}
+        onChange={(v) => setForm({ ...form, name: v })}
+        placeholder="Например: Фрукты"
+        required
+        autoFocus
+      />
+      <div className="mt-6">
+        <FormButton onClick={onSubmit} loading={submitting}>
+          {submitLabel}
         </FormButton>
       </div>
     </BottomSheet>
