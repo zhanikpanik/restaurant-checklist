@@ -296,20 +296,36 @@ export default function HomePage() {
             </div>
           ) : (
             <>
-              {/* Delivery Section - Only for admin/manager/delivery */}
-              {(isAdmin || isManager || session?.user?.role === "delivery") && (
-                <Link
-                  href="/delivery"
-                  className="w-full bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
-                >
-                  <span className="text-2xl md:text-3xl mr-3 md:mr-4">🚚</span>
-                  <div className="text-left">
-                    <div className="font-semibold text-base md:text-lg">Доставка</div>
-                    <div className="text-xs md:text-sm opacity-90">
-                      Мои заказы и отслеживание
-                    </div>
+              {/* Last Order Card - Show for all authenticated users */}
+              {lastOrder && (
+                <div className="w-full bg-white border border-gray-200 rounded-lg p-4 md:p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-800">📋 Последний заказ</h3>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(lastOrder.status)}`}>
+                      {getStatusLabel(lastOrder.status)}
+                    </span>
                   </div>
-                </Link>
+                  <div className="text-sm text-gray-600 mb-2">
+                    <span className="font-medium">{lastOrder.order_data.department}</span>
+                    <span className="mx-2">•</span>
+                    <span>{lastOrder.order_data.items?.length || 0} товаров</span>
+                    <span className="mx-2">•</span>
+                    <span>{formatRelativeDate(lastOrder.created_at)}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 truncate mb-3">
+                    {lastOrder.order_data.items?.slice(0, 3).map(item => item.name).join(", ")}
+                    {(lastOrder.order_data.items?.length || 0) > 3 && "..."}
+                  </div>
+                  <Link
+                    href="/orders"
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1"
+                  >
+                    Все заказы
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
               )}
 
               {/* Suppliers Section - Only for admin/manager */}
@@ -327,6 +343,8 @@ export default function HomePage() {
                   </div>
                 </Link>
               )}
+
+              {/* Delivery/Orders Section - Removed per user request */}
 
               {/* Dynamic Sections - Filtered by user assignments */}
               {sections.map((section) => (
@@ -362,38 +380,6 @@ export default function HomePage() {
                     </div>
                   </div>
                 </button>
-              )}
-
-              {/* Last Order Card - Show for all authenticated users */}
-              {lastOrder && (
-                <div className="w-full bg-white border border-gray-200 rounded-lg p-4 md:p-5 shadow-sm">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold text-gray-800">📋 Последний заказ</h3>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(lastOrder.status)}`}>
-                      {getStatusLabel(lastOrder.status)}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium">{lastOrder.order_data.department}</span>
-                    <span className="mx-2">•</span>
-                    <span>{lastOrder.order_data.items?.length || 0} товаров</span>
-                    <span className="mx-2">•</span>
-                    <span>{formatRelativeDate(lastOrder.created_at)}</span>
-                  </div>
-                  <div className="text-xs text-gray-500 truncate mb-3">
-                    {lastOrder.order_data.items?.slice(0, 3).map(item => item.name).join(", ")}
-                    {(lastOrder.order_data.items?.length || 0) > 3 && "..."}
-                  </div>
-                  <Link
-                    href="/orders"
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1"
-                  >
-                    Все мои заказы
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </Link>
-                </div>
               )}
             </>
           )}

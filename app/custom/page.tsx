@@ -63,23 +63,14 @@ function CustomPageContent() {
   const [productQuantities, setProductQuantities] = useState<ProductQuantity>({});
 
   // Modal states
-  const [showSupplierModal, setShowSupplierModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [supplierForm, setSupplierForm] = useState({ name: "", phone: "" });
-  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [productForm, setProductForm] = useState({ name: "", unit: "шт", category_id: "" });
-  const [categoryForm, setCategoryForm] = useState({ name: "" });
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [submitting, setSubmitting] = useState(false);
   
   // Current section data for settings modal
   const [currentSection, setCurrentSection] = useState<any>(null);
-  
-  // Edit mode state
-  const [editMode, setEditMode] = useState(false);
   
   // Pending orders count for this department (managers only)
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
@@ -159,171 +150,9 @@ function CustomPageContent() {
   };
 
   // === CRUD Operations ===
-
-  const handleCreateSupplier = async () => {
-    if (!supplierForm.name.trim()) {
-      toast.error("Введите название поставщика");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const data = await api.post("/api/suppliers", supplierForm);
-
-      if (data.success) {
-        toast.success("Поставщик создан");
-        setSuppliers([...suppliers, data.data as Supplier]);
-        setSelectedSupplierId((data.data as Supplier).id);
-        setShowSupplierModal(false);
-        setSupplierForm({ name: "", phone: "" });
-      } else {
-        toast.error(data.error || "Ошибка создания");
-      }
-    } catch (error) {
-      toast.error("Ошибка создания поставщика");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleUpdateSupplier = async () => {
-    if (!editingSupplier || !supplierForm.name.trim()) {
-      toast.error("Введите название поставщика");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const data = await api.patch("/api/suppliers", {
-        id: editingSupplier.id,
-        ...supplierForm
-      });
-
-      if (data.success) {
-        toast.success("Поставщик обновлен");
-        setSuppliers(suppliers.map(s => s.id === editingSupplier.id ? (data.data as Supplier) : s));
-        setShowSupplierModal(false);
-        setEditingSupplier(null);
-        setSupplierForm({ name: "", phone: "" });
-      } else {
-        toast.error(data.error || "Ошибка обновления");
-      }
-    } catch (error) {
-      toast.error("Ошибка обновления поставщика");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleEditSupplier = (supplier: Supplier) => {
-    setEditingSupplier(supplier);
-    setSupplierForm({
-      name: supplier.name,
-      phone: supplier.phone || ""
-    });
-    setShowSupplierModal(true);
-  };
-
-  const handleDeleteSupplier = async (id: number) => {
-    if (!confirm("Удалить поставщика? Это также удалит связь с товарами.")) return;
-    
-    try {
-      const data = await api.delete(`/api/suppliers?id=${id}`);
-      
-      if (data.success) {
-        toast.success("Поставщик удален");
-        setSuppliers(suppliers.filter(s => s.id !== id));
-        if (selectedSupplierId === id) {
-          setSelectedSupplierId(suppliers.find(s => s.id !== id)?.id || null);
-        }
-      } else {
-        toast.error(data.error || "Ошибка удаления");
-      }
-    } catch (error) {
-      toast.error("Ошибка удаления поставщика");
-    }
-  };
-
-  const handleCreateCategory = async () => {
-    if (!categoryForm.name.trim()) {
-      toast.error("Введите название категории");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const data = await api.post("/api/categories", {
-        name: categoryForm.name,
-        supplier_id: selectedSupplierId,
-      });
-
-      if (data.success) {
-        toast.success("Категория создана");
-        setCategories([...categories, data.data as Category]);
-        setShowCategoryModal(false);
-        setCategoryForm({ name: "" });
-      } else {
-        toast.error(data.error || "Ошибка создания");
-      }
-    } catch (error) {
-      toast.error("Ошибка создания категории");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleUpdateCategory = async () => {
-    if (!editingCategory || !categoryForm.name.trim()) {
-      toast.error("Введите название категории");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const data = await api.patch("/api/categories", {
-        id: editingCategory.id,
-        name: categoryForm.name,
-        supplier_id: editingCategory.supplier_id
-      });
-
-      if (data.success) {
-        toast.success("Категория обновлена");
-        setCategories(categories.map(c => c.id === editingCategory.id ? (data.data as Category) : c));
-        setShowCategoryModal(false);
-        setEditingCategory(null);
-        setCategoryForm({ name: "" });
-      } else {
-        toast.error(data.error || "Ошибка обновления");
-      }
-    } catch (error) {
-      toast.error("Ошибка обновления категории");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleEditCategory = (category: Category) => {
-    setEditingCategory(category);
-    setCategoryForm({ name: category.name });
-    setShowCategoryModal(true);
-  };
-
-  const handleDeleteCategory = async (id: number) => {
-    if (!confirm("Удалить категорию?")) return;
-    
-    try {
-      const data = await api.delete(`/api/categories?id=${id}`);
-      
-      if (data.success) {
-        toast.success("Категория удалена");
-        setCategories(categories.filter(c => c.id !== id));
-      } else {
-        toast.error(data.error || "Ошибка удаления");
-      }
-    } catch (error) {
-      toast.error("Ошибка удаления категории");
-    }
-  };
+  
+  // Handlers for suppliers/categories removed as they are now managed in /suppliers-categories
+  // Keeping product handlers...
 
   const handleCreateProduct = async () => {
     if (!productForm.name.trim()) {
@@ -533,10 +362,8 @@ function CustomPageContent() {
           sectionName={sectionName}
           dept={dept}
           canManage={canManage}
-          editMode={editMode}
           pendingOrdersCount={pendingOrdersCount}
-          onToggleEditMode={() => setEditMode(!editMode)}
-          onAddSupplier={() => setShowSupplierModal(true)}
+          onAddSupplier={() => router.push('/suppliers-categories')}
         />
         <main className="max-w-md mx-auto px-4 py-12 text-center">
           <div className="text-6xl mb-6">🏢</div>
@@ -547,35 +374,19 @@ function CustomPageContent() {
             Создайте первого поставщика, чтобы начать добавлять товары
           </p>
           {canManage ? (
-            <button
-              onClick={() => setShowSupplierModal(true)}
+            <Link
+              href="/suppliers-categories"
               className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
             >
               <span className="text-lg">+</span>
               Создать поставщика
-            </button>
+            </Link>
           ) : (
             <p className="text-sm text-gray-400">
               Обратитесь к менеджеру для настройки
             </p>
           )}
         </main>
-
-        {/* Supplier Modal */}
-        <SupplierModal
-          isOpen={showSupplierModal}
-          onClose={() => {
-            setShowSupplierModal(false);
-            setEditingSupplier(null);
-            setSupplierForm({ name: "", phone: "" });
-          }}
-          form={supplierForm}
-          setForm={setSupplierForm}
-          onSubmit={editingSupplier ? handleUpdateSupplier : handleCreateSupplier}
-          submitting={submitting}
-          title={editingSupplier ? "Редактировать поставщика" : "Новый поставщик"}
-          submitLabel={editingSupplier ? "Сохранить" : "Создать"}
-        />
       </div>
     );
   }
@@ -595,227 +406,9 @@ function CustomPageContent() {
           sectionName={sectionName}
           dept={dept}
           canManage={canManage}
-          editMode={editMode}
           pendingOrdersCount={pendingOrdersCount}
-          onToggleEditMode={() => setEditMode(!editMode)}
-          onAddSupplier={() => setShowSupplierModal(true)}
+          onAddSupplier={() => router.push('/suppliers-categories')}
           onOpenSettings={() => setShowSettingsModal(true)}
-        />
-
-        {/* Info banner for managers */}
-        {canManage && (
-          <div className="bg-blue-50 border-b border-blue-100 px-4 py-3">
-            <div className="max-w-md mx-auto flex items-center gap-2 text-sm text-blue-700">
-              <span>💡</span>
-              <span>Создайте поставщиков и категории для группировки товаров</span>
-              <button
-                onClick={() => setShowSupplierModal(true)}
-                className="ml-auto text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
-              >
-                + Поставщик
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Search */}
-        <div className="max-w-md mx-auto px-4 py-3">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg
-                className="h-5 w-5 text-gray-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
-              placeholder="🔍 Поиск товаров..."
-              autoComplete="off"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              >
-                <svg
-                  className="h-5 w-5 text-gray-400 hover:text-gray-600"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Ungrouped Products List */}
-        <main className="max-w-md mx-auto px-4 pb-24">
-          {ungroupedFilteredProducts.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">
-                {searchQuery ? "Товары не найдены" : "Нет товаров"}
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-gray-200">
-              {ungroupedFilteredProducts.map((product) => {
-                const quantity = productQuantities[product.id] || 0;
-                const hasQuantity = quantity > 0;
-
-                return (
-                  <div
-                    key={product.id}
-                    className="bg-white py-4 hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-gray-900 truncate">
-                          {product.name}
-                        </h3>
-                        {product.category_name && (
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {product.category_name}
-                          </p>
-                        )}
-                      </div>
-
-                      {!hasQuantity ? (
-                        <button
-                          onClick={() => handleIncreaseQuantity(product)}
-                          className="ml-3 w-9 h-9 flex items-center justify-center bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors text-xl font-bold"
-                        >
-                          +
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-2 ml-3">
-                          <button
-                            onClick={() => handleDecreaseQuantity(product)}
-                            className="w-9 h-9 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors text-xl font-bold"
-                          >
-                            −
-                          </button>
-                          <span className="w-8 text-center font-semibold text-gray-900">
-                            {quantity}
-                          </span>
-                          <button
-                            onClick={() => handleIncreaseQuantity(product)}
-                            className="w-9 h-9 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-xl font-bold"
-                          >
-                            +
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </main>
-
-        {/* Cart FAB */}
-        {cart.count > 0 && (
-          <div className="fixed bottom-4 right-4">
-            <Link
-              href="/cart"
-              className="flex items-center justify-center w-14 h-14 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg transition-colors"
-            >
-              <span className="text-xl">🛒</span>
-              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
-                {cart.count}
-              </span>
-            </Link>
-          </div>
-        )}
-
-        {/* Modals */}
-        <SupplierModal
-          isOpen={showSupplierModal}
-          onClose={() => setShowSupplierModal(false)}
-          form={supplierForm}
-          setForm={setSupplierForm}
-          onSubmit={handleCreateSupplier}
-          submitting={submitting}
-        />
-        <ProductModal
-          isOpen={showProductModal}
-          onClose={() => {
-            setShowProductModal(false);
-            setEditingProduct(null);
-            setProductForm({ name: "", unit: "шт", category_id: "" });
-          }}
-          form={productForm}
-          setForm={setProductForm}
-          onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
-          submitting={submitting}
-          categories={categoriesForSupplier}
-        />
-        
-        {/* Category Modal */}
-        <CategoryModal
-          isOpen={showCategoryModal}
-          onClose={() => {
-            setShowCategoryModal(false);
-            setEditingCategory(null);
-            setCategoryForm({ name: "" });
-          }}
-          form={categoryForm}
-          setForm={setCategoryForm}
-          onSubmit={editingCategory ? handleUpdateCategory : handleCreateCategory}
-          submitting={submitting}
-          title={editingCategory ? "Редактировать категорию" : "Новая категория"}
-          submitLabel={editingCategory ? "Сохранить" : "Создать"}
-        />
-      </div>
-    );
-  }
-
-  // === RENDER: Suppliers Exist but No Products Assigned ===
-  if (suppliersWithProducts.length === 0 && products.length === 0) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Header
-          sectionName={sectionName}
-          dept={dept}
-          canManage={canManage}
-          editMode={editMode}
-          pendingOrdersCount={pendingOrdersCount}
-          onToggleEditMode={() => setEditMode(!editMode)}
-          onAddSupplier={() => setShowSupplierModal(true)}
-          onOpenSettings={() => setShowSettingsModal(true)}
-        />
-        <SupplierTabs
-          suppliers={suppliers}
-          selectedId={selectedSupplierId}
-          onSelect={setSelectedSupplierId}
-          productCounts={{}}
-          editMode={editMode}
-          onDelete={handleDeleteSupplier}
-          onEdit={handleEditSupplier}
-          onAddNew={() => {
-            setEditingSupplier(null);
-            setSupplierForm({ name: "", phone: "" });
-            setShowSupplierModal(true);
-          }}
         />
         <main className="max-w-md mx-auto px-4 py-12 text-center">
           <div className="text-6xl mb-6">📦</div>
@@ -837,26 +430,32 @@ function CustomPageContent() {
         </main>
 
         {/* Modals */}
-        <SupplierModal
-          isOpen={showSupplierModal}
-          onClose={() => setShowSupplierModal(false)}
-          form={supplierForm}
-          setForm={setSupplierForm}
-          onSubmit={handleCreateSupplier}
-          submitting={submitting}
-        />
         <ProductModal
           isOpen={showProductModal}
-          onClose={() => setShowProductModal(false)}
+          onClose={() => {
+            setShowProductModal(false);
+            setEditingProduct(null);
+            setProductForm({ name: "", unit: "шт", category_id: "" });
+          }}
           form={productForm}
           setForm={setProductForm}
-          onSubmit={handleCreateProduct}
+          onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
           submitting={submitting}
           categories={categoriesForSupplier}
         />
-      </div>
-    );
-  }
+        
+        {/* Department Settings Modal */}
+      {currentSection && (
+        <DepartmentSettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          section={currentSection}
+          onUpdate={loadData}
+        />
+      )}
+    </div>
+  );
+}
 
   // === RENDER: Normal View (Suppliers + Products) ===
   return (
@@ -865,10 +464,8 @@ function CustomPageContent() {
           sectionName={sectionName}
           dept={dept}
           canManage={canManage}
-          editMode={editMode}
           pendingOrdersCount={pendingOrdersCount}
-          onToggleEditMode={() => setEditMode(!editMode)}
-          onAddSupplier={() => setShowSupplierModal(true)}
+          onAddSupplier={() => router.push('/suppliers-categories')}
           onOpenSettings={() => setShowSettingsModal(true)}
         />
 
@@ -883,82 +480,14 @@ function CustomPageContent() {
             prods.length,
           ])
         )}
-        editMode={editMode}
-        onDelete={handleDeleteSupplier}
-        onEdit={handleEditSupplier}
-        onAddNew={() => {
-          setEditingSupplier(null);
-          setSupplierForm({ name: "", phone: "" });
-          setShowSupplierModal(true);
-        }}
       />
-
-      {/* Category Chips (Edit Mode) */}
-      {editMode && canManage && (
-        <div className="bg-white border-b">
-          <div className="max-w-md mx-auto px-4 py-3">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium text-gray-600">Категории:</span>
-            </div>
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-hide">
-              {categoriesForSupplier.map((category) => (
-                <div key={category.id} className="relative flex items-center group">
-                  <span 
-                    className="px-3 py-1.5 pr-12 rounded-full text-sm bg-gray-100 text-gray-700 whitespace-nowrap cursor-pointer hover:bg-gray-200"
-                    onClick={() => handleEditCategory(category)}
-                  >
-                    {category.name}
-                  </span>
-                  <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
-                    <button
-                      onClick={() => handleEditCategory(category)}
-                      className="w-5 h-5 flex items-center justify-center bg-blue-500 text-white rounded-full text-xs hover:bg-blue-600"
-                      title="Редактировать"
-                    >
-                      ✎
-                    </button>
-                    <button
-                      onClick={() => handleDeleteCategory(category.id)}
-                      className="w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
-                      title="Удалить"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button
-                onClick={() => {
-                  setEditingCategory(null);
-                  setCategoryForm({ name: "" });
-                  setShowCategoryModal(true);
-                }}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-full text-sm text-purple-600 bg-purple-50 hover:bg-purple-100 whitespace-nowrap"
-              >
-                <span>+</span>
-                Добавить
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Search */}
       <div className="max-w-md mx-auto px-4 py-3">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg
-              className="h-5 w-5 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
+            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
           <input
@@ -974,18 +503,8 @@ function CustomPageContent() {
               onClick={() => setSearchQuery("")}
               className="absolute inset-y-0 right-0 pr-3 flex items-center"
             >
-              <svg
-                className="h-5 w-5 text-gray-400 hover:text-gray-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M6 18L18 6M6 6l12 12"
-                />
+              <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           )}
@@ -994,7 +513,6 @@ function CustomPageContent() {
 
       {/* Products List */}
       <main className="max-w-md mx-auto px-4 pb-24">
-        {/* Add Product Button (for admin/manager) */}
         {canManage && (
           <button
             onClick={() => setShowProductModal(true)}
@@ -1020,19 +538,12 @@ function CustomPageContent() {
               const hasQuantity = quantity > 0;
 
               return (
-                <div
-                  key={product.id}
-                  className="bg-white py-4 hover:bg-gray-50 transition-colors"
-                >
+                <div key={product.id} className="bg-white py-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">
-                        {product.name}
-                      </h3>
+                      <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
                       {product.category_name && (
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {product.category_name}
-                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">{product.category_name}</p>
                       )}
                     </div>
 
@@ -1051,9 +562,7 @@ function CustomPageContent() {
                         >
                           −
                         </button>
-                        <span className="w-10 text-center font-medium text-gray-900">
-                          {quantity}
-                        </span>
+                        <span className="w-10 text-center font-medium text-gray-900">{quantity}</span>
                         <button
                           onClick={() => handleIncreaseQuantity(product)}
                           className="w-9 h-9 flex items-center justify-center bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors text-xl font-bold"
@@ -1085,31 +594,20 @@ function CustomPageContent() {
         </div>
       )}
 
-        {/* Modals */}
-        <SupplierModal
-          isOpen={showSupplierModal}
+        <ProductModal
+          isOpen={showProductModal}
           onClose={() => {
-            setShowSupplierModal(false);
-            setEditingSupplier(null);
-            setSupplierForm({ name: "", phone: "" });
+            setShowProductModal(false);
+            setEditingProduct(null);
+            setProductForm({ name: "", unit: "шт", category_id: "" });
           }}
-          form={supplierForm}
-          setForm={setSupplierForm}
-          onSubmit={editingSupplier ? handleUpdateSupplier : handleCreateSupplier}
+          form={productForm}
+          setForm={setProductForm}
+          onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
           submitting={submitting}
-          title={editingSupplier ? "Редактировать поставщика" : "Новый поставщик"}
-          submitLabel={editingSupplier ? "Сохранить" : "Создать"}
+          categories={categoriesForSupplier}
         />
-      <ProductModal
-        isOpen={showProductModal}
-        onClose={() => setShowProductModal(false)}
-        form={productForm}
-        setForm={setProductForm}
-        onSubmit={handleCreateProduct}
-        submitting={submitting}
-        categories={categoriesForSupplier}
-      />
-      
+        
       {/* Department Settings Modal */}
       {currentSection && (
         <DepartmentSettingsModal
@@ -1128,18 +626,14 @@ function Header({
   sectionName,
   dept,
   canManage,
-  editMode,
   pendingOrdersCount,
-  onToggleEditMode,
   onAddSupplier,
   onOpenSettings,
 }: {
   sectionName: string;
   dept: string | null;
   canManage: boolean;
-  editMode: boolean;
   pendingOrdersCount: number;
-  onToggleEditMode: () => void;
   onAddSupplier: () => void;
   onOpenSettings?: () => void;
 }) {
@@ -1184,52 +678,14 @@ function Header({
 
         {canManage ? (
           <div className="flex items-center gap-1">
-            {editMode ? (
+            {onOpenSettings && (
               <button
-                onClick={onToggleEditMode}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-all text-sm font-medium"
+                onClick={onOpenSettings}
+                className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
+                title="Настройки отдела"
               >
-                <span>✓</span>
-                <span>Готово</span>
+                <span className="text-lg">⚙️</span>
               </button>
-            ) : (
-              <>
-                {onOpenSettings && (
-                  <button
-                    onClick={onOpenSettings}
-                    className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
-                    title="Настройки отдела"
-                  >
-                    <span className="text-lg">⚙️</span>
-                  </button>
-                )}
-                <button
-                  onClick={onAddSupplier}
-                  className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
-                  title="Добавить поставщика"
-                >
-                  <svg
-                    className="w-6 h-6 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    strokeWidth="2"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
-                </button>
-                <button
-                  onClick={onToggleEditMode}
-                  className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
-                  title="Режим редактирования"
-                >
-                  <span className="text-lg">✏️</span>
-                </button>
-              </>
             )}
           </div>
         ) : (
@@ -1246,19 +702,11 @@ function SupplierTabs({
   selectedId,
   onSelect,
   productCounts,
-  editMode,
-  onDelete,
-  onEdit,
-  onAddNew,
 }: {
   suppliers: Supplier[];
   selectedId: number | null;
   onSelect: (id: number) => void;
   productCounts: Record<number, number>;
-  editMode?: boolean;
-  onDelete?: (id: number) => void;
-  onEdit?: (supplier: Supplier) => void;
-  onAddNew?: () => void;
 }) {
   if (suppliers.length === 0) return null;
 
@@ -1274,10 +722,10 @@ function SupplierTabs({
                   selectedId === supplier.id
                     ? "bg-purple-600 text-white shadow-sm"
                     : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
-                } ${editMode ? "pr-14" : ""}`}
+                }`}
               >
                 {supplier.name}
-                {productCounts[supplier.id] > 0 && !editMode && (
+                {productCounts[supplier.id] > 0 && (
                   <span
                     className={`text-xs px-1.5 py-0.5 rounded-full ${
                       selectedId === supplier.id
@@ -1289,98 +737,14 @@ function SupplierTabs({
                   </span>
                 )}
               </button>
-              {editMode && (
-                <div className="absolute right-1 top-1/2 -translate-y-1/2 flex gap-1">
-                  {onEdit && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit(supplier);
-                      }}
-                      className="w-5 h-5 flex items-center justify-center bg-blue-500 text-white rounded-full text-xs hover:bg-blue-600"
-                      title="Редактировать"
-                    >
-                      ✎
-                    </button>
-                  )}
-                  {onDelete && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(supplier.id);
-                      }}
-                      className="w-5 h-5 flex items-center justify-center bg-red-500 text-white rounded-full text-xs hover:bg-red-600"
-                      title="Удалить"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           ))}
-          {editMode && onAddNew && (
-            <button
-              onClick={onAddNew}
-              className="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap bg-white text-purple-600 hover:bg-purple-50 border-2 border-dashed border-purple-300"
-            >
-              <span>+</span>
-              Добавить
-            </button>
-          )}
         </div>
       </div>
     </div>
   );
 }
 
-// === Supplier Modal ===
-function SupplierModal({
-  isOpen,
-  onClose,
-  form,
-  setForm,
-  onSubmit,
-  submitting,
-  title = "Новый поставщик",
-  submitLabel = "Создать поставщика"
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  form: { name: string; phone: string };
-  setForm: (form: { name: string; phone: string }) => void;
-  onSubmit: () => void;
-  submitting: boolean;
-  title?: string;
-  submitLabel?: string;
-}) {
-  return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title={title}>
-      <FormInput
-        label="Название"
-        value={form.name}
-        onChange={(v) => setForm({ ...form, name: v })}
-        placeholder="Например: Фрукт-Алма"
-        required
-        autoFocus
-      />
-      <FormInput
-        label="Телефон (WhatsApp)"
-        value={form.phone}
-        onChange={(v) => setForm({ ...form, phone: v })}
-        placeholder="+7 777 123 4567"
-        type="tel"
-      />
-      <div className="mt-6">
-        <FormButton onClick={onSubmit} loading={submitting}>
-          {submitLabel}
-        </FormButton>
-      </div>
-    </BottomSheet>
-  );
-}
-
-// === Product Modal ===
 function ProductModal({
   isOpen,
   onClose,
@@ -1434,45 +798,6 @@ function ProductModal({
       <div className="mt-6">
         <FormButton onClick={onSubmit} loading={submitting}>
           Добавить товар
-        </FormButton>
-      </div>
-    </BottomSheet>
-  );
-}
-
-// === Category Modal ===
-function CategoryModal({
-  isOpen,
-  onClose,
-  form,
-  setForm,
-  onSubmit,
-  submitting,
-  title = "Новая категория",
-  submitLabel = "Создать"
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  form: { name: string };
-  setForm: (form: { name: string }) => void;
-  onSubmit: () => void;
-  submitting: boolean;
-  title?: string;
-  submitLabel?: string;
-}) {
-  return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title={title}>
-      <FormInput
-        label="Название"
-        value={form.name}
-        onChange={(v) => setForm({ ...form, name: v })}
-        placeholder="Например: Фрукты"
-        required
-        autoFocus
-      />
-      <div className="mt-6">
-        <FormButton onClick={onSubmit} loading={submitting}>
-          {submitLabel}
         </FormButton>
       </div>
     </BottomSheet>
