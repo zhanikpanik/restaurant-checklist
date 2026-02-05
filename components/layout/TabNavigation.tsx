@@ -3,7 +3,7 @@
 import { ReactNode, useRef, useEffect, useState } from "react";
 
 interface Tab {
-  id: string;
+  id: string | number;
   label: string;
   icon?: string;
   badge?: number;
@@ -12,7 +12,7 @@ interface Tab {
 interface TabNavigationProps {
   tabs: Tab[];
   activeTab: string;
-  onTabChange: (tabId: string) => void;
+  onTabChange: (tabId: string | number) => void;
 }
 
 export function TabNavigation({

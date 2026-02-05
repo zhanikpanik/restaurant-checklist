@@ -24,14 +24,15 @@ export async function GET(request: NextRequest) {
           sp.poster_ingredient_id,
           sp.section_id,
           sp.category_id,
+          sp.supplier_id,
           sp.is_active,
           pc.name as category_name,
-          pc.supplier_id,
-          sup.name as supplier_name,
+          COALESCE(sup.name, sup_direct.name) as supplier_name,
           s.name as section_name
         FROM section_products sp
         LEFT JOIN product_categories pc ON sp.category_id = pc.id
         LEFT JOIN suppliers sup ON pc.supplier_id = sup.id
+        LEFT JOIN suppliers sup_direct ON sp.supplier_id = sup_direct.id
         LEFT JOIN sections s ON sp.section_id = s.id
         WHERE s.restaurant_id = $1`;
       
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest) {
     const { restaurantId } = auth;
 
     const body = await request.json();
-    const { name, unit, section_id, category_id, is_active, poster_ingredient_id } = body;
+    const { name, unit, section_id, category_id, supplier_id, is_active, poster_ingredient_id } = body;
 
     if (!name || !section_id) {
       return NextResponse.json(
@@ -102,10 +103,10 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await client.query(
-        `INSERT INTO section_products (name, unit, section_id, category_id, is_active, poster_ingredient_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO section_products (name, unit, section_id, category_id, supplier_id, is_active, poster_ingredient_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [name, unit || null, section_id, category_id || null, is_active !== false, ingredientId]
+        [name, unit || null, section_id, category_id || null, supplier_id || null, is_active !== false, ingredientId]
       );
       return result.rows[0];
     });
@@ -144,7 +145,7 @@ export async function PATCH(request: NextRequest) {
     const { restaurantId } = auth;
 
     const body = await request.json();
-    const { id, name, unit, section_id, category_id, is_active } = body;
+    const { id, name, unit, section_id, category_id, supplier_id, is_active } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -160,12 +161,13 @@ export async function PATCH(request: NextRequest) {
              unit = COALESCE($2, sp.unit),
              section_id = COALESCE($3, sp.section_id),
              category_id = COALESCE($4, sp.category_id),
-             is_active = COALESCE($5, sp.is_active),
+             supplier_id = COALESCE($5, sp.supplier_id),
+             is_active = COALESCE($6, sp.is_active),
              updated_at = CURRENT_TIMESTAMP
          FROM sections s
-         WHERE sp.id = $6 AND sp.section_id = s.id AND s.restaurant_id = $7
+         WHERE sp.id = $7 AND sp.section_id = s.id AND s.restaurant_id = $8
          RETURNING sp.*`,
-        [name, unit, section_id, category_id, is_active, id, restaurantId]
+        [name, unit, section_id, category_id, supplier_id, is_active, id, restaurantId]
       );
       return result.rows[0];
     });

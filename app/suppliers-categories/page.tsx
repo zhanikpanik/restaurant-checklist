@@ -7,24 +7,28 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { TabNavigation } from "@/components/layout/TabNavigation";
 import { SuppliersTab } from "@/components/manager/SuppliersTab";
 import { CategoriesTab } from "@/components/manager/CategoriesTab";
+import { GenericProductListTab } from "@/components/manager/UnsortedTab";
+import { CreateSupplierModal } from "@/components/manager/CreateSupplierModal";
 import { useToast } from "@/components/ui/Toast";
-import type { Supplier, ProductCategory } from "@/types";
+import type { Supplier, ProductCategory, Product } from "@/types";
 
-type TabType = "suppliers" | "categories";
+type TabType = "suppliers" | "categories" | "unsorted";
 
 const TABS = [
   { id: "suppliers", label: "Поставщики", icon: "🏢" },
-  { id: "categories", label: "Категории", icon: "🏷️" },
 ];
 
 export default function SuppliersCategoriesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<TabType>("suppliers");
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | number>("suppliers");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [unassignedProducts, setUnassignedProducts] = useState<Product[]>([]);
+  const [supplierProducts, setSupplierProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unassignedCount, setUnassignedCount] = useState(0);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Role-based access control - redirect unauthorized users
   const isAuthorized = status === "authenticated" && ["admin", "manager"].includes(session?.user?.role || "");
@@ -37,11 +41,25 @@ export default function SuppliersCategoriesPage() {
     }
   }, [session, status, router]);
 
+  // Load unassigned count initially and when data reloads
+  useEffect(() => {
+    if (isAuthorized) {
+      fetch("/api/section-products?active=true")
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const count = data.data.filter((p: Product) => !p.supplier_id).length;
+            setUnassignedCount(count);
+          }
+        });
+    }
+  }, [isAuthorized, selectedSupplierId, loading]); 
+
   // Load data when tab changes
   useEffect(() => {
     if (!isAuthorized) return;
     loadData();
-  }, [activeTab, isAuthorized]);
+  }, [selectedSupplierId, isAuthorized]);
 
   // Show loading while checking auth
   if (status === "loading" || !isAuthorized) {
@@ -58,23 +76,28 @@ export default function SuppliersCategoriesPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      switch (activeTab) {
-        case "suppliers":
-          const suppliersRes = await fetch("/api/suppliers");
-          const suppliersData = await suppliersRes.json();
-          if (suppliersData.success) setSuppliers(suppliersData.data);
-          break;
+      // Always load suppliers for the tabs
+      const suppliersRes = await fetch("/api/suppliers");
+      const suppliersData = await suppliersRes.json();
+      if (suppliersData.success) setSuppliers(suppliersData.data);
 
-        case "categories":
-          const categoriesRes = await fetch("/api/categories");
-          const categoriesData = await categoriesRes.json();
-          if (categoriesData.success) setCategories(categoriesData.data);
-          
-          // Also load suppliers for category form dropdown
-          const suppliersForCategoriesRes = await fetch("/api/suppliers");
-          const suppliersForCategoriesData = await suppliersForCategoriesRes.json();
-          if (suppliersForCategoriesData.success) setSuppliers(suppliersForCategoriesData.data);
-          break;
+      if (selectedSupplierId === "suppliers") {
+        // Just showing the list of suppliers (default view)
+      } else if (selectedSupplierId === "unsorted") {
+        const unsortedRes = await fetch("/api/section-products?active=true");
+        const unsortedData = await unsortedRes.json();
+        if (unsortedData.success) {
+          const unassigned = unsortedData.data.filter((p: Product) => !p.supplier_id);
+          setUnassignedProducts(unassigned);
+        }
+      } else if (selectedSupplierId !== "create_new") {
+        // Load products for specific supplier
+        const productsRes = await fetch("/api/section-products?active=true");
+        const productsData = await productsRes.json();
+        if (productsData.success) {
+          const filtered = productsData.data.filter((p: Product) => p.supplier_id === Number(selectedSupplierId));
+          setSupplierProducts(filtered);
+        }
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -83,6 +106,26 @@ export default function SuppliersCategoriesPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (isAuthorized) {
+      fetch("/api/section-products?active=true")
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            const count = data.data.filter((p: Product) => !p.supplier_id).length;
+            setUnassignedCount(count);
+          }
+        });
+    }
+  }, [isAuthorized, selectedSupplierId]); 
+
+  const dynamicTabs = [
+    ...(unassignedCount > 0 ? [{ id: "unsorted", label: `Неразобранное (${unassignedCount})`, icon: "⚠️" }] : []),
+    { id: "suppliers", label: "Все поставщики", icon: "🏢" }, // Overview tab
+    ...suppliers.map(s => ({ id: s.id, label: s.name, icon: "📦" })),
+    { id: "create_new", label: "Добавить", icon: "➕" }
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -93,14 +136,31 @@ export default function SuppliersCategoriesPage() {
       />
 
       <div className="max-w-7xl mx-auto px-4 py-4">
-        <TabNavigation
-          tabs={TABS}
-          activeTab={activeTab}
-          onTabChange={(tabId) => setActiveTab(tabId as TabType)}
-        />
+        <div className="mb-6 overflow-x-auto pb-2">
+          <TabNavigation
+            tabs={dynamicTabs}
+            activeTab={String(selectedSupplierId)}
+            onTabChange={(tabId) => {
+              if (tabId === "create_new") {
+                setShowCreateModal(true);
+              } else {
+                setSelectedSupplierId(tabId);
+              }
+            }}
+          />
+        </div>
 
         <div className="bg-white rounded-lg shadow-sm">
-          {activeTab === "suppliers" && (
+          {selectedSupplierId === "unsorted" && (
+            <GenericProductListTab
+              products={unassignedProducts}
+              suppliers={suppliers}
+              onReload={loadData}
+              title="⚠️ Нераспределенные товары"
+            />
+          )}
+
+          {selectedSupplierId === "suppliers" && (
             <SuppliersTab
               suppliers={suppliers}
               setSuppliers={setSuppliers}
@@ -109,17 +169,25 @@ export default function SuppliersCategoriesPage() {
             />
           )}
 
-          {activeTab === "categories" && (
-            <CategoriesTab
-              categories={categories}
-              setCategories={setCategories}
+          {selectedSupplierId !== "suppliers" && selectedSupplierId !== "unsorted" && (
+            <GenericProductListTab
+              products={supplierProducts}
               suppliers={suppliers}
-              loading={loading}
               onReload={loadData}
+              title="📦 Товары поставщика"
             />
           )}
         </div>
       </div>
+
+      <CreateSupplierModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSuccess={() => {
+          setShowCreateModal(false);
+          loadData();
+        }}
+      />
     </div>
   );
 }

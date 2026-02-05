@@ -116,13 +116,19 @@ function CustomPageContent() {
       const suppliersData = await suppliersRes.json();
       if (suppliersData.success) {
         setSuppliers(suppliersData.data);
-        if (suppliersData.data.length > 0 && productsData.success) {
-          const supplierWithProducts = suppliersData.data.find((s: Supplier) =>
-            productsData.data.some((p: Product) => p.supplier_id === s.id)
-          );
-          setSelectedSupplierId(
-            supplierWithProducts?.id || suppliersData.data[0].id
-          );
+        
+        // Auto-select first supplier or "Other" if no suppliers
+        if (!selectedSupplierId) {
+          if (suppliersData.data.length > 0) {
+            // Try to find supplier with products
+            const supplierWithProducts = suppliersData.data.find((s: Supplier) =>
+              productsData.data.some((p: Product) => p.supplier_id === s.id)
+            );
+            setSelectedSupplierId(supplierWithProducts?.id || suppliersData.data[0].id);
+          } else if (productsData.data.some((p: Product) => !p.supplier_id)) {
+            // No suppliers but have unassigned products -> select "Other"
+            setSelectedSupplierId(-1);
+          }
         }
       }
 
@@ -265,7 +271,14 @@ function CustomPageContent() {
   // Filter products for selected supplier
   const currentProducts = useMemo(() => {
     if (!selectedSupplierId) return [];
-    let filtered = productsBySupplier.grouped[selectedSupplierId] || [];
+    
+    let filtered: Product[] = [];
+    
+    if (selectedSupplierId === -1) {
+      filtered = productsBySupplier.noSupplier;
+    } else {
+      filtered = productsBySupplier.grouped[selectedSupplierId] || [];
+    }
 
     if (searchQuery.trim()) {
       filtered = filtered.filter((p) =>
@@ -277,11 +290,23 @@ function CustomPageContent() {
   }, [selectedSupplierId, productsBySupplier, searchQuery]);
 
   // Suppliers that have products in this section
-  const suppliersWithProducts = useMemo(() => {
-    return suppliers.filter(
+  // Managers see all suppliers, others see only those with products
+  const visibleSuppliers = useMemo(() => {
+    let list = canManage ? [...suppliers] : suppliers.filter(
       (s) => productsBySupplier.grouped[s.id]?.length > 0
     );
-  }, [suppliers, productsBySupplier]);
+
+    // Add "Other" tab if there are products with no supplier
+    if (productsBySupplier.noSupplier.length > 0) {
+      list.push({
+        id: -1,
+        name: "Разное",
+        phone: ""
+      });
+    }
+
+    return list;
+  }, [suppliers, productsBySupplier, canManage]);
 
   // Categories for selected supplier (for product form)
   const categoriesForSupplier = useMemo(() => {
@@ -354,7 +379,7 @@ function CustomPageContent() {
     );
   }
 
-// === RENDER: No Suppliers (First Time Setup) - but show products if they exist ===
+  // === RENDER: No Suppliers (First Time Setup) - but show products if they exist ===
   if (suppliers.length === 0 && products.length === 0) {
     return (
       <div className="min-h-screen bg-white">
@@ -391,72 +416,6 @@ function CustomPageContent() {
     );
   }
 
-  // === RENDER: No Suppliers but Products exist (synced from Poster) ===
-  if (suppliers.length === 0 && products.length > 0) {
-    // Filter products by search when no suppliers
-    const ungroupedFilteredProducts = products.filter((p) =>
-      searchQuery.trim()
-        ? p.name.toLowerCase().includes(searchQuery.toLowerCase())
-        : true
-    );
-
-    return (
-      <div className="min-h-screen bg-white">
-        <Header
-          sectionName={sectionName}
-          dept={dept}
-          canManage={canManage}
-          pendingOrdersCount={pendingOrdersCount}
-          onAddSupplier={() => router.push('/suppliers-categories')}
-          onOpenSettings={() => setShowSettingsModal(true)}
-        />
-        <main className="max-w-md mx-auto px-4 py-12 text-center">
-          <div className="text-6xl mb-6">📦</div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-3">
-            Нет товаров
-          </h2>
-          <p className="text-gray-500 mb-6">
-            Добавьте товары для этого отдела
-          </p>
-          {canManage && (
-            <button
-              onClick={() => setShowProductModal(true)}
-              className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
-            >
-              <span className="text-lg">+</span>
-              Добавить товар
-            </button>
-          )}
-        </main>
-
-        {/* Modals */}
-        <ProductModal
-          isOpen={showProductModal}
-          onClose={() => {
-            setShowProductModal(false);
-            setEditingProduct(null);
-            setProductForm({ name: "", unit: "шт", category_id: "" });
-          }}
-          form={productForm}
-          setForm={setProductForm}
-          onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
-          submitting={submitting}
-          categories={categoriesForSupplier}
-        />
-        
-        {/* Department Settings Modal */}
-      {currentSection && (
-        <DepartmentSettingsModal
-          isOpen={showSettingsModal}
-          onClose={() => setShowSettingsModal(false)}
-          section={currentSection}
-          onUpdate={loadData}
-        />
-      )}
-    </div>
-  );
-}
-
   // === RENDER: Normal View (Suppliers + Products) ===
   return (
     <div className="min-h-screen bg-white">
@@ -471,15 +430,16 @@ function CustomPageContent() {
 
       {/* Supplier Tabs */}
       <SupplierTabs
-        suppliers={suppliersWithProducts}
+        suppliers={visibleSuppliers}
         selectedId={selectedSupplierId}
         onSelect={setSelectedSupplierId}
-        productCounts={Object.fromEntries(
-          Object.entries(productsBySupplier.grouped).map(([id, prods]) => [
+        productCounts={Object.fromEntries([
+          ...Object.entries(productsBySupplier.grouped).map(([id, prods]) => [
             id,
             prods.length,
-          ])
-        )}
+          ]),
+          ['-1', productsBySupplier.noSupplier.length]
+        ])}
       />
 
       {/* Search */}
@@ -594,20 +554,21 @@ function CustomPageContent() {
         </div>
       )}
 
-        <ProductModal
-          isOpen={showProductModal}
-          onClose={() => {
-            setShowProductModal(false);
-            setEditingProduct(null);
-            setProductForm({ name: "", unit: "шт", category_id: "" });
-          }}
-          form={productForm}
-          setForm={setProductForm}
-          onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
-          submitting={submitting}
-          categories={categoriesForSupplier}
-        />
-        
+      {/* Modals */}
+      <ProductModal
+        isOpen={showProductModal}
+        onClose={() => {
+          setShowProductModal(false);
+          setEditingProduct(null);
+          setProductForm({ name: "", unit: "шт", category_id: "" });
+        }}
+        form={productForm}
+        setForm={setProductForm}
+        onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
+        submitting={submitting}
+        categories={categoriesForSupplier}
+      />
+      
       {/* Department Settings Modal */}
       {currentSection && (
         <DepartmentSettingsModal

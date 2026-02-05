@@ -31,6 +31,8 @@ export interface Product {
   restaurant_id: string;
   name: string;
   category_id?: number;
+  category_name?: string;
+  section_name?: string;
   supplier_id?: number;
   poster_id?: string;
   unit?: string;
