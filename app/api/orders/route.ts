@@ -211,7 +211,7 @@ export async function PATCH(request: NextRequest) {
     if (auth instanceof NextResponse) {
       return auth;
     }
-    const { restaurantId } = auth;
+    const { restaurantId, userId, userRole } = auth;
 
     const body = await request.json();
     const { id, status, order_data } = body;
@@ -221,6 +221,46 @@ export async function PATCH(request: NextRequest) {
         { success: false, error: "Order ID is required" },
         { status: 400 }
       );
+    }
+
+    // Check permissions based on status transition
+    const isAdminOrManager = ["admin", "manager"].includes(userRole || "");
+    
+    // For status updates, check specific permissions
+    if (status && !isAdminOrManager && userId) {
+      // Get user's permissions
+      const userPermissions = await withTenant(restaurantId, async (client) => {
+        const result = await client.query(
+          `SELECT 
+             bool_or(us.can_send_orders) as can_send,
+             bool_or(us.can_receive_supplies) as can_receive
+           FROM user_sections us
+           JOIN sections s ON s.id = us.section_id
+           WHERE us.user_id = $1 AND s.restaurant_id = $2`,
+          [userId, restaurantId]
+        );
+        return result.rows[0] || { can_send: false, can_receive: false };
+      });
+
+      // Validate status transition permissions
+      if (status === "sent" && !userPermissions.can_send) {
+        return NextResponse.json<ApiResponse>(
+          { success: false, error: "You don't have permission to send orders" },
+          { status: 403 }
+        );
+      }
+      if (status === "delivered" && !userPermissions.can_receive) {
+        return NextResponse.json<ApiResponse>(
+          { success: false, error: "You don't have permission to confirm deliveries" },
+          { status: 403 }
+        );
+      }
+      if (status === "cancelled") {
+        return NextResponse.json<ApiResponse>(
+          { success: false, error: "Only managers can cancel orders" },
+          { status: 403 }
+        );
+      }
     }
 
     const order = await withTenant(restaurantId, async (client) => {
@@ -261,7 +301,7 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
-// DELETE /api/orders - Delete order
+// DELETE /api/orders - Delete order (admin/manager only)
 export async function DELETE(request: NextRequest) {
   try {
     // Authenticate and get restaurant ID
@@ -269,7 +309,15 @@ export async function DELETE(request: NextRequest) {
     if (auth instanceof NextResponse) {
       return auth;
     }
-    const { restaurantId } = auth;
+    const { restaurantId, userRole } = auth;
+
+    // Only admin/manager can delete orders
+    if (!["admin", "manager"].includes(userRole || "")) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, error: "Only managers can delete orders" },
+        { status: 403 }
+      );
+    }
 
     const { searchParams } = new URL(request.url);
     const orderId = searchParams.get("id");

@@ -160,3 +160,19 @@ export interface PosterSupplier {
   supplier_phone?: string;
   supplier_address?: string;
 }
+
+// User Section Permissions
+export interface UserSectionPermission {
+  user_id: number;
+  section_id: number;
+  section_name?: string;
+  can_send_orders: boolean;
+  can_receive_supplies: boolean;
+}
+
+// User permissions summary (for current user across all their sections)
+export interface UserOrderPermissions {
+  canSendOrders: boolean;      // Can send orders via WhatsApp (any section)
+  canReceiveSupplies: boolean; // Can confirm delivery and adjust (any section)
+  sectionPermissions: UserSectionPermission[]; // Detailed per-section permissions
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-config";
-import { withoutTenant } from "@/lib/db";
+import { withoutTenant, withTenant } from "@/lib/db";
 import { PosterAPI } from "@/lib/poster-api";
 
 export async function POST(request: NextRequest) {
@@ -14,7 +14,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const userRole = session.user.role || "staff";
+    const userId = parseInt(session.user.id);
     const restaurantId = session.user.restaurantId;
+
+    // Check permission: only admin/manager OR users with can_receive_supplies permission
+    let hasPermission = ["admin", "manager"].includes(userRole);
+    
+    if (!hasPermission) {
+      // Check if user has can_receive_supplies permission in any section
+      const permissions = await withTenant(restaurantId, async (client) => {
+        const result = await client.query(
+          `SELECT 1 FROM user_sections us
+           JOIN sections s ON s.id = us.section_id
+           WHERE us.user_id = $1 AND s.restaurant_id = $2 AND us.can_receive_supplies = true
+           LIMIT 1`,
+          [userId, restaurantId]
+        );
+        return result.rows.length > 0;
+      });
+      hasPermission = permissions;
+    }
+
+    if (!hasPermission) {
+      return NextResponse.json(
+        { success: false, error: "You don't have permission to create supply orders" },
+        { status: 403 }
+      );
+    }
 
     // Get restaurant's Poster token
     const restaurant = await withoutTenant(async (client) => {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart, useRestaurant, useStore } from "@/store/useStore";
 import { api } from "@/lib/api-client";
+import { PageHeader } from "@/components/layout/PageHeader";
 import type { CartItem } from "@/types";
 
 type SubmitState = 'idle' | 'submitting' | 'success' | 'error';
@@ -76,7 +77,9 @@ export default function CartPage() {
       if (response.success) {
         setSubmittedOrderId(response.data?.id || null);
         setSubmitState('success');
-        // Don't clear cart immediately - allow user to add more
+        // Clear cart immediately after successful order
+        cart.clear();
+        setNotes("");
       } else {
         throw new Error(response.error || "Failed to submit order");
       }
@@ -107,19 +110,11 @@ export default function CartPage() {
   if (submitState === 'success') {
     return (
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
-        <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-          <div className="max-w-4xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <h1 className="text-xl font-semibold text-gray-800">
-                Заказ отправлен
-              </h1>
-              <div className="text-sm text-gray-600">
-                {restaurant.current?.name || "Ресторан"}
-              </div>
-            </div>
-          </div>
-        </div>
+        <PageHeader
+          title="Заказ отправлен"
+          showBackButton={false}
+          rightContent={restaurant.current?.name || "Ресторан"}
+        />
 
         {/* Success Content */}
         <div className="max-w-4xl mx-auto p-4">
@@ -166,27 +161,11 @@ export default function CartPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link
-                href={currentSection ? `/custom?section_id=${currentSection.id}&dept=${encodeURIComponent(currentSection.name)}` : "/"}
-                className="text-gray-600 hover:text-gray-800 transition-colors"
-              >
-                ← Назад
-              </Link>
-              <h1 className="text-xl font-semibold text-gray-800">
-                Корзина
-              </h1>
-            </div>
-            <div className="text-sm text-gray-600">
-              {restaurant.current?.name || "Ресторан"}
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Корзина"
+        backHref={currentSection ? `/custom?section_id=${currentSection.id}&dept=${encodeURIComponent(currentSection.name)}` : "/"}
+        rightContent={restaurant.current?.name || "Ресторан"}
+      />
 
       {/* Cart Content */}
       <div className="max-w-4xl mx-auto p-4">
@@ -340,6 +319,7 @@ function CartItemRow({
             <button
               onClick={() => onQuantityChange(item.cartId, item.quantity - 1)}
               className="w-9 h-9 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors text-lg font-medium"
+              aria-label="Уменьшить количество"
             >
               −
             </button>
@@ -350,10 +330,12 @@ function CartItemRow({
                 onQuantityChange(item.cartId, parseInt(e.target.value) || 0)
               }
               className="w-14 text-center border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+              aria-label={`Количество ${item.name}`}
             />
             <button
               onClick={() => onQuantityChange(item.cartId, item.quantity + 1)}
               className="w-9 h-9 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors text-lg font-medium"
+              aria-label="Увеличить количество"
             >
               +
             </button>
@@ -361,6 +343,7 @@ function CartItemRow({
           <button
             onClick={onRemove}
             className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            aria-label={`Удалить ${item.name}`}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path

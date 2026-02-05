@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
 
-// Debug endpoint to check auth config (remove in production later)
+// Debug endpoint - DISABLED in production
+// Only shows basic config check, no secrets
 export async function GET() {
-  const authSecret = process.env.AUTH_SECRET;
-  const authUrl = process.env.AUTH_URL;
-  const cookieStore = await cookies();
-  const allCookies = cookieStore.getAll();
-  
+  // Block in production
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json(
+      { success: false, error: "Not available in production" },
+      { status: 404 }
+    );
+  }
+
   return NextResponse.json({
-    hasAuthSecret: !!authSecret,
-    authSecretLength: authSecret?.length || 0,
-    authSecretPrefix: authSecret?.substring(0, 4) || "none",
-    authSecretSuffix: authSecret?.substring(authSecret.length - 4) || "none",
-    authUrl: authUrl || "not set",
     nodeEnv: process.env.NODE_ENV,
-    cookies: allCookies.map(c => ({ name: c.name, valueLength: c.value.length })),
+    hasAuthSecret: !!process.env.AUTH_SECRET,
+    hasAuthUrl: !!process.env.AUTH_URL,
+    hasDatabaseUrl: !!process.env.DATABASE_URL,
+    // Never expose actual secret values, even partially
   });
 }

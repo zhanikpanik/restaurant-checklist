@@ -25,6 +25,12 @@ interface Section {
   emoji: string;
 }
 
+interface SectionPermission {
+  sectionId: number;
+  canSendOrders: boolean;
+  canReceiveSupplies: boolean;
+}
+
 interface UserFormData {
   email: string;
   password?: string;
@@ -60,6 +66,7 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
   const [isSectionsModalOpen, setIsSectionsModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedSectionIds, setSelectedSectionIds] = useState<number[]>([]);
+  const [sectionPermissions, setSectionPermissions] = useState<Record<number, SectionPermission>>({});
   const [formData, setFormData] = useState<UserFormData>({
     email: "",
     password: "",
@@ -141,10 +148,17 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
   const handleSaveSections = async () => {
     if (!selectedUser) return;
 
+    // Build section assignments with permissions
+    const sectionsWithPermissions = selectedSectionIds.map((sectionId) => ({
+      section_id: sectionId,
+      can_send_orders: sectionPermissions[sectionId]?.canSendOrders ?? false,
+      can_receive_supplies: sectionPermissions[sectionId]?.canReceiveSupplies ?? false,
+    }));
+
     try {
       const response = await api.post("/api/user-sections", {
         user_id: selectedUser.id,
-        section_ids: selectedSectionIds,
+        sections: sectionsWithPermissions,
       });
 
       if (response.success) {
@@ -162,6 +176,7 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
         );
         setIsSectionsModalOpen(false);
         setSelectedUser(null);
+        setSectionPermissions({});
       } else {
         alert(response.error || "Ошибка при сохранении отделов");
       }
@@ -201,18 +216,72 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
     setIsEditModalOpen(true);
   };
 
-  const openSectionsModal = (user: User) => {
+  const openSectionsModal = async (user: User) => {
     setSelectedUser(user);
     setSelectedSectionIds(user.assigned_sections?.map((s) => s.id) || []);
+    
+    // Load existing permissions for this user
+    try {
+      const response = await api.get<{ sectionId: number; canSendOrders: boolean; canReceiveSupplies: boolean }[]>(
+        `/api/user-sections?user_id=${user.id}&permissions=true`
+      );
+      
+      if (response.success && response.data) {
+        const perms: Record<number, SectionPermission> = {};
+        response.data.forEach((p) => {
+          perms[p.sectionId] = {
+            sectionId: p.sectionId,
+            canSendOrders: p.canSendOrders ?? false,
+            canReceiveSupplies: p.canReceiveSupplies ?? false,
+          };
+        });
+        setSectionPermissions(perms);
+      } else {
+        setSectionPermissions({});
+      }
+    } catch (err) {
+      console.error("Error loading permissions:", err);
+      setSectionPermissions({});
+    }
+    
     setIsSectionsModalOpen(true);
   };
 
   const toggleSection = (sectionId: number) => {
-    setSelectedSectionIds((prev) =>
-      prev.includes(sectionId)
-        ? prev.filter((id) => id !== sectionId)
-        : [...prev, sectionId]
-    );
+    setSelectedSectionIds((prev) => {
+      const isCurrentlySelected = prev.includes(sectionId);
+      if (isCurrentlySelected) {
+        // Remove section - also clear permissions
+        setSectionPermissions((perms) => {
+          const newPerms = { ...perms };
+          delete newPerms[sectionId];
+          return newPerms;
+        });
+        return prev.filter((id) => id !== sectionId);
+      } else {
+        // Add section - initialize with default permissions
+        setSectionPermissions((perms) => ({
+          ...perms,
+          [sectionId]: {
+            sectionId,
+            canSendOrders: false,
+            canReceiveSupplies: false,
+          },
+        }));
+        return [...prev, sectionId];
+      }
+    });
+  };
+
+  const togglePermission = (sectionId: number, permission: "canSendOrders" | "canReceiveSupplies") => {
+    setSectionPermissions((prev) => ({
+      ...prev,
+      [sectionId]: {
+        ...prev[sectionId],
+        sectionId,
+        [permission]: !prev[sectionId]?.[permission],
+      },
+    }));
   };
 
   if (loading) {
@@ -460,37 +529,76 @@ export function UsersTab({ users, setUsers, sections, loading }: UsersTabProps) 
               Пользователь: <span className="font-medium text-gray-900">{selectedUser?.name}</span>
             </p>
             <p className="text-xs text-gray-500 mt-1">
-              Выберите отделы, к которым пользователь будет иметь доступ
+              Выберите отделы и настройте права доступа
             </p>
           </div>
 
-          <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="space-y-2 max-h-80 overflow-y-auto">
             {sections.length === 0 ? (
               <p className="text-gray-500 text-center py-4">
                 Нет доступных отделов.
               </p>
             ) : (
-              sections.map((section) => (
-                <label
-                  key={section.id}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    selectedSectionIds.includes(section.id)
-                      ? "border-blue-500 bg-blue-50"
-                      : "border-gray-200 hover:bg-gray-50"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedSectionIds.includes(section.id)}
-                    onChange={() => toggleSection(section.id)}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                  />
-                  <span className="text-xl">{section.emoji}</span>
-                  <span className="font-medium text-gray-900">
-                    {section.name}
-                  </span>
-                </label>
-              ))
+              sections.map((section) => {
+                const isSelected = selectedSectionIds.includes(section.id);
+                const perms = sectionPermissions[section.id];
+                
+                return (
+                  <div
+                    key={section.id}
+                    className={`rounded-lg border transition-colors ${
+                      isSelected
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    {/* Section checkbox */}
+                    <label
+                      className={`flex items-center gap-3 p-3 cursor-pointer ${
+                        isSelected ? "" : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSection(section.id)}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-xl">{section.emoji}</span>
+                      <span className="font-medium text-gray-900">
+                        {section.name}
+                      </span>
+                    </label>
+                    
+                    {/* Permission toggles - only show when section is selected */}
+                    {isSelected && (
+                      <div className="px-3 pb-3 pt-1 border-t border-blue-200 bg-blue-50/50">
+                        <p className="text-xs text-gray-500 mb-2">Права доступа:</p>
+                        <div className="flex flex-wrap gap-3">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={perms?.canSendOrders ?? false}
+                              onChange={() => togglePermission(section.id, "canSendOrders")}
+                              className="w-3.5 h-3.5 text-green-600 rounded border-gray-300 focus:ring-green-500"
+                            />
+                            <span className="text-xs text-gray-700">Отправка заказов</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={perms?.canReceiveSupplies ?? false}
+                              onChange={() => togglePermission(section.id, "canReceiveSupplies")}
+                              className="w-3.5 h-3.5 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                            />
+                            <span className="text-xs text-gray-700">Приемка товаров</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
 

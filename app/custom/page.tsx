@@ -599,11 +599,12 @@ function Header({
   onOpenSettings?: () => void;
 }) {
   return (
-    <header className="bg-purple-600 text-white px-4 py-4">
+    <header className="bg-purple-600 text-white px-4 py-4 sticky top-0 z-10">
       <div className="max-w-md mx-auto flex items-center">
         <Link
           href="/"
           className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
+          aria-label="На главную"
         >
           <svg
             className="w-6 h-6 text-white"
@@ -643,7 +644,7 @@ function Header({
               <button
                 onClick={onOpenSettings}
                 className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
-                title="Настройки отдела"
+                aria-label="Настройки отдела"
               >
                 <span className="text-lg">⚙️</span>
               </button>

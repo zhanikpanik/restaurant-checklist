@@ -177,14 +177,30 @@ export async function setupDatabaseSchema() {
     `);
 
     // Create user_sections junction table (Many-to-many: users <-> sections)
+    // Includes permission flags for order flow control
     await client.query(`
       CREATE TABLE IF NOT EXISTS user_sections (
         id SERIAL PRIMARY KEY,
         user_id INTEGER NOT NULL,
         section_id INTEGER NOT NULL REFERENCES sections(id) ON DELETE CASCADE,
+        can_send_orders BOOLEAN DEFAULT false,
+        can_receive_supplies BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, section_id)
       );
+    `);
+
+    // Add permission columns if they don't exist (for existing databases)
+    await client.query(`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sections' AND column_name = 'can_send_orders') THEN
+          ALTER TABLE user_sections ADD COLUMN can_send_orders BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'user_sections' AND column_name = 'can_receive_supplies') THEN
+          ALTER TABLE user_sections ADD COLUMN can_receive_supplies BOOLEAN DEFAULT false;
+        END IF;
+      END $$;
     `);
 
     // Create indexes for better performance

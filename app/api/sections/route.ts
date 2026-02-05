@@ -52,7 +52,15 @@ export async function POST(request: NextRequest) {
     if (auth instanceof NextResponse) {
       return auth;
     }
-    const { restaurantId } = auth;
+    const { restaurantId, userRole } = auth;
+
+    // Only admin/manager can create sections
+    if (!["admin", "manager"].includes(userRole || "")) {
+      return NextResponse.json(
+        { success: false, error: "Only managers can create sections" },
+        { status: 403 }
+      );
+    }
 
     const body = await request.json();
     const { name, emoji, poster_storage_id } = body;
@@ -98,7 +106,15 @@ export async function PATCH(request: NextRequest) {
     if (auth instanceof NextResponse) {
       return auth;
     }
-    const { restaurantId } = auth;
+    const { restaurantId, userRole } = auth;
+
+    // Only admin/manager can update sections
+    if (!["admin", "manager"].includes(userRole || "")) {
+      return NextResponse.json(
+        { success: false, error: "Only managers can update sections" },
+        { status: 403 }
+      );
+    }
 
     const body = await request.json();
     const { id, name, emoji, poster_storage_id } = body;
@@ -165,7 +181,15 @@ export async function DELETE(request: NextRequest) {
     if (auth instanceof NextResponse) {
       return auth;
     }
-    const { restaurantId } = auth;
+    const { restaurantId, userRole } = auth;
+
+    // Only admin/manager can delete sections
+    if (!["admin", "manager"].includes(userRole || "")) {
+      return NextResponse.json(
+        { success: false, error: "Only managers can delete sections" },
+        { status: 403 }
+      );
+    }
 
     const result = await withTenant(restaurantId, async (client) => {
       // Check if section is from Poster

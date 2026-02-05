@@ -11,66 +11,66 @@ interface PageHeaderProps {
   rightContent?: ReactNode;
   showBackButton?: boolean;
   backUrl?: string;
+  variant?: "white" | "purple";
 }
 
 export function PageHeader({
   title,
   subtitle,
   backHref,
-  backLabel = "Главная",
+  backLabel,
   rightContent,
   showBackButton = true,
   backUrl,
+  variant = "white",
 }: PageHeaderProps) {
   const finalBackHref = backUrl || backHref || "/";
   
+  const bgClass = variant === "purple" 
+    ? "bg-purple-600 text-white" 
+    : "bg-white text-gray-800 border-b shadow-sm";
+  
+  const textClass = variant === "purple" ? "text-white" : "text-gray-800";
+  const subtitleClass = variant === "purple" ? "text-white/75" : "text-gray-500";
+  const iconClass = variant === "purple" ? "text-white" : "text-gray-600";
+  const hoverClass = variant === "purple" ? "hover:bg-white/10" : "hover:bg-gray-100";
+  
   return (
-    <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-      <div className="max-w-7xl mx-auto px-3 py-3 md:px-4 md:py-4">
-        {/* Mobile: Stacked layout */}
-        <div className="flex flex-col gap-2 md:hidden">
-          <div className="flex items-center justify-between">
-            {showBackButton && (
-              <Link
-                href={finalBackHref}
-                className="text-gray-600 hover:text-gray-800 transition-colors text-sm"
+    <header className={`${bgClass} sticky top-0 z-10`}>
+      <div className="max-w-2xl mx-auto px-4 py-3 md:py-4">
+        <div className="flex items-center">
+          {showBackButton && (
+            <Link
+              href={finalBackHref}
+              className={`flex items-center justify-center w-10 h-10 ${hoverClass} rounded-full transition-all duration-200 active:scale-95 mr-3`}
+              aria-label={backLabel || "Назад"}
+            >
+              <svg
+                className={`w-6 h-6 ${iconClass}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth="2"
               >
-                ← {backLabel}
-              </Link>
-            )}
-            {rightContent && (
-              <div className="text-sm text-gray-600">{rightContent}</div>
-            )}
-          </div>
-          <h1 className="text-lg font-semibold text-gray-800">{title}</h1>
-          {subtitle && (
-            <p className="text-sm text-gray-500">{subtitle}</p>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </Link>
           )}
-        </div>
-
-        {/* Desktop: Horizontal layout */}
-        <div className="hidden md:flex md:items-center md:justify-between">
-          <div className="flex items-center gap-4">
-            {showBackButton && (
-              <Link
-                href={finalBackHref}
-                className="text-gray-600 hover:text-gray-800 transition-colors"
-              >
-                ← {backLabel}
-              </Link>
+          <div className="flex-1">
+            <h1 className={`text-xl font-semibold ${textClass}`}>{title}</h1>
+            {subtitle && (
+              <p className={`text-sm ${subtitleClass}`}>{subtitle}</p>
             )}
-            <div>
-              <h1 className="text-xl font-semibold text-gray-800">{title}</h1>
-              {subtitle && (
-                <p className="text-sm text-gray-500">{subtitle}</p>
-              )}
-            </div>
           </div>
           {rightContent && (
-            <div className="text-sm text-gray-600">{rightContent}</div>
+            <div className={`text-sm ${subtitleClass}`}>{rightContent}</div>
           )}
         </div>
       </div>
-    </div>
+    </header>
   );
 }

@@ -139,7 +139,7 @@ export function OrdersTab({
     return supplierGroups;
   };
 
-  const sendToWhatsApp = (supplierName: string, items: any[], orderDate: Date) => {
+  const sendToWhatsApp = async (supplierName: string, items: any[], orders: Order[]) => {
     const supplier = suppliers.find((s) => s.name === supplierName);
 
     if (!supplier?.phone) {
@@ -154,7 +154,12 @@ export function OrdersTab({
       return;
     }
 
-    const dateStr = new Date(orderDate).toLocaleDateString("ru-RU");
+    // Get order IDs for status update
+    const orderIds = orders.map((o) => o.id);
+
+    // Use the date of the newest order for the message header
+    const latestDate = new Date(Math.max(...orders.map(o => new Date(o.created_at).getTime())));
+    const dateStr = latestDate.toLocaleDateString("ru-RU");
 
     let message = `Заказ от ${restaurantName}\n`;
     message += `Дата: ${dateStr}\n\n`;
@@ -173,6 +178,7 @@ export function OrdersTab({
 
     const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
 
+    // Open WhatsApp
     if (whatsappUrl.length > 2000) {
       const fallbackUrl = `https://wa.me/${cleanPhone}`;
       window.open(fallbackUrl, "_blank");
@@ -180,6 +186,29 @@ export function OrdersTab({
     } else {
       window.open(whatsappUrl, "_blank");
       toast.success("WhatsApp открыт");
+    }
+
+    // Update status to 'sent'
+    try {
+      const response = await api.post("/api/orders/bulk-update", {
+        ids: orderIds,
+        status: "sent",
+      });
+
+      if (response.success) {
+        setOrders((prev) =>
+          prev.map((o) =>
+            orderIds.includes(o.id) ? { ...o, status: "sent" } : o
+          )
+        );
+        toast.success("Заказы отмечены как отправленные");
+      } else {
+        console.error("Failed to update status:", response.error);
+        toast.warning("Не удалось обновить статус заказов");
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.warning("Не удалось обновить статус заказов");
     }
   };
 
@@ -364,7 +393,7 @@ export function OrdersTab({
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation();
-                            sendToWhatsApp(supplierName, group.items, group.orders[0].created_at);
+                            sendToWhatsApp(supplierName, group.items, group.orders);
                           }}
                         >
                           <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 24 24">
