@@ -133,19 +133,25 @@ export class PosterAPI {
   }
 
   // Post request for write operations
-  async postRequest<T = any>(endpoint: string, data: Record<string, any> = {}): Promise<T> {
+  async postRequest<T = any>(endpoint: string, data: Record<string, string> = {}): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
+    console.log("Poster POST request:", { url, token: this.accessToken?.substring(0, 10) + "...", data });
+
     try {
+      const body = new URLSearchParams({
+        ...data,
+        token: this.accessToken || ''
+      }).toString();
+      
+      console.log("Request body:", body);
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: new URLSearchParams({
-          ...data,
-          token: this.accessToken || ''
-        }).toString()
+        body
       });
 
       if (!response.ok) {
@@ -153,6 +159,7 @@ export class PosterAPI {
       }
 
       const result: PosterApiResponse<T> = await response.json();
+      console.log("Poster response:", result);
 
       if (result.error) {
         throw new Error(`Poster API Error (Code ${result.error.code}): ${result.error.message}`);

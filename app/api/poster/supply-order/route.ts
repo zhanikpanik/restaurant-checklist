@@ -35,6 +35,15 @@ export async function POST(request: NextRequest) {
         );
         return result.rows[0];
       });
+      
+      console.log("Restaurant data:", {
+        id: restaurantId,
+        hasToken: !!restaurant?.poster_token,
+        tokenLength: restaurant?.poster_token?.length,
+        tokenPreview: restaurant?.poster_token?.substring(0, 10) + "...",
+        accountName: restaurant?.poster_account_name
+      });
+      
     } catch (dbError) {
       console.error("Database error fetching restaurant:", dbError);
       return NextResponse.json(
@@ -44,7 +53,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!restaurant?.poster_token) {
-      // Poster not configured - this is OK, just skip
       console.log("Poster not configured for restaurant:", restaurantId);
       return NextResponse.json({
         success: true,
@@ -80,18 +88,22 @@ export async function POST(request: NextRequest) {
     // Create a PosterAPI instance with this restaurant's token
     const posterAPI = new PosterAPI(restaurant.poster_token);
 
+    const supplyData = {
+      supplier_id: Number(supplier_id) || 1,
+      storage_id: Number(storage_id) || 1,
+      ingredients: validItems.map((item: any) => ({
+        ingredient_id: String(item.ingredient_id),
+        quantity: Number(item.quantity) || 1,
+        price: Number(item.price) || 0,
+      })),
+      comment: comment || "Заказ из приложения",
+    };
+    
+    console.log("Sending to Poster:", JSON.stringify(supplyData, null, 2));
+
     try {
       // Create supply order in Poster
-      const result = await posterAPI.createSupplyOrder({
-        supplier_id: Number(supplier_id) || 1,
-        storage_id: Number(storage_id) || 1,
-        ingredients: validItems.map((item: any) => ({
-          ingredient_id: String(item.ingredient_id),
-          quantity: Number(item.quantity) || 1,
-          price: Number(item.price) || 0,
-        })),
-        comment: comment || "Заказ из приложения",
-      });
+      const result = await posterAPI.createSupplyOrder(supplyData);
 
       console.log("Poster supply order created:", result);
 
