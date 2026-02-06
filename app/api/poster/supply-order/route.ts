@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-config";
-import { withoutTenant, withTenant } from "@/lib/db";
+import { withoutTenant } from "@/lib/db";
 import { PosterAPI } from "@/lib/poster-api";
 
 export async function POST(request: NextRequest) {
@@ -15,82 +15,102 @@ export async function POST(request: NextRequest) {
     }
 
     const userRole = session.user.role || "staff";
-    const userId = parseInt(session.user.id);
     const restaurantId = session.user.restaurantId;
 
-    // Check permission: only admin/manager OR users with can_receive_supplies permission
-    let hasPermission = ["admin", "manager"].includes(userRole);
-    
-    if (!hasPermission) {
-      // Check if user has can_receive_supplies permission in any section
-      const permissions = await withTenant(restaurantId, async (client) => {
-        const result = await client.query(
-          `SELECT 1 FROM user_sections us
-           JOIN sections s ON s.id = us.section_id
-           WHERE us.user_id = $1 AND s.restaurant_id = $2 AND us.can_receive_supplies = true
-           LIMIT 1`,
-          [userId, restaurantId]
-        );
-        return result.rows.length > 0;
-      });
-      hasPermission = permissions;
-    }
-
-    if (!hasPermission) {
+    // Check permission: only admin/manager can create supplies
+    if (!["admin", "manager"].includes(userRole)) {
       return NextResponse.json(
-        { success: false, error: "You don't have permission to create supply orders" },
+        { success: false, error: "Only admins and managers can create supply orders" },
         { status: 403 }
       );
     }
 
     // Get restaurant's Poster token
-    const restaurant = await withoutTenant(async (client) => {
-      const result = await client.query(
-        "SELECT poster_token, poster_account_name FROM restaurants WHERE id = $1",
-        [restaurantId]
+    let restaurant;
+    try {
+      restaurant = await withoutTenant(async (client) => {
+        const result = await client.query(
+          "SELECT poster_token, poster_account_name FROM restaurants WHERE id = $1",
+          [restaurantId]
+        );
+        return result.rows[0];
+      });
+    } catch (dbError) {
+      console.error("Database error fetching restaurant:", dbError);
+      return NextResponse.json(
+        { success: false, error: "Database error" },
+        { status: 500 }
       );
-      return result.rows[0];
-    });
+    }
 
     if (!restaurant?.poster_token) {
-      return NextResponse.json(
-        { success: false, error: "Poster integration not configured for this restaurant" },
-        { status: 400 }
-      );
+      // Poster not configured - this is OK, just skip
+      console.log("Poster not configured for restaurant:", restaurantId);
+      return NextResponse.json({
+        success: true,
+        message: "Poster not configured - skipped",
+        skipped: true,
+      });
+    }
+
+    const body = await request.json();
+    const { supplier_id, storage_id, items, comment } = body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: "No items to send to Poster",
+        skipped: true,
+      });
+    }
+
+    // Filter out items without valid ingredient_id
+    const validItems = items.filter(item => 
+      item.ingredient_id && item.ingredient_id !== "undefined" && item.ingredient_id !== "null"
+    );
+
+    if (validItems.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: "No valid Poster items found",
+        skipped: true,
+      });
     }
 
     // Create a PosterAPI instance with this restaurant's token
     const posterAPI = new PosterAPI(restaurant.poster_token);
 
-    const body = await request.json();
-    const { supplier_id, storage_id, items, comment } = body;
+    try {
+      // Create supply order in Poster
+      const result = await posterAPI.createSupplyOrder({
+        supplier_id: Number(supplier_id) || 1,
+        storage_id: Number(storage_id) || 1,
+        ingredients: validItems.map((item: any) => ({
+          ingredient_id: String(item.ingredient_id),
+          quantity: Number(item.quantity) || 1,
+          price: Number(item.price) || 0,
+        })),
+        comment: comment || "Заказ из приложения",
+      });
 
-    if (!supplier_id || !items || !Array.isArray(items)) {
-      return NextResponse.json(
-        { success: false, error: "supplier_id and items are required" },
-        { status: 400 }
-      );
+      console.log("Poster supply order created:", result);
+
+      return NextResponse.json({
+        success: true,
+        data: result,
+        message: "Supply order sent to Poster successfully",
+      });
+    } catch (posterError) {
+      console.error("Poster API error:", posterError);
+      // Return success but with warning - don't block the delivery
+      return NextResponse.json({
+        success: true,
+        message: `Poster API error: ${posterError instanceof Error ? posterError.message : "Unknown"}`,
+        warning: true,
+      });
     }
-
-    // Create supply order in Poster
-    const result = await posterAPI.createSupplyOrder({
-      supplier_id: Number(supplier_id),
-      storage_id: Number(storage_id) || 1, // Default storage if not provided
-      ingredients: items.map((item: any) => ({
-        ingredient_id: item.ingredient_id,
-        quantity: item.quantity,
-        price: item.price || 0,
-      })),
-      comment: comment || "Заказ из приложения",
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: result,
-      message: "Supply order sent to Poster successfully",
-    });
   } catch (error) {
-    console.error("Error creating Poster supply order:", error);
+    console.error("Error in supply-order route:", error);
     return NextResponse.json(
       {
         success: false,

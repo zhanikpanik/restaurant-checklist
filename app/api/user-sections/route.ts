@@ -28,19 +28,44 @@ export async function GET(request: NextRequest) {
     const userRole = session.user.role || "staff";
     const isAdminOrManager = ["admin", "manager"].includes(userRole);
 
-    const sections = await withTenant(session.user.restaurantId, async (client) => {
-      const result = await client.query(
-        `SELECT s.id, s.name, s.emoji, s.poster_storage_id,
-                COALESCE(us.can_send_orders, false) as can_send_orders,
-                COALESCE(us.can_receive_supplies, false) as can_receive_supplies
-         FROM user_sections us
-         JOIN sections s ON s.id = us.section_id
-         WHERE us.user_id = $1 AND s.is_active = true
-         ORDER BY s.name`,
-        [targetUserId]
-      );
-      return result.rows;
-    });
+    let sections: any[] = [];
+    
+    try {
+      sections = await withTenant(session.user.restaurantId, async (client) => {
+        // Try with permission columns first
+        try {
+          const result = await client.query(
+            `SELECT s.id, s.name, s.emoji, s.poster_storage_id,
+                    COALESCE(us.can_send_orders, false) as can_send_orders,
+                    COALESCE(us.can_receive_supplies, false) as can_receive_supplies
+             FROM user_sections us
+             JOIN sections s ON s.id = us.section_id
+             WHERE us.user_id = $1 AND s.is_active = true
+             ORDER BY s.name`,
+            [targetUserId]
+          );
+          return result.rows;
+        } catch (queryError) {
+          // Fallback if permission columns don't exist
+          console.log("Fallback query - permission columns may not exist");
+          const result = await client.query(
+            `SELECT s.id, s.name, s.emoji, s.poster_storage_id,
+                    false as can_send_orders,
+                    false as can_receive_supplies
+             FROM user_sections us
+             JOIN sections s ON s.id = us.section_id
+             WHERE us.user_id = $1 AND s.is_active = true
+             ORDER BY s.name`,
+            [targetUserId]
+          );
+          return result.rows;
+        }
+      });
+    } catch (dbError) {
+      console.error("Database error in user-sections:", dbError);
+      // Return empty sections instead of failing
+      sections = [];
+    }
 
     // If permissions only requested, return aggregated permissions
     if (permissionsOnly) {
