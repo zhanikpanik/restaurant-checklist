@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
@@ -27,7 +27,7 @@ export function ProcurementTab({
   setOrders,
   suppliers,
   products,
-  loading,
+  loading: _loading,
   restaurantName,
   onReload,
 }: ProcurementTabProps) {
@@ -443,7 +443,7 @@ export function ProcurementTab({
                                     </div>
                                     
                                     <Button 
-                                        variant="outline" 
+                                        variant="secondary" 
                                         className="w-full"
                                         onClick={() => handleBatchUpdateStatus(group.items, 'delivered')}
                                     >

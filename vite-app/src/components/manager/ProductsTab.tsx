@@ -5,7 +5,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { SkeletonCard, SkeletonTable } from "@/components/ui/Skeleton";
-import { EmptyStateIllustrated } from "@/components/ui/EmptyState";
 import { Pagination } from "@/components/ui/Pagination";
 import { usePagination } from "@/hooks/usePagination";
 import { api } from "@/lib/api-client";

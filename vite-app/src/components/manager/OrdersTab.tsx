@@ -30,7 +30,7 @@ export function OrdersTab({
   products,
   loading,
   restaurantName,
-  onReload,
+  onReload: _onReload,
 }: OrdersTabProps) {
   const toast = useToast();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
