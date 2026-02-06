@@ -331,179 +331,7 @@ export default function OrdersPage() {
         {/* === ACTIVE TAB === */}
         {activeTab === "active" && (
           <>
-            {/* STATE 1: Items in transit - RECEIVE MODE */}
-            {hasInTransit && (
-              <div className="space-y-6">
-                <div className="text-center py-4">
-                  <div className="inline-flex items-center gap-2 bg-green-500/20 text-green-400 px-4 py-2 rounded-full text-sm font-medium">
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                    Ожидаем доставку
-                  </div>
-                </div>
-
-                {sentBySupplier.map(([supplier, group]) => (
-                  <div key={supplier} className="bg-slate-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-slate-700">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
-                          <span className="text-xl">🚚</span>
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-white">{supplier}</h3>
-                          <p className="text-sm text-slate-400">{group.items.length} позиций</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="divide-y divide-slate-700">
-                      {group.items.map((item, idx) => (
-                        <div key={idx} className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-white">{item.name}</span>
-                            <span className="text-slate-400 text-sm">
-                              Заказано: {item._orderedQty} {item.unit || "шт"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-400 text-sm">Получено:</span>
-                            <input
-                              type="number"
-                              value={item._receivedQty}
-                              onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
-                              className="w-24 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-center focus:outline-none focus:border-green-500"
-                              step="0.1"
-                            />
-                            <span className="text-slate-400 text-sm">{item.unit || "шт"}</span>
-                            {item._receivedQty !== item._orderedQty && (
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                item._receivedQty < item._orderedQty 
-                                  ? "bg-red-500/20 text-red-400"
-                                  : "bg-blue-500/20 text-blue-400"
-                              }`}>
-                                {item._receivedQty < item._orderedQty ? "−" : "+"}
-                                {Math.abs(item._receivedQty - item._orderedQty)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="p-4 bg-slate-700/50">
-                      <button
-                        onClick={() => handleConfirmDelivery(supplier, group.items)}
-                        disabled={updating}
-                        className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {updating ? (
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <span>✓</span>
-                            Принять поставку
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-
-
-              </div>
-            )}
-
-            {/* STATE 2: No in-transit, but pending items - SEND MODE */}
-            {!hasInTransit && hasPending && (
-              <div className="space-y-4">
-                <div className="text-center py-4">
-                  <div className="inline-flex items-center gap-2 bg-amber-500/20 text-amber-400 px-4 py-2 rounded-full text-sm font-medium">
-                    <span className="w-2 h-2 bg-amber-400 rounded-full" />
-                    {activeItemCount} позиций к отправке
-                  </div>
-                </div>
-
-                {/* Items list */}
-                <div className="space-y-2">
-                  {pendingItems.map(item => {
-                    if (item._quantity === 0) return null;
-                    return (
-                      <div 
-                        key={item._key}
-                        className="bg-slate-800 rounded-xl p-4 flex items-center gap-4"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-white truncate">{item.name}</p>
-                          <p className="text-sm text-slate-400">{item.supplier || "—"}</p>
-                        </div>
-                        
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handlePendingQuantityChange(item._key, -1)}
-                            className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center"
-                          >
-                            −
-                          </button>
-                          <span className="w-10 text-center text-white font-medium">
-                            {item._quantity}
-                          </span>
-                          <button
-                            onClick={() => handlePendingQuantityChange(item._key, 1)}
-                            className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        <button
-                          onClick={() => handleRemoveItem(item._key)}
-                          className="w-8 h-8 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Supplier breakdown - shown when ready to send */}
-                <div className="mt-6 space-y-3">
-                  <h3 className="text-sm font-medium text-slate-400">Поставщики</h3>
-                  {pendingBySupplier.map(([supplier, group]) => (
-                    <div key={supplier} className="bg-slate-800 rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-sm">
-                            📦
-                          </div>
-                          <div>
-                            <p className="font-medium text-white">{supplier}</p>
-                            <p className="text-xs text-slate-400">{group.items.length} позиций</p>
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => sendToWhatsApp(supplier, group.items)}
-                          disabled={sendingSupplier === supplier}
-                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
-                        >
-                          {sendingSupplier === supplier ? (
-                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          ) : (
-                            <>
-                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-                              </svg>
-                              Отправить
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* STATE 3: Nothing active - DONE */}
+            {/* Nothing active - DONE state */}
             {!hasInTransit && !hasPending && (
               <div className="text-center py-16">
                 <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -517,6 +345,182 @@ export default function OrdersPage() {
                 >
                   Перейти к отделам
                 </Link>
+              </div>
+            )}
+
+            {/* Show content when there's something active */}
+            {(hasInTransit || hasPending) && (
+              <div className="space-y-8">
+                
+                {/* SECTION 1: Pending items to send */}
+                {hasPending && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-amber-400 rounded-full" />
+                      <h2 className="text-sm font-medium text-slate-400">
+                        К отправке · {activeItemCount} позиций
+                      </h2>
+                    </div>
+
+                    {/* Items list */}
+                    <div className="space-y-2">
+                      {pendingItems.map(item => {
+                        if (item._quantity === 0) return null;
+                        return (
+                          <div 
+                            key={item._key}
+                            className="bg-slate-800 rounded-xl p-4 flex items-center gap-4"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-white truncate">{item.name}</p>
+                              <p className="text-sm text-slate-400">{item.supplier || "—"}</p>
+                            </div>
+                            
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handlePendingQuantityChange(item._key, -1)}
+                                className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center"
+                              >
+                                −
+                              </button>
+                              <span className="w-10 text-center text-white font-medium">
+                                {item._quantity}
+                              </span>
+                              <button
+                                onClick={() => handlePendingQuantityChange(item._key, 1)}
+                                className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center"
+                              >
+                                +
+                              </button>
+                            </div>
+
+                            <button
+                              onClick={() => handleRemoveItem(item._key)}
+                              className="w-8 h-8 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Supplier breakdown */}
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-slate-400">Поставщики</h3>
+                      {pendingBySupplier.map(([supplier, group]) => (
+                        <div key={supplier} className="bg-slate-800 rounded-xl p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-sm">
+                                📦
+                              </div>
+                              <div>
+                                <p className="font-medium text-white">{supplier}</p>
+                                <p className="text-xs text-slate-400">{group.items.length} позиций</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => sendToWhatsApp(supplier, group.items)}
+                              disabled={sendingSupplier === supplier}
+                              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                            >
+                              {sendingSupplier === supplier ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              ) : (
+                                <>
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
+                                  </svg>
+                                  Отправить
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* SECTION 2: In transit - waiting for delivery */}
+                {hasInTransit && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <h2 className="text-sm font-medium text-slate-400">
+                        Ожидаем доставку · {sentBySupplier.length} поставщиков
+                      </h2>
+                    </div>
+
+                    {sentBySupplier.map(([supplier, group]) => (
+                      <div key={supplier} className="bg-slate-800 rounded-2xl overflow-hidden">
+                        <div className="p-4 border-b border-slate-700">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
+                              <span className="text-xl">🚚</span>
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-white">{supplier}</h3>
+                              <p className="text-sm text-slate-400">{group.items.length} позиций</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="divide-y divide-slate-700">
+                          {group.items.map((item, idx) => (
+                            <div key={idx} className="p-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-medium text-white">{item.name}</span>
+                                <span className="text-slate-400 text-sm">
+                                  Заказано: {item._orderedQty} {item.unit || "шт"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400 text-sm">Получено:</span>
+                                <input
+                                  type="number"
+                                  value={item._receivedQty}
+                                  onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
+                                  className="w-24 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-center focus:outline-none focus:border-green-500"
+                                  step="0.1"
+                                />
+                                <span className="text-slate-400 text-sm">{item.unit || "шт"}</span>
+                                {item._receivedQty !== item._orderedQty && (
+                                  <span className={`text-xs px-2 py-1 rounded-full ${
+                                    item._receivedQty < item._orderedQty 
+                                      ? "bg-red-500/20 text-red-400"
+                                      : "bg-blue-500/20 text-blue-400"
+                                  }`}>
+                                    {item._receivedQty < item._orderedQty ? "−" : "+"}
+                                    {Math.abs(item._receivedQty - item._orderedQty)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="p-4 bg-slate-700/50">
+                          <button
+                            onClick={() => handleConfirmDelivery(supplier, group.items)}
+                            disabled={updating}
+                            className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {updating ? (
+                              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                              <>
+                                <span>✓</span>
+                                Принять поставку
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </>
