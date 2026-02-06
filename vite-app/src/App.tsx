@@ -10,6 +10,7 @@ import ManagerPage from '@/pages/ManagerPage';
 import DeliveryPage from '@/pages/DeliveryPage';
 import CustomProductsPage from '@/pages/CustomProductsPage';
 import CartPage from '@/pages/CartPage';
+import OrdersPage from '@/pages/OrdersPage';
 
 // Protected route wrapper
 function ProtectedRoute() {
@@ -70,6 +71,7 @@ function AppRoutes() {
         {/* Admin/Manager only routes */}
         <Route element={<RoleRoute allowedRoles={['admin', 'manager']} />}>
           <Route path="/manager" element={<ManagerPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
         </Route>
 
         {/* Delivery routes */}

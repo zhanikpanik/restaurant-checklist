@@ -133,6 +133,20 @@ export default function HomePage() {
             <>
               {/* Manager Section - Only for admin/manager */}
               {(isAdmin || isManager) && (
+                <>
+                <Link
+                  to="/orders"
+                  className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start shadow-md transform hover:scale-[1.01]"
+                >
+                  <span className="text-2xl md:text-3xl mr-3 md:mr-4">📦</span>
+                  <div className="text-left">
+                    <div className="font-semibold text-base md:text-lg">Управление Заказами</div>
+                    <div className="text-xs md:text-sm opacity-90">
+                      Сборка, отправка и прием заказов
+                    </div>
+                  </div>
+                </Link>
+
                 <Link
                   to="/manager"
                   className="w-full bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
@@ -141,10 +155,11 @@ export default function HomePage() {
                   <div className="text-left">
                     <div className="font-semibold text-base md:text-lg">Менеджер</div>
                     <div className="text-xs md:text-sm opacity-90">
-                      Управление заказами и поставщиками
+                      Управление отделами и настройками
                     </div>
                   </div>
                 </Link>
+                </>
               )}
 
               {/* Delivery Section - Only for admin/manager/delivery */}

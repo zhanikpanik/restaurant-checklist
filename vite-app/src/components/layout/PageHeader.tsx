@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ReactNode } from "react";
+import { UserMenu } from "@/components/auth/UserMenu";
 
 interface PageHeaderProps {
   title: string;
@@ -7,6 +8,7 @@ interface PageHeaderProps {
   backHref?: string;
   backLabel?: string;
   rightContent?: ReactNode;
+  showUserMenu?: boolean;
 }
 
 export function PageHeader({
@@ -15,6 +17,7 @@ export function PageHeader({
   backHref = "/",
   backLabel = "Главная",
   rightContent,
+  showUserMenu = true,
 }: PageHeaderProps) {
   return (
     <div className="bg-white shadow-sm border-b sticky top-0 z-10">
@@ -28,9 +31,12 @@ export function PageHeader({
             >
               ← {backLabel}
             </Link>
-            {rightContent && (
-              <div className="text-sm text-gray-600">{rightContent}</div>
-            )}
+            <div className="flex items-center gap-2">
+              {rightContent && (
+                <div className="text-sm text-gray-600">{rightContent}</div>
+              )}
+              {showUserMenu && <UserMenu />}
+            </div>
           </div>
           <h1 className="text-lg font-semibold text-gray-800">{title}</h1>
           {subtitle && (
@@ -54,9 +60,12 @@ export function PageHeader({
               )}
             </div>
           </div>
-          {rightContent && (
-            <div className="text-sm text-gray-600">{rightContent}</div>
-          )}
+          <div className="flex items-center gap-4">
+            {rightContent && (
+              <div className="text-sm text-gray-600">{rightContent}</div>
+            )}
+            {showUserMenu && <UserMenu />}
+          </div>
         </div>
       </div>
     </div>

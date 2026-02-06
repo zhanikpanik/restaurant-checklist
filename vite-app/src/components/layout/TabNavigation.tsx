@@ -79,7 +79,7 @@ export function TabNavigation({
         </div>
       </div>
 
-      {/* Mobile: Icon-only pills with fade indicators */}
+      {/* Mobile: Full label pills with fade indicators (CHANGED from icon-only) */}
       <div className="md:hidden relative">
         {/* Left fade indicator */}
         {showLeftFade && (
@@ -93,7 +93,7 @@ export function TabNavigation({
 
         <div
           ref={scrollRef}
-          className="flex gap-1.5 overflow-x-auto scrollbar-hide py-1 px-1 -mx-1"
+          className="flex gap-2 overflow-x-auto scrollbar-hide py-1 px-1 -mx-1"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {tabs.map((tab) => (
@@ -101,14 +101,14 @@ export function TabNavigation({
               key={tab.id}
               data-tab-id={tab.id}
               onClick={() => onTabChange(tab.id)}
-              title={tab.label}
-              className={`relative flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-full font-medium text-lg transition-all ${
+              className={`relative flex-shrink-0 flex items-center justify-center px-4 py-2 rounded-full font-medium text-sm transition-all whitespace-nowrap ${
                 activeTab === tab.id
                   ? "bg-blue-500 text-white shadow-md"
                   : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300 active:bg-gray-100"
               }`}
             >
-              {tab.icon || tab.label.charAt(0)}
+              {tab.icon && <span className="mr-1.5">{tab.icon}</span>}
+              {tab.label}
               {tab.badge !== undefined && tab.badge > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {tab.badge > 99 ? "99+" : tab.badge}

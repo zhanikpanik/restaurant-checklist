@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRestaurant } from '@/store/useStore';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { TabNavigation } from '@/components/layout/TabNavigation';
+import { ProcurementTab } from '@/components/manager/ProcurementTab';
 import { OrdersTab } from '@/components/manager/OrdersTab';
 import { CategoriesTab } from '@/components/manager/CategoriesTab';
 import { SuppliersTab } from '@/components/manager/SuppliersTab';
@@ -14,10 +15,11 @@ import { useToast } from '@/components/ui/Toast';
 import { api } from '@/lib/api-client';
 import type { Order, Supplier, ProductCategory, Product, Section } from '@/types';
 
-type TabType = 'orders' | 'categories' | 'suppliers' | 'departments' | 'products' | 'users';
+type TabType = 'procurement' | 'orders' | 'categories' | 'suppliers' | 'departments' | 'products' | 'users';
 
 const TABS = [
-  { id: 'orders', label: 'Заказы', icon: '📋' },
+  { id: 'procurement', label: 'Закупки', icon: '🛒' },
+  { id: 'orders', label: 'История', icon: '📋' },
   { id: 'categories', label: 'Категории', icon: '🏷️' },
   { id: 'suppliers', label: 'Поставщики', icon: '🏢' },
   { id: 'departments', label: 'Отделы', icon: '🏪' },
@@ -30,7 +32,7 @@ export default function ManagerPage() {
   const navigate = useNavigate();
   const restaurant = useRestaurant();
   const toast = useToast();
-  const [activeTab, setActiveTab] = useState<TabType>('orders');
+  const [activeTab, setActiveTab] = useState<TabType>('procurement');
   const [orders, setOrders] = useState<Order[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
@@ -92,6 +94,16 @@ export default function ManagerPage() {
     setLoading(true);
     try {
       switch (activeTab) {
+        case 'procurement': {
+          // Fetch active orders (pending/sent) and products for the add modal
+          const [ordersRes, productsRes] = await Promise.all([
+            api.get<Order[]>('/api/orders?all=true'), // We'll filter client-side or use proper query
+            api.get<Product[]>('/api/section-products')
+          ]);
+          if (ordersRes.success) setOrders(ordersRes.data || []);
+          if (productsRes.success) setProducts(productsRes.data || []);
+          break;
+        }
         case 'orders': {
           const res = await api.get<Order[]>('/api/orders?all=true');
           if (res.success) setOrders(res.data || []);
@@ -186,6 +198,18 @@ export default function ManagerPage() {
         />
 
         <div className="bg-white rounded-lg shadow-sm">
+          {activeTab === 'procurement' && (
+            <ProcurementTab
+              orders={orders}
+              setOrders={setOrders}
+              suppliers={suppliers}
+              products={products}
+              loading={loading}
+              restaurantName={restaurant.current?.name || 'Ресторан'}
+              onReload={loadData}
+            />
+          )}
+
           {activeTab === 'orders' && (
             <OrdersTab
               orders={orders}
