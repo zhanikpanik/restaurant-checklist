@@ -212,7 +212,22 @@ export class PosterAPI {
     }>;
     comment?: string;
   }): Promise<any> {
-    return this.postRequest(POSTER_CONFIG.endpoints.createSupplyOrder, orderData);
+    // Poster expects ingredients as JSON string and specific format
+    const formData: Record<string, string> = {
+      supplier_id: String(orderData.supplier_id),
+      storage_id: String(orderData.storage_id),
+      supply: JSON.stringify(orderData.ingredients.map(ing => ({
+        product_id: ing.ingredient_id,
+        count: ing.quantity,
+        sum: (ing.price || 0) * ing.quantity,
+      }))),
+    };
+    
+    if (orderData.comment) {
+      formData.comment = orderData.comment;
+    }
+    
+    return this.postRequest(POSTER_CONFIG.endpoints.createSupplyOrder, formData);
   }
 
   // Get financial transactions

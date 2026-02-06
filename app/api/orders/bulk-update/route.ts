@@ -38,13 +38,10 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await withTenant(restaurantId, async (client) => {
-      // Use ANY($1) to match any ID in the array
+      // Simple update query without optional columns that may not exist
       const queryResult = await client.query(
         `UPDATE orders
-         SET status = $1,
-             delivered_at = CASE WHEN $1 = 'delivered' THEN CURRENT_TIMESTAMP ELSE delivered_at END,
-             sent_at = CASE WHEN $1 = 'sent' THEN CURRENT_TIMESTAMP ELSE sent_at END,
-             updated_at = CURRENT_TIMESTAMP
+         SET status = $1
          WHERE id = ANY($2) AND restaurant_id = $3
          RETURNING id`,
         [status, ids, restaurantId]

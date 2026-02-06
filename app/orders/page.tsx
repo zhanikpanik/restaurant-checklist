@@ -204,21 +204,52 @@ export default function OrdersPage() {
     }
   };
 
-  // Confirm delivery with adjusted quantities
+  // Confirm delivery with adjusted quantities and send to Poster
   const handleConfirmDelivery = async (supplierName: string, items: any[]) => {
     setUpdating(true);
     
     const orderIds = [...new Set(items.map(i => i._orderId))];
     
-    // TODO: In future, you might want to save the adjusted quantities
-    // For now, we just mark as delivered
-    
     try {
-      await api.post("/api/orders/bulk-update", { ids: orderIds, status: "delivered" });
+      // 1. First, try to send supply to Poster (if items have poster_id)
+      const posterItems = items.filter(i => i.poster_id || i.productId);
+      
+      if (posterItems.length > 0) {
+        // Find supplier's poster_id if available
+        const supplier = suppliers.find(s => s.name === supplierName);
+        const posterSupplierId = (supplier as any)?.poster_supplier_id || 1;
+        
+        try {
+          await api.post("/api/poster/supply-order", {
+            supplier_id: posterSupplierId,
+            storage_id: 1, // Default storage
+            items: posterItems.map(item => ({
+              ingredient_id: String(item.poster_id || item.productId),
+              quantity: item._receivedQty || item.quantity,
+              price: item.price || 0,
+            })),
+            comment: `Приёмка от ${supplierName}`,
+          });
+          toast.success("✓ Отправлено в Poster");
+        } catch (posterError) {
+          console.error("Poster error:", posterError);
+          // Don't block the delivery confirmation if Poster fails
+          toast.warning("Poster: не удалось создать поставку");
+        }
+      }
+      
+      // 2. Update order status to delivered
+      const updateResult = await api.post("/api/orders/bulk-update", { ids: orderIds, status: "delivered" });
+      
+      if (!updateResult.success) {
+        throw new Error(updateResult.error || "Failed to update");
+      }
+      
       toast.success("✓ Поставка принята");
       setReceivedQuantities({});
       await loadData();
     } catch (error) {
+      console.error("Delivery error:", error);
       toast.error("Ошибка при приёмке");
     } finally {
       setUpdating(false);
@@ -377,25 +408,7 @@ export default function OrdersPage() {
                   </div>
                 ))}
 
-                {/* Show pending items as secondary, grayed out */}
-                {hasPending && (
-                  <div className="mt-8">
-                    <p className="text-sm text-slate-500 text-center mb-4">
-                      После приёмки можно будет отправить новые заявки
-                    </p>
-                    <div className="opacity-50 pointer-events-none">
-                      <div className="text-sm text-slate-400 mb-2">
-                        Ожидают отправки · {activeItemCount} позиций
-                      </div>
-                      <div className="bg-slate-800/50 rounded-xl p-4">
-                        <p className="text-slate-500 text-sm">
-                          {pendingItems.slice(0, 3).map(i => i.name).join(", ")}
-                          {pendingItems.length > 3 && ` и ещё ${pendingItems.length - 3}...`}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+
               </div>
             )}
 
