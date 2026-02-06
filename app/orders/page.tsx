@@ -214,28 +214,44 @@ export default function OrdersPage() {
       // 1. First, try to send supply to Poster (if items have poster_id)
       const posterItems = items.filter(i => i.poster_id || i.productId);
       
+      console.log("All items:", items);
+      console.log("Poster items (with poster_id):", posterItems);
+      
       if (posterItems.length > 0) {
         // Find supplier's poster_id if available
         const supplier = suppliers.find(s => s.name === supplierName);
         const posterSupplierId = (supplier as any)?.poster_supplier_id || 1;
         
+        const posterPayload = {
+          supplier_id: posterSupplierId,
+          storage_id: 1, // Default storage
+          items: posterItems.map(item => ({
+            ingredient_id: String(item.poster_id || item.productId),
+            quantity: item._receivedQty || item.quantity,
+            price: item.price || 0,
+          })),
+          comment: `Приёмка от ${supplierName}`,
+        };
+        
+        console.log("Sending to Poster:", posterPayload);
+        
         try {
-          await api.post("/api/poster/supply-order", {
-            supplier_id: posterSupplierId,
-            storage_id: 1, // Default storage
-            items: posterItems.map(item => ({
-              ingredient_id: String(item.poster_id || item.productId),
-              quantity: item._receivedQty || item.quantity,
-              price: item.price || 0,
-            })),
-            comment: `Приёмка от ${supplierName}`,
-          });
-          toast.success("✓ Отправлено в Poster");
+          const posterResult = await api.post("/api/poster/supply-order", posterPayload) as any;
+          console.log("Poster result:", posterResult);
+          
+          if (posterResult.success && !posterResult.skipped && !posterResult.warning) {
+            toast.success("✓ Отправлено в Poster");
+          } else if (posterResult.warning) {
+            toast.warning("Poster: " + posterResult.message);
+          } else if (posterResult.skipped) {
+            console.log("Poster skipped:", posterResult.message);
+          }
         } catch (posterError) {
           console.error("Poster error:", posterError);
-          // Don't block the delivery confirmation if Poster fails
           toast.warning("Poster: не удалось создать поставку");
         }
+      } else {
+        console.log("No items with poster_id found - skipping Poster");
       }
       
       // 2. Update order status to delivered
