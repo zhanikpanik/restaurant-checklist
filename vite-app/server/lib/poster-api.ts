@@ -35,7 +35,8 @@ interface PosterApiError {
 
 interface PosterApiResponse<T = any> {
   response?: T;
-  error?: PosterApiError;
+  error?: PosterApiError | number;
+  message?: string;
 }
 
 // Poster API Configuration
@@ -62,7 +63,7 @@ export const POSTER_CONFIG: PosterConfig = {
 
     // Suppliers
     getSuppliers: '/storage.getSuppliers',
-    createSupplyOrder: '/storage.createSupplyOrder',
+    createSupplyOrder: '/storage.createSupply',
 
     // Finance
     getTransactions: '/finance.getTransactions',
@@ -133,7 +134,9 @@ export class PosterAPI {
 
       // Check for Poster API error response
       if (data.error) {
-        throw new Error(`Poster API Error (Code ${data.error.code}): ${data.error.message}`);
+        const code = typeof data.error === 'object' ? data.error.code : data.error;
+        const message = typeof data.error === 'object' ? data.error.message : data.message;
+        throw new Error(`Poster API Error (Code ${code}): ${message}`);
       }
 
       return data.response as T;
@@ -154,28 +157,47 @@ export class PosterAPI {
 
   // Post request for write operations
   async postRequest<T = any>(endpoint: string, data: Record<string, any> = {}): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+    // Add token to URL query string
+    const queryParams = new URLSearchParams();
+    if (this.accessToken) {
+      queryParams.append('token', this.accessToken);
+    }
+    const queryString = queryParams.toString();
+    const url = `${this.baseUrl}${endpoint}${queryString ? `?${queryString}` : ''}`;
+
+    console.log("Poster POST request (JSON):", { url, data });
 
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          ...data,
-          token: this.accessToken || ''
-        }).toString()
+        body: JSON.stringify(data)
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+      console.log(`Poster Response Headers:`, Object.fromEntries(response.headers.entries()));
+      console.log(`Poster Response Status: ${response.status} ${response.statusText} (Redirected: ${response.redirected})`);
+
+      const text = await response.text();
+      console.log(`Poster raw response (${text.length} chars):`, text);
+
+      if (!text) {
+         console.warn(`Poster returned ${response.status} with empty body`);
+         return { empty: true, status: response.status, headers: Object.fromEntries(response.headers.entries()) } as unknown as T;
       }
 
-      const result: PosterApiResponse<T> = await response.json();
+      let result: PosterApiResponse<T>;
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Failed to parse Poster response: ${text.substring(0, 100)}...`);
+      }
 
       if (result.error) {
-        throw new Error(`Poster API Error (Code ${result.error.code}): ${result.error.message}`);
+        const code = typeof result.error === 'object' ? result.error.code : result.error;
+        const message = typeof result.error === 'object' ? result.error.message : result.message;
+        throw new Error(`Poster API Error (Code ${code}): ${message}`);
       }
 
       return result.response as T;
@@ -231,8 +253,33 @@ export class PosterAPI {
       price?: number;
     }>;
     comment?: string;
+    date?: string; // Allow passing date explicitly
   }): Promise<any> {
-    return this.postRequest(POSTER_CONFIG.endpoints.createSupplyOrder, orderData);
+    const now = new Date();
+    const today = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-');
+
+    const payload: Record<string, any> = {
+      supplier_id: Number(orderData.supplier_id),
+      storage_id: Number(orderData.storage_id),
+      date: orderData.date || today,
+      supply: orderData.ingredients.map(ing => ({
+        product_id: Number(ing.ingredient_id),
+        count: Number(ing.quantity),
+        price: Number(ing.price || 0)
+      }))
+    };
+    
+    if (orderData.comment) {
+      payload.comment = orderData.comment;
+    }
+    
+    console.log("createSupplyOrder payload:", JSON.stringify(payload, null, 2));
+    
+    return this.postRequest(POSTER_CONFIG.endpoints.createSupplyOrder, payload);
   }
 
   // Get financial transactions

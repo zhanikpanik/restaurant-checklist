@@ -35,6 +35,7 @@ export default function CartPage() {
         unit: item.unit || 'шт',
         category: item.category,
         supplier: item.supplier,
+        supplier_id: item.supplier_id, // Add this!
         poster_id: item.poster_id,
         productId: item.productId,
       }));

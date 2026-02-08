@@ -24,10 +24,10 @@ export async function GET(request: NextRequest) {
           sp.poster_ingredient_id,
           sp.section_id,
           sp.category_id,
-          sp.supplier_id,
+          COALESCE(sp.supplier_id, pc.supplier_id) as supplier_id,
           sp.is_active,
           pc.name as category_name,
-          COALESCE(sup.name, sup_direct.name) as supplier_name,
+          COALESCE(sup_direct.name, sup.name) as supplier_name,
           s.name as section_name
         FROM section_products sp
         LEFT JOIN product_categories pc ON sp.category_id = pc.id

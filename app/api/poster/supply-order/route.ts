@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-config";
-import { withoutTenant } from "@/lib/db";
+import { withoutTenant, withTenant } from "@/lib/db";
 import { PosterAPI } from "@/lib/poster-api";
 
 export async function POST(request: NextRequest) {
@@ -85,11 +85,37 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Look up poster_supplier_id from local supplier
+    let posterSupplierId: number | null = null;
+    if (supplier_id) {
+      try {
+        const supplierResult = await withTenant(restaurantId, async (client) => {
+          const result = await client.query(
+            "SELECT poster_supplier_id FROM suppliers WHERE id = $1 AND restaurant_id = $2",
+            [supplier_id, restaurantId]
+          );
+          return result.rows[0];
+        });
+        posterSupplierId = supplierResult?.poster_supplier_id || null;
+        console.log("Local supplier_id:", supplier_id, "-> Poster supplier_id:", posterSupplierId);
+      } catch (err) {
+        console.error("Error looking up supplier:", err);
+      }
+    }
+
+    if (!posterSupplierId) {
+      return NextResponse.json({
+        success: true,
+        message: "Supplier not linked to Poster - skipped",
+        skipped: true,
+      });
+    }
+
     // Create a PosterAPI instance with this restaurant's token
     const posterAPI = new PosterAPI(restaurant.poster_token);
 
     const supplyData = {
-      supplier_id: Number(supplier_id) || 1,
+      supplier_id: posterSupplierId,
       storage_id: Number(storage_id) || 1,
       ingredients: validItems.map((item: any) => ({
         ingredient_id: String(item.ingredient_id),

@@ -19,6 +19,9 @@ export default function OrdersPage() {
   const [activeTab, setActiveTab] = useState<TabType>("pending");
   const [updating, setUpdating] = useState(false);
   
+  // Date filter for history
+  const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
+  
   // Quantity adjustments for pending items: { `${orderId}-${itemIdx}`: quantity }
   const [pendingQuantities, setPendingQuantities] = useState<Record<string, number>>({});
   
@@ -132,9 +135,25 @@ export default function OrdersPage() {
   // History orders
   const historyOrders = useMemo(() => {
     return orders
-      .filter(o => ['delivered', 'cancelled'].includes(o.status))
+      .filter(o => {
+        if (!['delivered', 'cancelled'].includes(o.status)) return false;
+        
+        if (dateFilter.start) {
+            const orderDate = new Date(o.created_at);
+            const start = new Date(dateFilter.start);
+            start.setHours(0,0,0,0);
+            if (orderDate < start) return false;
+        }
+        if (dateFilter.end) {
+            const orderDate = new Date(o.created_at);
+            const end = new Date(dateFilter.end);
+            end.setHours(23,59,59,999);
+            if (orderDate > end) return false;
+        }
+        return true;
+      })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [orders]);
+  }, [orders, dateFilter]);
 
   // Determine current focus state
   const hasInTransit = sentBySupplier.length > 0;
@@ -204,6 +223,27 @@ export default function OrdersPage() {
     }
   };
 
+  // Revert items to pending
+  const handleRevertToPending = async (items: any[]) => {
+    if (!confirm("Вернуть эти товары в статус 'К отправке'?")) return;
+    setUpdating(true);
+    const orderIds = [...new Set(items.map(i => i._orderId))];
+    try {
+      const updateResult = await api.post("/api/orders/bulk-update", { ids: orderIds, status: "pending" });
+      if (updateResult.success) {
+        toast.success("Заказы возвращены в ожидание");
+        await loadData();
+      } else {
+        toast.error("Ошибка при обновлении");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Ошибка сервера");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   // Confirm delivery with adjusted quantities and send to Poster
   const handleConfirmDelivery = async (supplierName: string, items: any[]) => {
     setUpdating(true);
@@ -240,7 +280,10 @@ export default function OrdersPage() {
           console.log("Poster result:", posterResult);
           
           if (posterResult.success && !posterResult.skipped && !posterResult.warning) {
-            toast.success("✓ Отправлено в Poster");
+            console.log("Poster success data:", posterResult.data);
+            const dataStr = JSON.stringify(posterResult.data, null, 2);
+            // Show the actual response from Poster to the user
+            toast.success(`✓ Отправлено в Poster. Ответ: ${dataStr}`);
           } else if (posterResult.warning) {
             toast.warning("Poster: " + posterResult.message);
           } else if (posterResult.skipped) {
@@ -524,11 +567,19 @@ export default function OrdersPage() {
                       ))}
                     </div>
 
-                    <div className="p-4 bg-slate-700/50">
+                    <div className="p-4 bg-slate-700/50 flex gap-3">
+                      <button
+                        onClick={() => handleRevertToPending(group.items)}
+                        disabled={updating}
+                        className="px-4 bg-slate-600 hover:bg-slate-500 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
+                        title="Вернуть в ожидание"
+                      >
+                        ↩
+                      </button>
                       <button
                         onClick={() => handleConfirmDelivery(supplier, group.items)}
                         disabled={updating}
-                        className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                       >
                         {updating ? (
                           <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -550,6 +601,30 @@ export default function OrdersPage() {
         {/* === HISTORY TAB === */}
         {activeTab === "history" && (
           <div>
+            <div className="flex items-center gap-2 mb-4 bg-slate-800 p-3 rounded-xl">
+               <input 
+                 type="date" 
+                 value={dateFilter.start}
+                 onChange={e => setDateFilter(prev => ({...prev, start: e.target.value}))}
+                 className="bg-slate-700 text-white border border-slate-600 rounded-lg px-2 py-2 text-sm w-full outline-none focus:border-purple-500"
+               />
+               <span className="text-slate-400">—</span>
+               <input 
+                 type="date" 
+                 value={dateFilter.end}
+                 onChange={e => setDateFilter(prev => ({...prev, end: e.target.value}))}
+                 className="bg-slate-700 text-white border border-slate-600 rounded-lg px-2 py-2 text-sm w-full outline-none focus:border-purple-500"
+               />
+               {(dateFilter.start || dateFilter.end) && (
+                   <button 
+                     onClick={() => setDateFilter({start: "", end: ""})}
+                     className="p-2 text-slate-400 hover:text-white bg-slate-700 rounded-lg"
+                   >
+                     ✕
+                   </button>
+               )}
+            </div>
+
             {historyOrders.length === 0 ? (
               <div className="text-center py-16">
                 <div className="text-5xl mb-4">📋</div>

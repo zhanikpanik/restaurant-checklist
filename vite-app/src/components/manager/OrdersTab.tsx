@@ -36,11 +36,32 @@ export function OrdersTab({
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("all");
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>({
+    start: "",
+    end: "",
+  });
 
-  // Filter orders by status
+  // Filter orders by status and date
   const filteredOrders = orders.filter((order) => {
-    if (statusFilter === "all") return true;
-    return order.status === statusFilter;
+    // Status filter
+    if (statusFilter !== "all" && order.status !== statusFilter) return false;
+
+    // Date filter
+    if (dateRange.start) {
+      const orderDate = new Date(order.created_at);
+      const startDate = new Date(dateRange.start);
+      startDate.setHours(0, 0, 0, 0);
+      if (orderDate < startDate) return false;
+    }
+    
+    if (dateRange.end) {
+      const orderDate = new Date(order.created_at);
+      const endDate = new Date(dateRange.end);
+      endDate.setHours(23, 59, 59, 999);
+      if (orderDate > endDate) return false;
+    }
+
+    return true;
   });
 
   // Pagination
@@ -163,40 +184,71 @@ export function OrdersTab({
 
   return (
     <div className="p-4 md:p-6">
-      {/* Status Filter Pills */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {(["all", "pending", "sent", "delivered", "cancelled"] as OrderStatusFilter[]).map(
-          (status) => (
+      {/* Filters Container */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        {/* Status Filter Pills */}
+        <div className="flex flex-wrap gap-2">
+          {(["all", "pending", "sent", "delivered", "cancelled"] as OrderStatusFilter[]).map(
+            (status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                  statusFilter === status
+                    ? "bg-blue-500 text-white shadow-md"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {status === "all"
+                  ? "Все"
+                  : status === "pending"
+                  ? "Ожидает"
+                  : status === "sent"
+                  ? "Отправлено"
+                  : status === "delivered"
+                  ? "Доставлено"
+                  : "Отменено"}
+                {statusCounts[status] > 0 && (
+                  <span
+                    className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                      statusFilter === status ? "bg-white/20" : "bg-gray-200"
+                    }`}
+                  >
+                    {statusCounts[status]}
+                  </span>
+                )}
+              </button>
+            )
+          )}
+        </div>
+
+        {/* Date Filter */}
+        <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-100">
+          <input
+            type="date"
+            value={dateRange.start}
+            onChange={(e) => setDateRange((prev) => ({ ...prev, start: e.target.value }))}
+            className="px-2 py-2 bg-white border border-gray-200 rounded text-sm focus:outline-none focus:border-blue-500"
+            placeholder="С"
+          />
+          <span className="text-gray-400">-</span>
+          <input
+            type="date"
+            value={dateRange.end}
+            onChange={(e) => setDateRange((prev) => ({ ...prev, end: e.target.value }))}
+            className="px-2 py-2 bg-white border border-gray-200 rounded text-sm focus:outline-none focus:border-blue-500"
+            placeholder="По"
+          />
+          {(dateRange.start || dateRange.end) && (
             <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                statusFilter === status
-                  ? "bg-blue-500 text-white shadow-md"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
+              onClick={() => setDateRange({ start: "", end: "" })}
+              className="text-gray-400 hover:text-red-500 p-1"
+              title="Сбросить фильтр"
             >
-              {status === "all"
-                ? "Все"
-                : status === "pending"
-                ? "Ожидает"
-                : status === "sent"
-                ? "Отправлено"
-                : status === "delivered"
-                ? "Доставлено"
-                : "Отменено"}
-              {statusCounts[status] > 0 && (
-                <span
-                  className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
-                    statusFilter === status ? "bg-white/20" : "bg-gray-200"
-                  }`}
-                >
-                  {statusCounts[status]}
-                </span>
-              )}
+              ×
             </button>
-          )
-        )}
+          )}
+        </div>
       </div>
 
       {/* Orders List */}

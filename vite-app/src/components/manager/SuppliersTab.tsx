@@ -14,6 +14,7 @@ interface SupplierFormData {
   name: string;
   phone: string;
   contact_info: string;
+  poster_supplier_id?: string;
 }
 
 interface SuppliersTabProps {
@@ -44,6 +45,7 @@ export function SuppliersTab({
       name: supplier.name,
       phone: supplier.phone || "",
       contact_info: supplier.contact_info || "",
+      poster_supplier_id: (supplier as any).poster_supplier_id || "",
     });
     setShowModal(true);
   };
@@ -51,10 +53,18 @@ export function SuppliersTab({
   const handleSave = async () => {
     if (!editingSupplier) return;
 
+    // Convert poster_supplier_id to number or null
+    const payload = {
+      ...editingSupplier,
+      poster_supplier_id: editingSupplier.poster_supplier_id 
+        ? Number(editingSupplier.poster_supplier_id) 
+        : null
+    };
+
     try {
       const response = editingSupplier.id
-        ? await api.patch("/api/suppliers", editingSupplier)
-        : await api.post("/api/suppliers", editingSupplier);
+        ? await api.patch("/api/suppliers", payload)
+        : await api.post("/api/suppliers", payload);
 
       if (response.success) {
         setShowModal(false);
@@ -138,9 +148,9 @@ export function SuppliersTab({
                   {supplier.contact_info && (
                     <p className="text-sm text-gray-500 mt-1">{supplier.contact_info}</p>
                   )}
-                  {(supplier as any).poster_supplier_id && (
+                  {supplier.poster_supplier_id && (
                     <p className="text-xs text-gray-400 italic mt-1">
-                      Из Poster (ID: {(supplier as any).poster_supplier_id})
+                      Из Poster (ID: {supplier.poster_supplier_id})
                     </p>
                   )}
                 </div>
@@ -177,6 +187,15 @@ export function SuppliersTab({
                 setEditingSupplier({ ...editingSupplier, phone: e.target.value })
               }
               placeholder="+7 XXX XXX XX XX"
+            />
+
+            <Input
+              label="Poster Supplier ID (необязательно)"
+              value={editingSupplier.poster_supplier_id || ""}
+              onChange={(e) =>
+                setEditingSupplier({ ...editingSupplier, poster_supplier_id: e.target.value })
+              }
+              placeholder="ID поставщика в Poster"
             />
 
             <Textarea

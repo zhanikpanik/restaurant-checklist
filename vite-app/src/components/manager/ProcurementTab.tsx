@@ -217,7 +217,7 @@ export function ProcurementTab({
     setShowAddModal(false);
   };
 
-  const handleBatchUpdateStatus = async (items: any[], newStatus: 'sent' | 'delivered') => {
+  const handleBatchUpdateStatus = async (items: any[], newStatus: 'pending' | 'sent' | 'delivered') => {
     // We need to update multiple orders.
     // Group items by orderId
     const updatesByOrder = new Map<number, any[]>();
@@ -238,30 +238,37 @@ export function ProcurementTab({
     // Execute updates
     try {
         const promises = Array.from(updatesByOrder.entries()).map(([orderId, updatedItems]) => {
-            // Check if all items are delivered to update order status
+            // Recalculate order status based on all items
             let orderStatus = orders.find(o => o.id === orderId)?.status || 'pending';
-            if (newStatus === 'delivered') {
-                const allDelivered = updatedItems.every((i: any) => (i.status || 'pending') === 'delivered');
-                if (allDelivered) orderStatus = 'delivered';
-            } else if (newStatus === 'sent') {
-                // If at least one is sent and none are pending? 
-                // Let's just set order to 'sent' if it was pending
-                if (orderStatus === 'pending') orderStatus = 'sent';
+            
+            const allStatuses = updatedItems.map((i: any) => i.status || 'pending');
+            
+            if (allStatuses.every(s => s === 'delivered')) {
+                orderStatus = 'delivered';
+            } else if (allStatuses.every(s => s === 'cancelled')) {
+                orderStatus = 'cancelled';
+            } else if (allStatuses.every(s => s === 'pending')) {
+                orderStatus = 'pending';
+            } else {
+                // Mix of pending/sent/delivered -> 'sent'
+                orderStatus = 'sent';
             }
 
             return api.patch("/api/orders", {
                 id: orderId,
-                order_data: { items: updatedItems }, // We need to preserve other order_data fields? The API usually does a merge or partial update?
-                // Based on previous code: order_data is replaced or merged. 
-                // Let's pass the full order_data structure from the original order to be safe.
-                // But here I only have items.
-                // It's safer to use the original order object and update items.
+                order_data: { items: updatedItems },
                 status: orderStatus
             });
         });
 
         await Promise.all(promises);
-        toast.success(newStatus === 'sent' ? "Marked as sent" : "Marked as delivered");
+        
+        let message = "";
+        if (newStatus === 'sent') message = "Отмечено как отправлено";
+        else if (newStatus === 'delivered') message = "Отмечено как доставлено";
+        else if (newStatus === 'pending') message = "Вернуто в ожидание";
+        
+        toast.success(message);
         onReload(); // Reload to be safe
     } catch (e) {
         toast.error("Error updating statuses");
@@ -442,13 +449,46 @@ export function ProcurementTab({
                                         <Badge variant="info">Отправлено</Badge>
                                     </div>
                                     
-                                    <Button 
-                                        variant="secondary" 
-                                        className="w-full"
-                                        onClick={() => handleBatchUpdateStatus(group.items, 'delivered')}
-                                    >
-                                        ✓ Принять поставку
-                                    </Button>
+                                    <div className="space-y-2 mb-4 max-h-40 overflow-y-auto custom-scrollbar">
+                                        {group.items.map((item, i) => (
+                                            <div key={i} className="flex justify-between items-center text-sm py-1 hover:bg-gray-50 rounded px-1 group">
+                                                <div className="flex-1 min-w-0 mr-2">
+                                                    <span className="text-gray-700 truncate block">{item.name}</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-medium whitespace-nowrap text-gray-600">{item.quantity} {item.unit}</span>
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleBatchUpdateStatus([item], 'delivered');
+                                                        }}
+                                                        className="w-6 h-6 flex items-center justify-center rounded-full text-gray-300 hover:text-green-600 hover:bg-green-50 transition-colors opacity-0 group-hover:opacity-100"
+                                                        title="Принять только этот товар"
+                                                    >
+                                                        ✓
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="flex gap-2">
+                                        <Button 
+                                            variant="secondary" 
+                                            className="flex-1"
+                                            onClick={() => handleBatchUpdateStatus(group.items, 'delivered')}
+                                        >
+                                            ✓ Принять
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            className="px-3 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                            onClick={() => handleBatchUpdateStatus(group.items, 'pending')}
+                                            title="Вернуть в ожидание"
+                                        >
+                                            ↩
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

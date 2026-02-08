@@ -59,10 +59,10 @@ export interface SectionProduct {
   name: string;
   unit?: string;
   category_id?: number;
+  supplier_id?: number;
   quantity?: number;
   is_active: boolean;
   category_name?: string;
-  supplier_id?: number;
   supplier_name?: string;
   section_name?: string;
 }

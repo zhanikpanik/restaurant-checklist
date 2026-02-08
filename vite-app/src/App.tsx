@@ -3,14 +3,14 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import { ToastProvider } from '@/components/ui/Toast';
 
-// Pages (to be created)
+// Pages
 import LoginPage from '@/pages/LoginPage';
 import HomePage from '@/pages/HomePage';
-import ManagerPage from '@/pages/ManagerPage';
 import DeliveryPage from '@/pages/DeliveryPage';
 import CustomProductsPage from '@/pages/CustomProductsPage';
 import CartPage from '@/pages/CartPage';
 import OrdersPage from '@/pages/OrdersPage';
+import SuppliersPage from '@/pages/SuppliersPage';
 
 // Protected route wrapper
 function ProtectedRoute() {
@@ -70,8 +70,8 @@ function AppRoutes() {
 
         {/* Admin/Manager only routes */}
         <Route element={<RoleRoute allowedRoles={['admin', 'manager']} />}>
-          <Route path="/manager" element={<ManagerPage />} />
           <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/suppliers" element={<SuppliersPage />} />
         </Route>
 
         {/* Delivery routes */}

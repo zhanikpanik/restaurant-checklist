@@ -172,10 +172,117 @@ router.patch('/', requireAuth, async (req, res: Response) => {
       return res.status(404).json({ success: false, error: 'Order not found' });
     }
 
+    // Auto-send to Poster when status becomes 'delivered'
+    let posterResults = null;
+    if (status === 'delivered') {
+      try {
+        console.log(`Order #${id} marked as delivered, attempting to send to Poster...`);
+        
+        // Import poster-supplies logic here
+        const { PosterAPI } = await import('../lib/poster-api');
+        const { withoutTenant: wt } = await import('../lib/db');
+        
+        // Get restaurant's Poster token
+        const restaurant = await wt(async (client) => {
+          const result = await client.query(
+            'SELECT poster_token FROM restaurants WHERE id = $1',
+            [restaurantId]
+          );
+          return result.rows[0];
+        });
+
+        if (restaurant?.poster_token) {
+          const posterAPI = new PosterAPI(restaurant.poster_token);
+          
+          // Group items by supplier
+          const itemsBySupplier = new Map<number, any[]>();
+          
+          for (const item of order.order_data.items) {
+            if (item.supplier_id) {
+              if (!itemsBySupplier.has(item.supplier_id)) {
+                itemsBySupplier.set(item.supplier_id, []);
+              }
+              itemsBySupplier.get(item.supplier_id)!.push(item);
+            }
+          }
+
+          const results = [];
+          
+          // Process each supplier group
+          for (const [supplierIdLocal, items] of itemsBySupplier.entries()) {
+            const supplier = await withTenant(restaurantId, async (client) => {
+              const result = await client.query(
+                'SELECT id, name, poster_supplier_id FROM suppliers WHERE id = $1',
+                [supplierIdLocal]
+              );
+              return result.rows[0];
+            });
+
+            if (!supplier || !supplier.poster_supplier_id) {
+              console.log(`Supplier ${supplierIdLocal} not linked to Poster - skipped`);
+              results.push({
+                success: true,
+                message: 'Supplier not linked to Poster - skipped',
+                skipped: true,
+                supplier_id: supplierIdLocal,
+                supplier_name: supplier?.name || 'Unknown',
+              });
+              continue;
+            }
+
+            const ingredients = items
+              .filter((item) => item.poster_id)
+              .map((item) => ({
+                ingredient_id: item.poster_id,
+                quantity: parseFloat(item.quantity || 0),
+                price: parseFloat(item.actualPrice || 0),
+              }));
+
+            if (ingredients.length === 0) {
+              results.push({
+                success: true,
+                message: 'No Poster ingredients found - skipped',
+                skipped: true,
+              });
+              continue;
+            }
+
+            try {
+              const supplyResult = await posterAPI.createSupplyOrder({
+                supplier_id: Number(supplier.poster_supplier_id),
+                storage_id: 1,
+                ingredients,
+                comment: `Приёмка от ${order.order_data.department || 'Закупка'}`,
+              });
+
+              results.push({
+                success: true,
+                supplier_name: supplier.name,
+                poster_result: supplyResult,
+              });
+              console.log(`✓ Created Poster supply for ${supplier.name}`);
+            } catch (error) {
+              console.error(`Failed to create Poster supply for ${supplier.name}:`, error);
+              results.push({
+                success: false,
+                supplier_name: supplier.name,
+                error: error instanceof Error ? error.message : 'Unknown error',
+              });
+            }
+          }
+
+          posterResults = results;
+        }
+      } catch (error) {
+        console.error('Error sending to Poster:', error);
+      }
+    }
+
     res.json({
       success: true,
       data: order,
       message: 'Order updated successfully',
+      poster_results: posterResults,
     });
   } catch (error) {
     console.error('Error updating order:', error);

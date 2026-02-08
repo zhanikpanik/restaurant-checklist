@@ -14,7 +14,8 @@ interface PosterApiError {
 
 interface PosterApiResponse<T = any> {
   response?: T;
-  error?: PosterApiError;
+  error?: PosterApiError | number;
+  message?: string;
 }
 
 // Poster API Configuration
@@ -41,7 +42,7 @@ export const POSTER_CONFIG: PosterConfig = {
 
     // Suppliers
     getSuppliers: '/storage.getSuppliers',
-    createSupplyOrder: '/storage.createSupplyOrder',
+    createSupplyOrder: '/storage.createSupply',
 
     // Finance
     getTransactions: '/finance.getTransactions',
@@ -113,7 +114,9 @@ export class PosterAPI {
 
       // Check for Poster API error response
       if (data.error) {
-        throw new Error(`Poster API Error (Code ${data.error.code}): ${data.error.message}`);
+        const code = typeof data.error === 'object' ? data.error.code : data.error;
+        const message = typeof data.error === 'object' ? data.error.message : data.message;
+        throw new Error(`Poster API Error (Code ${code}): ${message}`);
       }
 
       return data.response as T;
@@ -132,37 +135,49 @@ export class PosterAPI {
     }
   }
 
-  // Post request for write operations
-  async postRequest<T = any>(endpoint: string, data: Record<string, string> = {}): Promise<T> {
-    const url = `${this.baseUrl}${endpoint}`;
+  // Post request for write operations (JSON body as per Poster PHP SDK)
+  async postRequest<T = any>(endpoint: string, data: Record<string, any> = {}): Promise<T> {
+    // Token in URL query params
+    const queryParams = new URLSearchParams();
+    if (this.accessToken) {
+      queryParams.append('token', this.accessToken);
+    }
+    const queryString = queryParams.toString();
+    const url = `${this.baseUrl}${endpoint}${queryString ? `?${queryString}` : ''}`;
 
-    console.log("Poster POST request:", { url, token: this.accessToken?.substring(0, 10) + "...", data });
+    const jsonBody = JSON.stringify(data);
+    console.log("Poster POST request (JSON):", { url, body: jsonBody });
 
     try {
-      const body = new URLSearchParams({
-        ...data,
-        token: this.accessToken || ''
-      }).toString();
-      
-      console.log("Request body:", body);
-
       const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
+          'Content-Length': String(jsonBody.length),
         },
-        body
+        body: jsonBody
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+      console.log(`Poster Response Status: ${response.status}`);
+
+      const text = await response.text();
+      console.log(`Poster raw response:`, text);
+
+      if (!text) {
+         throw new Error(`Poster returned empty response (Status: ${response.status})`);
       }
 
-      const result: PosterApiResponse<T> = await response.json();
-      console.log("Poster response:", result);
+      let result: PosterApiResponse<T>;
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
+        throw new Error(`Failed to parse Poster response: ${text.substring(0, 100)}...`);
+      }
 
       if (result.error) {
-        throw new Error(`Poster API Error (Code ${result.error.code}): ${result.error.message}`);
+        const code = typeof result.error === 'object' ? result.error.code : result.error;
+        const message = typeof result.error === 'object' ? result.error.message : result.message;
+        throw new Error(`Poster API Error (Code ${code}): ${message}`);
       }
 
       return result.response as T;
@@ -219,22 +234,34 @@ export class PosterAPI {
     }>;
     comment?: string;
   }): Promise<any> {
-    // Poster expects ingredients as JSON string and specific format
-    const formData: Record<string, string> = {
-      supplier_id: String(orderData.supplier_id),
-      storage_id: String(orderData.storage_id),
-      supply: JSON.stringify(orderData.ingredients.map(ing => ({
-        product_id: ing.ingredient_id,
-        count: ing.quantity,
-        sum: (ing.price || 0) * ing.quantity,
-      }))),
+    const now = new Date();
+    // Format date as YYYY-MM-DD HH:mm:ss (required by Poster API)
+    const date = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0')
+    ].join('-') + ' ' + [
+      String(now.getHours()).padStart(2, '0'),
+      String(now.getMinutes()).padStart(2, '0'),
+      String(now.getSeconds()).padStart(2, '0')
+    ].join(':');
+
+    // Convert to Poster API format:
+    // ingredient array with: id, type (4=ingredient), num, sum
+    const payload = {
+      date,
+      supplier_id: Number(orderData.supplier_id),
+      storage_id: Number(orderData.storage_id),
+      ingredient: orderData.ingredients.map(ing => ({
+        id: Number(ing.ingredient_id),
+        type: 4, // 4 = ingredient
+        num: Number(ing.quantity),
+        sum: Number(ing.price || 0)
+      })),
     };
-    
-    if (orderData.comment) {
-      formData.comment = orderData.comment;
-    }
-    
-    return this.postRequest(POSTER_CONFIG.endpoints.createSupplyOrder, formData);
+
+    console.log("createSupplyOrder payload:", payload);
+    return this.postRequest(POSTER_CONFIG.endpoints.createSupplyOrder, payload);
   }
 
   // Get financial transactions

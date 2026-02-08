@@ -6,17 +6,11 @@ import { useSession } from "next-auth/react";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { TabNavigation } from "@/components/layout/TabNavigation";
 import { SuppliersTab } from "@/components/manager/SuppliersTab";
-import { CategoriesTab } from "@/components/manager/CategoriesTab";
 import { GenericProductListTab } from "@/components/manager/UnsortedTab";
-import { CreateSupplierModal } from "@/components/manager/CreateSupplierModal";
 import { useToast } from "@/components/ui/Toast";
-import type { Supplier, ProductCategory, Product } from "@/types";
+import type { Supplier, Product } from "@/types";
 
-type TabType = "suppliers" | "categories" | "unsorted";
-
-const TABS = [
-  { id: "suppliers", label: "Поставщики", icon: "🏢" },
-];
+type TabType = "suppliers" | "unsorted";
 
 export default function SuppliersCategoriesPage() {
   const { data: session, status } = useSession();
@@ -28,7 +22,6 @@ export default function SuppliersCategoriesPage() {
   const [supplierProducts, setSupplierProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [unassignedCount, setUnassignedCount] = useState(0);
-  const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Role-based access control - redirect unauthorized users
   const isAuthorized = status === "authenticated" && ["admin", "manager"].includes(session?.user?.role || "");
@@ -90,7 +83,7 @@ export default function SuppliersCategoriesPage() {
           const unassigned = unsortedData.data.filter((p: Product) => !p.supplier_id);
           setUnassignedProducts(unassigned);
         }
-      } else if (selectedSupplierId !== "create_new") {
+      } else {
         // Load products for specific supplier
         const productsRes = await fetch("/api/section-products?active=true");
         const productsData = await productsRes.json();
@@ -122,9 +115,8 @@ export default function SuppliersCategoriesPage() {
 
   const dynamicTabs = [
     ...(unassignedCount > 0 ? [{ id: "unsorted", label: `Неразобранное (${unassignedCount})`, icon: "⚠️" }] : []),
-    { id: "suppliers", label: "Все поставщики", icon: "🏢" }, // Overview tab
+    { id: "suppliers", label: "Все поставщики", icon: "🏢" },
     ...suppliers.map(s => ({ id: s.id, label: s.name, icon: "📦" })),
-    { id: "create_new", label: "Добавить", icon: "➕" }
   ];
 
   return (
@@ -141,11 +133,7 @@ export default function SuppliersCategoriesPage() {
             tabs={dynamicTabs}
             activeTab={String(selectedSupplierId)}
             onTabChange={(tabId) => {
-              if (tabId === "create_new") {
-                setShowCreateModal(true);
-              } else {
-                setSelectedSupplierId(tabId);
-              }
+              setSelectedSupplierId(tabId);
             }}
           />
         </div>
@@ -179,15 +167,6 @@ export default function SuppliersCategoriesPage() {
           )}
         </div>
       </div>
-
-      <CreateSupplierModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onSuccess={() => {
-          setShowCreateModal(false);
-          loadData();
-        }}
-      />
     </div>
   );
 }

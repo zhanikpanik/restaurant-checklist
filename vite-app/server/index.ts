@@ -14,6 +14,8 @@ import productsRoutes from './routes/products';
 import usersRoutes from './routes/users';
 import userSectionsRoutes from './routes/user-sections';
 import syncSectionsRoutes from './routes/sync-sections';
+import syncSuppliersRoutes from './routes/sync-suppliers';
+import posterSuppliesRoutes from './routes/poster-supplies';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -50,6 +52,9 @@ app.use('/api/suppliers', suppliersRoutes);
 app.use('/api/section-products', productsRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/user-sections', userSectionsRoutes);
+app.use('/api/sync-sections', syncSectionsRoutes);
+app.use('/api/sync-suppliers', syncSuppliersRoutes);
+app.use('/api/poster-supplies', posterSuppliesRoutes);
 
 // Error handler
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {

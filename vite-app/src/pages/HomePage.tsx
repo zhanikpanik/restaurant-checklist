@@ -122,12 +122,6 @@ export default function HomePage() {
               <p className="text-gray-600 mb-4">
                 Для текущего ресторана отделы не настроены
               </p>
-              <Link
-                to="/manager"
-                className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
-              >
-                Перейти в панель менеджера
-              </Link>
             </div>
           ) : (
             <>
@@ -148,14 +142,14 @@ export default function HomePage() {
                 </Link>
 
                 <Link
-                  to="/manager"
-                  className="w-full bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                  to="/suppliers"
+                  className="w-full bg-green-500 hover:bg-green-600 active:bg-green-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start shadow-md transform hover:scale-[1.01]"
                 >
-                  <span className="text-2xl md:text-3xl mr-3 md:mr-4">👨‍💼</span>
+                  <span className="text-2xl md:text-3xl mr-3 md:mr-4">🏢</span>
                   <div className="text-left">
-                    <div className="font-semibold text-base md:text-lg">Менеджер</div>
+                    <div className="font-semibold text-base md:text-lg">Поставщики</div>
                     <div className="text-xs md:text-sm opacity-90">
-                      Управление отделами и настройками
+                      Синхронизация с Poster
                     </div>
                   </div>
                 </Link>

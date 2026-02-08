@@ -21,14 +21,14 @@ router.get('/', requireAuth, async (req, res: Response) => {
           sp.poster_ingredient_id,
           sp.section_id,
           sp.category_id,
+          sp.supplier_id,
           sp.is_active,
           pc.name as category_name,
-          pc.supplier_id,
           sup.name as supplier_name,
           s.name as section_name
         FROM section_products sp
         LEFT JOIN product_categories pc ON sp.category_id = pc.id
-        LEFT JOIN suppliers sup ON pc.supplier_id = sup.id
+        LEFT JOIN suppliers sup ON sp.supplier_id = sup.id
         LEFT JOIN sections s ON sp.section_id = s.id
         WHERE s.restaurant_id = $1`;
 
@@ -63,7 +63,7 @@ router.get('/', requireAuth, async (req, res: Response) => {
 router.post('/', requireAuth, async (req, res: Response) => {
   try {
     const { restaurantId } = req as AuthenticatedRequest;
-    const { name, unit, section_id, category_id, is_active, poster_ingredient_id } = req.body;
+    const { name, unit, section_id, category_id, supplier_id, is_active, poster_ingredient_id } = req.body;
 
     if (!name || !section_id) {
       return res.status(400).json({
@@ -87,10 +87,10 @@ router.post('/', requireAuth, async (req, res: Response) => {
       }
 
       const result = await client.query(
-        `INSERT INTO section_products (name, unit, section_id, category_id, is_active, poster_ingredient_id)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO section_products (name, unit, section_id, category_id, supplier_id, is_active, poster_ingredient_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [name, unit || null, section_id, category_id || null, is_active !== false, ingredientId]
+        [name, unit || null, section_id, category_id || null, supplier_id || null, is_active !== false, ingredientId]
       );
       return result.rows[0];
     });
@@ -117,7 +117,7 @@ router.post('/', requireAuth, async (req, res: Response) => {
 router.patch('/', requireAuth, async (req, res: Response) => {
   try {
     const { restaurantId } = req as AuthenticatedRequest;
-    const { id, name, unit, section_id, category_id, is_active } = req.body;
+    const { id, name, unit, section_id, category_id, supplier_id, is_active } = req.body;
 
     if (!id) {
       return res.status(400).json({ success: false, error: 'Product ID is required' });
@@ -130,12 +130,13 @@ router.patch('/', requireAuth, async (req, res: Response) => {
              unit = COALESCE($2, sp.unit),
              section_id = COALESCE($3, sp.section_id),
              category_id = COALESCE($4, sp.category_id),
-             is_active = COALESCE($5, sp.is_active),
+             supplier_id = COALESCE($5, sp.supplier_id),
+             is_active = COALESCE($6, sp.is_active),
              updated_at = CURRENT_TIMESTAMP
          FROM sections s
-         WHERE sp.id = $6 AND sp.section_id = s.id AND s.restaurant_id = $7
+         WHERE sp.id = $7 AND sp.section_id = s.id AND s.restaurant_id = $8
          RETURNING sp.*`,
-        [name, unit, section_id, category_id, is_active, id, restaurantId]
+        [name, unit, section_id, category_id, supplier_id, is_active, id, restaurantId]
       );
       return result.rows[0];
     });
