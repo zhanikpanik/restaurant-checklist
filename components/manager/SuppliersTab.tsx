@@ -30,7 +30,7 @@ export function SuppliersTab({
       const response = await api.post("/api/poster/sync-suppliers", {});
 
       if (response.success) {
-        toast.success(response.message || "Поставщики синхронизированы");
+        toast.success((response as any).message || "Поставщики синхронизированы");
         onReload();
       } else {
         toast.error(response.error || "Ошибка синхронизации");
