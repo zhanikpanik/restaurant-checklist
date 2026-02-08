@@ -8,6 +8,7 @@ import { useCart, useSections } from "@/store/useStore";
 import { useToast } from "@/components/ui/Toast";
 import { BottomSheet, FormInput, FormSelect, FormButton } from "@/components/ui/BottomSheet";
 import { DepartmentSettingsModal } from "@/components/department/DepartmentSettingsModal";
+import { QuantityInput } from "@/components/ui/QuantityInput";
 import { api } from "@/lib/api-client";
 
 interface Product {
@@ -62,6 +63,12 @@ function CustomPageContent() {
   const [sectionName, setSectionName] = useState("");
   const [productQuantities, setProductQuantities] = useState<ProductQuantity>({});
 
+  // Caching state
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const [dataLoaded, setDataLoaded] = useState(false);
+
   // Modal states
   const [showProductModal, setShowProductModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -82,6 +89,22 @@ function CustomPageContent() {
     }
     loadData();
   }, [sectionId]);
+
+  // Effect to filter products when supplier changes (from cache)
+  useEffect(() => {
+    if (dataLoaded && selectedSupplierId !== null) {
+      setLoading(true);
+      // Filter from cache instead of fetching
+      const filtered = allProducts.filter(p => {
+        if (selectedSupplierId === -1) {
+          return !p.supplier_id;
+        }
+        return p.supplier_id === selectedSupplierId;
+      });
+      setProducts(filtered);
+      setLoading(false);
+    }
+  }, [selectedSupplierId, allProducts, dataLoaded]);
 
   const loadData = async () => {
     setLoading(true);
@@ -110,11 +133,14 @@ function CustomPageContent() {
 
       const productsData = await productsRes.json();
       if (productsData.success) {
+        setAllProducts(productsData.data);
         setProducts(productsData.data);
+        setDataLoaded(true);
       }
 
       const suppliersData = await suppliersRes.json();
       if (suppliersData.success) {
+        setAllSuppliers(suppliersData.data);
         setSuppliers(suppliersData.data);
         
         // Auto-select first supplier or "Other" if no suppliers
@@ -134,6 +160,7 @@ function CustomPageContent() {
 
       const categoriesData = await categoriesRes.json();
       if (categoriesData.success) {
+        setAllCategories(categoriesData.data);
         setCategories(categoriesData.data);
       }
 
@@ -249,12 +276,12 @@ function CustomPageContent() {
     }
   };
 
-  // Group products by supplier
+  // Group products by supplier (use allProducts for counts in tabs)
   const productsBySupplier = useMemo(() => {
     const grouped: Record<number, Product[]> = {};
     const noSupplier: Product[] = [];
 
-    products.forEach((product) => {
+    allProducts.forEach((product) => {
       if (product.supplier_id) {
         if (!grouped[product.supplier_id]) {
           grouped[product.supplier_id] = [];
@@ -266,19 +293,13 @@ function CustomPageContent() {
     });
 
     return { grouped, noSupplier };
-  }, [products]);
+  }, [allProducts]);
 
-  // Filter products for selected supplier
+  // Filter products for selected supplier (from current filtered products)
   const currentProducts = useMemo(() => {
     if (!selectedSupplierId) return [];
     
-    let filtered: Product[] = [];
-    
-    if (selectedSupplierId === -1) {
-      filtered = productsBySupplier.noSupplier;
-    } else {
-      filtered = productsBySupplier.grouped[selectedSupplierId] || [];
-    }
+    let filtered: Product[] = products;
 
     if (searchQuery.trim()) {
       filtered = filtered.filter((p) =>
@@ -287,7 +308,7 @@ function CustomPageContent() {
     }
 
     return filtered;
-  }, [selectedSupplierId, productsBySupplier, searchQuery]);
+  }, [selectedSupplierId, products, searchQuery]);
 
   // Suppliers that have products in this section
   // Managers see all suppliers, others see only those with products
@@ -315,6 +336,41 @@ function CustomPageContent() {
       (c) => c.supplier_id === selectedSupplierId || !c.supplier_id
     );
   }, [categories, selectedSupplierId]);
+
+  const handleSetQuantity = (product: Product, newQty: number) => {
+    if (newQty <= 0) {
+      setProductQuantities((prev) => {
+        const { [product.id]: _, ...rest } = prev;
+        return rest;
+      });
+      const cartId = `product-${product.id}`;
+      cart.remove(cartId);
+    } else {
+      setProductQuantities((prev) => ({
+        ...prev,
+        [product.id]: newQty,
+      }));
+
+      const cartId = `product-${product.id}`;
+      const existingItem = cart.items.find((item) => item.cartId === cartId);
+
+      if (existingItem) {
+        cart.updateQuantity(cartId, newQty);
+      } else {
+        cart.add({
+          cartId,
+          productId: product.id,
+          name: product.name,
+          quantity: newQty,
+          unit: product.unit,
+          category: product.category_name,
+          supplier: product.supplier_name || "",
+          supplier_id: product.supplier_id,
+          poster_id: product.poster_ingredient_id,
+        });
+      }
+    }
+  };
 
   const handleIncreaseQuantity = (product: Product) => {
     const currentQty = productQuantities[product.id] || 0;
@@ -510,25 +566,20 @@ function CustomPageContent() {
                     {!hasQuantity ? (
                       <button
                         onClick={() => handleIncreaseQuantity(product)}
-                        className="ml-3 w-9 h-9 flex items-center justify-center bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors text-xl font-bold"
+                        className="ml-3 w-10 h-10 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors shadow-sm"
                       >
-                        +
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
                       </button>
                     ) : (
-                      <div className="flex items-center gap-2 ml-3">
-                        <button
-                          onClick={() => handleDecreaseQuantity(product)}
-                          className="w-9 h-9 flex items-center justify-center bg-gray-200 hover:bg-gray-300 text-black rounded-lg transition-colors text-xl font-bold"
-                        >
-                          −
-                        </button>
-                        <span className="w-10 text-center font-medium text-gray-900">{quantity}</span>
-                        <button
-                          onClick={() => handleIncreaseQuantity(product)}
-                          className="w-9 h-9 flex items-center justify-center bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors text-xl font-bold"
-                        >
-                          +
-                        </button>
+                      <div className="ml-3">
+                        <QuantityInput
+                          productName={product.name}
+                          quantity={quantity}
+                          unit={product.unit}
+                          onQuantityChange={(newQty) => handleSetQuantity(product, newQty)}
+                        />
                       </div>
                     )}
                   </div>
@@ -599,60 +650,56 @@ function Header({
   onOpenSettings?: () => void;
 }) {
   return (
-    <header className="bg-purple-600 text-white px-4 py-4 sticky top-0 z-10">
-      <div className="max-w-md mx-auto flex items-center">
-        <Link
-          href="/"
-          className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
-          aria-label="На главную"
-        >
-          <svg
-            className="w-6 h-6 text-white"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            strokeWidth="2.5"
+    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <div className="max-w-md mx-auto px-4 py-4">
+        <div className="relative flex items-center justify-between">
+          <Link
+            href="/"
+            className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
+            aria-label="На главную"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-        </Link>
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth="2"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </Link>
 
-        <div className="flex-1 text-center px-2">
-          <h1 className="text-lg font-semibold truncate">
+          <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900 truncate max-w-[200px] text-center">
             {sectionName || dept || "Товары"}
           </h1>
-          {canManage && pendingOrdersCount > 0 && (
-            <Link
-              href="/orders"
-              className="inline-flex items-center gap-1 text-xs text-white/80 hover:text-white"
-            >
-              <span className="bg-yellow-500 text-yellow-900 px-1.5 py-0.5 rounded-full text-xs font-medium">
-                {pendingOrdersCount}
-              </span>
-              <span>активных заказов</span>
-            </Link>
-          )}
-        </div>
 
-        {canManage ? (
-          <div className="flex items-center gap-1">
-            {onOpenSettings && (
+          <div className="flex items-center gap-2">
+            {canManage && pendingOrdersCount > 0 && (
+              <Link
+                href="/orders"
+                className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center hover:bg-yellow-200 transition-colors text-yellow-700 font-bold text-sm relative"
+              >
+                {pendingOrdersCount}
+              </Link>
+            )}
+            
+            {canManage && onOpenSettings && (
               <button
                 onClick={onOpenSettings}
-                className="flex items-center justify-center w-10 h-10 hover:bg-white/10 rounded-full transition-all duration-200 active:scale-95"
-                aria-label="Настройки отдела"
+                className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
               >
-                <span className="text-lg">⚙️</span>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
               </button>
             )}
           </div>
-        ) : (
-          <div className="w-10" />
-        )}
+        </div>
       </div>
     </header>
   );

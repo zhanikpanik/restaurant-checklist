@@ -214,8 +214,16 @@ export default function HomePage() {
   const hasNoAssignedSections = !isAdmin && !isManager && !isDelivery && userSectionIds.length === 0 && allSections.length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-3 md:p-4">
-      <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        {/* Restaurant Title */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+            {session?.user?.restaurantName || "Ресторан"}
+          </h1>
+          <p className="text-sm text-gray-500">Система управления заказами</p>
+        </div>
+
         {/* Header with Action Buttons for Admin/Manager */}
         {(isAdmin || isManager) && (
           <div className="flex items-center justify-end gap-2 mb-4">
@@ -306,7 +314,7 @@ export default function HomePage() {
             <>
               {/* Last Order Card - Show for all authenticated users */}
               {lastOrder && (
-                <div className="w-full bg-white border border-gray-200 rounded-lg p-4 md:p-5 shadow-sm">
+                <div className="w-full bg-white border border-gray-200 rounded-lg p-4 md:p-5">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-gray-800">📋 Последний заказ</h3>
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(lastOrder.status)}`}>

@@ -74,16 +74,16 @@ export function GenericProductListTab({
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div>
+      <div className="flex items-center justify-between mb-4 px-4 pt-4">
         <h2 className="text-xl font-bold text-gray-800">
           {title} ({products.length})
         </h2>
       </div>
 
       {/* Selection Toolbar (Top) - Just for Select All */}
-      <div className="mb-4 px-1 sticky top-4 z-10">
-        <label className="flex items-center gap-2 cursor-pointer bg-white/90 backdrop-blur px-3 py-2 rounded-lg inline-block shadow-sm border border-gray-200">
+      <div className="mb-4 px-4">
+        <label className="flex items-center gap-2 cursor-pointer bg-white border border-gray-200 px-3 py-2 rounded-lg inline-block">
           <input 
             type="checkbox"
             checked={selectedIds.length === products.length}
@@ -95,21 +95,22 @@ export function GenericProductListTab({
       </div>
 
       {/* List */}
-      <div className="space-y-1 pb-24">
-        {products.map(p => (
-          <div 
-            key={p.id} 
-            onClick={() => toggleSelection(p.id)}
-            className={`flex items-center gap-3 p-3 cursor-pointer transition-colors border-b border-gray-100 last:border-0 ${
-              selectedIds.includes(p.id) ? "bg-blue-50" : "hover:bg-gray-50"
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={selectedIds.includes(p.id)}
-              onChange={() => {}} 
-              className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none flex-shrink-0"
-            />
+      <div className="bg-white pb-24">
+        <div className="divide-y divide-gray-100">
+          {products.map(p => (
+            <div 
+              key={p.id} 
+              onClick={() => toggleSelection(p.id)}
+              className={`flex items-center gap-3 px-4 py-4 cursor-pointer transition-colors ${
+                selectedIds.includes(p.id) ? "bg-blue-50" : "hover:bg-gray-50"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedIds.includes(p.id)}
+                onChange={() => {}} 
+                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500 pointer-events-none flex-shrink-0"
+              />
               <div className="min-w-0 flex-1">
                 <div className="font-medium text-gray-900 truncate">{p.name}</div>
                 <div className="flex gap-2 text-xs text-gray-500">
@@ -118,21 +119,22 @@ export function GenericProductListTab({
                 </div>
               </div>
               
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg text-gray-600 font-medium text-sm">
-                {p.quantity || 0}
-              </div>
-              <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-xs">
-                {p.unit}
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg text-gray-600 font-medium text-sm">
+                  {p.quantity || 0}
+                </div>
+                <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-lg text-gray-500 text-xs">
+                  {p.unit}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Fixed Bottom Action Bar */}
       {showSupplierSelect && selectedIds.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-20 md:pl-64">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-20 md:pl-64">
           <div className="max-w-7xl mx-auto flex gap-3 items-center">
             <div className="flex-1">
               <select

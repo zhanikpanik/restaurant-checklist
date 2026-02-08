@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { api } from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
+import { QuantityInput } from "@/components/ui/QuantityInput";
 import type { Order, Supplier, UserOrderPermissions } from "@/types";
 
 type TabType = "pending" | "transit" | "history";
@@ -18,9 +19,6 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("pending");
   const [updating, setUpdating] = useState(false);
-  
-  // Date filter for history
-  const [dateFilter, setDateFilter] = useState({ start: "", end: "" });
   
   // Quantity adjustments for pending items: { `${orderId}-${itemIdx}`: quantity }
   const [pendingQuantities, setPendingQuantities] = useState<Record<string, number>>({});
@@ -132,28 +130,27 @@ export default function OrdersPage() {
     return Array.from(groups.entries());
   }, [pendingItems]);
 
+  // Group pending items by department for display
+  const pendingByDepartment = useMemo(() => {
+    const deptGroups = new Map<string, any[]>();
+    
+    pendingItems.filter(i => i._quantity > 0).forEach(item => {
+      const dept = item._department || "Общее";
+      if (!deptGroups.has(dept)) {
+        deptGroups.set(dept, []);
+      }
+      deptGroups.get(dept)!.push(item);
+    });
+    
+    return Array.from(deptGroups.entries());
+  }, [pendingItems]);
+
   // History orders
   const historyOrders = useMemo(() => {
     return orders
-      .filter(o => {
-        if (!['delivered', 'cancelled'].includes(o.status)) return false;
-        
-        if (dateFilter.start) {
-            const orderDate = new Date(o.created_at);
-            const start = new Date(dateFilter.start);
-            start.setHours(0,0,0,0);
-            if (orderDate < start) return false;
-        }
-        if (dateFilter.end) {
-            const orderDate = new Date(o.created_at);
-            const end = new Date(dateFilter.end);
-            end.setHours(23,59,59,999);
-            if (orderDate > end) return false;
-        }
-        return true;
-      })
+      .filter(o => ['delivered', 'cancelled'].includes(o.status))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [orders, dateFilter]);
+  }, [orders]);
 
   // Determine current focus state
   const hasInTransit = sentBySupplier.length > 0;
@@ -168,6 +165,10 @@ export default function OrdersPage() {
       const current = prev[key] ?? item.quantity;
       return { ...prev, [key]: Math.max(0, current + delta) };
     });
+  };
+
+  const handleSetPendingQuantity = (key: string, value: number) => {
+    setPendingQuantities(prev => ({ ...prev, [key]: Math.max(0, value) }));
   };
 
   const handleReceivedQuantityChange = (key: string, value: string) => {
@@ -258,12 +259,12 @@ export default function OrdersPage() {
       console.log("Poster items (with poster_id):", posterItems);
       
       if (posterItems.length > 0) {
-        // Find supplier's poster_id if available
+        // Find supplier's local ID (not poster_supplier_id)
         const supplier = suppliers.find(s => s.name === supplierName);
-        const posterSupplierId = (supplier as any)?.poster_supplier_id || 1;
+        const localSupplierId = supplier?.id; // Use local database ID
         
         const posterPayload = {
-          supplier_id: posterSupplierId,
+          supplier_id: localSupplierId, // Send local ID - API will look up poster_supplier_id
           storage_id: 1, // Default storage
           items: posterItems.map(item => ({
             ingredient_id: String(item.poster_id || item.productId),
@@ -326,165 +327,165 @@ export default function OrdersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-10 h-10 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
-      <header className="bg-slate-800 border-b border-slate-700 sticky top-0 z-50">
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <Link 
-                href="/" 
-                className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center hover:bg-slate-600 transition-colors"
-              >
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </Link>
-              <h1 className="text-xl font-bold text-white">Заказы</h1>
-            </div>
+          <div className="relative flex items-center justify-between mb-4">
+            <Link 
+              href="/" 
+              className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </Link>
+            
+            <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900">Заказы</h1>
+            
             <button 
               onClick={loadData}
-              className="w-10 h-10 rounded-xl bg-slate-700 flex items-center justify-center hover:bg-slate-600 transition-colors"
+              className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
             >
-              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 bg-slate-700/50 p-1 rounded-xl">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
             <button
               onClick={() => setActiveTab("pending")}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "pending" ? "bg-white text-slate-900" : "text-slate-400 hover:text-white"
+              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg ${
+                activeTab === "pending" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
               }`}
             >
-              К отправке
-              {hasPending && (
-                <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
-                  activeTab === "pending" ? "bg-amber-100 text-amber-700" : "bg-amber-500/30 text-amber-300"
-                }`}>
-                  {activeItemCount}
-                </span>
-              )}
+              <span className="whitespace-nowrap">Отправить</span>
             </button>
             <button
               onClick={() => setActiveTab("transit")}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "transit" ? "bg-white text-slate-900" : "text-slate-400 hover:text-white"
+              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg ${
+                activeTab === "transit" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
               }`}
             >
-              В пути
-              {hasInTransit && (
-                <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
-                  activeTab === "transit" ? "bg-green-100 text-green-700" : "bg-green-500/30 text-green-300"
-                }`}>
-                  {sentBySupplier.length}
-                </span>
-              )}
+              <span className="whitespace-nowrap">В пути</span>
             </button>
             <button
               onClick={() => setActiveTab("history")}
-              className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === "history" ? "bg-white text-slate-900" : "text-slate-400 hover:text-white"
+              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg ${
+                activeTab === "history" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
               }`}
             >
-              История
+              <span className="whitespace-nowrap">История</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto px-4 py-4">
+      <main className="max-w-2xl mx-auto">
         {/* === PENDING TAB - Items to send === */}
         {activeTab === "pending" && (
           <>
             {!hasPending ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="text-center py-16 px-4">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-4xl">📦</span>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Нет заявок</h3>
-                <p className="text-slate-400 mb-6">Новые заявки появятся здесь</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Нет заявок</h3>
+                <p className="text-gray-500 mb-6">Новые заявки появятся здесь</p>
                 <Link
                   href="/"
-                  className="inline-block bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-medium transition-colors"
+                  className="inline-block bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-medium transition-colors"
                 >
                   Перейти к отделам
                 </Link>
               </div>
             ) : (
-              <div className="space-y-4">
-                {/* Items list */}
-                <div className="space-y-2">
-                  {pendingItems.map(item => {
-                    if (item._quantity === 0) return null;
-                    return (
-                      <div 
-                        key={item._key}
-                        className="bg-slate-800 rounded-xl p-4 flex items-center gap-4"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-white truncate">{item.name}</p>
-                          <p className="text-sm text-slate-400">{item.supplier || "—"}</p>
-                        </div>
-                        
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handlePendingQuantityChange(item._key, -1)}
-                            className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center"
-                          >
-                            −
-                          </button>
-                          <span className="w-10 text-center text-white font-medium">
-                            {item._quantity}
-                          </span>
-                          <button
-                            onClick={() => handlePendingQuantityChange(item._key, 1)}
-                            className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center"
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        <button
-                          onClick={() => handleRemoveItem(item._key)}
-                          className="w-8 h-8 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 flex items-center justify-center transition-colors"
-                        >
-                          ✕
-                        </button>
+              <div>
+                {/* Items list grouped by department */}
+                <div className="bg-white">
+                  {pendingByDepartment.map(([department, deptItems]) => (
+                    <div key={department}>
+                      {/* Department Header */}
+                      <div className="bg-purple-50 px-4 py-2 border-t border-purple-100 first:border-t-0">
+                        <h3 className="font-semibold text-purple-900 text-sm">{department}</h3>
+                        <p className="text-xs text-purple-600">{deptItems.length} позиций</p>
                       </div>
-                    );
-                  })}
+                      
+                      {/* Department Items */}
+                      <div className="divide-y divide-gray-100">
+                        {deptItems.map(item => {
+                          if (item._quantity === 0) return null;
+                          return (
+                            <div 
+                              key={item._key}
+                              className="px-4 py-4 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0 pr-4">
+                                  <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    {item.supplier || "—"}
+                                  </p>
+                                </div>
+                              
+                                <div className="flex items-center gap-2">
+                                  <QuantityInput
+                                    productName={item.name}
+                                    quantity={item._quantity}
+                                    unit={item.unit || "шт"}
+                                    onQuantityChange={(newQty) => handleSetPendingQuantity(item._key, newQty)}
+                                    min={0}
+                                    compact={true}
+                                  />
+                                  
+                                  <button
+                                    onClick={() => handleRemoveItem(item._key)}
+                                    className="ml-2 w-9 h-9 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors"
+                                  >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Supplier breakdown */}
-                <div className="space-y-3 mt-6">
-                  <h3 className="text-sm font-medium text-slate-400">Поставщики</h3>
-                  {pendingBySupplier.map(([supplier, group]) => (
-                    <div key={supplier} className="bg-slate-800 rounded-xl p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-slate-700 rounded-lg flex items-center justify-center text-sm">
+                <div className="mt-6 px-4">
+                  <h3 className="text-sm font-medium text-gray-500 mb-3">Поставщики</h3>
+                </div>
+                <div className="bg-white">
+                  <div className="divide-y divide-gray-100">
+                    {pendingBySupplier.map(([supplier, group]) => (
+                      <div key={supplier} className="px-4 py-4">
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-sm flex-shrink-0 mt-1">
                             📦
                           </div>
-                          <div>
-                            <p className="font-medium text-white">{supplier}</p>
-                            <p className="text-xs text-slate-400">{group.items.length} позиций</p>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-gray-900">{supplier}</p>
+                            <p className="text-xs text-gray-500">{group.items.length} позиций</p>
                           </div>
                         </div>
                         <button
                           onClick={() => sendToWhatsApp(supplier, group.items)}
                           disabled={sendingSupplier === supplier}
-                          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                          className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                           {sendingSupplier === supplier ? (
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -498,8 +499,8 @@ export default function OrdersPage() {
                           )}
                         </button>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -511,88 +512,95 @@ export default function OrdersPage() {
           <>
             {!hasInTransit ? (
               <div className="text-center py-16">
-                <div className="w-20 h-20 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-4xl">🚚</span>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Нет доставок</h3>
-                <p className="text-slate-400">Отправленные заказы появятся здесь</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Нет доставок</h3>
+                <p className="text-gray-500">Отправленные заказы появятся здесь</p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {sentBySupplier.map(([supplier, group]) => (
-                  <div key={supplier} className="bg-slate-800 rounded-2xl overflow-hidden">
-                    <div className="p-4 border-b border-slate-700">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-green-500/20 rounded-xl flex items-center justify-center">
-                          <span className="text-xl">🚚</span>
-                        </div>
-                        <div>
-                          <h3 className="font-bold text-white">{supplier}</h3>
-                          <p className="text-sm text-slate-400">{group.items.length} позиций</p>
+              <div className="bg-white">
+                <div className="divide-y divide-gray-100">
+                  {sentBySupplier.map(([supplier, group]) => (
+                    <div key={supplier}>
+                      {/* Supplier Header */}
+                      <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 first:border-t-0">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center text-green-700">
+                            🚚
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-gray-900 text-sm">{supplier}</h3>
+                            <p className="text-xs text-gray-500">{group.items.length} позиций</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="divide-y divide-slate-700">
-                      {group.items.map((item, idx) => (
-                        <div key={idx} className="p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-white">{item.name}</span>
-                            <span className="text-slate-400 text-sm">
-                              Заказано: {item._orderedQty} {item.unit || "шт"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-400 text-sm">Получено:</span>
-                            <input
-                              type="number"
-                              value={item._receivedQty}
-                              onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
-                              className="w-24 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-center focus:outline-none focus:border-green-500"
-                              step="0.1"
-                            />
-                            <span className="text-slate-400 text-sm">{item.unit || "шт"}</span>
-                            {item._receivedQty !== item._orderedQty && (
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                item._receivedQty < item._orderedQty 
-                                  ? "bg-red-500/20 text-red-400"
-                                  : "bg-blue-500/20 text-blue-400"
-                              }`}>
-                                {item._receivedQty < item._orderedQty ? "−" : "+"}
-                                {Math.abs(item._receivedQty - item._orderedQty)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                      {/* Items */}
+                      <div className="divide-y divide-gray-100">
+                        {group.items.map((item, idx) => {
+                          const diff = item._receivedQty - item._orderedQty;
+                          const isDifferent = diff !== 0;
+                          const orderedTextColor = isDifferent 
+                            ? (diff < 0 ? "text-red-600" : "text-green-600")
+                            : "text-gray-500";
+                          
+                          return (
+                            <div key={idx} className="px-4 py-4 hover:bg-gray-50 transition-colors">
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0 pr-4">
+                                  <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
+                                  <p className={`text-xs mt-0.5 font-medium ${orderedTextColor}`}>
+                                    Заказано: {item._orderedQty} {item.unit || "шт"}
+                                  </p>
+                                </div>
+                                
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-200">
+                                    <span className="text-xs text-gray-500 pl-2">Факт:</span>
+                                    <input
+                                      type="number"
+                                      value={item._receivedQty}
+                                      onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
+                                      className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-gray-900 text-center text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                      step="0.1"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
 
-                    <div className="p-4 bg-slate-700/50 flex gap-3">
-                      <button
-                        onClick={() => handleRevertToPending(group.items)}
-                        disabled={updating}
-                        className="px-4 bg-slate-600 hover:bg-slate-500 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50"
-                        title="Вернуть в ожидание"
-                      >
-                        ↩
-                      </button>
-                      <button
-                        onClick={() => handleConfirmDelivery(supplier, group.items)}
-                        disabled={updating}
-                        className="flex-1 bg-green-500 hover:bg-green-600 text-white py-3 rounded-xl font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                      >
-                        {updating ? (
-                          <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                          <>
-                            <span>✓</span>
-                            Принять поставку
-                          </>
-                        )}
-                      </button>
+                      {/* Actions Footer */}
+                      <div className="px-4 py-3 bg-gray-50 flex gap-3 justify-end border-t border-gray-200">
+                        <button
+                          onClick={() => handleRevertToPending(group.items)}
+                          disabled={updating}
+                          className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                          title="Вернуть в ожидание"
+                        >
+                          ↩ Вернуть
+                        </button>
+                        <button
+                          onClick={() => handleConfirmDelivery(supplier, group.items)}
+                          disabled={updating}
+                          className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          {updating ? (
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <>
+                              <span>✓</span>
+                              Принять
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </>
@@ -601,63 +609,41 @@ export default function OrdersPage() {
         {/* === HISTORY TAB === */}
         {activeTab === "history" && (
           <div>
-            <div className="flex items-center gap-2 mb-4 bg-slate-800 p-3 rounded-xl">
-               <input 
-                 type="date" 
-                 value={dateFilter.start}
-                 onChange={e => setDateFilter(prev => ({...prev, start: e.target.value}))}
-                 className="bg-slate-700 text-white border border-slate-600 rounded-lg px-2 py-2 text-sm w-full outline-none focus:border-purple-500"
-               />
-               <span className="text-slate-400">—</span>
-               <input 
-                 type="date" 
-                 value={dateFilter.end}
-                 onChange={e => setDateFilter(prev => ({...prev, end: e.target.value}))}
-                 className="bg-slate-700 text-white border border-slate-600 rounded-lg px-2 py-2 text-sm w-full outline-none focus:border-purple-500"
-               />
-               {(dateFilter.start || dateFilter.end) && (
-                   <button 
-                     onClick={() => setDateFilter({start: "", end: ""})}
-                     className="p-2 text-slate-400 hover:text-white bg-slate-700 rounded-lg"
-                   >
-                     ✕
-                   </button>
-               )}
-            </div>
-
             {historyOrders.length === 0 ? (
-              <div className="text-center py-16">
+              <div className="text-center py-16 px-4">
                 <div className="text-5xl mb-4">📋</div>
-                <h3 className="text-lg font-medium text-white mb-2">История пуста</h3>
-                <p className="text-slate-400">Завершённые заказы появятся здесь</p>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">История пуста</h3>
+                <p className="text-gray-500">Завершённые заказы появятся здесь</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {historyOrders.map(order => (
-                  <div key={order.id} className="bg-slate-800 rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-white font-medium">#{order.id}</span>
-                        <span className="text-slate-500">·</span>
-                        <span className="text-slate-400">{order.order_data.department}</span>
+              <div className="bg-white">
+                <div className="divide-y divide-gray-100">
+                  {historyOrders.map(order => (
+                    <div key={order.id} className="px-4 py-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-900 font-medium">#{order.id}</span>
+                          <span className="text-gray-400">·</span>
+                          <span className="text-gray-500">{order.order_data.department}</span>
+                        </div>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          order.status === 'delivered' 
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {order.status === 'delivered' ? 'Доставлено' : 'Отменено'}
+                        </span>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full ${
-                        order.status === 'delivered' 
-                          ? 'bg-green-500/20 text-green-400'
-                          : 'bg-red-500/20 text-red-400'
-                      }`}>
-                        {order.status === 'delivered' ? 'Доставлено' : 'Отменено'}
-                      </span>
+                      <p className="text-sm text-slate-400 mb-2">
+                        {formatDate(order.created_at)} · {order.order_data.items?.length || 0} позиций
+                      </p>
+                      <p className="text-sm text-slate-500 truncate">
+                        {order.order_data.items?.slice(0, 3).map((i: any) => i.name).join(", ")}
+                        {(order.order_data.items?.length || 0) > 3 && "..."}
+                      </p>
                     </div>
-                    <p className="text-sm text-slate-400 mb-2">
-                      {formatDate(order.created_at)} · {order.order_data.items?.length || 0} позиций
-                    </p>
-                    <p className="text-sm text-slate-500 truncate">
-                      {order.order_data.items?.slice(0, 3).map((i: any) => i.name).join(", ")}
-                      {(order.order_data.items?.length || 0) > 3 && "..."}
-                    </p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>

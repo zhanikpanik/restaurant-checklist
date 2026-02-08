@@ -73,9 +73,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Filter out items without valid ingredient_id
+    console.log("Items received:", JSON.stringify(items, null, 2));
+    
     const validItems = items.filter(item => 
       item.ingredient_id && item.ingredient_id !== "undefined" && item.ingredient_id !== "null"
     );
+    
+    console.log("Valid items after filtering:", validItems.length, JSON.stringify(validItems, null, 2));
 
     if (validItems.length === 0) {
       return NextResponse.json({

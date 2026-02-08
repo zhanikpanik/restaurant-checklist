@@ -247,12 +247,12 @@ export class PosterAPI {
     ].join(':');
 
     // Convert to Poster API format:
-    // ingredient array with: id, type (4=ingredient), num, sum
+    // ingredients array with: id, type (4=ingredient), num, sum
     const payload = {
       date,
       supplier_id: Number(orderData.supplier_id),
       storage_id: Number(orderData.storage_id),
-      ingredient: orderData.ingredients.map(ing => ({
+      ingredients: orderData.ingredients.map(ing => ({
         id: Number(ing.ingredient_id),
         type: 4, // 4 = ingredient
         num: Number(ing.quantity),

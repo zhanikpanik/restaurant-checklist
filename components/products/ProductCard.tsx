@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui";
+import { QuantityInput } from "@/components/ui/QuantityInput";
 
 interface ProductCardProps {
   product: {
@@ -67,41 +68,16 @@ export function ProductListItem({
       <div className="flex-1">
         <p className="font-medium text-gray-900">{product.name}</p>
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => onQuantityChange(Math.max(1, quantity - 1))}
-          className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-lg"
-        >
-          -
-        </button>
-        <span className="w-12 text-center font-medium">
-          {quantity} {product.unit || "шт"}
-        </span>
-        <button
-          onClick={() => onQuantityChange(quantity + 1)}
-          className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-lg"
-        >
-          +
-        </button>
-        <button
-          onClick={onRemove}
-          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors ml-2"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
+      <QuantityInput
+        productName={product.name}
+        quantity={quantity}
+        unit={product.unit || "шт"}
+        onQuantityChange={onQuantityChange}
+        onRemove={onRemove}
+        showRemoveButton={true}
+        compact={true}
+        min={1}
+      />
     </div>
   );
 }

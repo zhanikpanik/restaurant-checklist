@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { TabNavigation } from "@/components/layout/TabNavigation";
 import { SuppliersTab } from "@/components/manager/SuppliersTab";
 import { GenericProductListTab } from "@/components/manager/UnsortedTab";
 import { useToast } from "@/components/ui/Toast";
@@ -22,6 +20,11 @@ export default function SuppliersCategoriesPage() {
   const [supplierProducts, setSupplierProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [unassignedCount, setUnassignedCount] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  
+  // Cache all products to avoid refetching
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [productsLoaded, setProductsLoaded] = useState(false);
 
   // Role-based access control - redirect unauthorized users
   const isAuthorized = status === "authenticated" && ["admin", "manager"].includes(session?.user?.role || "");
@@ -36,17 +39,11 @@ export default function SuppliersCategoriesPage() {
 
   // Load unassigned count initially and when data reloads
   useEffect(() => {
-    if (isAuthorized) {
-      fetch("/api/section-products?active=true")
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            const count = data.data.filter((p: Product) => !p.supplier_id).length;
-            setUnassignedCount(count);
-          }
-        });
+    if (isAuthorized && productsLoaded) {
+      const count = allProducts.filter((p: Product) => !p.supplier_id).length;
+      setUnassignedCount(count);
     }
-  }, [isAuthorized, selectedSupplierId, loading]); 
+  }, [isAuthorized, allProducts, productsLoaded]); 
 
   // Load data when tab changes
   useEffect(() => {
@@ -74,23 +71,26 @@ export default function SuppliersCategoriesPage() {
       const suppliersData = await suppliersRes.json();
       if (suppliersData.success) setSuppliers(suppliersData.data);
 
-      if (selectedSupplierId === "suppliers") {
-        // Just showing the list of suppliers (default view)
-      } else if (selectedSupplierId === "unsorted") {
-        const unsortedRes = await fetch("/api/section-products?active=true");
-        const unsortedData = await unsortedRes.json();
-        if (unsortedData.success) {
-          const unassigned = unsortedData.data.filter((p: Product) => !p.supplier_id);
-          setUnassignedProducts(unassigned);
-        }
-      } else {
-        // Load products for specific supplier
+      // Load all products once and cache them
+      if (!productsLoaded) {
         const productsRes = await fetch("/api/section-products?active=true");
         const productsData = await productsRes.json();
         if (productsData.success) {
-          const filtered = productsData.data.filter((p: Product) => p.supplier_id === Number(selectedSupplierId));
-          setSupplierProducts(filtered);
+          setAllProducts(productsData.data);
+          setProductsLoaded(true);
         }
+      }
+
+      // Filter from cache instead of fetching again
+      if (selectedSupplierId === "suppliers") {
+        // Just showing the list of suppliers (default view)
+      } else if (selectedSupplierId === "unsorted") {
+        const unassigned = allProducts.filter((p: Product) => !p.supplier_id);
+        setUnassignedProducts(unassigned);
+      } else {
+        // Filter products for specific supplier from cache
+        const filtered = allProducts.filter((p: Product) => p.supplier_id === Number(selectedSupplierId));
+        setSupplierProducts(filtered);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -100,73 +100,182 @@ export default function SuppliersCategoriesPage() {
     }
   };
 
-  useEffect(() => {
-    if (isAuthorized) {
-      fetch("/api/section-products?active=true")
-        .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            const count = data.data.filter((p: Product) => !p.supplier_id).length;
-            setUnassignedCount(count);
-          }
-        });
-    }
-  }, [isAuthorized, selectedSupplierId]); 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const response = await fetch("/api/poster/sync-suppliers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
 
-  const dynamicTabs = [
-    ...(unassignedCount > 0 ? [{ id: "unsorted", label: `Неразобранное (${unassignedCount})`, icon: "⚠️" }] : []),
-    { id: "suppliers", label: "Все поставщики", icon: "🏢" },
-    ...suppliers.map(s => ({ id: s.id, label: s.name, icon: "📦" })),
-  ];
+      const data = await response.json();
+      if (data.success) {
+        toast.success(data.message || "Поставщики синхронизированы");
+        // Clear cache and reload
+        setProductsLoaded(false);
+        loadData();
+      } else {
+        toast.error(data.error || "Ошибка синхронизации");
+      }
+    } catch (error) {
+      console.error("Error syncing suppliers:", error);
+      toast.error("Ошибка синхронизации поставщиков");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <PageHeader
-        title="🏢 Поставщики и Категории"
-        showBackButton
-        backUrl="/"
-      />
+    <div className="min-h-screen bg-gray-50 pb-20">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-2xl mx-auto px-4 py-4">
+          <div className="relative flex items-center justify-between mb-4">
+            <button 
+              onClick={() => router.push('/')}
+              className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            
+            <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900">Поставщики</h1>
+            
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              {syncing ? (
+                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <>
+                  <span>🔄</span>
+                  <span className="hidden sm:inline">Синхр.</span>
+                </>
+              )}
+            </button>
+          </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="mb-6 overflow-x-auto pb-2">
-          <TabNavigation
-            tabs={dynamicTabs}
-            activeTab={String(selectedSupplierId)}
-            onTabChange={(tabId) => {
-              setSelectedSupplierId(tabId);
-            }}
+          {/* Scrollable Tabs */}
+          <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
+            <button
+              onClick={() => setSelectedSupplierId("suppliers")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                selectedSupplierId === "suppliers"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              🏢 Все поставщики
+            </button>
+            
+            <button
+              onClick={() => setSelectedSupplierId("unsorted")}
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                selectedSupplierId === "unsorted"
+                  ? "bg-purple-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              📦 Нераспределенные
+              {unassignedCount > 0 && (
+                <span className="ml-2 bg-white/20 px-1.5 py-0.5 rounded text-xs">
+                  {unassignedCount}
+                </span>
+              )}
+            </button>
+
+            {suppliers.map(supplier => (
+              <button
+                key={supplier.id}
+                onClick={() => setSelectedSupplierId(supplier.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                  selectedSupplierId === supplier.id
+                    ? "bg-purple-600 text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {supplier.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-2xl mx-auto">
+        {selectedSupplierId === "suppliers" && (
+          <SuppliersTab
+            suppliers={suppliers}
+            setSuppliers={setSuppliers}
+            loading={loading}
+            onReload={loadData}
           />
-        </div>
+        )}
 
-        <div className="bg-white rounded-lg shadow-sm">
-          {selectedSupplierId === "unsorted" && (
-            <GenericProductListTab
-              products={unassignedProducts}
-              suppliers={suppliers}
-              onReload={loadData}
-              title="⚠️ Нераспределенные товары"
-            />
-          )}
+        {selectedSupplierId === "unsorted" && (
+          <GenericProductListTab
+            products={unassignedProducts}
+            loading={loading}
+            title="Нераспределенные товары"
+            emptyMessage="Все товары распределены по поставщикам"
+            onMove={(productId, supplierId) => {
+              // Update UI immediately
+              setUnassignedProducts(prev => prev.filter(p => p.id !== productId));
+              setUnassignedCount(prev => Math.max(0, prev - 1));
+              
+              // Update cache
+              setAllProducts(prev => prev.map(p => 
+                p.id === productId ? { ...p, supplier_id: supplierId } : p
+              ));
+              
+              // Save to server
+              fetch("/api/section-products", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: productId, supplier_id: supplierId })
+              }).catch(() => {
+                // On error, invalidate cache and reload
+                setProductsLoaded(false);
+                loadData();
+              });
+            }}
+            suppliers={suppliers}
+          />
+        )}
 
-          {selectedSupplierId === "suppliers" && (
-            <SuppliersTab
-              suppliers={suppliers}
-              setSuppliers={setSuppliers}
-              loading={loading}
-              onReload={loadData}
-            />
-          )}
-
-          {selectedSupplierId !== "suppliers" && selectedSupplierId !== "unsorted" && (
-            <GenericProductListTab
-              products={supplierProducts}
-              suppliers={suppliers}
-              onReload={loadData}
-              title="📦 Товары поставщика"
-            />
-          )}
-        </div>
-      </div>
+        {typeof selectedSupplierId === 'number' && (
+          <GenericProductListTab
+            products={supplierProducts}
+            loading={loading}
+            title={`Товары: ${suppliers.find(s => s.id === selectedSupplierId)?.name}`}
+            emptyMessage="Нет товаров у этого поставщика"
+            onMove={(productId, supplierId) => {
+              // Update UI immediately
+              setSupplierProducts(prev => prev.filter(p => p.id !== productId));
+              
+              // Update cache
+              setAllProducts(prev => prev.map(p => 
+                p.id === productId ? { ...p, supplier_id: supplierId } : p
+              ));
+              
+              // Save to server
+              fetch("/api/section-products", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ id: productId, supplier_id: supplierId })
+              }).catch(() => {
+                // On error, invalidate cache and reload
+                setProductsLoaded(false);
+                loadData();
+              });
+            }}
+            suppliers={suppliers}
+          />
+        )}
+      </main>
     </div>
   );
 }

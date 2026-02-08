@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Order, OrderItem } from "@/types";
 import { Modal, Button, OrderStatusBadge } from "@/components/ui";
+import { QuantityInput } from "@/components/ui/QuantityInput";
 
 interface OrderModalProps {
   order: Order | null;
@@ -134,50 +135,16 @@ export function OrderModal({
                         <p className="text-xs text-gray-500">{item.category}</p>
                       )}
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() =>
-                            handleUpdateQuantity(
-                              globalIndex,
-                              Math.max(1, item.quantity - 1)
-                            )
-                          }
-                          className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                        >
-                          -
-                        </button>
-                        <span className="w-12 text-center font-medium">
-                          {item.quantity} {item.unit || "шт"}
-                        </span>
-                        <button
-                          onClick={() =>
-                            handleUpdateQuantity(globalIndex, item.quantity + 1)
-                          }
-                          className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveItem(globalIndex)}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </div>
+                    <QuantityInput
+                      productName={item.name}
+                      quantity={item.quantity}
+                      unit={item.unit || "шт"}
+                      onQuantityChange={(newQty) => handleUpdateQuantity(globalIndex, newQty)}
+                      onRemove={() => handleRemoveItem(globalIndex)}
+                      showRemoveButton={true}
+                      compact={true}
+                      min={1}
+                    />
                   </div>
                 );
               })}

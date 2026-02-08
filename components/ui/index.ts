@@ -14,6 +14,8 @@ export type { CardProps } from "./Card";
 export { Input, Textarea, Select } from "./Input";
 export type { InputProps, TextareaProps, SelectProps } from "./Input";
 
+export { QuantityInput } from "./QuantityInput";
+
 // Re-export all for convenience
 export * from "./Skeleton";
 export * from "./Toast";

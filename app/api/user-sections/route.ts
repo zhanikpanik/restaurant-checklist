@@ -171,11 +171,24 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (!user_id || sectionAssignments.length === 0 && !Array.isArray(section_ids) && !Array.isArray(sections)) {
+    if (!user_id) {
       return NextResponse.json(
-        { success: false, error: "user_id and section_ids or sections array are required" },
+        { success: false, error: "user_id is required" },
         { status: 400 }
       );
+    }
+
+    // Allow empty assignments (to clear all sections for a user)
+    // Validate that we have the right format if sections are provided
+    if (sectionAssignments.length === 0 && !Array.isArray(section_ids) && !Array.isArray(sections)) {
+      // Check if they're trying to provide sections but in wrong format
+      if (body.section_ids !== undefined || body.sections !== undefined) {
+        return NextResponse.json(
+          { success: false, error: "section_ids must be an array or sections must be an array" },
+          { status: 400 }
+        );
+      }
+      // Otherwise, they want to clear all sections - that's valid
     }
 
     await withTenant(session.user.restaurantId, async (client) => {

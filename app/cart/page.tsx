@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useCart, useRestaurant, useStore } from "@/store/useStore";
 import { api } from "@/lib/api-client";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { QuantityInput } from "@/components/ui/QuantityInput";
 import type { CartItem } from "@/types";
 
 type SubmitState = 'idle' | 'submitting' | 'success' | 'error';
@@ -314,47 +315,15 @@ function CartItemRow({
           <h4 className="font-medium text-gray-800 truncate">{item.name}</h4>
           <p className="text-sm text-gray-500">{item.unit}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onQuantityChange(item.cartId, item.quantity - 1)}
-              className="w-9 h-9 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors text-lg font-medium"
-              aria-label="Уменьшить количество"
-            >
-              −
-            </button>
-            <input
-              type="number"
-              value={item.quantity}
-              onChange={(e) =>
-                onQuantityChange(item.cartId, parseInt(e.target.value) || 0)
-              }
-              className="w-14 text-center border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
-              aria-label={`Количество ${item.name}`}
-            />
-            <button
-              onClick={() => onQuantityChange(item.cartId, item.quantity + 1)}
-              className="w-9 h-9 rounded-lg bg-gray-200 hover:bg-gray-300 flex items-center justify-center transition-colors text-lg font-medium"
-              aria-label="Увеличить количество"
-            >
-              +
-            </button>
-          </div>
-          <button
-            onClick={onRemove}
-            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            aria-label={`Удалить ${item.name}`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
-          </button>
-        </div>
+        <QuantityInput
+          productName={item.name}
+          quantity={item.quantity}
+          unit={item.unit}
+          onQuantityChange={(newQty) => onQuantityChange(item.cartId, newQty)}
+          onRemove={onRemove}
+          showRemoveButton={true}
+          compact={true}
+        />
       </div>
     </div>
   );
