@@ -159,6 +159,7 @@ export interface PosterSupplier {
   supplier_name: string;
   supplier_phone?: string;
   supplier_address?: string;
+  supplier_adress?: string; // Poster API typo - they use both
 }
 
 // User Section Permissions

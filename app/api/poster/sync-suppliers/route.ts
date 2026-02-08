@@ -76,7 +76,8 @@ export async function POST(request: NextRequest) {
         const posterId = Number(posterSupplier.supplier_id);
         const name = posterSupplier.supplier_name || `Supplier ${posterId}`;
         const phone = posterSupplier.supplier_phone || null;
-        const address = posterSupplier.supplier_adress || null; // Note: Poster has typo "adress"
+        // Poster API has inconsistent field names - check both
+        const address = posterSupplier.supplier_address || posterSupplier.supplier_adress || null;
 
         // Check if supplier with this poster_supplier_id already exists
         const existing = await client.query(
