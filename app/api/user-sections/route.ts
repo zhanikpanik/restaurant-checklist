@@ -17,8 +17,35 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("user_id");
+    const sectionId = searchParams.get("section_id");
     const permissionsOnly = searchParams.get("permissions") === "true";
     
+    // If section_id provided and user is admin/manager, get users assigned to that section
+    if (sectionId && ["admin", "manager"].includes(session.user.role || "")) {
+      try {
+        const users = await withTenant(session.user.restaurantId, async (client) => {
+          const result = await client.query(
+            `SELECT u.id, u.name, u.email, u.role
+             FROM user_sections us
+             JOIN users u ON u.id = us.user_id
+             JOIN sections s ON s.id = us.section_id
+             WHERE us.section_id = $1 AND s.restaurant_id = $2 AND u.is_active = true
+             ORDER BY u.name`,
+            [parseInt(sectionId), session.user.restaurantId]
+          );
+          return result.rows;
+        });
+
+        return NextResponse.json({ success: true, data: users });
+      } catch (error) {
+        console.error("Error fetching users for section:", error);
+        return NextResponse.json(
+          { success: false, error: "Failed to fetch users for section" },
+          { status: 500 }
+        );
+      }
+    }
+
     // If user_id provided and user is admin/manager, get that user's sections
     // Otherwise get current user's sections
     const targetUserId = userId && ["admin", "manager"].includes(session.user.role || "") 
@@ -147,7 +174,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { user_id, section_ids, sections, permissions } = body;
+    const { user_id, section_ids, sections, permissions, can_send_orders } = body;
+
+    console.log("user-sections POST body:", JSON.stringify(body));
 
     // Support both old format (section_ids) and new format (sections with permissions embedded)
     let sectionAssignments: { section_id: number; can_send_orders: boolean; can_receive_supplies: boolean }[] = [];
@@ -160,16 +189,18 @@ export async function POST(request: NextRequest) {
         can_receive_supplies: s.can_receive_supplies || false,
       }));
     } else if (Array.isArray(section_ids)) {
-      // Old format: section_ids array with optional permissions array
+      // Old format: section_ids array with optional permissions array or single can_send_orders
       sectionAssignments = section_ids.map((sectionId: number) => {
         const perm = permissions?.find((p: any) => p.section_id === sectionId);
         return {
           section_id: sectionId,
-          can_send_orders: perm?.can_send_orders || false,
-          can_receive_supplies: perm?.can_receive_supplies || false,
+          can_send_orders: perm?.can_send_orders ?? can_send_orders ?? false,
+          can_receive_supplies: perm?.can_receive_supplies ?? false,
         };
       });
     }
+
+    console.log("sectionAssignments:", JSON.stringify(sectionAssignments));
 
     if (!user_id) {
       return NextResponse.json(
@@ -193,24 +224,41 @@ export async function POST(request: NextRequest) {
 
     await withTenant(session.user.restaurantId, async (client) => {
       // First, remove all existing assignments for this user (only for sections in this restaurant)
-      await client.query(
+      console.log("Deleting existing assignments for user_id:", user_id, "restaurant_id:", session.user.restaurantId);
+      const deleteResult = await client.query(
         `DELETE FROM user_sections 
          WHERE user_id = $1 
          AND section_id IN (SELECT id FROM sections WHERE restaurant_id = $2)`,
         [user_id, session.user.restaurantId]
       );
+      console.log("Delete result:", deleteResult.rowCount, "rows deleted");
 
       // Then, insert new assignments with permissions
       if (sectionAssignments.length > 0) {
         for (const assignment of sectionAssignments) {
-          await client.query(
-            `INSERT INTO user_sections (user_id, section_id, can_send_orders, can_receive_supplies)
-             VALUES ($1, $2, $3, $4)
-             ON CONFLICT (user_id, section_id) DO UPDATE SET
-               can_send_orders = $3,
-               can_receive_supplies = $4`,
-            [user_id, assignment.section_id, assignment.can_send_orders, assignment.can_receive_supplies]
-          );
+          console.log("Inserting assignment:", user_id, assignment.section_id);
+          try {
+            // Try with permission columns
+            const insertResult = await client.query(
+              `INSERT INTO user_sections (user_id, section_id, can_send_orders, can_receive_supplies)
+               VALUES ($1, $2, $3, $4)
+               ON CONFLICT (user_id, section_id) DO UPDATE SET
+                 can_send_orders = $3,
+                 can_receive_supplies = $4`,
+              [user_id, assignment.section_id, assignment.can_send_orders, assignment.can_receive_supplies]
+            );
+            console.log("Insert result:", insertResult.rowCount);
+          } catch (insertError) {
+            console.log("Fallback insert without permission columns");
+            // Fallback: insert without permission columns
+            const insertResult = await client.query(
+              `INSERT INTO user_sections (user_id, section_id)
+               VALUES ($1, $2)
+               ON CONFLICT (user_id, section_id) DO NOTHING`,
+              [user_id, assignment.section_id]
+            );
+            console.log("Fallback insert result:", insertResult.rowCount);
+          }
         }
       }
     });

@@ -57,7 +57,6 @@ function CustomPageContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedSupplierId, setSelectedSupplierId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [sectionName, setSectionName] = useState("");
@@ -89,22 +88,6 @@ function CustomPageContent() {
     }
     loadData();
   }, [sectionId]);
-
-  // Effect to filter products when supplier changes (from cache)
-  useEffect(() => {
-    if (dataLoaded && selectedSupplierId !== null) {
-      setLoading(true);
-      // Filter from cache instead of fetching
-      const filtered = allProducts.filter(p => {
-        if (selectedSupplierId === -1) {
-          return !p.supplier_id;
-        }
-        return p.supplier_id === selectedSupplierId;
-      });
-      setProducts(filtered);
-      setLoading(false);
-    }
-  }, [selectedSupplierId, allProducts, dataLoaded]);
 
   const loadData = async () => {
     setLoading(true);
@@ -142,20 +125,6 @@ function CustomPageContent() {
       if (suppliersData.success) {
         setAllSuppliers(suppliersData.data);
         setSuppliers(suppliersData.data);
-        
-        // Auto-select first supplier or "Other" if no suppliers
-        if (!selectedSupplierId) {
-          if (suppliersData.data.length > 0) {
-            // Try to find supplier with products
-            const supplierWithProducts = suppliersData.data.find((s: Supplier) =>
-              productsData.data.some((p: Product) => p.supplier_id === s.id)
-            );
-            setSelectedSupplierId(supplierWithProducts?.id || suppliersData.data[0].id);
-          } else if (productsData.data.some((p: Product) => !p.supplier_id)) {
-            // No suppliers but have unassigned products -> select "Other"
-            setSelectedSupplierId(-1);
-          }
-        }
       }
 
       const categoriesData = await categoriesRes.json();
@@ -276,30 +245,9 @@ function CustomPageContent() {
     }
   };
 
-  // Group products by supplier (use allProducts for counts in tabs)
-  const productsBySupplier = useMemo(() => {
-    const grouped: Record<number, Product[]> = {};
-    const noSupplier: Product[] = [];
-
-    allProducts.forEach((product) => {
-      if (product.supplier_id) {
-        if (!grouped[product.supplier_id]) {
-          grouped[product.supplier_id] = [];
-        }
-        grouped[product.supplier_id].push(product);
-      } else {
-        noSupplier.push(product);
-      }
-    });
-
-    return { grouped, noSupplier };
-  }, [allProducts]);
-
-  // Filter products for selected supplier (from current filtered products)
+  // Filter products by search query only (no supplier filtering)
   const currentProducts = useMemo(() => {
-    if (!selectedSupplierId) return [];
-    
-    let filtered: Product[] = products;
+    let filtered = allProducts;
 
     if (searchQuery.trim()) {
       filtered = filtered.filter((p) =>
@@ -308,34 +256,7 @@ function CustomPageContent() {
     }
 
     return filtered;
-  }, [selectedSupplierId, products, searchQuery]);
-
-  // Suppliers that have products in this section
-  // Managers see all suppliers, others see only those with products
-  const visibleSuppliers = useMemo(() => {
-    let list = canManage ? [...suppliers] : suppliers.filter(
-      (s) => productsBySupplier.grouped[s.id]?.length > 0
-    );
-
-    // Add "Other" tab if there are products with no supplier
-    if (productsBySupplier.noSupplier.length > 0) {
-      list.push({
-        id: -1,
-        name: "Разное",
-        phone: ""
-      });
-    }
-
-    return list;
-  }, [suppliers, productsBySupplier, canManage]);
-
-  // Categories for selected supplier (for product form)
-  const categoriesForSupplier = useMemo(() => {
-    if (!selectedSupplierId) return categories;
-    return categories.filter(
-      (c) => c.supplier_id === selectedSupplierId || !c.supplier_id
-    );
-  }, [categories, selectedSupplierId]);
+  }, [allProducts, searchQuery]);
 
   const handleSetQuantity = (product: Product, newQty: number) => {
     if (newQty <= 0) {
@@ -472,7 +393,7 @@ function CustomPageContent() {
     );
   }
 
-  // === RENDER: Normal View (Suppliers + Products) ===
+  // === RENDER: Normal View (Products) ===
   return (
     <div className="min-h-screen bg-white">
         <Header
@@ -483,20 +404,6 @@ function CustomPageContent() {
           onAddSupplier={() => router.push('/suppliers-categories')}
           onOpenSettings={() => setShowSettingsModal(true)}
         />
-
-      {/* Supplier Tabs */}
-      <SupplierTabs
-        suppliers={visibleSuppliers}
-        selectedId={selectedSupplierId}
-        onSelect={setSelectedSupplierId}
-        productCounts={Object.fromEntries([
-          ...Object.entries(productsBySupplier.grouped).map(([id, prods]) => [
-            id,
-            prods.length,
-          ]),
-          ['-1', productsBySupplier.noSupplier.length]
-        ])}
-      />
 
       {/* Search */}
       <div className="max-w-md mx-auto px-4 py-3">
@@ -529,22 +436,10 @@ function CustomPageContent() {
 
       {/* Products List */}
       <main className="max-w-md mx-auto px-4 pb-24">
-        {canManage && (
-          <button
-            onClick={() => setShowProductModal(true)}
-            className="flex items-center gap-2 w-full py-3 px-4 mb-3 border-2 border-dashed border-gray-300 hover:border-purple-400 rounded-lg text-gray-500 hover:text-purple-600 transition-colors"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="font-medium">Добавить товар</span>
-          </button>
-        )}
-
         {currentProducts.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">
-              {searchQuery ? "Товары не найдены" : "Нет товаров у этого поставщика"}
+              {searchQuery ? "Товары не найдены" : "Нет товаров в этом отделе"}
             </p>
           </div>
         ) : (
@@ -617,7 +512,7 @@ function CustomPageContent() {
         setForm={setProductForm}
         onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
         submitting={submitting}
-        categories={categoriesForSupplier}
+        categories={categories}
       />
       
       {/* Department Settings Modal */}

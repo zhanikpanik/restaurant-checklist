@@ -25,7 +25,6 @@ export default function HomePage() {
   const [userSectionIds, setUserSectionIds] = useState<number[]>([]);
   const [lastOrder, setLastOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
-  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const toast = useToast();
@@ -38,6 +37,7 @@ export default function HomePage() {
   const isAdmin = session?.user?.role === "admin";
   const isManager = session?.user?.role === "manager";
   const isDelivery = session?.user?.role === "delivery";
+  const isStaff = session?.user?.role === "staff";
 
   // Load sections when session is available
   useEffect(() => {
@@ -78,27 +78,6 @@ export default function HomePage() {
       }
     } catch (err) {
       console.error("Error loading user sections:", err);
-    }
-  };
-
-  const handleSyncFromPoster = async () => {
-    try {
-      setSyncing(true);
-      const response = await fetch("/api/sync-sections");
-      const data = await response.json();
-
-      if (data.success) {
-        const { syncedCount, ingredientsSynced } = data.data;
-        toast.success(`Синхронизировано: ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`);
-        loadSections();
-      } else {
-        toast.error(data.error || "Ошибка синхронизации");
-      }
-    } catch (error) {
-      console.error("Error syncing from Poster:", error);
-      toast.error("Ошибка синхронизации с Poster");
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -189,6 +168,14 @@ export default function HomePage() {
     ? allSections
     : allSections.filter((section) => userSectionIds.includes(parseInt(section.id)));
 
+  // Auto-redirect staff with single department
+  useEffect(() => {
+    if (!loading && isStaff && sections.length === 1) {
+      const section = sections[0];
+      router.replace(`/custom?section_id=${section.id}&dept=${encodeURIComponent(section.name)}`);
+    }
+  }, [loading, isStaff, sections, router]);
+
   const getSectionColors = (name: string) => {
     const lowerName = name.toLowerCase();
     if (lowerName.includes("кухня")) return "bg-orange-500 hover:bg-orange-600";
@@ -198,15 +185,6 @@ export default function HomePage() {
     if (lowerName.includes("офис")) return "bg-blue-500 hover:bg-blue-600";
     if (lowerName.includes("ресепшн")) return "bg-indigo-500 hover:bg-indigo-600";
     return "bg-teal-500 hover:bg-teal-600";
-  };
-
-  const getSectionDescription = (name: string, posterStorageId?: string) => {
-    const lowerName = name.toLowerCase();
-    if (lowerName.includes("кухня")) return "Заказы для кухни";
-    if (lowerName.includes("бар")) return "Заказы для бара";
-    if (lowerName.includes("горничная")) return "Хозяйственные товары";
-    if (posterStorageId) return "Товары из Poster";
-    return "Управление товарами";
   };
 
   // Show message for staff with no assigned sections
@@ -224,28 +202,9 @@ export default function HomePage() {
           <p className="text-sm text-gray-500">Система управления заказами</p>
         </div>
 
-        {/* Header with Action Buttons for Admin/Manager */}
-        {(isAdmin || isManager) && (
-          <div className="flex items-center justify-end gap-2 mb-4">
-            <button
-              onClick={handleSyncFromPoster}
-              disabled={syncing}
-              className="flex items-center justify-center gap-1.5 md:gap-2 px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors"
-              title="Синхронизировать из Poster"
-            >
-              {syncing ? (
-                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-              ) : (
-                <>
-                  <span>🔄</span>
-                  <span className="hidden sm:inline">Синхронизировать</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
+
+        <div className="flex flex-col gap-3 md:gap-4">
           {loading ? (
             <div className="col-span-full text-center py-8">
               <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4" />
@@ -352,10 +311,7 @@ export default function HomePage() {
                 >
                   <span className="text-2xl md:text-3xl mr-3 md:mr-4">🏢</span>
                   <div className="text-left">
-                    <div className="font-semibold text-base md:text-lg">Поставщики</div>
-                    <div className="text-xs md:text-sm opacity-90">
-                      Управление поставщиками и категориями
-                    </div>
+                    <div className="font-semibold text-base md:text-lg">Поставщики и ингредиенты</div>
                   </div>
                 </Link>
               )}
@@ -373,10 +329,7 @@ export default function HomePage() {
                   <div className="text-left">
                     <div className="font-semibold text-base md:text-lg">{section.name}</div>
                     <div className="text-xs md:text-sm opacity-90">
-                      {getSectionDescription(section.name, section.poster_storage_id)}
-                      {section.custom_products_count
-                        ? ` • ${section.custom_products_count} товаров`
-                        : ""}
+                      {section.custom_products_count || 0} товаров
                     </div>
                   </div>
                 </Link>
@@ -391,9 +344,6 @@ export default function HomePage() {
                   <span className="text-2xl md:text-3xl mr-3 md:mr-4">➕</span>
                   <div className="text-left">
                     <div className="font-semibold text-base md:text-lg">Создать отдел</div>
-                    <div className="text-xs md:text-sm opacity-75">
-                      Добавить новый отдел
-                    </div>
                   </div>
                 </button>
               )}

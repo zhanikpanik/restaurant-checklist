@@ -103,24 +103,36 @@ export default function SuppliersCategoriesPage() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const response = await fetch("/api/poster/sync-suppliers", {
+      // 1. Sync Suppliers
+      const suppliersRes = await fetch("/api/poster/sync-suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-
-      const data = await response.json();
-      if (data.success) {
-        toast.success(data.message || "Поставщики синхронизированы");
-        // Clear cache and reload
-        setProductsLoaded(false);
-        loadData();
-      } else {
-        toast.error(data.error || "Ошибка синхронизации");
+      const suppliersData = await suppliersRes.json();
+      
+      if (!suppliersData.success) {
+        throw new Error(suppliersData.error || "Ошибка синхронизации поставщиков");
       }
-    } catch (error) {
-      console.error("Error syncing suppliers:", error);
-      toast.error("Ошибка синхронизации поставщиков");
+
+      // 2. Sync Ingredients/Sections
+      const ingredientsRes = await fetch("/api/sync-sections");
+      const ingredientsData = await ingredientsRes.json();
+
+      if (!ingredientsData.success) {
+        throw new Error(ingredientsData.error || "Ошибка синхронизации ингредиентов");
+      }
+
+      // Success
+      const { syncedCount, ingredientsSynced } = ingredientsData.data;
+      toast.success(`Синхронизировано: поставщики, ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`);
+      
+      // Clear cache and reload
+      setProductsLoaded(false);
+      loadData();
+    } catch (error: any) {
+      console.error("Error syncing:", error);
+      toast.error(error.message || "Ошибка синхронизации");
     } finally {
       setSyncing(false);
     }
@@ -143,20 +155,7 @@ export default function SuppliersCategoriesPage() {
             
             <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900">Поставщики</h1>
             
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="px-3 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-1.5"
-            >
-              {syncing ? (
-                <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-              ) : (
-                <>
-                  <span>🔄</span>
-                  <span className="hidden sm:inline">Синхр.</span>
-                </>
-              )}
-            </button>
+            <div className="w-10" />
           </div>
 
           {/* Scrollable Tabs */}
@@ -276,6 +275,20 @@ export default function SuppliersCategoriesPage() {
           />
         )}
       </main>
+
+      {/* Floating Sync Button */}
+      <button
+        onClick={handleSync}
+        disabled={syncing}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 z-50"
+        title="Синхронизировать все данные"
+      >
+        {syncing ? (
+          <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full" />
+        ) : (
+          <span className="text-2xl">🔄</span>
+        )}
+      </button>
     </div>
   );
 }

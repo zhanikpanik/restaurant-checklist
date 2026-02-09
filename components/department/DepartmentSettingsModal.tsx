@@ -59,6 +59,7 @@ export function DepartmentSettingsModal({
   const [showUserForm, setShowUserForm] = useState(false);
   const [userFormType, setUserFormType] = useState<"existing" | "new">("existing");
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [userCanSendOrders, setUserCanSendOrders] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     name: "",
     email: "",
@@ -138,9 +139,25 @@ export function DepartmentSettingsModal({
 
     setSubmitting(true);
     try {
+      // First get current sections for this user
+      const currentSectionsRes = await fetch(`/api/user-sections?user_id=${selectedUserId}`);
+      const currentSectionsData = await currentSectionsRes.json();
+      const currentSectionIds = currentSectionsData.success 
+        ? currentSectionsData.data.map((s: any) => Number(s.id)) 
+        : [];
+
+      // Add the new section to the list (ensure it's a number)
+      const newSectionId = Number(section.id);
+      if (!currentSectionIds.includes(newSectionId)) {
+        currentSectionIds.push(newSectionId);
+      }
+
+      console.log("Assigning sections:", { user_id: selectedUserId, section_ids: currentSectionIds, can_send_orders: userCanSendOrders });
+
       const response = await api.post("/api/user-sections", {
         user_id: selectedUserId,
-        section_id: section.id,
+        section_ids: currentSectionIds,
+        can_send_orders: userCanSendOrders,
       });
 
       if (response.success) {
@@ -148,6 +165,7 @@ export function DepartmentSettingsModal({
         setAssignedUserIds([...assignedUserIds, selectedUserId]);
         setShowUserForm(false);
         setSelectedUserId(null);
+        setUserCanSendOrders(false);
       } else {
         toast.error(response.error || "Ошибка назначения");
       }
@@ -185,7 +203,8 @@ export function DepartmentSettingsModal({
       // Assign to section
       const assignResponse = await api.post("/api/user-sections", {
         user_id: newUser.id,
-        section_id: section.id,
+        section_ids: [Number(section.id)],
+        can_send_orders: userCanSendOrders,
       });
 
       if (assignResponse.success) {
@@ -194,6 +213,7 @@ export function DepartmentSettingsModal({
         setAssignedUserIds([...assignedUserIds, newUser.id]);
         setShowUserForm(false);
         setNewUserForm({ name: "", email: "", password: "", role: "staff" });
+        setUserCanSendOrders(false);
       } else {
         toast.error(assignResponse.error || "Ошибка назначения");
       }
@@ -382,12 +402,34 @@ export function DepartmentSettingsModal({
                             </option>
                           ))}
                         </select>
+                        
+                        {/* Can Send Orders Toggle */}
+                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                          <label className="text-sm font-medium text-gray-700">
+                            Может отправлять заказы
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setUserCanSendOrders(!userCanSendOrders)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              userCanSendOrders ? "bg-blue-600" : "bg-gray-300"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                userCanSendOrders ? "translate-x-6" : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                        </div>
+
                         <div className="flex gap-2">
                           <Button
                             variant="secondary"
                             onClick={() => {
                               setShowUserForm(false);
                               setSelectedUserId(null);
+                              setUserCanSendOrders(false);
                             }}
                             className="flex-1"
                           >
@@ -446,12 +488,34 @@ export function DepartmentSettingsModal({
                             <option value="delivery">Доставка</option>
                           </select>
                         </div>
+                        
+                        {/* Can Send Orders Toggle */}
+                        <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                          <label className="text-sm font-medium text-gray-700">
+                            Может отправлять заказы
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setUserCanSendOrders(!userCanSendOrders)}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                              userCanSendOrders ? "bg-blue-600" : "bg-gray-300"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                userCanSendOrders ? "translate-x-6" : "translate-x-1"
+                              }`}
+                            />
+                          </button>
+                        </div>
+
                         <div className="flex gap-2">
                           <Button
                             variant="secondary"
                             onClick={() => {
                               setShowUserForm(false);
                               setNewUserForm({ name: "", email: "", password: "", role: "staff" });
+                              setUserCanSendOrders(false);
                             }}
                             className="flex-1"
                           >

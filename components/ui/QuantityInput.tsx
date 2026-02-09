@@ -7,9 +7,7 @@ interface QuantityInputProps {
   quantity: number;
   unit?: string;
   onQuantityChange: (quantity: number) => void;
-  onRemove?: () => void;
   min?: number;
-  showRemoveButton?: boolean;
   compact?: boolean;
 }
 
@@ -18,9 +16,7 @@ export function QuantityInput({
   quantity,
   unit = "шт",
   onQuantityChange,
-  onRemove,
   min = 0,
-  showRemoveButton = false,
   compact = false,
 }: QuantityInputProps) {
   const [inputValue, setInputValue] = useState(quantity.toString());
@@ -92,33 +88,17 @@ export function QuantityInput({
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
             onKeyDown={handleKeyDown}
-            className="w-12 text-center border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             aria-label={`Количество ${productName}`}
           />
         </div>
         <button
           onClick={handleIncrease}
-          className="w-9 h-9 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors text-lg"
+          className="w-9 h-9 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-lg"
           aria-label="Увеличить"
         >
           +
         </button>
-        {showRemoveButton && onRemove && (
-          <button
-            onClick={onRemove}
-            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-            aria-label={`Удалить ${productName}`}
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
-          </button>
-        )}
       </div>
     );
   }
@@ -143,7 +123,7 @@ export function QuantityInput({
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
           onKeyDown={handleKeyDown}
-          className="w-12 text-center border border-gray-300 rounded-lg px-2 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
           aria-label={`Количество ${productName}`}
         />
       </div>
