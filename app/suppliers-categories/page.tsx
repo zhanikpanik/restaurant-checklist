@@ -217,61 +217,18 @@ export default function SuppliersCategoriesPage() {
         {selectedSupplierId === "unsorted" && (
           <GenericProductListTab
             products={unassignedProducts}
-            loading={loading}
-            title="Нераспределенные товары"
-            emptyMessage="Все товары распределены по поставщикам"
-            onMove={(productId, supplierId) => {
-              // Update UI immediately
-              setUnassignedProducts(prev => prev.filter(p => p.id !== productId));
-              setUnassignedCount(prev => Math.max(0, prev - 1));
-              
-              // Update cache
-              setAllProducts(prev => prev.map(p => 
-                p.id === productId ? { ...p, supplier_id: supplierId } : p
-              ));
-              
-              // Save to server
-              fetch("/api/section-products", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: productId, supplier_id: supplierId })
-              }).catch(() => {
-                // On error, invalidate cache and reload
-                setProductsLoaded(false);
-                loadData();
-              });
-            }}
             suppliers={suppliers}
+            onReload={loadData}
+            title="Нераспределенные товары"
           />
         )}
 
         {typeof selectedSupplierId === 'number' && (
           <GenericProductListTab
             products={supplierProducts}
-            loading={loading}
-            title={`Товары: ${suppliers.find(s => s.id === selectedSupplierId)?.name}`}
-            emptyMessage="Нет товаров у этого поставщика"
-            onMove={(productId, supplierId) => {
-              // Update UI immediately
-              setSupplierProducts(prev => prev.filter(p => p.id !== productId));
-              
-              // Update cache
-              setAllProducts(prev => prev.map(p => 
-                p.id === productId ? { ...p, supplier_id: supplierId } : p
-              ));
-              
-              // Save to server
-              fetch("/api/section-products", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: productId, supplier_id: supplierId })
-              }).catch(() => {
-                // On error, invalidate cache and reload
-                setProductsLoaded(false);
-                loadData();
-              });
-            }}
             suppliers={suppliers}
+            onReload={loadData}
+            title={`Товары: ${suppliers.find(s => s.id === selectedSupplierId)?.name}`}
           />
         )}
       </main>

@@ -251,14 +251,6 @@ export default function HomePage() {
                 >
                   Перейти в панель менеджера
                 </Link> */}
-                <button
-                  onClick={handleSyncFromPoster}
-                  disabled={syncing}
-                  className="inline-block bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-6 py-2 rounded-lg"
-                >
-                  {syncing ? "Синхронизация..." : "Синхронизировать из Poster"}
-                </button>
-                <br />
                 {process.env.NODE_ENV === 'development' && (
                   <Link
                     href="/dev/switch-restaurant"

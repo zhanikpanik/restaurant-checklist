@@ -315,15 +315,22 @@ function CartItemRow({
           <h4 className="font-medium text-gray-800 truncate">{item.name}</h4>
           <p className="text-sm text-gray-500">{item.unit}</p>
         </div>
-        <QuantityInput
-          productName={item.name}
-          quantity={item.quantity}
-          unit={item.unit}
-          onQuantityChange={(newQty) => onQuantityChange(item.cartId, newQty)}
-          onRemove={onRemove}
-          showRemoveButton={true}
-          compact={true}
-        />
+        <div className="flex items-center gap-2">
+          <QuantityInput
+            productName={item.name}
+            quantity={item.quantity}
+            unit={item.unit}
+            onQuantityChange={(newQty) => onQuantityChange(item.cartId, newQty)}
+            compact={true}
+          />
+          <button
+            onClick={onRemove}
+            className="w-9 h-9 flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors"
+            aria-label="Удалить"
+          >
+            ×
+          </button>
+        </div>
       </div>
     </div>
   );
