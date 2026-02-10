@@ -1,0 +1,395 @@
+import pool from "./db";
+import { PosterAPI } from "./poster-api";
+
+/**
+ * Service for syncing Poster data to local database
+ */
+export class PosterSyncService {
+  private posterAPI: PosterAPI;
+  private restaurantId: string;
+
+  constructor(restaurantId: string, accessToken: string) {
+    this.restaurantId = restaurantId;
+    this.posterAPI = new PosterAPI(accessToken);
+  }
+
+  /**
+   * Get the last sync time for an entity type
+   */
+  async getLastSyncTime(entityType: string): Promise<Date | null> {
+    if (!pool) throw new Error("Database pool not initialized");
+
+    const result = await pool.query(
+      `SELECT last_sync_at FROM poster_sync_status 
+       WHERE restaurant_id = $1 AND entity_type = $2`,
+      [this.restaurantId, entityType]
+    );
+
+    return result.rows[0]?.last_sync_at || null;
+  }
+
+  /**
+   * Update sync status for an entity type
+   */
+  async updateSyncStatus(
+    entityType: string,
+    success: boolean,
+    error?: string
+  ): Promise<void> {
+    if (!pool) throw new Error("Database pool not initialized");
+
+    await pool.query(
+      `INSERT INTO poster_sync_status 
+       (restaurant_id, entity_type, last_sync_at, last_sync_success, last_sync_error, sync_count, updated_at)
+       VALUES ($1, $2, NOW(), $3, $4, 1, NOW())
+       ON CONFLICT (restaurant_id, entity_type)
+       DO UPDATE SET
+         last_sync_at = NOW(),
+         last_sync_success = $3,
+         last_sync_error = $4,
+         sync_count = poster_sync_status.sync_count + 1,
+         updated_at = NOW()`,
+      [this.restaurantId, entityType, success, error || null]
+    );
+  }
+
+  /**
+   * Sync categories from Poster
+   */
+  async syncCategories(): Promise<number> {
+    console.log(`🔄 [${this.restaurantId}] Syncing categories...`);
+
+    try {
+      const categories = await this.posterAPI.getCategories();
+      
+      if (!categories || !Array.isArray(categories)) {
+        throw new Error("Invalid categories response from Poster");
+      }
+
+      let syncedCount = 0;
+
+      for (const category of categories) {
+        await pool!.query(
+          `INSERT INTO poster_categories 
+           (restaurant_id, poster_category_id, name, parent_category_id, sort_order, is_visible, synced_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+           ON CONFLICT (restaurant_id, poster_category_id)
+           DO UPDATE SET
+             name = $3,
+             parent_category_id = $4,
+             sort_order = $5,
+             is_visible = $6,
+             synced_at = NOW(),
+             updated_at = NOW()`,
+          [
+            this.restaurantId,
+            category.category_id || category.id,
+            category.category_name || category.name,
+            category.parent_category || null,
+            category.sort_order || 0,
+            category.visible !== 0,
+          ]
+        );
+        syncedCount++;
+      }
+
+      await this.updateSyncStatus("categories", true);
+      console.log(`✅ [${this.restaurantId}] Synced ${syncedCount} categories`);
+      
+      return syncedCount;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.updateSyncStatus("categories", false, errorMsg);
+      console.error(`❌ [${this.restaurantId}] Failed to sync categories:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync products from Poster
+   */
+  async syncProducts(): Promise<number> {
+    console.log(`🔄 [${this.restaurantId}] Syncing products...`);
+
+    try {
+      const products = await this.posterAPI.getProducts();
+      
+      if (!products || !Array.isArray(products)) {
+        throw new Error("Invalid products response from Poster");
+      }
+
+      let syncedCount = 0;
+
+      for (const product of products) {
+        await pool!.query(
+          `INSERT INTO poster_products 
+           (restaurant_id, poster_product_id, poster_category_id, name, price, cost, unit, is_visible, synced_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+           ON CONFLICT (restaurant_id, poster_product_id)
+           DO UPDATE SET
+             poster_category_id = $3,
+             name = $4,
+             price = $5,
+             cost = $6,
+             unit = $7,
+             is_visible = $8,
+             synced_at = NOW(),
+             updated_at = NOW()`,
+          [
+            this.restaurantId,
+            product.product_id || product.id,
+            product.category_id || product.menu_category_id || null,
+            product.product_name || product.name,
+            product.price || 0,
+            product.cost || 0,
+            product.unit || 'шт',
+            product.visible !== 0,
+          ]
+        );
+        syncedCount++;
+      }
+
+      await this.updateSyncStatus("products", true);
+      console.log(`✅ [${this.restaurantId}] Synced ${syncedCount} products`);
+      
+      return syncedCount;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.updateSyncStatus("products", false, errorMsg);
+      console.error(`❌ [${this.restaurantId}] Failed to sync products:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync suppliers from Poster
+   */
+  async syncSuppliers(): Promise<number> {
+    console.log(`🔄 [${this.restaurantId}] Syncing suppliers...`);
+
+    try {
+      const suppliers = await this.posterAPI.getSuppliers();
+      
+      if (!suppliers || !Array.isArray(suppliers)) {
+        throw new Error("Invalid suppliers response from Poster");
+      }
+
+      let syncedCount = 0;
+
+      for (const supplier of suppliers) {
+        await pool!.query(
+          `INSERT INTO poster_suppliers 
+           (restaurant_id, poster_supplier_id, name, phone, email, address, comment, synced_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+           ON CONFLICT (restaurant_id, poster_supplier_id)
+           DO UPDATE SET
+             name = $3,
+             phone = $4,
+             email = $5,
+             address = $6,
+             comment = $7,
+             synced_at = NOW(),
+             updated_at = NOW()`,
+          [
+            this.restaurantId,
+            supplier.supplier_id || supplier.id,
+            supplier.supplier_name || supplier.name,
+            supplier.phone || null,
+            supplier.email || null,
+            supplier.address || null,
+            supplier.comment || null,
+          ]
+        );
+        syncedCount++;
+      }
+
+      await this.updateSyncStatus("suppliers", true);
+      console.log(`✅ [${this.restaurantId}] Synced ${syncedCount} suppliers`);
+      
+      return syncedCount;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.updateSyncStatus("suppliers", false, errorMsg);
+      console.error(`❌ [${this.restaurantId}] Failed to sync suppliers:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync ingredients (storage items) from Poster
+   */
+  async syncIngredients(): Promise<number> {
+    console.log(`🔄 [${this.restaurantId}] Syncing ingredients...`);
+
+    try {
+      const ingredients = await this.posterAPI.getIngredients();
+      
+      if (!ingredients || !Array.isArray(ingredients)) {
+        throw new Error("Invalid ingredients response from Poster");
+      }
+
+      let syncedCount = 0;
+
+      for (const ingredient of ingredients) {
+        await pool!.query(
+          `INSERT INTO poster_ingredients 
+           (restaurant_id, poster_ingredient_id, poster_category_id, name, unit, unit_weight, cost, is_visible, synced_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+           ON CONFLICT (restaurant_id, poster_ingredient_id)
+           DO UPDATE SET
+             poster_category_id = $3,
+             name = $4,
+             unit = $5,
+             unit_weight = $6,
+             cost = $7,
+             is_visible = $8,
+             synced_at = NOW(),
+             updated_at = NOW()`,
+          [
+            this.restaurantId,
+            ingredient.ingredient_id || ingredient.id,
+            ingredient.category_id || null,
+            ingredient.ingredient_name || ingredient.name,
+            ingredient.unit || 'шт',
+            ingredient.unit_weight || 1,
+            ingredient.cost || 0,
+            ingredient.visible !== 0,
+          ]
+        );
+        syncedCount++;
+      }
+
+      await this.updateSyncStatus("ingredients", true);
+      console.log(`✅ [${this.restaurantId}] Synced ${syncedCount} ingredients`);
+      
+      return syncedCount;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.updateSyncStatus("ingredients", false, errorMsg);
+      console.error(`❌ [${this.restaurantId}] Failed to sync ingredients:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync storages from Poster
+   */
+  async syncStorages(): Promise<number> {
+    console.log(`🔄 [${this.restaurantId}] Syncing storages...`);
+
+    try {
+      const storages = await this.posterAPI.getStorages();
+      
+      if (!storages || !Array.isArray(storages)) {
+        throw new Error("Invalid storages response from Poster");
+      }
+
+      let syncedCount = 0;
+
+      for (const storage of storages) {
+        await pool!.query(
+          `INSERT INTO poster_storages 
+           (restaurant_id, poster_storage_id, name, synced_at, updated_at)
+           VALUES ($1, $2, $3, NOW(), NOW())
+           ON CONFLICT (restaurant_id, poster_storage_id)
+           DO UPDATE SET
+             name = $3,
+             synced_at = NOW(),
+             updated_at = NOW()`,
+          [
+            this.restaurantId,
+            storage.storage_id || storage.id,
+            storage.storage_name || storage.name,
+          ]
+        );
+        syncedCount++;
+      }
+
+      await this.updateSyncStatus("storages", true);
+      console.log(`✅ [${this.restaurantId}] Synced ${syncedCount} storages`);
+      
+      return syncedCount;
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      await this.updateSyncStatus("storages", false, errorMsg);
+      console.error(`❌ [${this.restaurantId}] Failed to sync storages:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Full sync of all Poster data
+   */
+  async syncAll(): Promise<{
+    categories: number;
+    products: number;
+    suppliers: number;
+    ingredients: number;
+    storages: number;
+  }> {
+    console.log(`🚀 [${this.restaurantId}] Starting full sync...`);
+    
+    const startTime = Date.now();
+
+    try {
+      const results = {
+        categories: await this.syncCategories(),
+        suppliers: await this.syncSuppliers(),
+        storages: await this.syncStorages(),
+        ingredients: await this.syncIngredients(),
+        products: await this.syncProducts(),
+      };
+
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.log(`✅ [${this.restaurantId}] Full sync completed in ${duration}s`, results);
+
+      return results;
+    } catch (error) {
+      console.error(`❌ [${this.restaurantId}] Full sync failed:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if sync is needed (based on last sync time)
+   */
+  async needsSync(entityType: string, maxAgeMinutes: number = 30): Promise<boolean> {
+    const lastSync = await this.getLastSyncTime(entityType);
+    
+    if (!lastSync) {
+      return true; // Never synced before
+    }
+
+    const ageMinutes = (Date.now() - lastSync.getTime()) / 1000 / 60;
+    return ageMinutes >= maxAgeMinutes;
+  }
+}
+
+/**
+ * Get Poster access token for a restaurant
+ */
+export async function getPosterAccessToken(restaurantId: string): Promise<string | null> {
+  if (!pool) throw new Error("Database pool not initialized");
+
+  const result = await pool.query(
+    `SELECT access_token FROM poster_tokens 
+     WHERE restaurant_id = $1 AND is_active = true 
+     ORDER BY created_at DESC LIMIT 1`,
+    [restaurantId]
+  );
+
+  return result.rows[0]?.access_token || null;
+}
+
+/**
+ * Create sync service instance for a restaurant
+ */
+export async function createSyncService(restaurantId: string): Promise<PosterSyncService> {
+  const accessToken = await getPosterAccessToken(restaurantId);
+  
+  if (!accessToken) {
+    throw new Error(`No active Poster token found for restaurant ${restaurantId}`);
+  }
+
+  return new PosterSyncService(restaurantId, accessToken);
+}
