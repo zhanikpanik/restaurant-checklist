@@ -38,7 +38,7 @@ export const POSTER_CONFIG: PosterConfig = {
     // Storage
     getStorages: '/storage.getStorages',
     getStorageLeftovers: '/storage.getStorageLeftovers',
-    getIngredients: '/storage.getIngredients',
+    getIngredients: '/menu.getIngredients',
 
     // Suppliers
     getSuppliers: '/storage.getSuppliers',

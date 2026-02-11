@@ -378,12 +378,17 @@ export class PosterSyncService {
   /**
    * Sync a single ingredient by ID (for webhooks)
    */
-  async syncSingleIngredient(ingredientId: string): Promise<void> {
+  async syncSingleIngredient(ingredientId: string | number): Promise<void> {
     console.log(`🔄 [${this.restaurantId}] Syncing single ingredient: ${ingredientId}`);
     
     try {
+      // TODO: Use getIngredient(id) if available in API to avoid fetching all
       const ingredients = await this.posterAPI.getIngredients();
-      const ingredient = ingredients.find(i => i.ingredient_id === ingredientId);
+      
+      // Loose comparison (==) to handle string/number mismatch
+      // or convert both to string
+      const targetId = String(ingredientId);
+      const ingredient = ingredients.find(i => String(i.ingredient_id) === targetId);
       
       if (!ingredient) {
         console.log(`⚠️ [${this.restaurantId}] Ingredient ${ingredientId} not found or deleted`);
@@ -391,7 +396,7 @@ export class PosterSyncService {
         await pool!.query(
           `DELETE FROM poster_ingredients 
            WHERE restaurant_id = $1 AND poster_ingredient_id = $2`,
-          [this.restaurantId, ingredientId]
+          [this.restaurantId, targetId]
         );
         return;
       }
@@ -409,14 +414,14 @@ export class PosterSyncService {
            updated_at = NOW()`,
         [
           this.restaurantId,
-          ingredient.ingredient_id,
-          ingredient.ingredient_category_id || null,
+          String(ingredient.ingredient_id),
+          ingredient.ingredient_category_id ? String(ingredient.ingredient_category_id) : null,
           ingredient.ingredient_name,
           ingredient.ingredient_unit || 'шт',
         ]
       );
       
-      console.log(`✅ [${this.restaurantId}] Synced ingredient: ${ingredient.ingredient_name}`);
+      console.log(`✅ [${this.restaurantId}] Synced ingredient: ${ingredient.ingredient_name} (${ingredient.ingredient_id})`);
     } catch (error) {
       console.error(`❌ [${this.restaurantId}] Failed to sync ingredient ${ingredientId}:`, error);
       throw error;
@@ -426,12 +431,13 @@ export class PosterSyncService {
   /**
    * Sync a single supplier by ID (for webhooks)
    */
-  async syncSingleSupplier(supplierId: number): Promise<void> {
+  async syncSingleSupplier(supplierId: number | string): Promise<void> {
     console.log(`🔄 [${this.restaurantId}] Syncing single supplier: ${supplierId}`);
     
     try {
       const suppliers = await this.posterAPI.getSuppliers();
-      const supplier = suppliers.find(s => s.supplier_id === supplierId);
+      const targetId = String(supplierId);
+      const supplier = suppliers.find(s => String(s.supplier_id) === targetId);
       
       if (!supplier) {
         console.log(`⚠️ [${this.restaurantId}] Supplier ${supplierId} not found or deleted`);
@@ -439,7 +445,7 @@ export class PosterSyncService {
         await pool!.query(
           `DELETE FROM poster_suppliers 
            WHERE restaurant_id = $1 AND poster_supplier_id = $2`,
-          [this.restaurantId, supplierId]
+          [this.restaurantId, targetId]
         );
         return;
       }
@@ -459,7 +465,7 @@ export class PosterSyncService {
            updated_at = NOW()`,
         [
           this.restaurantId,
-          supplier.supplier_id,
+          String(supplier.supplier_id),
           supplier.supplier_name,
           supplier.supplier_phone || null,
           null, // email not provided by Poster API
