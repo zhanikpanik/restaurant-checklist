@@ -142,8 +142,8 @@ export async function POST(req: NextRequest) {
       }
       
       return NextResponse.json(
-        { error: 'Restaurant not found', account_id: webhook.account_id },
-        { status: 404 }
+        { success: true, warning: 'Restaurant not found, logged to system', account_id: webhook.account_id },
+        { status: 200 }
       );
     }
 
