@@ -496,14 +496,35 @@ export class PosterSyncService {
 export async function getPosterAccessToken(restaurantId: string): Promise<string | null> {
   if (!pool) throw new Error("Database pool not initialized");
 
-  const result = await pool.query(
-    `SELECT access_token FROM poster_tokens 
-     WHERE restaurant_id = $1 AND is_active = true 
-     ORDER BY created_at DESC LIMIT 1`,
-    [restaurantId]
-  );
+  // First try the dedicated tokens table
+  try {
+    const tokenResult = await pool.query(
+      `SELECT access_token FROM poster_tokens 
+       WHERE restaurant_id = $1 AND is_active = true 
+       ORDER BY created_at DESC LIMIT 1`,
+      [restaurantId]
+    );
 
-  return result.rows[0]?.access_token || null;
+    if (tokenResult.rows.length > 0) {
+      return tokenResult.rows[0].access_token;
+    }
+  } catch (err) {
+    // Table might not exist yet, ignore and fallback
+    console.warn("Could not query poster_tokens table:", err);
+  }
+
+  // Fallback to restaurants table (legacy location)
+  try {
+    const restaurantResult = await pool.query(
+      `SELECT poster_token FROM restaurants WHERE id = $1`,
+      [restaurantId]
+    );
+
+    return restaurantResult.rows[0]?.poster_token || null;
+  } catch (err) {
+    console.error("Could not query restaurants table:", err);
+    return null;
+  }
 }
 
 /**
