@@ -29,7 +29,15 @@ export function PosterSyncPanel() {
 
   async function loadSyncStatus() {
     try {
-      const res = await fetch("/api/poster/sync");
+      const res = await fetch("/api/poster/sync", {
+        credentials: 'include'
+      });
+      
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to load sync status');
+      }
+      
       const data = await res.json();
       setStatus(data.status);
     } catch (error) {
@@ -51,8 +59,14 @@ export function PosterSyncPanel() {
       const res = await fetch("/api/poster/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify(body),
       });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || error.message || 'Sync failed');
+      }
 
       const result = await res.json();
 
@@ -67,13 +81,13 @@ export function PosterSyncPanel() {
       } else {
         setLastSyncResult({
           type: "error",
-          message: `❌ Sync failed: ${result.message}`,
+          message: `❌ Sync failed: ${result.error || result.message || 'Unknown error'}`,
         });
       }
     } catch (error) {
       setLastSyncResult({
         type: "error",
-        message: `❌ Sync failed: ${error}`,
+        message: `❌ Sync failed: ${error instanceof Error ? error.message : String(error)}`,
       });
     } finally {
       setSyncing(false);
@@ -99,6 +113,37 @@ export function PosterSyncPanel() {
             <div className="h-4 bg-gray-200 rounded"></div>
             <div className="h-4 bg-gray-200 rounded"></div>
             <div className="h-4 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if auth failed
+  if (!status && lastSyncResult?.type === 'error' && lastSyncResult?.message?.includes('Authentication required')) {
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="border-l-4 border-yellow-400 bg-yellow-50 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <span className="text-2xl">⚠️</span>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-yellow-800">
+                Restaurant Not Selected
+              </h3>
+              <div className="mt-2 text-sm text-yellow-700">
+                <p>Please select a restaurant to use the sync feature.</p>
+                {process.env.NODE_ENV === 'development' && (
+                  <a
+                    href="/dev/switch-restaurant"
+                    className="mt-2 inline-block underline hover:text-yellow-900"
+                  >
+                    → Select Restaurant (Dev Mode)
+                  </a>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
