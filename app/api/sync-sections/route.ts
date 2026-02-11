@@ -13,13 +13,33 @@ export async function GET(request: NextRequest) {
 
     const restaurantId = restaurantCookie.value;
 
-    // Get restaurant's Poster token (needs withoutTenant since restaurants table has no RLS)
+    // Get restaurant's Poster token
+    // We try to get the dedicated account_id first (which is the subdomain),
+    // otherwise fallback to poster_account_name or legacy fields
     const restaurant = await withoutTenant(async (client) => {
-      const result = await client.query(
+      // First try to join with poster_tokens table
+      const tokenResult = await client.query(
+        `SELECT r.poster_account_name, pt.access_token, pt.account_id 
+         FROM restaurants r
+         LEFT JOIN poster_tokens pt ON pt.restaurant_id = r.id AND pt.is_active = true
+         WHERE r.id = $1
+         ORDER BY pt.created_at DESC LIMIT 1`,
+        [restaurantId]
+      );
+      
+      if (tokenResult.rows.length > 0 && tokenResult.rows[0].access_token) {
+        return {
+           poster_token: tokenResult.rows[0].access_token,
+           poster_account_name: tokenResult.rows[0].account_id || tokenResult.rows[0].poster_account_name
+        };
+      }
+      
+      // Fallback to legacy fields
+      const legacyResult = await client.query(
         "SELECT poster_token, poster_account_name FROM restaurants WHERE id = $1",
         [restaurantId]
       );
-      return result.rows[0];
+      return legacyResult.rows[0];
     });
 
     if (!restaurant) {
@@ -38,8 +58,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Ensure account name is URL-safe (no spaces, lowercase)
+    // "ALTO Cabins" -> "alto-cabins"
+    const safeAccountName = poster_account_name.toLowerCase().replace(/\s+/g, '-');
+
     // Fetch storages from Poster
-    const storagesUrl = `https://${poster_account_name}.joinposter.com/api/storage.getStorages?token=${poster_token}`;
+    const storagesUrl = `https://${safeAccountName}.joinposter.com/api/storage.getStorages?token=${poster_token}`;
     console.log("Fetching storages from:", storagesUrl.replace(poster_token, "***"));
     
     const storagesResponse = await fetch(storagesUrl);
@@ -100,7 +124,7 @@ export async function GET(request: NextRequest) {
     let ingredientsSynced = 0;
     let ingredientError: string | null = null;
     try {
-      ingredientsSynced = await syncIngredientsForSections(restaurantId, poster_token, poster_account_name);
+      ingredientsSynced = await syncIngredientsForSections(restaurantId, poster_token, safeAccountName);
       console.log(`Synced ${ingredientsSynced} ingredients`);
     } catch (err) {
       console.error("Error syncing ingredients:", err);
