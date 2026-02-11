@@ -111,9 +111,18 @@ export default function SuppliersCategoriesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
+      
+      if (!suppliersRes.ok) {
+        const errorText = await suppliersRes.text();
+        console.error("Sync suppliers HTTP error:", suppliersRes.status, errorText);
+        throw new Error(`HTTP ${suppliersRes.status}: ${errorText.substring(0, 200)}`);
+      }
+      
       const suppliersData = await suppliersRes.json();
+      console.log("Suppliers sync response:", suppliersData);
       
       if (!suppliersData.success) {
+        console.error("Suppliers sync failed:", suppliersData.error);
         throw new Error(suppliersData.error || "Ошибка синхронизации поставщиков");
       }
 

@@ -44,14 +44,25 @@ export async function POST(request: NextRequest) {
 
     // Fetch suppliers from Poster
     const posterAPI = new PosterAPI(restaurant.poster_token);
-    const posterSuppliers = await posterAPI.getSuppliers();
-
-    console.log("Fetched Poster suppliers:", posterSuppliers);
+    
+    console.log("Attempting to fetch suppliers from Poster with token:", restaurant.poster_token?.substring(0, 10) + "...");
+    
+    let posterSuppliers;
+    try {
+      posterSuppliers = await posterAPI.getSuppliers();
+      console.log("Successfully fetched Poster suppliers:", posterSuppliers);
+    } catch (posterError: any) {
+      console.error("Poster API error:", posterError);
+      return NextResponse.json({
+        success: false,
+        error: `Poster API Error: ${posterError.message || String(posterError)}`,
+      }, { status: 500 });
+    }
 
     if (!posterSuppliers || !Array.isArray(posterSuppliers)) {
       return NextResponse.json({
         success: false,
-        error: "Failed to fetch suppliers from Poster",
+        error: "Failed to fetch suppliers from Poster - invalid response format",
       }, { status: 500 });
     }
 

@@ -116,7 +116,20 @@ export class PosterAPI {
       if (data.error) {
         const code = typeof data.error === 'object' ? data.error.code : data.error;
         const message = typeof data.error === 'object' ? data.error.message : data.message;
-        throw new Error(`Poster API Error (Code ${code}): ${message}`);
+        
+        // Provide more specific error messages
+        let errorMsg = `Poster API Error (Code ${code}): ${message || 'Unknown error'}`;
+        
+        // Common Poster error codes
+        if (code === 3) {
+          errorMsg = "CSRF token invalid or missing - Token may be expired or invalid";
+        } else if (code === 1) {
+          errorMsg = "Access denied - Invalid or expired Poster token";
+        } else if (code === 2) {
+          errorMsg = "Invalid request parameters";
+        }
+        
+        throw new Error(errorMsg);
       }
 
       return data.response as T;
