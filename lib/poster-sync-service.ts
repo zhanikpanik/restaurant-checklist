@@ -422,6 +422,28 @@ export class PosterSyncService {
       );
       
       console.log(`✅ [${this.restaurantId}] Synced ingredient: ${ingredient.ingredient_name} (${ingredient.ingredient_id})`);
+
+      // Also update section_products to reflect the change immediately
+      // We add it to all active sections for this restaurant
+      // This ensures it appears in the app UI
+      await pool!.query(`
+        INSERT INTO section_products (section_id, poster_ingredient_id, name, unit, is_active)
+        SELECT s.id, $2, $3, $4, true
+        FROM sections s
+        WHERE s.restaurant_id = $1 AND s.is_active = true
+        ON CONFLICT (section_id, poster_ingredient_id)
+        DO UPDATE SET
+          name = $3,
+          unit = $4,
+          is_active = true,
+          updated_at = NOW()
+      `, [
+        this.restaurantId, 
+        String(ingredient.ingredient_id), 
+        ingredient.ingredient_name, 
+        ingredient.ingredient_unit || 'шт'
+      ]);
+
     } catch (error) {
       console.error(`❌ [${this.restaurantId}] Failed to sync ingredient ${ingredientId}:`, error);
       throw error;
