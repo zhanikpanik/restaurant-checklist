@@ -192,12 +192,12 @@ export class PosterSyncService {
              updated_at = NOW()`,
           [
             this.restaurantId,
-            supplier.supplier_id || supplier.id,
-            supplier.supplier_name || supplier.name,
-            supplier.phone || null,
-            supplier.email || null,
-            supplier.address || null,
-            supplier.comment || null,
+            supplier.supplier_id,
+            supplier.supplier_name,
+            supplier.supplier_phone || null,
+            null, // email not provided by Poster API
+            supplier.supplier_address || supplier.supplier_adress || null,
+            null, // comment not provided by Poster API
           ]
         );
         syncedCount++;
@@ -247,13 +247,13 @@ export class PosterSyncService {
              updated_at = NOW()`,
           [
             this.restaurantId,
-            ingredient.ingredient_id || ingredient.id,
-            ingredient.category_id || null,
-            ingredient.ingredient_name || ingredient.name,
-            ingredient.unit || 'шт',
-            ingredient.unit_weight || 1,
-            ingredient.cost || 0,
-            ingredient.visible !== 0,
+            ingredient.ingredient_id,
+            ingredient.ingredient_category_id || null,
+            ingredient.ingredient_name,
+            ingredient.ingredient_unit || 'шт',
+            null, // unit_weight not provided by Poster API
+            null, // cost not provided by Poster API
+            true, // is_visible - default to true
           ]
         );
         syncedCount++;
@@ -298,8 +298,8 @@ export class PosterSyncService {
              updated_at = NOW()`,
           [
             this.restaurantId,
-            storage.storage_id || storage.id,
-            storage.storage_name || storage.name,
+            storage.storage_id,
+            storage.storage_name,
           ]
         );
         syncedCount++;

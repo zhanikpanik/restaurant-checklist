@@ -9,6 +9,8 @@ interface QuantityInputProps {
   onQuantityChange: (quantity: number) => void;
   min?: number;
   compact?: boolean;
+  showRemoveButton?: boolean;
+  onRemove?: () => void;
 }
 
 export function QuantityInput({
@@ -18,6 +20,8 @@ export function QuantityInput({
   onQuantityChange,
   min = 0,
   compact = false,
+  showRemoveButton = false,
+  onRemove,
 }: QuantityInputProps) {
   const [inputValue, setInputValue] = useState(quantity.toString());
   const [isFocused, setIsFocused] = useState(false);
@@ -99,6 +103,17 @@ export function QuantityInput({
         >
           +
         </button>
+        {showRemoveButton && onRemove && (
+          <button
+            onClick={onRemove}
+            className="w-9 h-9 flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors"
+            aria-label="Удалить"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
     );
   }
