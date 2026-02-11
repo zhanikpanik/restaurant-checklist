@@ -7,6 +7,7 @@ import { SuppliersTab } from "@/components/manager/SuppliersTab";
 import { GenericProductListTab } from "@/components/manager/UnsortedTab";
 import { PosterSyncPanel } from "@/components/poster/PosterSyncPanel";
 import { useToast } from "@/components/ui/Toast";
+import { useCSRF } from "@/hooks/useCSRF";
 import type { Supplier, Product } from "@/types";
 
 type TabType = "suppliers" | "unsorted";
@@ -15,6 +16,7 @@ export default function SuppliersCategoriesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const toast = useToast();
+  const { fetchWithCSRF } = useCSRF();
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | number>("suppliers");
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [unassignedProducts, setUnassignedProducts] = useState<Product[]>([]);
@@ -106,7 +108,7 @@ export default function SuppliersCategoriesPage() {
     setSyncing(true);
     try {
       // 1. Sync Suppliers
-      const suppliersRes = await fetch("/api/poster/sync-suppliers", {
+      const suppliersRes = await fetchWithCSRF("/api/poster/sync-suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui";
+import { useCSRF } from "@/hooks/useCSRF";
 
 interface SyncStatus {
   lastSyncAt: string | null;
@@ -22,6 +23,7 @@ export function PosterSyncPanel() {
   const [syncing, setSyncing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [lastSyncResult, setLastSyncResult] = useState<any>(null);
+  const { fetchWithCSRF } = useCSRF();
 
   useEffect(() => {
     loadSyncStatus();
@@ -35,6 +37,14 @@ export function PosterSyncPanel() {
       
       if (!res.ok) {
         const error = await res.json();
+        console.error('[PosterSyncPanel] Load status failed:', error);
+        
+        // Set error as last sync result so it displays
+        setLastSyncResult({
+          type: 'error',
+          message: `❌ ${error.error || 'Failed to load sync status'}: ${error.message || ''}`,
+        });
+        
         throw new Error(error.error || 'Failed to load sync status');
       }
       
@@ -56,7 +66,7 @@ export function PosterSyncPanel() {
         ? { entities: [entityType], force }
         : { force };
 
-      const res = await fetch("/api/poster/sync", {
+      const res = await fetchWithCSRF("/api/poster/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: 'include',
@@ -65,7 +75,8 @@ export function PosterSyncPanel() {
 
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.error || error.message || 'Sync failed');
+        console.error('[PosterSyncPanel] Sync failed:', res.status, error);
+        throw new Error(error.message || error.error || 'Sync failed');
       }
 
       const result = await res.json();
@@ -85,6 +96,7 @@ export function PosterSyncPanel() {
         });
       }
     } catch (error) {
+      console.error('[PosterSyncPanel] Exception during sync:', error);
       setLastSyncResult({
         type: "error",
         message: `❌ Sync failed: ${error instanceof Error ? error.message : String(error)}`,

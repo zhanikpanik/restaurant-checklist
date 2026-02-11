@@ -49,7 +49,10 @@ export async function requireAuth(
 ): Promise<{ restaurantId: string; userId?: number; userRole?: string } | NextResponse> {
   const restaurantId = getRestaurantIdFromRequest(request);
 
+  console.log('[requireAuth] Restaurant ID from cookie:', restaurantId);
+
   if (!restaurantId) {
+    console.log('[requireAuth] No restaurant_id cookie found');
     return NextResponse.json(
       {
         success: false,
@@ -62,12 +65,16 @@ export async function requireAuth(
 
   // Verify restaurant exists and is active
   const isValid = await verifyRestaurant(restaurantId);
+  console.log('[requireAuth] Restaurant valid:', isValid);
+  
   if (!isValid) {
+    console.error(`[requireAuth] Restaurant ${restaurantId} is not valid or not active`);
     return NextResponse.json(
       {
         success: false,
         error: "Invalid restaurant",
-        message: "Selected restaurant is not available",
+        message: `Selected restaurant (${restaurantId}) is not available or inactive`,
+        restaurantId, // Include for debugging
       },
       { status: 403 }
     );
@@ -75,6 +82,7 @@ export async function requireAuth(
 
   // Get session for user info
   const session = await auth();
+  console.log('[requireAuth] Session user:', session?.user?.email);
   
   return { 
     restaurantId,
