@@ -20,9 +20,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Fetch logs for this restaurant OR system logs (unmatched webhooks)
     const result = await pool.query(
       `SELECT * FROM webhook_logs 
-       WHERE restaurant_id = $1 
+       WHERE restaurant_id = $1 OR restaurant_id = 'system-logs'
        ORDER BY created_at DESC 
        LIMIT 50`,
       [restaurantId]

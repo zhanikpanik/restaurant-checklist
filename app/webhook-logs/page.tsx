@@ -128,6 +128,11 @@ export default function WebhookLogsPage() {
                       }`}>
                         {log.action}
                       </span>
+                      {log.restaurant_id === 'system-logs' && (
+                        <span className="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800 border border-gray-300">
+                          ⚠️ Unmatched
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm text-gray-500">
                       {new Date(log.created_at).toLocaleString()}

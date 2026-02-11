@@ -117,14 +117,28 @@ export async function POST(req: NextRequest) {
     if (restaurantResult.rows.length === 0) {
       console.error(`❌ Restaurant not found for Poster account: ${webhook.account_id} / ${webhook.account}`);
       
-      // Log this webhook anyway for debugging (using 'UNKNOWN' as restaurant_id)
-      // Note: This might fail if foreign key constraint exists, so we try/catch
+      // Log this webhook to 'system-logs' restaurant for debugging
       try {
-        // Check if we can insert with NULL or if we need a dummy restaurant
-        // For now, let's just log to console
-        console.warn('⚠️ Skipping DB log for unknown restaurant to avoid FK constraint error');
+        await pool.query(
+          `INSERT INTO webhook_logs 
+           (restaurant_id, webhook_type, object_type, object_id, action, payload, created_at)
+           VALUES ($1, 'poster', $2, $3, $4, $5, NOW())`,
+          [
+            'system-logs',
+            webhook.object,
+            webhook.object_id,
+            webhook.action,
+            JSON.stringify({
+              ...webhook,
+              error: 'Restaurant not found',
+              original_account_id: webhook.account_id,
+              original_account: webhook.account
+            }),
+          ]
+        );
+        console.log('✅ Logged unmatched webhook to system-logs');
       } catch (e) {
-        console.error('Failed to log unknown webhook:', e);
+        console.error('Failed to log unmatched webhook:', e);
       }
       
       return NextResponse.json(
