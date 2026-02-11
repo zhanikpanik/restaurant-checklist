@@ -153,6 +153,7 @@ export async function POST(req: NextRequest) {
     // Handle different webhook types
     switch (webhook.object) {
       case 'product':
+      case 'ingredient': // Poster sometimes sends 'ingredient' instead of 'product'
         // In Poster, "product" can mean menu items or ingredients
         // We're interested in ingredients (storage products)
         await handleProductWebhook(syncService, webhook);
