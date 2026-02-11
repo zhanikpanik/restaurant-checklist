@@ -4,12 +4,13 @@ import { auth } from "@/lib/auth-config";
 import { validateCSRFToken, requiresCSRFValidation, getSessionIdentifier } from "@/lib/csrf-edge";
 
 // Routes that don't require authentication
-const publicRoutes = ["/login", "/setup", "/api/auth", "/api/health", "/api/debug-auth", "/api/poster/oauth"];
+const publicRoutes = ["/login", "/setup", "/api/auth", "/api/health", "/api/debug-auth", "/api/poster/oauth", "/api/poster/webhooks"];
 
 // API routes exempt from CSRF (webhooks, OAuth callbacks, etc.)
 const csrfExemptRoutes = [
   "/api/auth",
   "/api/poster/oauth",
+  "/api/poster/webhooks", // Webhooks from Poster
   "/api/health",
   "/api/csrf", // CSRF token endpoint itself
   "/api/orders/bulk-update", // Temporary exemption for bulk updates

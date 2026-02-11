@@ -28,9 +28,20 @@ export async function GET(request: NextRequest) {
       [restaurantId]
     );
 
+    // If no logs found, return empty array
+    if (result.rows.length === 0) {
+       console.log("No logs found for restaurant:", restaurantId);
+    }
+    
+    // Convert payloads from string to JSON if needed (pg auto-converts JSONB but just in case)
+    const logs = result.rows.map(row => ({
+      ...row,
+      payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload
+    }));
+
     return NextResponse.json({
       success: true,
-      data: result.rows,
+      data: logs,
     });
   } catch (error) {
     console.error("Error fetching webhook logs:", error);

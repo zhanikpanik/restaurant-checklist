@@ -23,6 +23,11 @@ interface PosterWebhook {
 }
 
 export async function POST(req: NextRequest) {
+  // Log all incoming requests for debugging
+  console.log('📥 Webhook endpoint hit!');
+  // Log basic info without reading body yet
+  console.log('Headers content-type:', req.headers.get('content-type'));
+  
   try {
     if (!pool) {
       console.error('❌ Database pool not initialized');
@@ -31,18 +36,59 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-
-    const webhook: PosterWebhook = await req.json();
     
-    console.log('📥 Received Poster webhook:', {
+    // Read body once
+    const rawBody = await req.text();
+    console.log('📦 Raw webhook body:', rawBody);
+    
+    // Handle URL-encoded form data (Poster sometimes sends this)
+    let webhook: any = {};
+    const contentType = req.headers.get('content-type') || '';
+    
+    if (contentType.includes('application/x-www-form-urlencoded')) {
+      const params = new URLSearchParams(rawBody);
+      // Poster sends verify, time, object, object_id, action, account, account_number
+      for (const [key, value] of params.entries()) {
+        webhook[key] = value;
+      }
+    } else {
+      // Try JSON
+      try {
+        webhook = JSON.parse(rawBody);
+      } catch (e) {
+        console.error('❌ Failed to parse webhook JSON:', e);
+        return NextResponse.json(
+          { error: 'Invalid format', details: 'Could not parse JSON or Form Data' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Normalize Poster fields
+    // Poster might send 'account_number' instead of 'account_id' in some hooks
+    if (!webhook.account_id && webhook.account_number) {
+      webhook.account_id = webhook.account_number;
+    }
+
+    console.log('📥 Parsed Poster webhook:', {
       account: webhook.account,
+      account_id: webhook.account_id,
       object: webhook.object,
       action: webhook.action,
       object_id: webhook.object_id,
     });
 
     // Find restaurant by Poster account ID
-    const restaurantResult = await pool.query(
+    let restaurantResult;
+    
+    // Some webhooks (like 'storage') might use account name instead of ID
+    // or sometimes account_id is sent as string vs number
+    // Let's try multiple ways to find the restaurant
+    
+    console.log('🔍 Looking for restaurant with account_id:', webhook.account_id);
+    
+    // 1. Try exact match on account_id
+    restaurantResult = await pool.query(
       `SELECT r.id, pt.access_token 
        FROM restaurants r
        JOIN poster_tokens pt ON pt.restaurant_id = r.id
@@ -52,10 +98,37 @@ export async function POST(req: NextRequest) {
       [webhook.account_id]
     );
 
+    // 2. If not found, try finding by account name (domain)
+    if (restaurantResult.rows.length === 0 && webhook.account) {
+      console.log('🔍 Not found by ID, trying account name:', webhook.account);
+      restaurantResult = await pool.query(
+        `SELECT r.id, pt.access_token 
+         FROM restaurants r
+         JOIN poster_tokens pt ON pt.restaurant_id = r.id
+         WHERE (r.poster_account_name = $1 OR r.poster_account_name LIKE $2)
+         AND pt.is_active = true
+         LIMIT 1`,
+        [webhook.account, `${webhook.account}%`]
+      );
+    }
+
+    console.log('🔍 Found restaurants:', restaurantResult.rows.length);
+
     if (restaurantResult.rows.length === 0) {
-      console.error(`❌ Restaurant not found for Poster account: ${webhook.account_id}`);
+      console.error(`❌ Restaurant not found for Poster account: ${webhook.account_id} / ${webhook.account}`);
+      
+      // Log this webhook anyway for debugging (using 'UNKNOWN' as restaurant_id)
+      // Note: This might fail if foreign key constraint exists, so we try/catch
+      try {
+        // Check if we can insert with NULL or if we need a dummy restaurant
+        // For now, let's just log to console
+        console.warn('⚠️ Skipping DB log for unknown restaurant to avoid FK constraint error');
+      } catch (e) {
+        console.error('Failed to log unknown webhook:', e);
+      }
+      
       return NextResponse.json(
-        { error: 'Restaurant not found' },
+        { error: 'Restaurant not found', account_id: webhook.account_id },
         { status: 404 }
       );
     }
