@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cookie Checker</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            margin: 0 0 20px 0;
+            color: #1a1a1a;
+        }
+        .cookie-info {
+            background: #f7fafc;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        .status.good {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.bad {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        code {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 6px;
+            text-decoration: none;
+            margin: 10px 10px 10px 0;
+            transition: background 0.2s;
+        }
+        .button:hover {
+            background: #5568d3;
+        }
+        pre {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🍪 Restaurant Cookie Checker</h1>
+        
+        <div id="status"></div>
+        
+        <div class="cookie-info">
+            <strong>All Cookies:</strong>
+            <pre id="all-cookies"></pre>
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <a href="/dev/switch-restaurant" class="button">🔧 Select Restaurant (Dev)</a>
+            <a href="/suppliers-categories" class="button">📊 Go to Sync Panel</a>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0;">
+            <h3>💡 Quick Fix</h3>
+            <p>If <code>restaurant_id</code> is missing:</p>
+            <ol>
+                <li>Click "Select Restaurant (Dev)" above</li>
+                <li>Choose your restaurant</li>
+                <li>Return here and refresh</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Check for restaurant_id cookie
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return null;
+        }
+
+        const restaurantId = getCookie('restaurant_id');
+        const statusDiv = document.getElementById('status');
+        const allCookiesDiv = document.getElementById('all-cookies');
+
+        // Display all cookies
+        allCookiesDiv.textContent = document.cookie || '(no cookies found)';
+
+        // Display status
+        if (restaurantId) {
+            statusDiv.innerHTML = `
+                <h2>✅ Cookie Found <span class="status good">READY</span></h2>
+                <p><strong>Restaurant ID:</strong> <code>${restaurantId}</code></p>
+                <p style="color: #065f46;">✓ You can now use the Poster Sync Panel!</p>
+            `;
+        } else {
+            statusDiv.innerHTML = `
+                <h2>❌ Cookie Missing <span class="status bad">NOT READY</span></h2>
+                <p style="color: #991b1b;">The <code>restaurant_id</code> cookie is not set.</p>
+                <p>You need to select a restaurant before using the sync panel.</p>
+            `;
+        }
+    </script>
+</body>
+</html>
