@@ -363,6 +363,131 @@ export class PosterSyncService {
     const ageMinutes = (Date.now() - lastSync.getTime()) / 1000 / 60;
     return ageMinutes >= maxAgeMinutes;
   }
+
+  /**
+   * Check if sync should run (based on 24 hour interval)
+   */
+  async shouldSync(entityType: string): Promise<boolean> {
+    const lastSync = await this.getLastSyncTime(entityType);
+    if (!lastSync) return true;
+    
+    const hoursSinceSync = (Date.now() - lastSync.getTime()) / (1000 * 60 * 60);
+    return hoursSinceSync > 24; // Sync if older than 24 hours
+  }
+
+  /**
+   * Sync a single ingredient by ID (for webhooks)
+   */
+  async syncSingleIngredient(ingredientId: string): Promise<void> {
+    console.log(`🔄 [${this.restaurantId}] Syncing single ingredient: ${ingredientId}`);
+    
+    try {
+      const ingredients = await this.posterAPI.getIngredients();
+      const ingredient = ingredients.find(i => i.ingredient_id === ingredientId);
+      
+      if (!ingredient) {
+        console.log(`⚠️ [${this.restaurantId}] Ingredient ${ingredientId} not found or deleted`);
+        // Delete from DB if it was removed in Poster
+        await pool!.query(
+          `DELETE FROM poster_ingredients 
+           WHERE restaurant_id = $1 AND poster_ingredient_id = $2`,
+          [this.restaurantId, ingredientId]
+        );
+        return;
+      }
+
+      await pool!.query(
+        `INSERT INTO poster_ingredients 
+         (restaurant_id, poster_ingredient_id, poster_category_id, name, unit, synced_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+         ON CONFLICT (restaurant_id, poster_ingredient_id)
+         DO UPDATE SET
+           poster_category_id = $3,
+           name = $4,
+           unit = $5,
+           synced_at = NOW(),
+           updated_at = NOW()`,
+        [
+          this.restaurantId,
+          ingredient.ingredient_id,
+          ingredient.ingredient_category_id || null,
+          ingredient.ingredient_name,
+          ingredient.ingredient_unit || 'шт',
+        ]
+      );
+      
+      console.log(`✅ [${this.restaurantId}] Synced ingredient: ${ingredient.ingredient_name}`);
+    } catch (error) {
+      console.error(`❌ [${this.restaurantId}] Failed to sync ingredient ${ingredientId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Sync a single supplier by ID (for webhooks)
+   */
+  async syncSingleSupplier(supplierId: number): Promise<void> {
+    console.log(`🔄 [${this.restaurantId}] Syncing single supplier: ${supplierId}`);
+    
+    try {
+      const suppliers = await this.posterAPI.getSuppliers();
+      const supplier = suppliers.find(s => s.supplier_id === supplierId);
+      
+      if (!supplier) {
+        console.log(`⚠️ [${this.restaurantId}] Supplier ${supplierId} not found or deleted`);
+        // Delete from DB if it was removed in Poster
+        await pool!.query(
+          `DELETE FROM poster_suppliers 
+           WHERE restaurant_id = $1 AND poster_supplier_id = $2`,
+          [this.restaurantId, supplierId]
+        );
+        return;
+      }
+
+      await pool!.query(
+        `INSERT INTO poster_suppliers 
+         (restaurant_id, poster_supplier_id, name, phone, email, address, comment, synced_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+         ON CONFLICT (restaurant_id, poster_supplier_id)
+         DO UPDATE SET
+           name = $3,
+           phone = $4,
+           email = $5,
+           address = $6,
+           comment = $7,
+           synced_at = NOW(),
+           updated_at = NOW()`,
+        [
+          this.restaurantId,
+          supplier.supplier_id,
+          supplier.supplier_name,
+          supplier.supplier_phone || null,
+          null, // email not provided by Poster API
+          supplier.supplier_address || supplier.supplier_adress || null,
+          null, // comment not provided by Poster API
+        ]
+      );
+      
+      console.log(`✅ [${this.restaurantId}] Synced supplier: ${supplier.supplier_name}`);
+    } catch (error) {
+      console.error(`❌ [${this.restaurantId}] Failed to sync supplier ${supplierId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Force sync with option to ignore last sync time
+   */
+  async forceSyncAll(): Promise<{
+    categories: number;
+    products: number;
+    suppliers: number;
+    ingredients: number;
+    storages: number;
+  }> {
+    console.log(`🔄 [${this.restaurantId}] Force syncing all data...`);
+    return this.syncAll();
+  }
 }
 
 /**

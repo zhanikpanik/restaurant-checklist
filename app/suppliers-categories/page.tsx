@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { SuppliersTab } from "@/components/manager/SuppliersTab";
 import { GenericProductListTab } from "@/components/manager/UnsortedTab";
+import { PosterSyncPanel } from "@/components/poster/PosterSyncPanel";
 import { useToast } from "@/components/ui/Toast";
 import type { Supplier, Product } from "@/types";
 
@@ -21,6 +22,7 @@ export default function SuppliersCategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [unassignedCount, setUnassignedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
   
   // Cache all products to avoid refetching
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -203,6 +205,40 @@ export default function SuppliersCategoriesPage() {
           </div>
         </div>
       </header>
+
+      {/* Sync Panel Toggle */}
+      <div className="max-w-2xl mx-auto px-4 pt-4">
+        <button
+          onClick={() => setShowSyncPanel(!showSyncPanel)}
+          className="w-full flex items-center justify-between p-3 bg-white border rounded-lg hover:bg-gray-50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">⚙️</span>
+            <span className="font-medium text-gray-900">Poster Sync Settings</span>
+          </div>
+          <svg
+            className={`w-5 h-5 text-gray-500 transition-transform ${
+              showSyncPanel ? "rotate-180" : ""
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </button>
+
+        {showSyncPanel && (
+          <div className="mt-4">
+            <PosterSyncPanel />
+          </div>
+        )}
+      </div>
 
       <main className="max-w-2xl mx-auto">
         {selectedSupplierId === "suppliers" && (

@@ -2,7 +2,8 @@
   "crons": [
     {
       "path": "/api/cron/sync-poster",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 3 * * *",
+      "comment": "Daily sync at 3 AM (safety net for webhooks)"
     }
   ]
 }

@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
 
     const { restaurantId } = authResult;
 
-    // Parse request body for selective sync
-    let body: { entities?: string[] } | null = null;
+    // Parse request body for selective sync and force flag
+    let body: { entities?: string[]; force?: boolean } | null = null;
     try {
       body = await request.json();
     } catch {
@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const entities = body?.entities;
+    const force = body?.force || false;
 
     // Create sync service
     const syncService = await createSyncService(restaurantId);
@@ -35,6 +36,15 @@ export async function POST(request: NextRequest) {
     if (entities && Array.isArray(entities)) {
       // Selective sync
       for (const entity of entities) {
+        // Check if sync needed (unless force flag is set)
+        const shouldSync = force || await syncService.shouldSync(entity);
+        
+        if (!shouldSync) {
+          console.log(`⏭️ Skipping ${entity} sync (recently synced)`);
+          results[entity] = 0;
+          continue;
+        }
+
         switch (entity) {
           case 'categories':
             results.categories = await syncService.syncCategories();
@@ -57,13 +67,19 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Full sync
-      results = await syncService.syncAll();
+      if (force) {
+        console.log('🔄 Force syncing all entities...');
+        results = await syncService.forceSyncAll();
+      } else {
+        results = await syncService.syncAll();
+      }
     }
 
     return NextResponse.json({
       success: true,
       restaurantId,
       results,
+      forced: force,
       syncedAt: new Date().toISOString(),
     });
 
