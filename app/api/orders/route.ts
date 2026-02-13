@@ -15,10 +15,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const myOrders = searchParams.get("my") === "true";
+    const sectionId = searchParams.get("section_id");
     const limit = parseInt(searchParams.get("limit") || "100");
 
     const orders = await withTenant(restaurantId, async (client) => {
-      // Check if user has send orders permission
+      // Check if user has send orders permission (for staff only)
       let canSendOrders = false;
       if (userId && userRole && !["admin", "manager"].includes(userRole)) {
         const permResult = await client.query(
@@ -31,8 +32,39 @@ export async function GET(request: NextRequest) {
         canSendOrders = permResult.rows[0]?.can_send || false;
       }
 
-      // If user wants "my orders" and is not admin/manager and doesn't have send permission
-      if (myOrders && userId && userRole && !["admin", "manager"].includes(userRole) && !canSendOrders) {
+      // Admin/Manager always see all orders
+      const isAdminOrManager = userRole && ["admin", "manager"].includes(userRole);
+      
+      // If filtering by specific section_id (for Last Order card)
+      if (sectionId) {
+        // Get section name
+        const sectionResult = await client.query(
+          `SELECT name FROM sections WHERE id = $1 AND restaurant_id = $2`,
+          [sectionId, restaurantId]
+        );
+        
+        if (sectionResult.rows.length === 0) {
+          console.log(`Section ${sectionId} not found`);
+          return [];
+        }
+        
+        const sectionName = sectionResult.rows[0].name;
+        
+        // Get orders for this specific section
+        const result = await client.query<Order>(
+          `SELECT * FROM orders
+           WHERE restaurant_id = $1
+           AND order_data->>'department' = $2
+           ORDER BY created_at DESC
+           LIMIT $3`,
+          [restaurantId, sectionName, limit]
+        );
+        console.log(`Returning ${result.rows.length} orders for section ${sectionName}`);
+        return result.rows;
+      }
+      
+      // If requesting "my orders" AND user is staff without send permission
+      if (myOrders && !isAdminOrManager && !canSendOrders) {
         // Get user's section names
         const sectionsResult = await client.query(
           `SELECT s.name FROM sections s
@@ -42,11 +74,13 @@ export async function GET(request: NextRequest) {
         );
         const sectionNames = sectionsResult.rows.map((r: any) => r.name);
 
+        // If user has no assigned sections, return empty
         if (sectionNames.length === 0) {
+          console.log(`User ${userId} has no assigned sections, returning empty orders`);
           return [];
         }
 
-        // Filter orders by department (section name) in order_data
+        // Filter orders by user's departments
         const result = await client.query<Order>(
           `SELECT * FROM orders
            WHERE restaurant_id = $1
@@ -55,10 +89,12 @@ export async function GET(request: NextRequest) {
            LIMIT $3`,
           [restaurantId, sectionNames, limit]
         );
+        console.log(`Returning ${result.rows.length} orders for user ${userId} sections: ${sectionNames.join(', ')}`);
         return result.rows;
       }
 
-      // Admin/Manager OR users with can_send_orders see ALL orders
+      // Admin/Manager OR staff with can_send_orders = true see ALL orders
+      console.log(`Returning all orders for user ${userId} (isAdmin: ${isAdminOrManager}, canSend: ${canSendOrders})`);
       const result = await client.query<Order>(
         `SELECT * FROM orders
          WHERE restaurant_id = $1

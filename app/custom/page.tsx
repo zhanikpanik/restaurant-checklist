@@ -100,10 +100,17 @@ function CustomPageContent() {
       
       try {
         setLoadingLastOrder(true);
-        const response = await fetch(`/api/orders?section_id=${sectionId}&my=true&limit=1`);
+        console.log(`[Last Order] Fetching for section_id: ${sectionId}`);
+        const response = await fetch(`/api/orders?section_id=${sectionId}&limit=1`);
         const data = await response.json();
+        console.log(`[Last Order] API Response:`, data);
+        
         if (data.success && data.data.length > 0) {
+          console.log(`[Last Order] Found order:`, data.data[0]);
           setLastOrder(data.data[0]);
+        } else {
+          console.log(`[Last Order] No orders found for this section`);
+          setLastOrder(null);
         }
       } catch (error) {
         console.error("Error loading last order:", error);
@@ -467,8 +474,17 @@ function CustomPageContent() {
           onOpenSettings={() => setShowSettingsModal(true)}
         />
 
-      {/* Last Order Card - Department Specific - Only for non-admin users */}
-      {lastOrder && !loadingLastOrder && !canManage && (
+      {/* Last Order Card - Department Specific */}
+      {/* Debug info - Remove after testing */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="max-w-md mx-auto px-4 pt-2 pb-2">
+          <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs">
+            <strong>Debug:</strong> lastOrder={lastOrder ? 'YES' : 'NO'}, loading={loadingLastOrder ? 'YES' : 'NO'}, sectionId={sectionId}
+          </div>
+        </div>
+      )}
+      
+      {lastOrder && !loadingLastOrder && (
         <div className="max-w-md mx-auto px-4 pt-4 pb-3">
           <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
             <div className="flex items-center justify-between mb-2">
