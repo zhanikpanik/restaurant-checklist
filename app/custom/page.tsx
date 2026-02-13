@@ -469,7 +469,7 @@ function CustomPageContent() {
 
       {/* Last Order Card - Department Specific */}
       {lastOrder && !loadingLastOrder && (
-        <div className="max-w-md mx-auto px-4 pb-3">
+        <div className="max-w-md mx-auto px-4 pt-4 pb-3">
           <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold text-gray-800">📋 Последний заказ</h3>
@@ -644,25 +644,30 @@ function Header({
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-md mx-auto px-4 py-4">
         <div className="relative flex items-center justify-between">
-          <Link
-            href="/"
-            className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
-            aria-label="На главную"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth="2"
+          {/* Back button - Only show for admin/manager */}
+          {canManage ? (
+            <Link
+              href="/"
+              className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
+              aria-label="На главную"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-          </Link>
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                strokeWidth="2"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+            </Link>
+          ) : (
+            <div className="w-10 h-10" /> /* Spacer for non-admin users */
+          )}
 
           <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900 truncate max-w-[200px] text-center">
             {sectionName || dept || "Товары"}

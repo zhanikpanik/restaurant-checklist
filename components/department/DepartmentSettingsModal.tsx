@@ -51,7 +51,6 @@ export function DepartmentSettingsModal({
   // Settings tab state
   const [name, setName] = useState(section.name);
   const [emoji, setEmoji] = useState(section.emoji || "🏪");
-  const [staffCanSendOrders, setStaffCanSendOrders] = useState(section.staff_can_send_orders ?? false);
 
   // Users tab state
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -71,7 +70,6 @@ export function DepartmentSettingsModal({
     if (isOpen) {
       setName(section.name);
       setEmoji(section.emoji || "🏪");
-      setStaffCanSendOrders(section.staff_can_send_orders ?? false);
       if (activeTab === "users") {
         loadUsers();
       }
@@ -114,7 +112,6 @@ export function DepartmentSettingsModal({
         id: section.id,
         name: name.trim(),
         emoji,
-        staff_can_send_orders: staffCanSendOrders,
       });
 
       if (response.success) {
@@ -303,28 +300,11 @@ export function DepartmentSettingsModal({
               </div>
             </div>
 
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Персонал может отправлять заказы
-                </label>
-                <p className="text-xs text-gray-500 mt-1">
-                  Если выключено, только менеджер может отправлять заказы
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setStaffCanSendOrders(!staffCanSendOrders)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  staffCanSendOrders ? "bg-blue-600" : "bg-gray-300"
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    staffCanSendOrders ? "translate-x-6" : "translate-x-1"
-                  }`}
-                />
-              </button>
+            {/* Info about user permissions */}
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                ℹ️ <strong>Совет:</strong> Права на отправку заказов настраиваются индивидуально для каждого пользователя во вкладке "Пользователи"
+              </p>
             </div>
 
             <div className="flex gap-3 pt-4">

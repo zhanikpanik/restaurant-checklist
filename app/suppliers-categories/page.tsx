@@ -168,6 +168,14 @@ export default function SuppliersCategoriesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
+      
+      // Check if response is ok before parsing JSON
+      if (!ingredientsRes.ok) {
+        const errorText = await ingredientsRes.text();
+        console.error("Sync ingredients HTTP error:", ingredientsRes.status, errorText);
+        throw new Error(`HTTP ${ingredientsRes.status}: ${errorText.substring(0, 200)}`);
+      }
+      
       const ingredientsData = await ingredientsRes.json();
 
       if (!ingredientsData.success) {
