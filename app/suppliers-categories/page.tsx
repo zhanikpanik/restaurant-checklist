@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { SuppliersTab } from "@/components/manager/SuppliersTab";
 import { GenericProductListTab } from "@/components/manager/UnsortedTab";
-import { PosterSyncPanel } from "@/components/poster/PosterSyncPanel";
 import { useToast } from "@/components/ui/Toast";
 import { useCSRF } from "@/hooks/useCSRF";
 import type { Supplier, Product } from "@/types";
@@ -25,7 +24,6 @@ export default function SuppliersCategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [unassignedCount, setUnassignedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
-  const [showSyncPanel, setShowSyncPanel] = useState(false);
   
   // Cache all products to avoid refetching
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -214,10 +212,28 @@ export default function SuppliersCategoriesPage() {
             
             <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900">Поставщики</h1>
             
-            <div className="w-10" />
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${ 
+                syncing 
+                  ? "bg-purple-100 text-purple-600" 
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+              title="Синхронизировать с Poster"
+            >
+              <svg 
+                className={`w-5 h-5 ${syncing ? "animate-spin" : ""}`} 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
           </div>
 
-          {/* Scrollable Tabs */}
+          {/* Scrollable Tabs */ }
           <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={() => setSelectedSupplierId("suppliers")}
@@ -263,41 +279,7 @@ export default function SuppliersCategoriesPage() {
         </div>
       </header>
 
-      {/* Sync Panel Toggle */}
-      <div className="max-w-2xl mx-auto px-4 pt-4">
-        <button
-          onClick={() => setShowSyncPanel(!showSyncPanel)}
-          className="w-full flex items-center justify-between p-3 bg-white border rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-lg">⚙️</span>
-            <span className="font-medium text-gray-900">Poster Sync Settings</span>
-          </div>
-          <svg
-            className={`w-5 h-5 text-gray-500 transition-transform ${
-              showSyncPanel ? "rotate-180" : ""
-            }`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M19 9l-7 7-7-7"
-            />
-          </svg>
-        </button>
-
-        {showSyncPanel && (
-          <div className="mt-4">
-            <PosterSyncPanel />
-          </div>
-        )}
-      </div>
-
-      <main className="max-w-2xl mx-auto">
+      <main className="max-w-2xl mx-auto pt-4">
         {selectedSupplierId === "suppliers" && (
           <SuppliersTab
             suppliers={suppliers}
@@ -326,20 +308,6 @@ export default function SuppliersCategoriesPage() {
           />
         )}
       </main>
-
-      {/* Floating Sync Button */}
-      <button
-        onClick={handleSync}
-        disabled={syncing}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-200 z-50"
-        title="Синхронизировать все данные"
-      >
-        {syncing ? (
-          <div className="animate-spin h-6 w-6 border-2 border-white border-t-transparent rounded-full" />
-        ) : (
-          <span className="text-2xl">🔄</span>
-        )}
-      </button>
     </div>
   );
 }
