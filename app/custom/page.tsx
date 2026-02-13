@@ -467,8 +467,8 @@ function CustomPageContent() {
           onOpenSettings={() => setShowSettingsModal(true)}
         />
 
-      {/* Last Order Card - Department Specific */}
-      {lastOrder && !loadingLastOrder && (
+      {/* Last Order Card - Department Specific - Only for non-admin users */}
+      {lastOrder && !loadingLastOrder && !canManage && (
         <div className="max-w-md mx-auto px-4 pt-4 pb-3">
           <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
             <div className="flex items-center justify-between mb-2">
@@ -581,17 +581,23 @@ function CustomPageContent() {
         )}
       </main>
 
-      {/* Cart FAB */}
+      {/* Cart Button - Bigger and More Informative */}
       {cart.count > 0 && (
-        <div className="fixed bottom-4 right-4">
+        <div className="fixed bottom-4 right-4 z-50">
           <Link
             href="/cart"
-            className="flex items-center justify-center w-14 h-14 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-lg transition-colors"
+            className="flex items-center gap-3 px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-xl transition-all hover:shadow-2xl hover:scale-105"
           >
-            <span className="text-xl">🛒</span>
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🛒</span>
+              <div className="flex flex-col items-start">
+                <span className="text-sm font-bold leading-tight">Корзина</span>
+                <span className="text-xs opacity-90 leading-tight">{cart.count} товаров</span>
+              </div>
+            </div>
+            <div className="bg-white text-purple-600 text-sm font-bold rounded-full w-8 h-8 flex items-center justify-center">
               {cart.count}
-            </span>
+            </div>
           </Link>
         </div>
       )}

@@ -18,8 +18,21 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "100");
 
     const orders = await withTenant(restaurantId, async (client) => {
-      // If user wants "my orders" and is not admin/manager, filter by their sections
-      if (myOrders && userId && userRole && !["admin", "manager"].includes(userRole)) {
+      // Check if user has send orders permission
+      let canSendOrders = false;
+      if (userId && userRole && !["admin", "manager"].includes(userRole)) {
+        const permResult = await client.query(
+          `SELECT EXISTS(
+            SELECT 1 FROM user_sections 
+            WHERE user_id = $1 AND can_send_orders = true
+          ) as can_send`,
+          [userId]
+        );
+        canSendOrders = permResult.rows[0]?.can_send || false;
+      }
+
+      // If user wants "my orders" and is not admin/manager and doesn't have send permission
+      if (myOrders && userId && userRole && !["admin", "manager"].includes(userRole) && !canSendOrders) {
         // Get user's section names
         const sectionsResult = await client.query(
           `SELECT s.name FROM sections s
@@ -45,7 +58,7 @@ export async function GET(request: NextRequest) {
         return result.rows;
       }
 
-      // Default: return all orders for admin/manager
+      // Admin/Manager OR users with can_send_orders see ALL orders
       const result = await client.query<Order>(
         `SELECT * FROM orders
          WHERE restaurant_id = $1
