@@ -35,6 +35,7 @@ export interface Product {
   section_name?: string;
   supplier_id?: number;
   poster_id?: string;
+  poster_ingredient_id?: string;
   unit?: string;
   department?: string;
   quantity?: number;

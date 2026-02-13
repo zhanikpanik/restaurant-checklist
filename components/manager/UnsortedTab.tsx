@@ -10,12 +10,14 @@ export function GenericProductListTab({
   onReload,
   title,
   showSupplierSelect = true,
+  relatedIdsMap,
 }: {
   products: Product[];
   suppliers: any[];
   onReload: () => void;
   title: string;
   showSupplierSelect?: boolean;
+  relatedIdsMap?: Record<number, number[]>;
 }) {
   const toast = useToast();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -44,15 +46,26 @@ export function GenericProductListTab({
 
     setSubmitting(true);
     try {
+      // Expand selected IDs using relatedIdsMap if available
+      const allIdsToUpdate = selectedIds.flatMap(id => 
+        relatedIdsMap && relatedIdsMap[id] ? relatedIdsMap[id] : [id]
+      );
+      // Remove duplicates just in case
+      const uniqueIdsToUpdate = Array.from(new Set(allIdsToUpdate));
+
       const data = await api.post<{ updatedCount: number }>("/api/section-products/bulk", {
-        product_ids: selectedIds,
+        product_ids: uniqueIdsToUpdate,
         supplier_id: Number(targetSupplierId),
       });
 
       if (data.success && data.data) {
         toast.success(`Перемещено товаров: ${data.data.updatedCount}`);
+        
+        // Clear selections immediately
         setSelectedIds([]);
         setTargetSupplierId("");
+        
+        // Trigger parent reload to refresh all data
         onReload();
       } else {
         toast.error(data.error || "Ошибка перемещения");

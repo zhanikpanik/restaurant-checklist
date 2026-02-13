@@ -62,6 +62,10 @@ function CustomPageContent() {
   const [sectionName, setSectionName] = useState("");
   const [productQuantities, setProductQuantities] = useState<ProductQuantity>({});
 
+  // Last Order state
+  const [lastOrder, setLastOrder] = useState<any>(null);
+  const [loadingLastOrder, setLoadingLastOrder] = useState(true);
+
   // Caching state
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([]);
@@ -88,6 +92,64 @@ function CustomPageContent() {
     }
     loadData();
   }, [sectionId]);
+
+  // Fetch last order for this section
+  useEffect(() => {
+    const fetchLastOrder = async () => {
+      if (!sectionId) return;
+      
+      try {
+        setLoadingLastOrder(true);
+        const response = await fetch(`/api/orders?section_id=${sectionId}&my=true&limit=1`);
+        const data = await response.json();
+        if (data.success && data.data.length > 0) {
+          setLastOrder(data.data[0]);
+        }
+      } catch (error) {
+        console.error("Error loading last order:", error);
+      } finally {
+        setLoadingLastOrder(false);
+      }
+    };
+
+    fetchLastOrder();
+  }, [sectionId]);
+
+  // Helper functions for Last Order card
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "pending": return "Ожидает";
+      case "sent": return "Отправлен";
+      case "delivered": return "Доставлен";
+      case "cancelled": return "Отменен";
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "pending": return "bg-yellow-100 text-yellow-800";
+      case "sent": return "bg-blue-100 text-blue-800";
+      case "delivered": return "bg-green-100 text-green-800";
+      case "cancelled": return "bg-red-100 text-red-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const formatRelativeDate = (date: Date | string) => {
+    const orderDate = new Date(date);
+    const now = new Date();
+    const diffMs = now.getTime() - orderDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return "только что";
+    if (diffMins < 60) return `${diffMins} мин. назад`;
+    if (diffHours < 24) return `${diffHours} ч. назад`;
+    if (diffDays === 1) return "вчера";
+    return orderDate.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -404,6 +466,40 @@ function CustomPageContent() {
           onAddSupplier={() => router.push('/suppliers-categories')}
           onOpenSettings={() => setShowSettingsModal(true)}
         />
+
+      {/* Last Order Card - Department Specific */}
+      {lastOrder && !loadingLastOrder && (
+        <div className="max-w-md mx-auto px-4 pb-3">
+          <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-800">📋 Последний заказ</h3>
+              <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(lastOrder.status)}`}>
+                {getStatusLabel(lastOrder.status)}
+              </span>
+            </div>
+            <div className="text-xs text-gray-600 mb-2">
+              <span className="font-medium">{lastOrder.order_data.department || sectionName}</span>
+              <span className="mx-2">•</span>
+              <span>{lastOrder.order_data.items?.length || 0} товаров</span>
+              <span className="mx-2">•</span>
+              <span>{formatRelativeDate(lastOrder.created_at)}</span>
+            </div>
+            <div className="text-xs text-gray-500 truncate mb-2">
+              {lastOrder.order_data.items?.slice(0, 3).map((item: any) => item.name).join(", ")}
+              {(lastOrder.order_data.items?.length || 0) > 3 && "..."}
+            </div>
+            <Link
+              href="/orders"
+              className="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1"
+            >
+              Все заказы
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Search */}
       <div className="max-w-md mx-auto px-4 py-3">

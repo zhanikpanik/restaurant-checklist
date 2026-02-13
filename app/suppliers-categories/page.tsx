@@ -21,6 +21,7 @@ export default function SuppliersCategoriesPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [unassignedProducts, setUnassignedProducts] = useState<Product[]>([]);
   const [supplierProducts, setSupplierProducts] = useState<Product[]>([]);
+  const [relatedIdsMap, setRelatedIdsMap] = useState<Record<number, number[]>>({});
   const [loading, setLoading] = useState(true);
   const [unassignedCount, setUnassignedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -75,25 +76,59 @@ export default function SuppliersCategoriesPage() {
       const suppliersData = await suppliersRes.json();
       if (suppliersData.success) setSuppliers(suppliersData.data);
 
-      // Load all products once and cache them
-      if (!productsLoaded) {
-        const productsRes = await fetch("/api/section-products?active=true");
-        const productsData = await productsRes.json();
-        if (productsData.success) {
-          setAllProducts(productsData.data);
-          setProductsLoaded(true);
-        }
+      // Always refetch products when explicitly requested (e.g., after assignment)
+      const productsRes = await fetch("/api/section-products?active=true");
+      const productsData = await productsRes.json();
+      if (productsData.success) {
+        setAllProducts(productsData.data);
+        setProductsLoaded(true);
       }
 
       // Filter from cache instead of fetching again
       if (selectedSupplierId === "suppliers") {
         // Just showing the list of suppliers (default view)
       } else if (selectedSupplierId === "unsorted") {
-        const unassigned = allProducts.filter((p: Product) => !p.supplier_id);
-        setUnassignedProducts(unassigned);
+        const unassigned = productsData.data.filter((p: Product) => !p.supplier_id);
+        
+        // Group by poster_ingredient_id to avoid duplicates in the UI
+        // This ensures one entry per ingredient, even if it exists in multiple sections
+        const groupedMap = new Map<string, Product>();
+        const idMap: Record<number, number[]> = {};
+
+        unassigned.forEach((p: Product) => {
+          const key = p.poster_ingredient_id || `local_${p.id}`; 
+          
+          if (!groupedMap.has(key)) {
+            // First time seeing this ingredient
+            groupedMap.set(key, { ...p }); 
+            // Initialize mapping for this representative ID
+            idMap[p.id] = [p.id];
+          } else {
+            // Duplicate found (same ingredient in another section)
+            const existing = groupedMap.get(key)!;
+            
+            // Aggregate quantity
+            existing.quantity = (Number(existing.quantity) || 0) + (Number(p.quantity) || 0);
+            
+            // Append section name
+            if (p.section_name && !existing.section_name?.includes(p.section_name)) {
+                existing.section_name = existing.section_name 
+                  ? `${existing.section_name}, ${p.section_name}` 
+                  : p.section_name;
+            }
+            
+            // Link this duplicate ID to the representative ID
+            if (idMap[existing.id]) {
+                idMap[existing.id].push(p.id);
+            }
+          }
+        });
+
+        setUnassignedProducts(Array.from(groupedMap.values()));
+        setRelatedIdsMap(idMap);
       } else {
-        // Filter products for specific supplier from cache
-        const filtered = allProducts.filter((p: Product) => p.supplier_id === Number(selectedSupplierId));
+        // Filter products for specific supplier from fresh data
+        const filtered = productsData.data.filter((p: Product) => p.supplier_id === Number(selectedSupplierId));
         setSupplierProducts(filtered);
       }
     } catch (error) {
@@ -128,8 +163,11 @@ export default function SuppliersCategoriesPage() {
         throw new Error(suppliersData.error || "Ошибка синхронизации поставщиков");
       }
 
-      // 2. Sync Ingredients/Sections
-      const ingredientsRes = await fetch("/api/sync-sections");
+      // 2. Sync Ingredients/Sections - ALSO USE CSRF
+      const ingredientsRes = await fetchWithCSRF("/api/sync-sections", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
       const ingredientsData = await ingredientsRes.json();
 
       if (!ingredientsData.success) {
@@ -267,6 +305,7 @@ export default function SuppliersCategoriesPage() {
             suppliers={suppliers}
             onReload={loadData}
             title="Нераспределенные товары"
+            relatedIdsMap={relatedIdsMap}
           />
         )}
 
