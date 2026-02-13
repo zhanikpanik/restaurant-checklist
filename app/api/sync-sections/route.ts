@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withTenant, withoutTenant } from "@/lib/db";
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const restaurantCookie = request.cookies.get("restaurant_id");
     if (!restaurantCookie?.value) {
