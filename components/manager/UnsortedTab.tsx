@@ -80,7 +80,7 @@ export function GenericProductListTab({
   if (products.length === 0) {
     return (
       <div className="p-12 text-center text-gray-500">
-        <div className="text-4xl mb-4">📦</div>
+        <img src="/icons/box.svg" alt="Empty" className="w-16 h-16 mx-auto mb-4 opacity-50" />
         <p>В этом списке нет товаров.</p>
       </div>
     );

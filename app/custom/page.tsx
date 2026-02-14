@@ -61,6 +61,9 @@ function CustomPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sectionName, setSectionName] = useState("");
   const [productQuantities, setProductQuantities] = useState<ProductQuantity>({});
+  
+  // Leftovers (Stock) state
+  const [leftovers, setLeftovers] = useState<Record<string, number>>({});
 
   // Last Order state
   const [lastOrder, setLastOrder] = useState<any>(null);
@@ -123,6 +126,15 @@ function CustomPageContent() {
   }, [sectionId]);
 
   // Helper functions for Last Order card
+  const getPluralForm = (count: number, words: string[]) => {
+    const cases = [2, 0, 1, 1, 1, 2];
+    return words[(count % 100 > 4 && count % 100 < 20) ? 2 : cases[(count % 10 < 5) ? count % 10 : 5]];
+  };
+
+  const formatProductCount = (count: number) => {
+    return `${count} ${getPluralForm(count, ["товар", "товара", "товаров"])}`;
+  };
+
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "pending": return "Ожидает";
@@ -161,12 +173,13 @@ function CustomPageContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sectionsRes, productsRes, suppliersRes, categoriesRes, ordersRes] = await Promise.all([
+      const [sectionsRes, productsRes, suppliersRes, categoriesRes, ordersRes, leftoversRes] = await Promise.all([
         fetch("/api/sections"),
         fetch(`/api/section-products?section_id=${sectionId}&active=true`),
         fetch("/api/suppliers"),
         fetch("/api/categories"),
         canManage ? fetch("/api/orders?all=true") : Promise.resolve(null),
+        fetch("/api/poster/leftovers")
       ]);
 
       const sectionsData = await sectionsRes.json();
@@ -212,6 +225,17 @@ function CustomPageContent() {
           ).length;
           setPendingOrdersCount(pendingCount);
         }
+      }
+      
+      // Load leftovers
+      const leftoversData = await leftoversRes.json();
+      if (leftoversData.success) {
+        const dataWithDebug = { ...leftoversData.data };
+        if (leftoversData.debug) {
+            // @ts-ignore
+            dataWithDebug._debug_raw = leftoversData.debug;
+        }
+        setLeftovers(dataWithDebug);
       }
     } catch (error) {
       console.error("Error loading data:", error);
@@ -437,7 +461,7 @@ function CustomPageContent() {
           onAddSupplier={() => router.push('/suppliers-categories')}
         />
         <main className="max-w-md mx-auto px-4 py-12 text-center">
-          <div className="text-6xl mb-6">🏢</div>
+          <img src="/icons/box.svg" alt="Suppliers" className="w-16 h-16 mx-auto mb-6 opacity-50" />
           <h2 className="text-xl font-semibold text-gray-800 mb-3">
             Нет поставщиков
           </h2>
@@ -488,7 +512,9 @@ function CustomPageContent() {
         <div className="max-w-md mx-auto px-4 pt-4 pb-3">
           <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-800">📋 Последний заказ</h3>
+              <h3 className="text-sm font-semibold text-gray-800">
+                Последний заказ
+              </h3>
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(lastOrder.status)}`}>
                 {getStatusLabel(lastOrder.status)}
               </span>
@@ -496,7 +522,7 @@ function CustomPageContent() {
             <div className="text-xs text-gray-600 mb-2">
               <span className="font-medium">{lastOrder.order_data.department || sectionName}</span>
               <span className="mx-2">•</span>
-              <span>{lastOrder.order_data.items?.length || 0} товаров</span>
+              <span>{formatProductCount(lastOrder.order_data.items?.length || 0)}</span>
               <span className="mx-2">•</span>
               <span>{formatRelativeDate(lastOrder.created_at)}</span>
             </div>
@@ -521,16 +547,14 @@ function CustomPageContent() {
       <div className="max-w-md mx-auto px-4 py-3">
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <img src="/icons/magnifier.svg" alt="Search" className="h-5 w-5 opacity-40" />
           </div>
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
-            placeholder="🔍 Поиск товаров..."
+            placeholder="Поиск товаров..."
             autoComplete="off"
           />
           {searchQuery && (
@@ -559,15 +583,24 @@ function CustomPageContent() {
             {currentProducts.map((product) => {
               const quantity = productQuantities[product.id] || 0;
               const hasQuantity = quantity > 0;
+              // Check if we have stock info from Poster (if synced)
+              const stock = product.poster_ingredient_id ? leftovers[product.poster_ingredient_id] : undefined;
 
               return (
                 <div key={product.id} className="bg-white py-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
-                      {product.category_name && (
-                        <p className="text-xs text-gray-500 mt-0.5">{product.category_name}</p>
-                      )}
+                      <div className="flex flex-col gap-0.5 mt-0.5">
+                        {product.category_name && (
+                          <p className="text-xs text-gray-500">{product.category_name}</p>
+                        )}
+                        {stock !== undefined && (
+                          <p className={`text-xs font-medium ${stock <= 0 ? 'text-red-500' : 'text-green-600'}`}>
+                            Остаток: {stock} {product.unit}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {!hasQuantity ? (
@@ -602,17 +635,14 @@ function CustomPageContent() {
         <div className="fixed bottom-4 right-4 z-50">
           <Link
             href="/cart"
-            className="flex items-center gap-3 px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-full shadow-xl transition-all hover:shadow-2xl hover:scale-105"
+            className="flex items-center gap-3 px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xl transition-all hover:shadow-2xl hover:scale-105"
           >
             <div className="flex items-center gap-2">
-              <span className="text-2xl">🛒</span>
+              <img src="/icons/basket.svg" alt="Cart" className="w-8 h-8 invert brightness-0 filter" />
               <div className="flex flex-col items-start">
                 <span className="text-sm font-bold leading-tight">Корзина</span>
                 <span className="text-xs opacity-90 leading-tight">{cart.count} товаров</span>
               </div>
-            </div>
-            <div className="bg-white text-purple-600 text-sm font-bold rounded-full w-8 h-8 flex items-center justify-center">
-              {cart.count}
             </div>
           </Link>
         </div>
@@ -696,14 +726,7 @@ function Header({
           </h1>
 
           <div className="flex items-center gap-2">
-            {canManage && pendingOrdersCount > 0 && (
-              <Link
-                href="/orders"
-                className="w-10 h-10 rounded-xl bg-yellow-100 flex items-center justify-center hover:bg-yellow-200 transition-colors text-yellow-700 font-bold text-sm relative"
-              >
-                {pendingOrdersCount}
-              </Link>
-            )}
+
             
             {canManage && onOpenSettings && (
               <button

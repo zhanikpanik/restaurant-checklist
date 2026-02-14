@@ -237,24 +237,24 @@ export default function SuppliersCategoriesPage() {
           <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
             <button
               onClick={() => setSelectedSupplierId("suppliers")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
                 selectedSupplierId === "suppliers"
                   ? "bg-purple-600 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              🏢 Все поставщики
+              Все поставщики
             </button>
             
             <button
               onClick={() => setSelectedSupplierId("unsorted")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
                 selectedSupplierId === "unsorted"
                   ? "bg-purple-600 text-white"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
             >
-              📦 Нераспределенные
+              Нераспределенные
               {unassignedCount > 0 && (
                 <span className="ml-2 bg-white/20 px-1.5 py-0.5 rounded text-xs">
                   {unassignedCount}

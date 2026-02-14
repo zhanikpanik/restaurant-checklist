@@ -26,6 +26,8 @@ export async function GET(request: NextRequest) {
           sp.category_id,
           COALESCE(sp.supplier_id, pc.supplier_id) as supplier_id,
           sp.is_active,
+          sp.stock,
+          sp.stock_updated_at,
           pc.name as category_name,
           COALESCE(sup_direct.name, sup.name) as supplier_name,
           s.name as section_name
@@ -79,7 +81,7 @@ export async function POST(request: NextRequest) {
     const { restaurantId } = auth;
 
     const body = await request.json();
-    const { name, unit, section_id, category_id, supplier_id, is_active, poster_ingredient_id } = body;
+    const { name, unit, section_id, category_id, supplier_id, is_active, poster_ingredient_id, stock } = body;
 
     if (!name || !section_id) {
       return NextResponse.json(
@@ -103,10 +105,10 @@ export async function POST(request: NextRequest) {
       }
 
       const result = await client.query(
-        `INSERT INTO section_products (name, unit, section_id, category_id, supplier_id, is_active, poster_ingredient_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO section_products (name, unit, section_id, category_id, supplier_id, is_active, poster_ingredient_id, stock)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [name, unit || null, section_id, category_id || null, supplier_id || null, is_active !== false, ingredientId]
+        [name, unit || null, section_id, category_id || null, supplier_id || null, is_active !== false, ingredientId, stock !== undefined ? stock : 0]
       );
       return result.rows[0];
     });
@@ -145,7 +147,7 @@ export async function PATCH(request: NextRequest) {
     const { restaurantId } = auth;
 
     const body = await request.json();
-    const { id, name, unit, section_id, category_id, supplier_id, is_active } = body;
+    const { id, name, unit, section_id, category_id, supplier_id, is_active, stock } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -163,11 +165,13 @@ export async function PATCH(request: NextRequest) {
              category_id = COALESCE($4, sp.category_id),
              supplier_id = COALESCE($5, sp.supplier_id),
              is_active = COALESCE($6, sp.is_active),
+             stock = COALESCE($7, sp.stock),
+             stock_updated_at = CASE WHEN $7 IS NOT NULL THEN CURRENT_TIMESTAMP ELSE sp.stock_updated_at END,
              updated_at = CURRENT_TIMESTAMP
          FROM sections s
-         WHERE sp.id = $7 AND sp.section_id = s.id AND s.restaurant_id = $8
+         WHERE sp.id = $8 AND sp.section_id = s.id AND s.restaurant_id = $9
          RETURNING sp.*`,
-        [name, unit, section_id, category_id, supplier_id, is_active, id, restaurantId]
+        [name, unit, section_id, category_id, supplier_id, is_active, stock, id, restaurantId]
       );
       return result.rows[0];
     });

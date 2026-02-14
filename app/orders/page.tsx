@@ -25,6 +25,7 @@ export default function OrdersPage() {
   
   // Received quantities for in-transit items: { `${orderId}-${itemIdx}`: quantity }
   const [receivedQuantities, setReceivedQuantities] = useState<Record<string, number>>({});
+  const [receivedPrices, setReceivedPrices] = useState<Record<string, number>>({});
   
   // Track which supplier group is being sent
   const [sendingSupplier, setSendingSupplier] = useState<string | null>(null);
@@ -166,7 +167,7 @@ export default function OrdersPage() {
   // Determine current focus state
   const hasInTransit = sentBySupplier.length > 0;
   const hasPending = pendingItems.filter(i => i._quantity > 0).length > 0;
-  const activeItemCount = pendingItems.filter(i => i._quantity > 0).length;
+  const hasChanges = Object.keys(pendingQuantities).length > 0;
 
   // Handlers
   const handlePendingQuantityChange = (key: string, delta: number) => {
@@ -187,8 +188,79 @@ export default function OrdersPage() {
     setReceivedQuantities(prev => ({ ...prev, [key]: Math.max(0, num) }));
   };
 
+  const handleReceivedPriceChange = (key: string, value: string) => {
+    const num = parseFloat(value) || 0;
+    setReceivedPrices(prev => ({ ...prev, [key]: Math.max(0, num) }));
+  };
+
   const handleRemoveItem = (key: string) => {
     setPendingQuantities(prev => ({ ...prev, [key]: 0 }));
+  };
+
+  // Helper to build update payload
+  const getUpdatesPayload = (items: any[], quantityMap: Record<string, number>, priceMap?: Record<string, number>) => {
+    const updates = new Map<number, any[]>();
+    
+    // Better approach: Iterate over affected orders
+    const affectedOrderIds = new Set<number>();
+    items.forEach(item => {
+      // Check for quantity or price changes
+      if (quantityMap[item._key] !== undefined || (priceMap && priceMap[item._key] !== undefined)) {
+        affectedOrderIds.add(item._orderId);
+      }
+    });
+    
+    const payload: { id: number, items: any[] }[] = [];
+    
+    affectedOrderIds.forEach(orderId => {
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+      
+      const newItems = (order.order_data.items || []).map((originalItem: any, idx: number) => {
+        const key = `${orderId}-${idx}`;
+        // Use new quantity if exists, otherwise keep original
+        const newQty = quantityMap[key] !== undefined ? quantityMap[key] : originalItem.quantity;
+        // Use new price if exists, otherwise keep original
+        const newPrice = priceMap && priceMap[key] !== undefined ? priceMap[key] : originalItem.price;
+        
+        return { ...originalItem, quantity: newQty, price: newPrice };
+      });
+      
+      payload.push({ id: orderId, items: newItems });
+    });
+    
+    return payload;
+  };
+
+  // Save changes without sending
+  const handleSaveChanges = async () => {
+    if (!hasChanges) return;
+    setUpdating(true);
+    
+    try {
+      const updates = getUpdatesPayload(pendingItems, pendingQuantities);
+      const orderIds = updates.map(u => u.id);
+      
+      // We call bulk-update with status='pending' (no change) but with updates
+      const response = await api.post("/api/orders/bulk-update", { 
+        ids: orderIds, 
+        status: "pending",
+        updates: updates 
+      });
+      
+      if (response.success) {
+        toast.success("Изменения сохранены");
+        setPendingQuantities({});
+        await loadData();
+      } else {
+        toast.error("Ошибка при сохранении");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Ошибка сохранения");
+    } finally {
+      setUpdating(false);
+    }
   };
 
   // Send to WhatsApp
@@ -221,15 +293,25 @@ export default function OrdersPage() {
       toast.warning(`Телефон не найден для "${supplierName}"`);
     }
 
-    // Update order status
-    const orderIds = [...new Set(itemsToSend.map(i => i._orderId))];
+    // Update order status AND quantities
     try {
-      await api.post("/api/orders/bulk-update", { ids: orderIds, status: "sent" });
+      // We need to build updates payload for these items
+      // Note: items here are the grouped ones. We should look at pendingQuantities for them.
+      const updates = getUpdatesPayload(items, pendingQuantities);
+      const orderIds = [...new Set(items.map(i => i._orderId))];
+      
+      await api.post("/api/orders/bulk-update", { 
+        ids: orderIds, 
+        status: "sent",
+        updates: updates
+      });
+      
       toast.success("✓ Отправлено");
       await loadData();
       setPendingQuantities({});
     } catch (error) {
       console.error(error);
+      toast.error("Ошибка при обновлении статуса");
     } finally {
       setSendingSupplier(null);
     }
@@ -280,7 +362,7 @@ export default function OrdersPage() {
           items: posterItems.map(item => ({
             ingredient_id: String(item.poster_id || item.productId),
             quantity: item._receivedQty || item.quantity,
-            price: item.price || 0,
+            price: receivedPrices[item._key] ?? item.price ?? 0,
           })),
           comment: `Приёмка от ${supplierName}`,
         };
@@ -309,8 +391,14 @@ export default function OrdersPage() {
         console.log("No items with poster_id found - skipping Poster");
       }
       
-      // 2. Update order status to delivered
-      const updateResult = await api.post("/api/orders/bulk-update", { ids: orderIds, status: "delivered" });
+      // 2. Update order status to delivered AND save received quantities
+      const updates = getUpdatesPayload(items, receivedQuantities, receivedPrices);
+      
+      const updateResult = await api.post("/api/orders/bulk-update", { 
+        ids: orderIds, 
+        status: "delivered",
+        updates: updates
+      });
       
       if (!updateResult.success) {
         throw new Error(updateResult.error || "Failed to update");
@@ -359,7 +447,9 @@ export default function OrdersPage() {
               </svg>
             </Link>
             
-            <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900">Заказы</h1>
+            <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900">
+              Заказы
+            </h1>
             
             <button 
               onClick={loadData}
@@ -375,7 +465,7 @@ export default function OrdersPage() {
           <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
             <button
               onClick={() => setActiveTab("pending")}
-              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg ${
+              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg flex items-center justify-center gap-1 ${
                 activeTab === "pending" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
               }`}
             >
@@ -384,7 +474,7 @@ export default function OrdersPage() {
             {canSendOrders && (
               <button
                 onClick={() => setActiveTab("transit")}
-                className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg ${
+                className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg flex items-center justify-center gap-1 ${
                   activeTab === "transit" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
                 }`}
               >
@@ -393,7 +483,7 @@ export default function OrdersPage() {
             )}
             <button
               onClick={() => setActiveTab("history")}
-              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg ${
+              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg flex items-center justify-center gap-1 ${
                 activeTab === "history" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
               }`}
             >
@@ -410,7 +500,7 @@ export default function OrdersPage() {
             {!hasPending ? (
               <div className="text-center py-16 px-4">
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-4xl">📦</span>
+                  <img src="/icons/box.svg" alt="Box" className="w-10 h-10 opacity-50" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Нет заявок</h3>
                 <p className="text-gray-500">Новые заявки появятся здесь</p>
@@ -420,11 +510,10 @@ export default function OrdersPage() {
                 {/* Items list grouped by department */}
                 <div className="bg-white pt-4">
                   {pendingByDepartment.map(([department, deptItems]) => (
-                    <div key={department}>
+                    <div key={department} className="mt-6 first:mt-0">
                       {/* Department Header */}
-                      <div className="bg-purple-50 px-4 py-2 border-t border-purple-100 first:border-t-0">
-                        <h3 className="font-semibold text-purple-900 text-sm">{department}</h3>
-                        <p className="text-xs text-purple-600">{deptItems.filter(i => i._quantity > 0).length} позиций</p>
+                      <div className="px-4 mb-3">
+                        <h3 className="text-sm font-medium text-gray-500">{department}</h3>
                       </div>
                       
                       {/* Department Items */}
@@ -463,6 +552,26 @@ export default function OrdersPage() {
                   ))}
                 </div>
 
+                {/* Save Changes Button (Floating) */}
+                {hasChanges && (
+                  <div className="fixed bottom-6 left-0 right-0 px-4 z-50 flex justify-center">
+                    <button
+                      onClick={handleSaveChanges}
+                      disabled={updating}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-70"
+                    >
+                      {updating ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      Сохранить изменения
+                    </button>
+                  </div>
+                )}
+
                 {/* Supplier breakdown - only for users who can send */}
                 {canSendOrders && (
                   <>
@@ -474,9 +583,6 @@ export default function OrdersPage() {
                         {pendingBySupplier.map(([supplier, group]) => (
                           <div key={supplier} className="px-4 py-4">
                             <div className="flex items-start gap-3 mb-3">
-                              <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-sm flex-shrink-0 mt-1">
-                                📦
-                              </div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-gray-900">{supplier}</p>
                                 <p className="text-xs text-gray-500">{group.items.length} позиций</p>
@@ -515,7 +621,7 @@ export default function OrdersPage() {
             {!hasInTransit ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-4xl">🚚</span>
+                  <img src="/icons/delivery.svg" alt="Transit" className="w-10 h-10 opacity-50" />
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Нет доставок</h3>
                 <p className="text-gray-500">Отправленные заказы появятся здесь</p>
@@ -529,7 +635,7 @@ export default function OrdersPage() {
                       <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 first:border-t-0">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center text-green-700">
-                            🚚
+                            <img src="/icons/delivery.svg" alt="Transit" className="w-4 h-4 opacity-70" />
                           </div>
                           <div>
                             <h3 className="font-bold text-gray-900 text-sm">{supplier}</h3>
@@ -549,26 +655,44 @@ export default function OrdersPage() {
                           
                           return (
                             <div key={idx} className="px-4 py-4 hover:bg-gray-50 transition-colors">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0 pr-4">
-                                  <h3 className="font-medium text-gray-900 truncate">{item.name}</h3>
+                              {/* Mobile Layout: Stacked */}
+                              <div className="flex flex-col gap-3">
+                                
+                                {/* Top Row: Name and Ordered Info */}
+                                <div className="w-full">
+                                  <h3 className="font-medium text-gray-900 break-words">{item.name}</h3>
                                   <p className={`text-xs mt-0.5 font-medium ${orderedTextColor}`}>
                                     Заказано: {item._orderedQty} {item.unit || "шт"}
                                   </p>
                                 </div>
-                                
+
+                                {/* Bottom Row: Inputs */}
                                 <div className="flex items-center gap-3">
-                                  <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-200">
-                                    <span className="text-xs text-gray-500 pl-2">Факт:</span>
-                                    <input
-                                      type="number"
-                                      value={item._receivedQty}
-                                      onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
-                                      className="w-16 bg-white border border-gray-200 rounded px-2 py-1 text-gray-900 text-center text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                                      step="0.1"
-                                    />
-                                  </div>
+                                   {/* Price */}
+                                   <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-200">
+                                     <span className="text-xs text-gray-500 pl-2">Цена:</span>
+                                     <input
+                                       type="number"
+                                       value={receivedPrices[`${item._orderId}-${idx}`] ?? item.price ?? 0}
+                                       onChange={(e) => handleReceivedPriceChange(`${item._orderId}-${idx}`, e.target.value)}
+                                       className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-gray-900 text-center text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                       step="0.01"
+                                       min="0"
+                                     />
+                                   </div>
+                                   {/* Quantity */}
+                                   <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-200">
+                                     <span className="text-xs text-gray-500 pl-2">Факт:</span>
+                                     <input
+                                       type="number"
+                                       value={item._receivedQty}
+                                       onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
+                                       className="w-full bg-white border border-gray-200 rounded px-2 py-1 text-gray-900 text-center text-sm font-medium focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                                       step="0.1"
+                                     />
+                                   </div>
                                 </div>
+
                               </div>
                             </div>
                           );
@@ -594,7 +718,7 @@ export default function OrdersPage() {
                             <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                           ) : (
                             <>
-                              <span>✓</span>
+                              <img src="/icons/check.svg" alt="Confirm" className="w-4 h-4 invert brightness-0 filter" />
                               Принять
                             </>
                           )}

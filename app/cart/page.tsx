@@ -39,6 +39,15 @@ export default function CartPage() {
     return { grouped, noSupplier };
   }, [cart.items]);
 
+  const getPluralForm = (count: number, words: string[]) => {
+    const cases = [2, 0, 1, 1, 1, 2];
+    return words[(count % 100 > 4 && count % 100 < 20) ? 2 : cases[(count % 10 < 5) ? count % 10 : 5]];
+  };
+
+  const formatProductCount = (count: number) => {
+    return `${count} ${getPluralForm(count, ["товар", "товара", "товаров"])}`;
+  };
+
   const supplierNames = Object.keys(itemsBySupplier.grouped).sort();
 
   const handleQuantityChange = (cartId: string, newQuantity: number) => {
@@ -172,7 +181,7 @@ export default function CartPage() {
       <div className="max-w-4xl mx-auto p-4">
         {cart.items.length === 0 ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">🛒</div>
+            <img src="/icons/basket.svg" alt="Empty Cart" className="w-16 h-16 mx-auto mb-4 opacity-50" />
             <h2 className="text-xl font-semibold text-gray-700 mb-2">
               Корзина пуста
             </h2>
@@ -194,10 +203,10 @@ export default function CartPage() {
                 <div key={supplierName}>
                   {/* Supplier Header */}
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg">🏢</span>
+                    <img src="/icons/box.svg" alt="Supplier" className="w-5 h-5 opacity-70" />
                     <h3 className="font-semibold text-gray-800">{supplierName}</h3>
                     <span className="text-sm text-gray-500">
-                      ({itemsBySupplier.grouped[supplierName].length} товаров)
+                      ({formatProductCount(itemsBySupplier.grouped[supplierName].length)})
                     </span>
                   </div>
                   
@@ -219,10 +228,10 @@ export default function CartPage() {
               {itemsBySupplier.noSupplier.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-lg">📦</span>
+                    <img src="/icons/box.svg" alt="Unassigned" className="w-5 h-5 opacity-70" />
                     <h3 className="font-semibold text-gray-800">Без поставщика</h3>
                     <span className="text-sm text-gray-500">
-                      ({itemsBySupplier.noSupplier.length} товаров)
+                      ({formatProductCount(itemsBySupplier.noSupplier.length)})
                     </span>
                   </div>
                   

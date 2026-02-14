@@ -72,7 +72,7 @@ export function SuppliersTab({
                       )}
                     </div>
                     {supplier.phone && (
-                      <p className="text-sm text-gray-500 mt-1">📞 {supplier.phone}</p>
+                      <p className="text-sm text-gray-500 mt-1">Tel: {supplier.phone}</p>
                     )}
                     {supplier.contact_info && (
                       <p className="text-sm text-gray-500 mt-1">{supplier.contact_info}</p>
