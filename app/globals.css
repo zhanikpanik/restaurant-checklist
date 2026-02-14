@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: light; /* Force browser to render inputs/scrollbars in light mode */
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -54,7 +55,7 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-white text-gray-900; /* Explicitly force white background */
   }
 }
 
