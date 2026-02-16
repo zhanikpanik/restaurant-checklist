@@ -235,80 +235,64 @@ export default function HomePage() {
     if (!orderSummary) return null;
 
     if (orderSummary.type === 'pending') {
-      const deptDetails = orderSummary.departments 
-        ? Object.entries(orderSummary.departments).map(([name, count]) => `${name} ${count}`).join(", ")
+      const deptNames = orderSummary.departments 
+        ? Object.keys(orderSummary.departments).join(", ")
         : "";
-      
-      const totalItems = orderSummary.departments 
-        ? Object.values(orderSummary.departments).reduce((a, b) => a + b, 0) 
-        : 0;
 
       return (
         <Link 
           href="/orders" 
-          className="w-full bg-white border border-yellow-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all group relative flex items-center"
+          className="w-full bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
         >
-          {/* Icon */}
-          <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center mr-4">
-            <img src="/icons/list.svg" alt="Pending" className="w-10 h-10 opacity-80" />
-          </div>
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-yellow-600">
-                Ожидают отправки
-              </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/icons/list.svg" alt="Pending" className="w-5 h-5 opacity-70" />
+              <div>
+                <p className="text-xs text-yellow-700 flex items-center gap-2">
+                  <span className="font-bold">{orderSummary.count} {orderSummary.count === 1 ? "заказ" : "заказа"}</span>
+                  <span>•</span>
+                  <span>Ожидают отправки</span>
+                </p>
+                <p className="text-sm font-semibold text-gray-800">
+                  {deptNames}
+                </p>
+              </div>
             </div>
-            <h3 className="font-bold text-gray-900 leading-tight truncate">
-              {deptDetails}
-            </h3>
-            <p className="text-sm text-gray-500 truncate mt-0.5">
-              Всего {formatProductCount(totalItems)}
-            </p>
-          </div>
-          {/* Arrow */}
-          <div className="ml-2 text-gray-300 group-hover:text-yellow-600 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <svg className="w-5 h-5 text-gray-400 group-hover:text-yellow-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </div>
         </Link>
       );
     }
 
     if (orderSummary.type === 'transit') {
-      const supplierDetails = orderSummary.suppliers
-        ? Object.entries(orderSummary.suppliers).map(([name, count]) => name).join(" • ")
+      const supplierNames = orderSummary.suppliers
+        ? Object.keys(orderSummary.suppliers).join(", ")
         : "";
-        
-      const totalItems = orderSummary.suppliers 
-        ? Object.values(orderSummary.suppliers).reduce((a, b) => a + b, 0) 
-        : 0;
 
       return (
         <Link 
           href="/orders" 
-          className="w-full bg-white border border-blue-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all group relative flex items-center"
+          className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
         >
-          {/* Icon */}
-          <div className="flex-shrink-0 w-12 h-12 flex items-center justify-center mr-4">
-            <img src="/icons/delivery.svg" alt="Transit" className="w-10 h-10 opacity-80" />
-          </div>
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-blue-600">
-                В пути
-              </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/icons/delivery.svg" alt="Transit" className="w-5 h-5 opacity-70" />
+              <div>
+                <p className="text-xs text-blue-700 flex items-center gap-2">
+                  <span className="font-bold">{orderSummary.count} {orderSummary.count === 1 ? "поставка" : "поставки"}</span>
+                  <span>•</span>
+                  <span>В пути</span>
+                </p>
+                <p className="text-sm font-semibold text-gray-800">
+                  {supplierNames}
+                </p>
+              </div>
             </div>
-            <h3 className="font-bold text-gray-900 leading-tight">
-              {orderSummary.count === 1 ? "Ожидается 1 поставка" : `Ожидается ${orderSummary.count} ${getPluralForm(orderSummary.count, ["поставка", "поставки", "поставок"])}`}
-            </h3>
-            <p className="text-sm text-gray-500 truncate mt-0.5">
-              {supplierDetails} • {formatProductCount(totalItems)}
-            </p>
-          </div>
-          {/* Arrow */}
-          <div className="ml-2 text-gray-300 group-hover:text-blue-600 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </div>
         </Link>
       );
@@ -320,26 +304,27 @@ export default function HomePage() {
       return (
         <Link 
           href="/orders" 
-          className="w-full bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-all group relative flex items-center"
+          className="w-full bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
         >
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold uppercase tracking-wide text-gray-500">
-                Последний заказ
-              </span>
-              <span className="text-xs text-gray-400">• {formatRelativeDate(order.created_at)}</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img src="/icons/box.svg" alt="Order" className="w-5 h-5 opacity-70" />
+              <div>
+                <p className="text-xs text-gray-600 flex items-center gap-2">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                    {getStatusLabel(order.status)}
+                  </span>
+                  <span>•</span>
+                  <span>{formatRelativeDate(order.created_at)}</span>
+                </p>
+                <p className="text-sm font-semibold text-gray-800">
+                  Последний заказ
+                </p>
+              </div>
             </div>
-            <h3 className="font-bold text-gray-900 leading-tight">
-              {order.order_data.department}
-            </h3>
-            <p className="text-sm text-gray-500 truncate mt-0.5">
-              {order.order_data.items?.map(item => item.name).join(", ")}
-            </p>
-          </div>
-          {/* Arrow */}
-          <div className="ml-2 text-gray-300 group-hover:text-purple-600 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+            <svg className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </div>
         </Link>
       );

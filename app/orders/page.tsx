@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { api } from "@/lib/api-client";
+import { getUserRootUrlSync } from "@/lib/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { QuantityInput } from "@/components/ui/QuantityInput";
 import type { Order, Supplier, UserOrderPermissions } from "@/types";
@@ -19,6 +20,7 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("pending");
   const [updating, setUpdating] = useState(false);
+  const [backLink, setBackLink] = useState<string>("/"); // Dynamic back link based on user role
   
   // Quantity adjustments for pending items: { `${orderId}-${itemIdx}`: quantity }
   const [pendingQuantities, setPendingQuantities] = useState<Record<string, number>>({});
@@ -48,10 +50,24 @@ export default function OrdersPage() {
       const permissionsRes = await api.get<UserOrderPermissions>("/api/user-sections?permissions=true");
       
       let userCanSend = isManager;
+      let userSections: { id: number; name: string }[] = [];
+      
       if (permissionsRes.success && permissionsRes.data) {
         setPermissions(permissionsRes.data);
         userCanSend = isManager || (permissionsRes.data.canSendOrders ?? false);
+        
+        // Extract sections from sectionPermissions
+        userSections = permissionsRes.data.sectionPermissions
+          .filter(sp => sp.section_name) // Filter out any without names
+          .map(sp => ({
+            id: sp.section_id,
+            name: sp.section_name!
+          }));
       }
+
+      // Determine the back link using the navigation helper
+      const rootUrl = getUserRootUrlSync(isManager, null, userSections);
+      setBackLink(rootUrl);
 
       // Staff without send permission only sees their own orders
       // Staff with send permission or managers see all orders
@@ -437,28 +453,19 @@ export default function OrdersPage() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-4">
-          <div className="relative flex items-center justify-between mb-4">
+          <div className="relative flex items-center justify-center mb-4">
             <Link 
-              href="/" 
-              className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
+              href={backLink}
+              className="absolute left-0 w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </Link>
             
-            <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900">
+            <h1 className="text-xl font-bold text-gray-900">
               Заказы
             </h1>
-            
-            <button 
-              onClick={loadData}
-              className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-            </button>
           </div>
 
           {/* Tabs */}

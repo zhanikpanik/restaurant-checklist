@@ -126,15 +126,6 @@ function CustomPageContent() {
   }, [sectionId]);
 
   // Helper functions for Last Order card
-  const getPluralForm = (count: number, words: string[]) => {
-    const cases = [2, 0, 1, 1, 1, 2];
-    return words[(count % 100 > 4 && count % 100 < 20) ? 2 : cases[(count % 10 < 5) ? count % 10 : 5]];
-  };
-
-  const formatProductCount = (count: number) => {
-    return `${count} ${getPluralForm(count, ["товар", "товара", "товаров"])}`;
-  };
-
   const getStatusLabel = (status: string) => {
     switch (status) {
       case "pending": return "Ожидает";
@@ -498,49 +489,35 @@ function CustomPageContent() {
           onOpenSettings={() => setShowSettingsModal(true)}
         />
 
-      {/* Last Order Card - Department Specific */}
-      {/* Debug info - Remove after testing */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="max-w-md mx-auto px-4 pt-2 pb-2">
-          <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs">
-            <strong>Debug:</strong> lastOrder={lastOrder ? 'YES' : 'NO'}, loading={loadingLastOrder ? 'YES' : 'NO'}, sectionId={sectionId}
-          </div>
-        </div>
-      )}
-      
+      {/* Last Order Card - Compact */}
       {lastOrder && !loadingLastOrder && (
-        <div className="max-w-md mx-auto px-4 pt-4 pb-3">
-          <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-gray-800">
-                Последний заказ
-              </h3>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(lastOrder.status)}`}>
-                {getStatusLabel(lastOrder.status)}
-              </span>
-            </div>
-            <div className="text-xs text-gray-600 mb-2">
-              <span className="font-medium">{lastOrder.order_data.department || sectionName}</span>
-              <span className="mx-2">•</span>
-              <span>{formatProductCount(lastOrder.order_data.items?.length || 0)}</span>
-              <span className="mx-2">•</span>
-              <span>{formatRelativeDate(lastOrder.created_at)}</span>
-            </div>
-            <div className="text-xs text-gray-500 truncate mb-2">
-              {lastOrder.order_data.items?.slice(0, 3).map((item: any) => item.name).join(", ")}
-              {(lastOrder.order_data.items?.length || 0) > 3 && "..."}
-            </div>
-            <Link
-              href="/orders"
-              className="text-xs text-blue-600 hover:text-blue-700 font-medium inline-flex items-center gap-1"
-            >
-              Все заказы
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <Link 
+          href="/orders"
+          className="block max-w-md mx-auto px-4 pt-4 pb-3"
+        >
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-3 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img src="/icons/box.svg" alt="Order" className="w-5 h-5 opacity-70" />
+                <div>
+                  <p className="text-xs text-gray-600 flex items-center gap-2">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(lastOrder.status)}`}>
+                      {getStatusLabel(lastOrder.status)}
+                    </span>
+                    <span>•</span>
+                    <span>{formatRelativeDate(lastOrder.created_at)}</span>
+                  </p>
+                  <p className="text-sm font-semibold text-gray-800">
+                    Последний заказ
+                  </p>
+                </div>
+              </div>
+              <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-            </Link>
+            </div>
           </div>
-        </div>
+        </Link>
       )}
 
       {/* Search */}
@@ -638,7 +615,6 @@ function CustomPageContent() {
             className="flex items-center gap-3 px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xl transition-all hover:shadow-2xl hover:scale-105"
           >
             <div className="flex items-center gap-2">
-              <img src="/icons/basket.svg" alt="Cart" className="w-8 h-8 invert brightness-0 filter" />
               <div className="flex flex-col items-start">
                 <span className="text-sm font-bold leading-tight">Корзина</span>
                 <span className="text-xs opacity-90 leading-tight">{cart.count} товаров</span>

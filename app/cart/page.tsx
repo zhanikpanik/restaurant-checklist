@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useCart, useRestaurant, useStore } from "@/store/useStore";
 import { api } from "@/lib/api-client";
+import { getUserRootUrl } from "@/lib/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { QuantityInput } from "@/components/ui/QuantityInput";
 import type { CartItem } from "@/types";
@@ -13,12 +15,27 @@ type SubmitState = 'idle' | 'submitting' | 'success' | 'error';
 
 export default function CartPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const cart = useCart();
   const restaurant = useRestaurant();
   const currentSection = useStore((state) => state.currentSection);
   const [submitState, setSubmitState] = useState<SubmitState>('idle');
   const [notes, setNotes] = useState("");
   const [submittedOrderId, setSubmittedOrderId] = useState<number | null>(null);
+  const [backLink, setBackLink] = useState<string>("/"); // Dynamic back link
+
+  const userRole = session?.user?.role || "staff";
+  const isManager = userRole === "manager" || userRole === "admin";
+
+  // Determine back link on mount and when currentSection changes
+  useEffect(() => {
+    const determineBackLink = async () => {
+      const rootUrl = await getUserRootUrl(isManager, currentSection);
+      setBackLink(rootUrl);
+    };
+
+    determineBackLink();
+  }, [currentSection, isManager]);
 
   // Group items by supplier
   const itemsBySupplier = useMemo(() => {
@@ -99,11 +116,6 @@ export default function CartPage() {
     }
   };
 
-  const handleAddMore = () => {
-    // Keep cart items but go back to add more
-    router.push("/");
-  };
-
   const handleNewOrder = () => {
     cart.clear();
     setNotes("");
@@ -111,18 +123,13 @@ export default function CartPage() {
     setSubmittedOrderId(null);
   };
 
-  const handleGoHome = () => {
-    cart.clear();
-    router.push("/");
-  };
-
   // Success state view
   if (submitState === 'success') {
     return (
       <div className="min-h-screen bg-gray-50">
         <PageHeader
-          title="Заказ отправлен"
-          showBackButton={false}
+          title="Готово"
+          backHref={backLink}
           rightContent={restaurant.current?.name || "Ресторан"}
         />
 
@@ -134,33 +141,22 @@ export default function CartPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-              Заказ успешно отправлен!
+            <h2 className="text-2xl font-semibold text-gray-800 mb-8">
+              Заказ успешно отправлен
             </h2>
-            {submittedOrderId && (
-              <p className="text-gray-500 mb-8">
-                Номер заказа: #{submittedOrderId}
-              </p>
-            )}
             
             <div className="space-y-3 max-w-sm mx-auto">
               <button
-                onClick={handleAddMore}
-                className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-medium transition-colors"
+                onClick={() => router.push('/orders')}
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition-colors"
               >
-                Добавить ещё товары
+                Посмотреть в заказах
               </button>
               <button
                 onClick={handleNewOrder}
                 className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors"
               >
-                Новый заказ
-              </button>
-              <button
-                onClick={handleGoHome}
-                className="w-full text-gray-500 hover:text-gray-700 py-2 font-medium transition-colors"
-              >
-                На главную
+                Создать новый заказ
               </button>
             </div>
           </div>
@@ -173,7 +169,7 @@ export default function CartPage() {
     <div className="min-h-screen bg-gray-50">
       <PageHeader
         title="Корзина"
-        backHref={currentSection ? `/custom?section_id=${currentSection.id}&dept=${encodeURIComponent(currentSection.name)}` : "/"}
+        backHref={backLink}
         rightContent={restaurant.current?.name || "Ресторан"}
       />
 
