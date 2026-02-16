@@ -120,6 +120,39 @@ export async function POST(request: NextRequest) {
 
     console.log(`Synced ${syncedCount} sections`);
 
+    // Auto-assign admin users to all sections
+    // This ensures admins can see all sections after sync
+    await withTenant(restaurantId, async (client) => {
+      // Get all admin/manager users for this restaurant
+      const adminsResult = await client.query(
+        `SELECT id FROM users 
+         WHERE restaurant_id = $1 
+         AND role IN ('admin', 'manager') 
+         AND is_active = true`,
+        [restaurantId]
+      );
+
+      // Get all sections for this restaurant
+      const sectionsResult = await client.query(
+        `SELECT id FROM sections WHERE restaurant_id = $1 AND is_active = true`,
+        [restaurantId]
+      );
+
+      // Assign each admin to all sections
+      for (const admin of adminsResult.rows) {
+        for (const section of sectionsResult.rows) {
+          await client.query(
+            `INSERT INTO user_sections (user_id, section_id, can_send_orders, can_receive_supplies)
+             VALUES ($1, $2, true, true)
+             ON CONFLICT (user_id, section_id) DO NOTHING`,
+            [admin.id, section.id]
+          );
+        }
+      }
+
+      console.log(`Auto-assigned ${adminsResult.rows.length} admins to ${sectionsResult.rows.length} sections`);
+    });
+
     // Also sync ingredients for all sections
     let ingredientsSynced = 0;
     let ingredientError: string | null = null;
