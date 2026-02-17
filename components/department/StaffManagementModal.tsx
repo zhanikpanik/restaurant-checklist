@@ -279,7 +279,6 @@ export function StaffManagementModal({
       if (data.success) {
         setInvitationUrl(data.data.url);
         setShowInviteSuccess(true);
-        setShowInviteForm(false);
         setInviteData({
           can_send_orders: false,
           can_receive_supplies: false,
