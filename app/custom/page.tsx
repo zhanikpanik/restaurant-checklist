@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useCart, useSections } from "@/store/useStore";
 import { useToast } from "@/components/ui/Toast";
 import { BottomSheet, FormInput, FormSelect, FormButton } from "@/components/ui/BottomSheet";
+import { StaffManagementModal } from "@/components/department/StaffManagementModal";
 import { DepartmentSettingsModal } from "@/components/department/DepartmentSettingsModal";
 import { QuantityInput } from "@/components/ui/QuantityInput";
 import { api } from "@/lib/api-client";
@@ -78,6 +79,7 @@ function CustomPageContent() {
   // Modal states
   const [showProductModal, setShowProductModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showStaffModal, setShowStaffModal] = useState(false);
   const [productForm, setProductForm] = useState({ name: "", unit: "шт", category_id: "" });
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -87,6 +89,9 @@ function CustomPageContent() {
   
   // Pending orders count for this department (managers only)
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+
+  // Assigned users count for button label
+  const [assignedUsersCount, setAssignedUsersCount] = useState(0);
 
   useEffect(() => {
     if (!sectionId) {
@@ -103,16 +108,12 @@ function CustomPageContent() {
       
       try {
         setLoadingLastOrder(true);
-        console.log(`[Last Order] Fetching for section_id: ${sectionId}`);
         const response = await fetch(`/api/orders?section_id=${sectionId}&limit=1`);
         const data = await response.json();
-        console.log(`[Last Order] API Response:`, data);
         
         if (data.success && data.data.length > 0) {
-          console.log(`[Last Order] Found order:`, data.data[0]);
           setLastOrder(data.data[0]);
         } else {
-          console.log(`[Last Order] No orders found for this section`);
           setLastOrder(null);
         }
       } catch (error) {
@@ -164,13 +165,14 @@ function CustomPageContent() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [sectionsRes, productsRes, suppliersRes, categoriesRes, ordersRes, leftoversRes] = await Promise.all([
+      const [sectionsRes, productsRes, suppliersRes, categoriesRes, ordersRes, leftoversRes, usersRes] = await Promise.all([
         fetch("/api/sections"),
         fetch(`/api/section-products?section_id=${sectionId}&active=true`),
         fetch("/api/suppliers"),
         fetch("/api/categories"),
         canManage ? fetch("/api/orders?all=true") : Promise.resolve(null),
-        fetch("/api/poster/leftovers")
+        fetch("/api/poster/leftovers"),
+        canManage ? fetch(`/api/user-sections?section_id=${sectionId}`) : Promise.resolve(null),
       ]);
 
       const sectionsData = await sectionsRes.json();
@@ -228,6 +230,15 @@ function CustomPageContent() {
         }
         setLeftovers(dataWithDebug);
       }
+
+      // Load assigned users count
+      if (usersRes) {
+        const usersData = await usersRes.json();
+        if (usersData.success) {
+          setAssignedUsersCount(usersData.data.length);
+        }
+      }
+
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -237,9 +248,6 @@ function CustomPageContent() {
 
   // === CRUD Operations ===
   
-  // Handlers for suppliers/categories removed as they are now managed in /suppliers-categories
-  // Keeping product handlers...
-
   const handleCreateProduct = async () => {
     if (!productForm.name.trim()) {
       toast.error("Введите название товара");
@@ -450,6 +458,9 @@ function CustomPageContent() {
           canManage={canManage}
           pendingOrdersCount={pendingOrdersCount}
           onAddSupplier={() => router.push('/suppliers-categories')}
+          onOpenSettings={() => setShowSettingsModal(true)}
+          onManageStaff={() => setShowStaffModal(true)}
+          staffCount={assignedUsersCount}
         />
         <main className="max-w-md mx-auto px-4 py-12 text-center">
           <img src="/icons/box.svg" alt="Suppliers" className="w-16 h-16 mx-auto mb-6 opacity-50" />
@@ -487,6 +498,8 @@ function CustomPageContent() {
           pendingOrdersCount={pendingOrdersCount}
           onAddSupplier={() => router.push('/suppliers-categories')}
           onOpenSettings={() => setShowSettingsModal(true)}
+          onManageStaff={() => setShowStaffModal(true)}
+          staffCount={assignedUsersCount}
         />
 
       {/* Last Order Card - Compact */}
@@ -648,6 +661,16 @@ function CustomPageContent() {
           onUpdate={loadData}
         />
       )}
+
+      {/* Staff Management Modal */}
+      {currentSection && (
+        <StaffManagementModal
+          isOpen={showStaffModal}
+          onClose={() => setShowStaffModal(false)}
+          section={currentSection}
+          onUpdate={loadData}
+        />
+      )}
     </div>
   );
 }
@@ -660,6 +683,8 @@ function Header({
   pendingOrdersCount,
   onAddSupplier,
   onOpenSettings,
+  onManageStaff,
+  staffCount = 0,
 }: {
   sectionName: string;
   dept: string | null;
@@ -667,6 +692,8 @@ function Header({
   pendingOrdersCount: number;
   onAddSupplier: () => void;
   onOpenSettings?: () => void;
+  onManageStaff?: () => void;
+  staffCount?: number;
 }) {
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -702,18 +729,22 @@ function Header({
           </h1>
 
           <div className="flex items-center gap-2">
-
             
-            {canManage && onOpenSettings && (
-              <button
-                onClick={onOpenSettings}
-                className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-              </button>
+            {canManage && (
+              <>
+                {/* Manage staff - primary action */}
+                {onManageStaff && (
+                  <button
+                    onClick={onManageStaff}
+                    className="flex items-center gap-1.5 text-blue-500 hover:text-blue-600 active:scale-95 transition-all text-base font-normal"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Добавить</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>

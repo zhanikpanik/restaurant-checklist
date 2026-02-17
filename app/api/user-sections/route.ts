@@ -25,7 +25,9 @@ export async function GET(request: NextRequest) {
       try {
         const users = await withTenant(session.user.restaurantId, async (client) => {
           const result = await client.query(
-            `SELECT u.id, u.name, u.email, u.role
+            `SELECT u.id, u.name, u.email, u.role,
+                    COALESCE(us.can_send_orders, false) as can_send_orders,
+                    COALESCE(us.can_receive_supplies, false) as can_receive_supplies
              FROM user_sections us
              JOIN users u ON u.id = us.user_id
              JOIN sections s ON s.id = us.section_id
