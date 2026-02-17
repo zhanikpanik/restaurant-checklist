@@ -221,7 +221,8 @@ export function StaffManagementModal({
       
       if (res.success) {
         toast.success("User removed from department");
-        loadAssignedUsers();
+        await loadAssignedUsers();
+        await loadAllUsers(); // Refresh the available users list
         onUpdate();
       } else {
         toast.error(res.error || "Delete failed");
@@ -324,7 +325,8 @@ export function StaffManagementModal({
 
       if (res.success) {
         toast.success("User assigned");
-        loadAssignedUsers();
+        await loadAssignedUsers();
+        await loadAllUsers(); // Refresh the available users list
         onUpdate();
       } else {
         toast.error(res.error || "Assignment failed");

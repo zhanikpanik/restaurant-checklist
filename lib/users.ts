@@ -156,7 +156,7 @@ export async function getUsersByRestaurant(restaurantId: string) {
     const result = await client.query(
       `SELECT id, email, name, role, is_active, last_login, created_at
        FROM users
-       WHERE restaurant_id = $1
+       WHERE restaurant_id = $1 AND is_active = true
        ORDER BY created_at DESC`,
       [restaurantId]
     );
@@ -175,11 +175,11 @@ export async function getUsersWithSections(restaurantId: string) {
   }
 
   return await withTenant(restaurantId, async (client) => {
-    // Get all users
+    // Get all users (only active)
     const usersResult = await client.query(
       `SELECT id, email, name, role, is_active, last_login, created_at
        FROM users
-       WHERE restaurant_id = $1
+       WHERE restaurant_id = $1 AND is_active = true
        ORDER BY created_at DESC`,
       [restaurantId]
     );
