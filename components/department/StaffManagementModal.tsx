@@ -489,7 +489,7 @@ export function StaffManagementModal({
                       <div className="relative dropdown-menu-container">
                         <button
                           onClick={() => setDeleteMenuUserId(deleteMenuUserId === user.id ? null : user.id)}
-                          className="text-gray-400 hover:text-gray-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-gray-400 hover:text-gray-600 p-1 transition-colors"
                           title="More options"
                         >
                           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
