@@ -49,12 +49,6 @@ export function StaffManagementModal({
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  // Invitation form state (simplified - only permissions)
-  const [inviteData, setInviteData] = useState({
-    can_send_orders: false,
-    can_receive_supplies: false,
-  });
-  
   // For assign existing
   const [allUsers, setAllUsers] = useState<User[]>([]);
   
@@ -125,89 +119,28 @@ export function StaffManagementModal({
     permission: "can_send_orders" | "can_receive_supplies",
     currentValue: boolean
   ) => {
-    // Calculate new values - simple toggle, no dependencies
     const newValue = !currentValue;
-
-    // Get current user to preserve all their current permissions
-    const currentUser = assignedUsers.find(u => u.id === userId);
-    if (!currentUser) return;
-
-    // Optimistic update - update UI immediately
     const previousUsers = [...assignedUsers];
-    setAssignedUsers(prev => prev.map(u => 
-      u.id === userId 
-        ? { ...u, [permission]: newValue }
-        : u
+
+    // Optimistic update
+    setAssignedUsers(prev => prev.map(u =>
+      u.id === userId ? { ...u, [permission]: newValue } : u
     ));
 
     try {
-      // Get current user's sections
-      const userSectionsRes = await fetch(`/api/user-sections?user_id=${userId}`);
-      const userSectionsData = await userSectionsRes.json();
-      
-      console.log("🔍 Fetched user sections:", userSectionsData);
-      
-      if (!userSectionsData.success) {
-        toast.error("Error loading data");
-        // Revert on error
-        setAssignedUsers(previousUsers);
-        return;
-      }
-
-      // Check if this section already exists in user's sections
-      const existingSectionIds = userSectionsData.data?.map((s: any) => s.id) || [];
-      console.log("📋 Existing section IDs:", existingSectionIds);
-      console.log("🎯 Current section ID:", section?.id);
-
-      // Update permissions for this specific section
-      const updatedSections = userSectionsData.data.map((s: any) => {
-        if (s.id === section?.id) {
-          // Use the current local state + the new value
-          return {
-            section_id: s.id,
-            can_send_orders: permission === "can_send_orders" ? newValue : (currentUser.can_send_orders || false),
-            can_receive_supplies: permission === "can_receive_supplies" ? newValue : (currentUser.can_receive_supplies || false),
-          };
-        }
-        return {
-          section_id: s.id,
-          can_send_orders: s.can_send_orders || false,
-          can_receive_supplies: s.can_receive_supplies || false,
-        };
-      });
-
-      // If section doesn't exist in user's sections, add it
-      if (!existingSectionIds.includes(section?.id)) {
-        console.log("➕ Adding new section to user");
-        updatedSections.push({
-          section_id: section?.id,
-          can_send_orders: permission === "can_send_orders" ? newValue : false,
-          can_receive_supplies: permission === "can_receive_supplies" ? newValue : false,
-        });
-      }
-
-      console.log("📤 Sending to server:", JSON.stringify({ user_id: userId, sections: updatedSections }, null, 2));
-      
-      const res = await api.post("/api/user-sections", {
+      const res = await api.patch("/api/user-sections", {
         user_id: userId,
-        sections: updatedSections,
+        section_id: section?.id,
+        [permission]: newValue,
       });
-
-      console.log("📥 Server response:", res);
 
       if (!res.success) {
-        toast.error(res.error || "Update failed");
-        console.error("Server error:", res);
-        // Revert on error
         setAssignedUsers(previousUsers);
-      } else {
-        console.log("✅ Permission updated successfully:", { userId, permission, newValue });
+        toast.error(res.error || "Update failed");
       }
     } catch (error) {
-      console.error("Error toggling permission:", error);
-      toast.error("Network error");
-      // Revert on error
       setAssignedUsers(previousUsers);
+      toast.error("Network error");
     }
   };
 
@@ -259,31 +192,17 @@ export function StaffManagementModal({
 
   const handleCreateInvitation = async () => {
     setSubmitting(true);
-
     try {
       const res = await api.post("/api/invitations", {
-        name: null,
-        email: null,
         role: "staff",
-        sections: [
-          {
-            section_id: section?.id,
-            can_send_orders: inviteData.can_send_orders,
-            can_receive_supplies: inviteData.can_receive_supplies,
-          },
-        ],
         expires_in_days: 7,
       });
 
-      const data = res as any; 
+      const data = res as any;
 
       if (data.success) {
         setInvitationUrl(data.data.url);
         setShowInviteSuccess(true);
-        setInviteData({
-          can_send_orders: false,
-          can_receive_supplies: false,
-        });
       } else {
         toast.error(data.error || "Failed to create invitation");
       }
@@ -298,35 +217,22 @@ export function StaffManagementModal({
   const handleAssignExistingDirectly = async (userId: number) => {
     setSubmitting(true);
     try {
-      const userSectionsRes = await fetch(`/api/user-sections?user_id=${userId}`);
-      const userSectionsData = await userSectionsRes.json();
-      
-      const currentSectionIds = userSectionsData.success 
-        ? userSectionsData.data.map((s: any) => ({
-            section_id: s.id,
-            can_send_orders: s.can_send_orders,
-            can_receive_supplies: s.can_receive_supplies,
-          }))
-        : [];
-
-      const updatedSections = [
-        ...currentSectionIds,
-        {
-          section_id: section?.id,
-          can_send_orders: false,
-          can_receive_supplies: false,
-        },
-      ];
-
       const res = await api.post("/api/user-sections", {
         user_id: userId,
-        sections: updatedSections,
+        mode: "add",
+        sections: [
+          {
+            section_id: section?.id,
+            can_send_orders: false,
+            can_receive_supplies: false,
+          },
+        ],
       });
 
       if (res.success) {
         toast.success("User assigned");
         await loadAssignedUsers();
-        await loadAllUsers(); // Refresh the available users list
+        await loadAllUsers();
         onUpdate();
       } else {
         toast.error(res.error || "Assignment failed");

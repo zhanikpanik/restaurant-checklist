@@ -176,9 +176,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { user_id, section_ids, sections, permissions, can_send_orders } = body;
+    const { user_id, section_ids, sections, permissions, can_send_orders, mode } = body;
 
-    console.log("user-sections POST body:", JSON.stringify(body));
+    // mode: "add" = additive (just insert, no DELETE), default = replace all
+    const isAdditive = mode === "add";
 
     // Support both old format (section_ids) and new format (sections with permissions embedded)
     let sectionAssignments: { section_id: number; can_send_orders: boolean; can_receive_supplies: boolean }[] = [];
@@ -202,8 +203,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    console.log("sectionAssignments:", JSON.stringify(sectionAssignments));
-
     if (!user_id) {
       return NextResponse.json(
         { success: false, error: "user_id is required" },
@@ -211,57 +210,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Allow empty assignments (to clear all sections for a user)
-    // Validate that we have the right format if sections are provided
-    if (sectionAssignments.length === 0 && !Array.isArray(section_ids) && !Array.isArray(sections)) {
-      // Check if they're trying to provide sections but in wrong format
-      if (body.section_ids !== undefined || body.sections !== undefined) {
-        return NextResponse.json(
-          { success: false, error: "section_ids must be an array or sections must be an array" },
-          { status: 400 }
+    await withTenant(session.user.restaurantId, async (client) => {
+      // Replace mode: delete all existing assignments first, then re-insert
+      if (!isAdditive) {
+        await client.query(
+          `DELETE FROM user_sections 
+           WHERE user_id = $1 
+           AND section_id IN (SELECT id FROM sections WHERE restaurant_id = $2)`,
+          [user_id, session.user.restaurantId]
         );
       }
-      // Otherwise, they want to clear all sections - that's valid
-    }
 
-    await withTenant(session.user.restaurantId, async (client) => {
-      // First, remove all existing assignments for this user (only for sections in this restaurant)
-      console.log("Deleting existing assignments for user_id:", user_id, "restaurant_id:", session.user.restaurantId);
-      const deleteResult = await client.query(
-        `DELETE FROM user_sections 
-         WHERE user_id = $1 
-         AND section_id IN (SELECT id FROM sections WHERE restaurant_id = $2)`,
-        [user_id, session.user.restaurantId]
-      );
-      console.log("Delete result:", deleteResult.rowCount, "rows deleted");
-
-      // Then, insert new assignments with permissions
-      if (sectionAssignments.length > 0) {
-        for (const assignment of sectionAssignments) {
-          console.log("Inserting assignment:", user_id, assignment.section_id);
-          try {
-            // Try with permission columns
-            const insertResult = await client.query(
-              `INSERT INTO user_sections (user_id, section_id, can_send_orders, can_receive_supplies)
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT (user_id, section_id) DO UPDATE SET
-                 can_send_orders = $3,
-                 can_receive_supplies = $4`,
-              [user_id, assignment.section_id, assignment.can_send_orders, assignment.can_receive_supplies]
-            );
-            console.log("Insert result:", insertResult.rowCount);
-          } catch (insertError) {
-            console.log("Fallback insert without permission columns");
-            // Fallback: insert without permission columns
-            const insertResult = await client.query(
-              `INSERT INTO user_sections (user_id, section_id)
-               VALUES ($1, $2)
-               ON CONFLICT (user_id, section_id) DO NOTHING`,
-              [user_id, assignment.section_id]
-            );
-            console.log("Fallback insert result:", insertResult.rowCount);
-          }
-        }
+      // Insert (or upsert) assignments
+      for (const assignment of sectionAssignments) {
+        await client.query(
+          `INSERT INTO user_sections (user_id, section_id, can_send_orders, can_receive_supplies)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (user_id, section_id) DO UPDATE SET
+             can_send_orders = $3,
+             can_receive_supplies = $4`,
+          [user_id, assignment.section_id, assignment.can_send_orders, assignment.can_receive_supplies]
+        );
       }
     });
 

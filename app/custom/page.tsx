@@ -732,16 +732,37 @@ function Header({
             
             {canManage && (
               <>
-                {/* Manage staff - primary action */}
+                {/* Manage staff - stateful people pill */}
                 {onManageStaff && (
                   <button
                     onClick={onManageStaff}
-                    className="flex items-center gap-1.5 text-blue-500 hover:text-blue-600 active:scale-95 transition-all text-base font-normal"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 ${
+                      staffCount > 0
+                        ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                        : "border border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-600"
+                    }`}
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>Добавить</span>
+                    {staffCount > 0 ? (
+                      <>
+                        {/* Mini avatar dots */}
+                        <span className="flex -space-x-1">
+                          {Array.from({ length: Math.min(staffCount, 3) }).map((_, i) => (
+                            <span
+                              key={i}
+                              className="w-4 h-4 rounded-full bg-blue-400 border border-white flex items-center justify-center"
+                            />
+                          ))}
+                        </span>
+                        <span>{staffCount}</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Персонал</span>
+                      </>
+                    )}
                   </button>
                 )}
               </>
