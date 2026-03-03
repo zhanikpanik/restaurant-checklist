@@ -13,7 +13,7 @@ interface CreateInvitationRequest {
   name?: string;
   email?: string;
   role: "admin" | "manager" | "staff" | "delivery";
-  sections?: SectionPermission[];
+  sections: SectionPermission[];
   expires_in_days?: number;
 }
 
@@ -105,8 +105,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // sections is optional — invitation can be department-free
-    const sectionAssignments = sections || [];
+    if (!sections || sections.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "At least one section must be assigned" },
+        { status: 400 }
+      );
+    }
 
     // Generate unique token
     const token = randomBytes(32).toString("hex");
@@ -128,7 +132,7 @@ export async function POST(request: NextRequest) {
           name || null,
           email?.toLowerCase() || null,
           role,
-          JSON.stringify(sectionAssignments),
+          JSON.stringify(sections),
           expiresAt,
           session.user.id,
           "pending",

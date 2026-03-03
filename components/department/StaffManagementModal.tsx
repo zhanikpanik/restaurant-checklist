@@ -195,6 +195,13 @@ export function StaffManagementModal({
     try {
       const res = await api.post("/api/invitations", {
         role: "staff",
+        sections: [
+          {
+            section_id: section?.id,
+            can_send_orders: false,
+            can_receive_supplies: false,
+          },
+        ],
         expires_in_days: 7,
       });
 
