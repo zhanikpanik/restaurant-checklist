@@ -36,7 +36,8 @@ export async function setupDatabaseSchema() {
         expires_at TIMESTAMP,
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(restaurant_id)
       );
     `);
 

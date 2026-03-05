@@ -113,33 +113,44 @@ export async function GET(request: NextRequest) {
               `UPDATE restaurants
                SET poster_token = $1,
                    name = $2,
-                   is_active = true
+                   is_active = true,
+                   updated_at = CURRENT_TIMESTAMP
                WHERE poster_account_name = $3`,
               [access_token, restaurantName, account]
             );
           } else {
             await client.query(
               `INSERT INTO restaurants (
-                id, name, logo, poster_token, poster_account_name, poster_base_url, is_active
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                id, name, logo, primary_color, currency,
+                poster_token, poster_account_name, poster_base_url,
+                kitchen_storage_id, bar_storage_id,
+                timezone, language, whatsapp_enabled, is_active
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
               [
                 restaurantId,
                 restaurantName,
                 "🍽️",
+                "#3B82F6",
+                "₽",
                 access_token,
                 account,
                 `https://${account}.joinposter.com/api`,
+                1,
+                2,
+                "Europe/Moscow",
+                "ru",
+                true,
                 true,
               ]
             );
           }
 
           // Store or update the setup token (valid for 1 hour)
-          // Note: You'll need to add this column to your schema if not present
+          // We use the refresh_token column to identify this as a setup_token
           await client.query(
             `INSERT INTO poster_tokens (restaurant_id, access_token, refresh_token, expires_at)
              VALUES ($1, $2, $3, NOW() + INTERVAL '1 hour')
-             ON CONFLICT (restaurant_id) DO UPDATE SET access_token = $2, expires_at = NOW() + INTERVAL '1 hour'`,
+             ON CONFLICT (restaurant_id) DO UPDATE SET access_token = $2, expires_at = NOW() + INTERVAL '1 hour', refresh_token = $3`,
             [finalRestaurantId, setupToken, 'setup_token']
           );
 
