@@ -641,9 +641,6 @@ export default function OrdersPage() {
                       {/* Supplier Header */}
                       <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-t border-gray-200 first:border-t-0">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center text-green-700">
-                            <img src="/icons/delivery.svg" alt="Transit" className="w-4 h-4 opacity-70" />
-                          </div>
                           <div>
                             <h3 className="font-bold text-gray-900 text-sm">{supplier}</h3>
                             <p className="text-xs text-gray-500">{group.items.length} позиций</p>

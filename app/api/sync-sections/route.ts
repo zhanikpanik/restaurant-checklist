@@ -86,6 +86,12 @@ export async function POST(request: NextRequest) {
     const syncedCount = await withTenant(restaurantId, async (client) => {
       let count = 0;
       
+      // Deactivate all existing sections first to handle deleted storages
+      await client.query(
+        "UPDATE sections SET is_active = false WHERE restaurant_id = $1",
+        [restaurantId]
+      );
+      
       for (const storage of storages) {
         const emoji = getStorageEmoji(storage.storage_name);
 
@@ -242,37 +248,52 @@ async function syncIngredientsForSections(
     const syncedCount = await withTenant(restaurantId, async (client) => {
       let count = 0;
 
+      // Deactivate all products for this section first to remove deleted Poster items.
+      // The active ones will be updated to is_active = true in the loop below.
+      await client.query(
+        "UPDATE section_products SET is_active = false WHERE section_id = $1",
+        [section.id]
+      );
+
+      // Filter valid ingredients for this storage
+      const validIngredients = [];
       for (const ingredient of ingredients) {
-        // If storage has leftovers, only sync ingredients that exist in this storage
-        // If storage is empty, sync ALL ingredients so user can use any
-        if (hasLeftovers) {
-          const leftover = leftoverMap.get(String(ingredient.ingredient_id));
-          if (!leftover) continue;
-        }
+        if (hasLeftovers && !leftoverMap.has(String(ingredient.ingredient_id))) continue;
+        validIngredients.push(ingredient);
+      }
 
-        // Check if product already exists
-        const existingProduct = await client.query(
-          "SELECT id FROM section_products WHERE section_id = $1 AND poster_ingredient_id = $2",
-          [section.id, ingredient.ingredient_id]
-        );
-
-        if (existingProduct.rows.length > 0) {
-          // Update existing product
-          await client.query(
-            `UPDATE section_products
-             SET name = $1, unit = $2, is_active = true, updated_at = CURRENT_TIMESTAMP
-             WHERE section_id = $3 AND poster_ingredient_id = $4`,
-            [ingredient.ingredient_name, ingredient.ingredient_unit, section.id, ingredient.ingredient_id]
+      // Batch insert/update (Upsert) to dramatically improve performance
+      const batchSize = 100;
+      for (let i = 0; i < validIngredients.length; i += batchSize) {
+        const batch = validIngredients.slice(i, i + batchSize);
+        
+        const values = [];
+        const queryParams = [];
+        let paramIndex = 1;
+        
+        for (const ingredient of batch) {
+          values.push(`($${paramIndex++}, $${paramIndex++}, $${paramIndex++}, $${paramIndex++}, true)`);
+          queryParams.push(
+            section.id, 
+            ingredient.ingredient_id, 
+            ingredient.ingredient_name, 
+            ingredient.ingredient_unit
           );
-        } else {
-          // Create new product
-          await client.query(
-            `INSERT INTO section_products (section_id, poster_ingredient_id, name, unit, is_active)
-             VALUES ($1, $2, $3, $4, true)`,
-            [section.id, ingredient.ingredient_id, ingredient.ingredient_name, ingredient.ingredient_unit]
-          );
+          count++;
         }
-        count++;
+        
+        if (values.length > 0) {
+          await client.query(`
+            INSERT INTO section_products (section_id, poster_ingredient_id, name, unit, is_active)
+            VALUES ${values.join(', ')}
+            ON CONFLICT (section_id, poster_ingredient_id) 
+            DO UPDATE SET 
+              name = EXCLUDED.name, 
+              unit = EXCLUDED.unit, 
+              is_active = true, 
+              updated_at = CURRENT_TIMESTAMP
+          `, queryParams);
+        }
       }
 
       return count;

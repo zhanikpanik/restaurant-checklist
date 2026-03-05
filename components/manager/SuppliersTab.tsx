@@ -9,6 +9,7 @@ interface SuppliersTabProps {
   setSuppliers: React.Dispatch<React.SetStateAction<Supplier[]>>;
   loading: boolean;
   onReload: () => void;
+  onSelectSupplier: (id: number) => void;
 }
 
 export function SuppliersTab({
@@ -16,6 +17,7 @@ export function SuppliersTab({
   setSuppliers,
   loading,
   onReload,
+  onSelectSupplier,
 }: SuppliersTabProps) {
   const toast = useToast();
 
@@ -59,25 +61,29 @@ export function SuppliersTab({
             {suppliers.map((supplier) => (
               <div
                 key={supplier.id}
-                className="px-4 py-4 hover:bg-gray-50 transition-colors"
+                onClick={() => onSelectSupplier(supplier.id)}
+                className="px-4 py-4 hover:bg-gray-50 transition-colors cursor-pointer active:scale-[0.98] active:bg-gray-100 flex items-center justify-between"
               >
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium text-gray-900">{supplier.name}</h3>
-                      {supplier.poster_supplier_id && (
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                          Poster
-                        </span>
-                      )}
-                    </div>
-                    {supplier.phone && (
-                      <p className="text-sm text-gray-500 mt-1">Tel: {supplier.phone}</p>
-                    )}
-                    {supplier.contact_info && (
-                      <p className="text-sm text-gray-500 mt-1">{supplier.contact_info}</p>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-medium text-gray-900">{supplier.name}</h3>
+                    {supplier.poster_supplier_id && (
+                      <span className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full border border-blue-100 font-medium">
+                        Poster
+                      </span>
                     )}
                   </div>
+                  {supplier.phone && (
+                    <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
+                      <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                      {supplier.phone}
+                    </p>
+                  )}
+                </div>
+                <div className="text-gray-400">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
               </div>
             ))}

@@ -38,12 +38,12 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             className={cn(
-              "block w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-800",
-              "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+              "block w-full px-4 py-3 border rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-800 transition-all",
+              "focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
               "disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-500 disabled:cursor-not-allowed",
               error
                 ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-                : "border-gray-300 dark:border-gray-600",
+                : "border-gray-200 dark:border-gray-700 hover:border-gray-300",
               leftIcon ? "pl-10" : "",
               rightIcon ? "pr-10" : "",
               className
@@ -91,13 +91,13 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            "block w-full px-3 py-2 border rounded-lg text-gray-900 placeholder-gray-500",
-            "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+            "block w-full px-4 py-3 border rounded-xl text-gray-900 placeholder-gray-500 transition-all",
+            "focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
             "disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed",
             "resize-none",
             error
               ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-              : "border-gray-300",
+              : "border-gray-200 hover:border-gray-300",
             className
           )}
           {...props}
@@ -139,12 +139,12 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            "block w-full px-3 py-2 border rounded-lg text-gray-900",
-            "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500",
+            "block w-full px-4 py-3 border rounded-xl text-gray-900 transition-all bg-white",
+            "focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
             "disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed",
             error
               ? "border-red-500 focus:ring-red-500 focus:border-red-500"
-              : "border-gray-300",
+              : "border-gray-200 hover:border-gray-300",
             className
           )}
           {...props}

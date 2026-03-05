@@ -16,26 +16,35 @@ export default function SuppliersCategoriesPage() {
   const router = useRouter();
   const toast = useToast();
   const { fetchWithCSRF } = useCSRF();
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | number>("suppliers");
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | number>(
+    "suppliers",
+  );
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [unassignedProducts, setUnassignedProducts] = useState<Product[]>([]);
   const [supplierProducts, setSupplierProducts] = useState<Product[]>([]);
-  const [relatedIdsMap, setRelatedIdsMap] = useState<Record<number, number[]>>({});
+  const [relatedIdsMap, setRelatedIdsMap] = useState<Record<number, number[]>>(
+    {},
+  );
   const [loading, setLoading] = useState(true);
   const [unassignedCount, setUnassignedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
-  
+
   // Cache all products to avoid refetching
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [productsLoaded, setProductsLoaded] = useState(false);
 
   // Role-based access control - redirect unauthorized users
-  const isAuthorized = status === "authenticated" && ["admin", "manager"].includes(session?.user?.role || "");
+  const isAuthorized =
+    status === "authenticated" &&
+    ["admin", "manager"].includes(session?.user?.role || "");
 
   useEffect(() => {
     if (status === "loading") return;
-    
-    if (status === "authenticated" && !["admin", "manager"].includes(session?.user?.role || "")) {
+
+    if (
+      status === "authenticated" &&
+      !["admin", "manager"].includes(session?.user?.role || "")
+    ) {
       router.replace("/");
     }
   }, [session, status, router]);
@@ -46,7 +55,7 @@ export default function SuppliersCategoriesPage() {
       const count = allProducts.filter((p: Product) => !p.supplier_id).length;
       setUnassignedCount(count);
     }
-  }, [isAuthorized, allProducts, productsLoaded]); 
+  }, [isAuthorized, allProducts, productsLoaded]);
 
   // Load data when tab changes
   useEffect(() => {
@@ -86,38 +95,44 @@ export default function SuppliersCategoriesPage() {
       if (selectedSupplierId === "suppliers") {
         // Just showing the list of suppliers (default view)
       } else if (selectedSupplierId === "unsorted") {
-        const unassigned = productsData.data.filter((p: Product) => !p.supplier_id);
-        
+        const unassigned = productsData.data.filter(
+          (p: Product) => !p.supplier_id,
+        );
+
         // Group by poster_ingredient_id to avoid duplicates in the UI
         // This ensures one entry per ingredient, even if it exists in multiple sections
         const groupedMap = new Map<string, Product>();
         const idMap: Record<number, number[]> = {};
 
         unassigned.forEach((p: Product) => {
-          const key = p.poster_ingredient_id || `local_${p.id}`; 
-          
+          const key = p.poster_ingredient_id || `local_${p.id}`;
+
           if (!groupedMap.has(key)) {
             // First time seeing this ingredient
-            groupedMap.set(key, { ...p }); 
+            groupedMap.set(key, { ...p });
             // Initialize mapping for this representative ID
             idMap[p.id] = [p.id];
           } else {
             // Duplicate found (same ingredient in another section)
             const existing = groupedMap.get(key)!;
-            
+
             // Aggregate quantity
-            existing.quantity = (Number(existing.quantity) || 0) + (Number(p.quantity) || 0);
-            
+            existing.quantity =
+              (Number(existing.quantity) || 0) + (Number(p.quantity) || 0);
+
             // Append section name
-            if (p.section_name && !existing.section_name?.includes(p.section_name)) {
-                existing.section_name = existing.section_name 
-                  ? `${existing.section_name}, ${p.section_name}` 
-                  : p.section_name;
+            if (
+              p.section_name &&
+              !existing.section_name?.includes(p.section_name)
+            ) {
+              existing.section_name = existing.section_name
+                ? `${existing.section_name}, ${p.section_name}`
+                : p.section_name;
             }
-            
+
             // Link this duplicate ID to the representative ID
             if (idMap[existing.id]) {
-                idMap[existing.id].push(p.id);
+              idMap[existing.id].push(p.id);
             }
           }
         });
@@ -126,7 +141,9 @@ export default function SuppliersCategoriesPage() {
         setRelatedIdsMap(idMap);
       } else {
         // Filter products for specific supplier from fresh data
-        const filtered = productsData.data.filter((p: Product) => p.supplier_id === Number(selectedSupplierId));
+        const filtered = productsData.data.filter(
+          (p: Product) => p.supplier_id === Number(selectedSupplierId),
+        );
         setSupplierProducts(filtered);
       }
     } catch (error) {
@@ -146,19 +163,27 @@ export default function SuppliersCategoriesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
-      
+
       if (!suppliersRes.ok) {
         const errorText = await suppliersRes.text();
-        console.error("Sync suppliers HTTP error:", suppliersRes.status, errorText);
-        throw new Error(`HTTP ${suppliersRes.status}: ${errorText.substring(0, 200)}`);
+        console.error(
+          "Sync suppliers HTTP error:",
+          suppliersRes.status,
+          errorText,
+        );
+        throw new Error(
+          `HTTP ${suppliersRes.status}: ${errorText.substring(0, 200)}`,
+        );
       }
-      
+
       const suppliersData = await suppliersRes.json();
       console.log("Suppliers sync response:", suppliersData);
-      
+
       if (!suppliersData.success) {
         console.error("Suppliers sync failed:", suppliersData.error);
-        throw new Error(suppliersData.error || "Ошибка синхронизации поставщиков");
+        throw new Error(
+          suppliersData.error || "Ошибка синхронизации поставщиков",
+        );
       }
 
       // 2. Sync Ingredients/Sections - ALSO USE CSRF
@@ -166,24 +191,34 @@ export default function SuppliersCategoriesPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
-      
+
       // Check if response is ok before parsing JSON
       if (!ingredientsRes.ok) {
         const errorText = await ingredientsRes.text();
-        console.error("Sync ingredients HTTP error:", ingredientsRes.status, errorText);
-        throw new Error(`HTTP ${ingredientsRes.status}: ${errorText.substring(0, 200)}`);
+        console.error(
+          "Sync ingredients HTTP error:",
+          ingredientsRes.status,
+          errorText,
+        );
+        throw new Error(
+          `HTTP ${ingredientsRes.status}: ${errorText.substring(0, 200)}`,
+        );
       }
-      
+
       const ingredientsData = await ingredientsRes.json();
 
       if (!ingredientsData.success) {
-        throw new Error(ingredientsData.error || "Ошибка синхронизации ингредиентов");
+        throw new Error(
+          ingredientsData.error || "Ошибка синхронизации ингредиентов",
+        );
       }
 
       // Success
       const { syncedCount, ingredientsSynced } = ingredientsData.data;
-      toast.success(`Синхронизировано: поставщики, ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`);
-      
+      toast.success(
+        `Синхронизировано: поставщики, ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`,
+      );
+
       // Clear cache and reload
       setProductsLoaded(false);
       loadData();
@@ -200,92 +235,114 @@ export default function SuppliersCategoriesPage() {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-4">
+          {/* Header Title & Actions */}
           <div className="relative flex items-center justify-between mb-4">
-            <button 
-              onClick={() => router.push('/')}
-              className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
+            <button
+              onClick={() => {
+                if (typeof selectedSupplierId === "number") {
+                  setSelectedSupplierId("suppliers");
+                } else {
+                  router.push("/");
+                }
+              }}
+              className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600 active:scale-[0.98]"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
-            
-            <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900">Поставщики</h1>
-            
+
+            <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-gray-900">
+              {typeof selectedSupplierId === "number"
+                ? suppliers.find((s) => s.id === selectedSupplierId)?.name ||
+                  "Поставщик"
+                : "Поставщики и продукты"}
+            </h1>
+
             <button
               onClick={handleSync}
               disabled={syncing}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${ 
-                syncing 
-                  ? "bg-purple-100 text-purple-600" 
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-[0.98] ${
+                syncing
+                  ? "bg-purple-100 text-purple-600"
                   : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
               title="Синхронизировать с Poster"
             >
-              <svg 
-                className={`w-5 h-5 ${syncing ? "animate-spin" : ""}`} 
-                fill="none" 
-                viewBox="0 0 24 24" 
+              <svg
+                className={`w-5 h-5 ${syncing ? "animate-spin" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
                 stroke="currentColor"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
               </svg>
             </button>
           </div>
 
-          {/* Scrollable Tabs */ }
-          <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide">
-            <button
-              onClick={() => setSelectedSupplierId("suppliers")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
-                selectedSupplierId === "suppliers"
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              Все поставщики
-            </button>
-            
-            <button
-              onClick={() => setSelectedSupplierId("unsorted")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 ${
-                selectedSupplierId === "unsorted"
-                  ? "bg-purple-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              Нераспределенные
-              {unassignedCount > 0 && (
-                <span className="ml-2 bg-white/20 px-1.5 py-0.5 rounded text-xs">
-                  {unassignedCount}
-                </span>
-              )}
-            </button>
-
-            {suppliers.map(supplier => (
+          {/* Segmented Control (Only show if not in detail view) */}
+          {typeof selectedSupplierId !== "number" && (
+            <div className="flex gap-2 bg-gray-100/80 p-1 rounded-xl">
               <button
-                key={supplier.id}
-                onClick={() => setSelectedSupplierId(supplier.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedSupplierId === supplier.id
-                    ? "bg-purple-600 text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                onClick={() => setSelectedSupplierId("suppliers")}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all active:scale-[0.98] ${
+                  selectedSupplierId === "suppliers"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                {supplier.name}
+                Поставщики
               </button>
-            ))}
-          </div>
+
+              <button
+                onClick={() => setSelectedSupplierId("unsorted")}
+                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 active:scale-[0.98] ${
+                  selectedSupplierId === "unsorted"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Нераспределенные
+                {unassignedCount > 0 && (
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      selectedSupplierId === "unsorted"
+                        ? "bg-purple-100 text-purple-700"
+                        : "bg-gray-200 text-gray-500"
+                    }`}
+                  >
+                    {unassignedCount}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto pt-4">
+      <main className="max-w-2xl mx-auto pt-2">
         {selectedSupplierId === "suppliers" && (
           <SuppliersTab
             suppliers={suppliers}
             setSuppliers={setSuppliers}
             loading={loading}
             onReload={loadData}
+            onSelectSupplier={(id) => setSelectedSupplierId(id)}
           />
         )}
 
@@ -299,12 +356,12 @@ export default function SuppliersCategoriesPage() {
           />
         )}
 
-        {typeof selectedSupplierId === 'number' && (
+        {typeof selectedSupplierId === "number" && (
           <GenericProductListTab
             products={supplierProducts}
             suppliers={suppliers}
             onReload={loadData}
-            title={`Товары: ${suppliers.find(s => s.id === selectedSupplierId)?.name}`}
+            title={`Товары: ${suppliers.find((s) => s.id === selectedSupplierId)?.name}`}
           />
         )}
       </main>

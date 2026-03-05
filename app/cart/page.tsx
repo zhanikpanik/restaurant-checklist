@@ -130,7 +130,6 @@ export default function CartPage() {
         <PageHeader
           title="Готово"
           backHref={backLink}
-          rightContent={restaurant.current?.name || "Ресторан"}
         />
 
         {/* Success Content */}
@@ -170,23 +169,26 @@ export default function CartPage() {
       <PageHeader
         title="Корзина"
         backHref={backLink}
-        rightContent={restaurant.current?.name || "Ресторан"}
       />
 
       {/* Cart Content */}
       <div className="max-w-4xl mx-auto p-4">
         {cart.items.length === 0 ? (
-          <div className="text-center py-12">
-            <img src="/icons/basket.svg" alt="Empty Cart" className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <h2 className="text-xl font-semibold text-gray-700 mb-2">
+          <div className="text-center py-20">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Корзина пуста
             </h2>
-            <p className="text-gray-500 mb-6">
-              Добавьте товары из каталога для создания заказа
+            <p className="text-gray-500 mb-8 max-w-xs mx-auto">
+              Добавьте ингредиенты из справочника, чтобы сформировать список на закупку.
             </p>
             <Link
               href="/"
-              className="inline-block bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors"
+              className="inline-flex bg-purple-600 hover:bg-purple-700 text-white px-8 py-3.5 rounded-xl font-medium shadow-lg shadow-purple-600/30 transition-all active:scale-[0.98]"
             >
               Перейти к выбору товаров
             </Link>
@@ -207,7 +209,7 @@ export default function CartPage() {
                   </div>
                   
                   {/* Items for this supplier */}
-                  <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+                  <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 divide-y divide-gray-50 overflow-hidden">
                     {itemsBySupplier.grouped[supplierName].map((item) => (
                       <CartItemRow
                         key={item.cartId}
@@ -231,7 +233,7 @@ export default function CartPage() {
                     </span>
                   </div>
                   
-                  <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+                  <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 divide-y divide-gray-50 overflow-hidden">
                     {itemsBySupplier.noSupplier.map((item) => (
                       <CartItemRow
                         key={item.cartId}
@@ -246,15 +248,15 @@ export default function CartPage() {
             </div>
 
             {/* Notes Section - No card wrapper */}
-            <div className="mt-6 mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="mt-8 mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2 pl-1">
                 Примечание к заказу
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Добавьте комментарий к заказу..."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 resize-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full bg-white shadow-sm ring-1 ring-gray-900/5 rounded-2xl px-4 py-4 resize-none focus:ring-2 focus:ring-purple-500 focus:outline-none transition-shadow"
                 rows={3}
               />
             </div>
@@ -278,7 +280,7 @@ export default function CartPage() {
             <button
               onClick={handleSubmitOrder}
               disabled={submitState === 'submitting'}
-              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white py-4 rounded-lg font-medium transition-colors text-lg"
+              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-500/30 transition-all active:scale-[0.98] text-lg mt-4"
             >
               {submitState === 'submitting' ? (
                 <span className="flex items-center justify-center gap-2">
@@ -314,13 +316,13 @@ function CartItemRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="px-4 py-3">
+    <div className="px-4 py-4 hover:bg-gray-50/50 transition-colors">
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-4">
-          <h4 className="font-medium text-gray-800 truncate">{item.name}</h4>
-          <p className="text-sm text-gray-500">{item.unit}</p>
+          <h4 className="font-medium text-gray-900 truncate text-[15px]">{item.name}</h4>
+          <p className="text-[13px] text-gray-500 mt-0.5">{item.unit}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <QuantityInput
             productName={item.name}
             quantity={item.quantity}
@@ -330,10 +332,12 @@ function CartItemRow({
           />
           <button
             onClick={onRemove}
-            className="w-9 h-9 flex items-center justify-center bg-red-100 hover:bg-red-200 text-red-600 rounded-lg transition-colors"
+            className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-[0.92]"
             aria-label="Удалить"
           >
-            ×
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
           </button>
         </div>
       </div>

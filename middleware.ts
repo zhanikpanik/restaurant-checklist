@@ -14,6 +14,8 @@ const csrfExemptRoutes = [
   "/api/health",
   "/api/csrf", // CSRF token endpoint itself
   "/api/orders/bulk-update", // Temporary exemption for bulk updates
+  "/api/sync-sections", // Adding exemption for long-running sync operations
+  "/api/poster/sync-suppliers",
 ];
 
 // Role-based route access

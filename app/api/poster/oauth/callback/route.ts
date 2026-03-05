@@ -93,12 +93,10 @@ export async function GET(request: NextRequest) {
     const restaurantName = accountData.response?.company_name || accountData.response?.name || account_number || "New Restaurant";
     const restaurantId = account_number || `restaurant_${Date.now()}`;
 
-    // Store restaurant and create admin user
+    // Store restaurant and create setup token
     try {
       let finalRestaurantId = restaurantId;
-      let tempPassword: string | null = null;
-      let adminCreated = false;
-      let adminEmail = finalOwnerEmail;
+      const setupToken = randomBytes(32).toString("hex");
       
       await withoutTenant(async (client) => {
         await client.query("BEGIN");
@@ -110,7 +108,6 @@ export async function GET(request: NextRequest) {
           );
 
           if (existingResult.rows.length > 0) {
-            // Use the existing restaurant's ID
             finalRestaurantId = existingResult.rows[0].id;
             await client.query(
               `UPDATE restaurants
@@ -120,65 +117,31 @@ export async function GET(request: NextRequest) {
                WHERE poster_account_name = $3`,
               [access_token, restaurantName, account]
             );
-            console.log("Updated existing restaurant:", finalRestaurantId);
           } else {
             await client.query(
               `INSERT INTO restaurants (
-                id, name, logo, primary_color, currency,
-                poster_token, poster_account_name, poster_base_url,
-                kitchen_storage_id, bar_storage_id,
-                timezone, language, whatsapp_enabled, is_active
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+                id, name, logo, poster_token, poster_account_name, poster_base_url, is_active
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
               [
                 restaurantId,
                 restaurantName,
                 "🍽️",
-                "#3B82F6",
-                "₽",
                 access_token,
-                account,  // Use subdomain, not account_number
+                account,
                 `https://${account}.joinposter.com/api`,
-                1,
-                2,
-                "Europe/Moscow",
-                "ru",
-                true,
                 true,
               ]
             );
-            console.log("Created new restaurant:", restaurantId);
           }
 
-          // Check if admin user exists for this restaurant
-          if (finalOwnerEmail) {
-            const existingUser = await client.query(
-              "SELECT id FROM users WHERE email = $1",
-              [finalOwnerEmail.toLowerCase()]
-            );
-
-            if (existingUser.rows.length === 0) {
-              // Create admin user with temp password
-              tempPassword = generateTempPassword();
-              const passwordHash = await hash(tempPassword, 12);
-
-              await client.query(
-                `INSERT INTO users (email, password_hash, name, role, restaurant_id, is_active)
-                 VALUES ($1, $2, $3, $4, $5, $6)`,
-                [
-                  finalOwnerEmail.toLowerCase(),
-                  passwordHash,
-                  finalOwnerName,
-                  "admin",
-                  finalRestaurantId,
-                  true,
-                ]
-              );
-              adminCreated = true;
-              console.log("Created admin user:", finalOwnerEmail);
-            } else {
-              console.log("User already exists:", finalOwnerEmail);
-            }
-          }
+          // Store or update the setup token (valid for 1 hour)
+          // Note: You'll need to add this column to your schema if not present
+          await client.query(
+            `INSERT INTO poster_tokens (restaurant_id, access_token, refresh_token, expires_at)
+             VALUES ($1, $2, $3, NOW() + INTERVAL '1 hour')
+             ON CONFLICT (restaurant_id) DO UPDATE SET access_token = $2, expires_at = NOW() + INTERVAL '1 hour'`,
+            [finalRestaurantId, setupToken, 'setup_token']
+          );
 
           await client.query("COMMIT");
         } catch (dbError) {
@@ -187,20 +150,10 @@ export async function GET(request: NextRequest) {
         }
       });
 
-      // Build redirect URL with credentials if admin was created
-      let redirectPath = "/setup?success=oauth";
-      if (adminCreated && tempPassword && adminEmail) {
-        redirectPath += `&admin_created=true&email=${encodeURIComponent(adminEmail)}&temp_password=${encodeURIComponent(tempPassword)}`;
-      }
-
-      const response = NextResponse.redirect(getRedirectUrl(redirectPath));
-      response.cookies.set("restaurant_id", finalRestaurantId, {
-        path: "/",
-        maxAge: 31536000,
-        sameSite: "lax",
-      });
-
-      console.log(`OAuth complete, restaurant: ${finalRestaurantId}, admin created: ${adminCreated}`);
+      // Redirect to the new "Finish Setup" page where the user sets their password
+      const redirectUrl = getRedirectUrl(`/setup/finish?token=${setupToken}&email=${encodeURIComponent(finalOwnerEmail || "")}&name=${encodeURIComponent(finalOwnerName || "")}&restaurant_id=${finalRestaurantId}`);
+      
+      const response = NextResponse.redirect(redirectUrl);
       return response;
     } catch (dbError) {
       console.error("Database error:", dbError);

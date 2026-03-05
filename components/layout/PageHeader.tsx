@@ -27,26 +27,27 @@ export function PageHeader({
   const finalBackHref = backUrl || backHref || "/";
   
   const bgClass = variant === "purple" 
-    ? "bg-purple-600 text-white" 
-    : "bg-white text-gray-800 border-b shadow-sm";
+    ? "bg-purple-600 text-white border-b-0" 
+    : "bg-white text-gray-900 border-b border-gray-200";
   
-  const textClass = variant === "purple" ? "text-white" : "text-gray-800";
+  const textClass = variant === "purple" ? "text-white" : "text-gray-900";
   const subtitleClass = variant === "purple" ? "text-white/75" : "text-gray-500";
-  const iconClass = variant === "purple" ? "text-white" : "text-gray-600";
-  const hoverClass = variant === "purple" ? "hover:bg-white/10" : "hover:bg-gray-100";
+  const backBtnClass = variant === "purple" 
+    ? "bg-white/10 hover:bg-white/20 text-white" 
+    : "bg-gray-100 hover:bg-gray-200 text-gray-600";
   
   return (
-    <header className={`${bgClass} sticky top-0 z-10`}>
-      <div className="max-w-2xl mx-auto px-4 py-3 md:py-4">
-        <div className="flex items-center">
+    <header className={`${bgClass} sticky top-0 z-50`}>
+      <div className="max-w-2xl mx-auto px-4 py-4">
+        <div className="relative flex items-center justify-center">
           {showBackButton && (
             <Link
               href={finalBackHref}
-              className={`flex items-center justify-center w-10 h-10 ${hoverClass} rounded-full transition-all duration-200 active:scale-95 mr-3`}
+              className={`absolute left-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${backBtnClass}`}
               aria-label={backLabel || "Назад"}
             >
               <svg
-                className={`w-6 h-6 ${iconClass}`}
+                className="w-5 h-5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -60,14 +61,18 @@ export function PageHeader({
               </svg>
             </Link>
           )}
-          <div className="flex-1">
-            <h1 className={`text-xl font-semibold ${textClass}`}>{title}</h1>
+          
+          <div className="text-center">
+            <h1 className={`text-xl font-bold ${textClass}`}>{title}</h1>
             {subtitle && (
-              <p className={`text-sm ${subtitleClass}`}>{subtitle}</p>
+              <p className={`text-xs mt-0.5 ${subtitleClass}`}>{subtitle}</p>
             )}
           </div>
+
           {rightContent && (
-            <div className={`text-sm ${subtitleClass}`}>{rightContent}</div>
+            <div className={`absolute right-0 text-sm ${subtitleClass}`}>
+              {rightContent}
+            </div>
           )}
         </div>
       </div>

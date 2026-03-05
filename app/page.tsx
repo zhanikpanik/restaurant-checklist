@@ -246,7 +246,7 @@ export default function HomePage() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/icons/list.svg" alt="Pending" className="w-5 h-5 opacity-70" />
+              <img src="/icons/list.svg" alt="Pending" className="w-9 h-9 opacity-70" />
               <div>
                 <p className="text-xs text-yellow-700 flex items-center gap-2">
                   <span className="font-bold">{orderSummary.count} {orderSummary.count === 1 ? "заказ" : "заказа"}</span>
@@ -278,7 +278,7 @@ export default function HomePage() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/icons/delivery.svg" alt="Transit" className="w-5 h-5 opacity-70" />
+              <img src="/icons/delivery.svg" alt="Transit" className="w-9 h-9 opacity-70" />
               <div>
                 <p className="text-xs text-blue-700 flex items-center gap-2">
                   <span className="font-bold">{orderSummary.count} {orderSummary.count === 1 ? "поставка" : "поставки"}</span>
@@ -308,7 +308,7 @@ export default function HomePage() {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <img src="/icons/box.svg" alt="Order" className="w-5 h-5 opacity-70" />
+              <img src="/icons/box.svg" alt="Order" className="w-9 h-9 opacity-70" />
               <div>
                 <p className="text-xs text-gray-600 flex items-center gap-2">
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>

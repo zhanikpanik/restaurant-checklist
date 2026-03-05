@@ -25,23 +25,23 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     },
     ref
   ) => {
-    const baseStyles = "bg-white dark:bg-gray-800 rounded-lg";
+    const baseStyles = "bg-white dark:bg-gray-800 rounded-2xl";
 
     const variants = {
-      default: "border border-gray-200 dark:border-gray-700",
-      outlined: "border-2 border-gray-200 dark:border-gray-700",
-      elevated: "shadow-md dark:shadow-gray-900/50",
+      default: "shadow-sm ring-1 ring-gray-900/5 dark:ring-white/10",
+      outlined: "border-2 border-gray-100 dark:border-gray-700",
+      elevated: "shadow-md shadow-gray-900/5 dark:shadow-gray-900/50",
     };
 
     const paddings = {
       none: "",
-      sm: "p-3",
-      md: "p-4",
-      lg: "p-6",
+      sm: "p-4",
+      md: "p-5",
+      lg: "p-8",
     };
 
     const hoverStyles = hoverable
-      ? "cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-sm transition-all"
+      ? "cursor-pointer hover:shadow-md hover:ring-purple-500/20 active:scale-[0.98] transition-all duration-200"
       : "";
 
     return (
