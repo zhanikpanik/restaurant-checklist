@@ -20,6 +20,13 @@ export async function setupDatabaseSchema() {
         primary_color VARCHAR(7) DEFAULT '#3B82F6',
         currency VARCHAR(3) DEFAULT '₽',
         poster_account_name VARCHAR(255),
+        poster_token TEXT,
+        poster_base_url TEXT,
+        kitchen_storage_id INTEGER DEFAULT 1,
+        bar_storage_id INTEGER DEFAULT 2,
+        timezone VARCHAR(100) DEFAULT 'Europe/Moscow',
+        language VARCHAR(10) DEFAULT 'ru',
+        whatsapp_enabled BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         is_active BOOLEAN DEFAULT true
