@@ -4,14 +4,15 @@ import { withTenant, withoutTenant } from "@/lib/db";
 export async function POST(request: NextRequest) {
   try {
     const restaurantCookie = request.cookies.get("restaurant_id");
-    if (!restaurantCookie?.value) {
+    const restaurantHeader = request.headers.get("x-restaurant-id");
+    const restaurantId = restaurantCookie?.value || restaurantHeader;
+
+    if (!restaurantId) {
       return NextResponse.json(
         { success: false, error: "No restaurant selected" },
         { status: 401 }
       );
     }
-
-    const restaurantId = restaurantCookie.value;
 
     // Get restaurant's Poster token
     // We try to get the dedicated account_id first (which is the subdomain),

@@ -17,32 +17,47 @@ function OnboardingContent() {
   const [mappings, setMappings] = useState<Record<number, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  const fetchData = async () => {
+    if (!restaurantId) return;
+    try {
+      // Fetch all section products and suppliers
+      const [prodRes, supRes] = await Promise.all([
+        fetch(`/api/section-products?restaurant_id=${restaurantId}`),
+        fetch(`/api/suppliers?restaurant_id=${restaurantId}`)
+      ]);
+
+      const prodData = await prodRes.json();
+      const supData = await supRes.json();
+
+      if (prodData.success) {
+        setIngredients(prodData.data);
+        // If we found ingredients, stop loading
+        if (prodData.data.length > 0) setIsLoading(false);
+      }
+      if (supData.success) setSuppliers(supData.data);
+    } catch (err) {
+      console.error("Error loading onboarding data:", err);
+    }
+  };
 
   useEffect(() => {
-    if (!restaurantId) return;
-
-    const fetchData = async () => {
-      try {
-        // Fetch all section products and suppliers
-        const [prodRes, supRes] = await Promise.all([
-          fetch(`/api/section-products?restaurant_id=${restaurantId}`),
-          fetch(`/api/suppliers?restaurant_id=${restaurantId}`)
-        ]);
-
-        const prodData = await prodRes.json();
-        const supData = await supRes.json();
-
-        if (prodData.success) setIngredients(prodData.data);
-        if (supData.success) setSuppliers(supData.data);
-      } catch (err) {
-        console.error("Error loading onboarding data:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchData();
-  }, [restaurantId]);
+    
+    // Polling: if no ingredients, check again every 3 seconds (up to 10 times)
+    let interval: NodeJS.Timeout;
+    if (isLoading && retryCount < 10) {
+      interval = setInterval(() => {
+        setRetryCount(prev => prev + 1);
+        fetchData();
+      }, 3000);
+    } else {
+      setIsLoading(false); // Stop loading after timeout
+    }
+
+    return () => clearInterval(interval);
+  }, [restaurantId, retryCount, isLoading]);
 
   // Group and filter ingredients
   const groupedIngredients = useMemo(() => {

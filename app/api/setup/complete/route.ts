@@ -57,18 +57,22 @@ export async function POST(request: NextRequest) {
     // We don't 'await' this so the user can proceed to login immediately
     // while the sync runs in the background.
     const protocol = request.headers.get('x-forwarded-proto') || 'https';
-    const host = request.headers.get('host');
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'restaurant-checklist-production.up.railway.app';
     const baseUrl = `${protocol}://${host}`;
     
-    console.log(`📡 Triggering background sync for ${restaurantId}...`);
+    console.log(`📡 Triggering background sync for ${restaurantId} via ${baseUrl}...`);
     
-    // We use a separate fetch to the sync endpoints
-    // Note: We'll need to modify the sync endpoints to allow a special internal bypass
-    // or pass the restaurant_id explicitly.
+    // Use a more robust fetch with the new header
     fetch(`${baseUrl}/api/sync-sections`, {
       method: 'POST',
-      headers: { 'Cookie': `restaurant_id=${restaurantId}` }
-    }).catch(err => console.error("Background sync sections failed:", err));
+      headers: { 
+        'x-restaurant-id': restaurantId,
+        'x-internal-sync': 'true'
+      }
+    }).then(async (res) => {
+      const data = await res.json();
+      console.log(`✅ Background sync trigger response for ${restaurantId}:`, data);
+    }).catch(err => console.error(`❌ Background sync failed for ${restaurantId}:`, err));
 
     return NextResponse.json({ success: true, message: "Account created successfully" });
   } catch (error) {
