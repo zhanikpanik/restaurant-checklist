@@ -38,6 +38,7 @@ interface AppState {
   addToCart: (item: CartItem) => void;
   removeFromCart: (cartId: string) => void;
   updateCartItemQuantity: (cartId: string, quantity: number) => void;
+  updateCartItemSupplier: (cartId: string, supplierName: string, supplierId: number) => void;
   clearCart: () => void;
   getCartCount: () => number;
 
@@ -111,6 +112,14 @@ export const useStore = create<AppState>()(
         )
       })),
 
+      updateCartItemSupplier: (cartId, supplierName, supplierId) => set((state) => ({
+        cart: state.cart.map(item =>
+          item.cartId === cartId
+            ? { ...item, supplier: supplierName, supplier_id: supplierId }
+            : item
+        )
+      })),
+
       clearCart: () => set({ cart: [] }),
 
       getCartCount: () => {
@@ -143,6 +152,7 @@ export const useCart = () => {
   const add = useStore((state) => state.addToCart);
   const remove = useStore((state) => state.removeFromCart);
   const updateQuantity = useStore((state) => state.updateCartItemQuantity);
+  const updateItemSupplier = useStore((state) => state.updateCartItemSupplier);
   const clear = useStore((state) => state.clearCart);
   const getCartCount = useStore((state) => state.getCartCount);
 
@@ -151,6 +161,7 @@ export const useCart = () => {
     add,
     remove,
     updateQuantity,
+    updateItemSupplier,
     clear,
     count: getCartCount(),
   };

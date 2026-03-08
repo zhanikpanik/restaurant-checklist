@@ -219,6 +219,7 @@ export async function POST(request: NextRequest) {
 
     // Save order to database with RLS
     const order = await withTenant(restaurantId, async (client) => {
+      // Create the order
       const result = await client.query<Order>(
         `INSERT INTO orders (restaurant_id, order_data, status, created_by_role)
          VALUES ($1, $2, $3, $4)
@@ -230,7 +231,23 @@ export async function POST(request: NextRequest) {
           orderData.created_by || "manager",
         ]
       );
-      return result.rows[0];
+
+      const newOrder = result.rows[0];
+
+      // SELF-LEARNING: If any item had a supplier_id, update the section_product record
+      // so we don't have to ask again next time.
+      for (const item of formattedOrder.items) {
+        if (item.productId && item.supplier_id) {
+          await client.query(
+            `UPDATE section_products 
+             SET supplier_id = $1 
+             WHERE id = $2 AND supplier_id IS NULL`,
+            [item.supplier_id, item.productId]
+          );
+        }
+      }
+
+      return newOrder;
     });
 
     console.log(`✅ Order created with ID: ${order.id}`);

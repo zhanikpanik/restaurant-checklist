@@ -53,6 +53,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(success, { status: 400 });
     }
 
+    // TRIGGER BACKGROUND SYNC
+    // We don't 'await' this so the user can proceed to login immediately
+    // while the sync runs in the background.
+    const protocol = request.headers.get('x-forwarded-proto') || 'https';
+    const host = request.headers.get('host');
+    const baseUrl = `${protocol}://${host}`;
+    
+    console.log(`📡 Triggering background sync for ${restaurantId}...`);
+    
+    // We use a separate fetch to the sync endpoints
+    // Note: We'll need to modify the sync endpoints to allow a special internal bypass
+    // or pass the restaurant_id explicitly.
+    fetch(`${baseUrl}/api/sync-sections`, {
+      method: 'POST',
+      headers: { 'Cookie': `restaurant_id=${restaurantId}` }
+    }).catch(err => console.error("Background sync sections failed:", err));
+
     return NextResponse.json({ success: true, message: "Account created successfully" });
   } catch (error) {
     console.error("Setup completion error:", error);

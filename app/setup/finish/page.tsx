@@ -64,7 +64,7 @@ function FinishSetupContent() {
 
       if (data.success) {
         toast.success("Аккаунт успешно создан!");
-        router.push("/login?registered=true&email=" + encodeURIComponent(email));
+        router.push(`/setup/onboarding?restaurant_id=${restaurantId}`);
       } else {
         setError(data.error || "Произошла ошибка при создании аккаунта");
       }

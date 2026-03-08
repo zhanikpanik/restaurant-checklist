@@ -23,6 +23,22 @@ export default function CartPage() {
   const [notes, setNotes] = useState("");
   const [submittedOrderId, setSubmittedOrderId] = useState<number | null>(null);
   const [backLink, setBackLink] = useState<string>("/"); // Dynamic back link
+  const [bulkSupplierId, setBulkSupplierId] = useState<string>("");
+  const [allSuppliers, setAllSuppliers] = useState<any[]>([]);
+
+  // Load suppliers for bulk assignment
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const res = await fetch("/api/suppliers");
+        const data = await res.json();
+        if (data.success) setAllSuppliers(data.data);
+      } catch (err) {
+        console.error("Error loading suppliers:", err);
+      }
+    };
+    fetchSuppliers();
+  }, []);
 
   const userRole = session?.user?.role || "staff";
   const isManager = userRole === "manager" || userRole === "admin";
@@ -246,6 +262,44 @@ export default function CartPage() {
                 </div>
               )}
             </div>
+
+            {/* Bulk Supplier Selection (if there are unassigned items) */}
+            {itemsBySupplier.noSupplier.length > 0 && allSuppliers.length > 0 && (
+              <div className="mt-8 p-6 bg-yellow-50 border border-yellow-200 rounded-2xl shadow-sm">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center text-yellow-600 flex-shrink-0">
+                    ⚠️
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-yellow-900">Укажите поставщика</h3>
+                    <p className="text-sm text-yellow-700">
+                      Для {itemsBySupplier.noSupplier.length} позиций не указан поставщик. Выберите его для всех сразу:
+                    </p>
+                  </div>
+                </div>
+
+                <select
+                  value={bulkSupplierId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    const supplier = allSuppliers.find(s => s.id.toString() === id);
+                    if (supplier) {
+                      // Update all unassigned items in the store
+                      itemsBySupplier.noSupplier.forEach(item => {
+                        cart.updateItemSupplier(item.cartId, supplier.name, supplier.id);
+                      });
+                      setBulkSupplierId(id);
+                    }
+                  }}
+                  className="w-full bg-white border border-yellow-300 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-yellow-500 focus:outline-none transition-shadow"
+                >
+                  <option value="">Выберите поставщика...</option>
+                  {allSuppliers.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Notes Section - No card wrapper */}
             <div className="mt-8 mb-6">
