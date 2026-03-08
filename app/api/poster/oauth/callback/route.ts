@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withoutTenant } from "@/lib/db";
-import { hash } from "bcryptjs";
 import { randomBytes } from "crypto";
-
-// Generate a secure random password
-function generateTempPassword(): string {
-  return randomBytes(8).toString("base64").slice(0, 12);
-}
 
 export async function GET(request: NextRequest) {
   // Helper to build proper redirect URL

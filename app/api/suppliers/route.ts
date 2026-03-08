@@ -6,12 +6,22 @@ import type { Supplier, ApiResponse } from "@/types";
 // GET /api/suppliers - Get all suppliers (synced from Poster)
 export async function GET(request: NextRequest) {
   try {
-    // Authenticate and get restaurant ID
-    const auth = await requireAuth(request);
-    if (auth instanceof NextResponse) {
-      return auth;
+    const { searchParams } = new URL(request.url);
+    const queryRestaurantId = searchParams.get("restaurant_id");
+
+    let restaurantId: string;
+
+    if (queryRestaurantId) {
+      // If restaurant_id is provided in query, use it (for onboarding)
+      restaurantId = queryRestaurantId;
+    } else {
+      // Otherwise require authentication
+      const auth = await requireAuth(request);
+      if (auth instanceof NextResponse) {
+        return auth;
+      }
+      restaurantId = auth.restaurantId;
     }
-    const { restaurantId } = auth;
 
     const suppliers = await withTenant(restaurantId, async (client) => {
       const result = await client.query<Supplier>(
