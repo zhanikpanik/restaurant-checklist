@@ -29,6 +29,7 @@ export default function HomePage() {
   const [allSections, setAllSections] = useState<Section[]>([]);
   const [userSectionIds, setUserSectionIds] = useState<number[]>([]);
   const [orderSummary, setOrderSummary] = useState<OrderSummary | null>(null);
+  const [unsortedCount, setUnsortedCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -44,10 +45,25 @@ export default function HomePage() {
       loadSections();
       loadUserSections();
       loadOrderSummary();
+      if (isAdmin || isManager) {
+        loadUnsortedCount();
+      }
     } else if (status === "unauthenticated") {
       setLoading(false);
     }
-  }, [status, session]);
+  }, [status, session, isAdmin, isManager]);
+
+  const loadUnsortedCount = async () => {
+    try {
+      const response = await fetch("/api/section-products/unsorted-count");
+      const data = await response.json();
+      if (data.success) {
+        setUnsortedCount(data.count);
+      }
+    } catch (err) {
+      console.error("Error loading unsorted count:", err);
+    }
+  };
 
   const loadSections = async () => {
     try {
@@ -403,11 +419,17 @@ export default function HomePage() {
               {(isAdmin || isManager) && (
                 <Link
                   href="/suppliers-categories"
-                  className="w-full bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                  className="relative w-full bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start overflow-hidden group"
                 >
-                  <img src="/icons/box.svg" alt="Suppliers" className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter" />
-                  <div className="text-left">
+                  <img src="/icons/box.svg" alt="Suppliers" className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter group-hover:scale-110 transition-transform" />
+                  <div className="text-left flex-1">
                     <div className="font-semibold text-base md:text-lg">Поставщики и ингредиенты</div>
+                    {unsortedCount !== null && unsortedCount > 0 && (
+                      <div className="mt-1.5 inline-flex items-center bg-red-500 text-white text-xs px-2 py-0.5 rounded shadow-sm border border-red-400">
+                        <span className="mr-1">⚠️</span>
+                        {unsortedCount} {getPluralForm(unsortedCount, ["товар без поставщика", "товара без поставщика", "товаров без поставщика"])}
+                      </div>
+                    )}
                   </div>
                 </Link>
               )}
