@@ -425,8 +425,7 @@ export default function HomePage() {
                   <div className="text-left flex-1">
                     <div className="font-semibold text-base md:text-lg">Поставщики и ингредиенты</div>
                     {unsortedCount !== null && unsortedCount > 0 && (
-                      <div className="mt-1.5 inline-flex items-center bg-red-500 text-white text-xs px-2 py-0.5 rounded shadow-sm border border-red-400">
-                        <span className="mr-1">⚠️</span>
+                      <div className="mt-1.5 inline-flex items-center bg-red-500 text-white text-xs px-2 py-0.5 rounded shadow-sm">
                         {unsortedCount} {getPluralForm(unsortedCount, ["товар без поставщика", "товара без поставщика", "товаров без поставщика"])}
                       </div>
                     )}
