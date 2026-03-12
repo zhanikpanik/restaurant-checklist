@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth-config";
 import { validateCSRFToken, requiresCSRFValidation, getSessionIdentifier } from "@/lib/csrf-edge";
 
 // Routes that don't require authentication
-const publicRoutes = ["/login", "/setup", "/api/auth", "/api/health", "/api/debug-auth", "/api/poster/oauth", "/api/poster/webhooks", "/api/setup/complete", "/setup/finish", "/setup/onboarding", "/api/setup/map-categories", "/api/setup/map-ingredients"];
+const publicRoutes = ["/login", "/setup", "/register", "/api/auth", "/api/health", "/api/debug-auth", "/api/poster/oauth", "/api/poster/webhooks", "/api/setup/complete", "/setup/finish", "/setup/onboarding", "/api/setup/map-categories", "/api/setup/map-ingredients", "/api/invitations"];
 
 // API routes exempt from CSRF (webhooks, OAuth callbacks, etc.)
 const csrfExemptRoutes = [
@@ -19,6 +19,7 @@ const csrfExemptRoutes = [
   "/api/setup/complete", // Setup completion doesn't have a session yet
   "/api/setup/map-categories", // Mapping doesn't have a session yet
   "/api/setup/map-ingredients", // Mapping doesn't have a session yet
+  "/api/invitations", // Invitation acceptance doesn't have a session yet
 ];
 
 // Role-based route access
