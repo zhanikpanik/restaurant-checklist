@@ -533,40 +533,60 @@ function CustomPageContent() {
         </Link>
       )}
 
-      {/* Search */}
-      <div className="max-w-md mx-auto px-4 py-3">
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <img src="/icons/magnifier.svg" alt="Search" className="h-5 w-5 opacity-40" />
+      {/* Search - only show if there are products */}
+      {allProducts.length > 0 && (
+        <div className="max-w-md mx-auto px-4 py-3">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <img src="/icons/magnifier.svg" alt="Search" className="h-5 w-5 opacity-40" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
+              placeholder="Поиск товаров..."
+              autoComplete="off"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
-            placeholder="Поиск товаров..."
-            autoComplete="off"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            >
-              <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Products List */}
       <main className="max-w-md mx-auto px-4 pb-24">
-        {currentProducts.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">
-              {searchQuery ? "Товары не найдены" : "Нет товаров в этом отделе"}
+        {allProducts.length === 0 ? (
+          <div className="text-center py-20 bg-gray-50 rounded-3xl mt-4 border-2 border-dashed border-gray-200">
+            <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-6">
+              <img src="/icons/box.svg" alt="Empty" className="w-10 h-10 opacity-30" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Отдел пуст</h3>
+            <p className="text-gray-500 mb-8 max-w-[240px] mx-auto text-sm leading-relaxed">
+              {canManage 
+                ? "В этом отделе пока нет товаров. Попробуйте синхронизировать данные с Poster." 
+                : "В этом отделе пока нет доступных товаров."}
             </p>
+            {canManage && (
+              <button
+                onClick={() => router.push('/suppliers-categories')}
+                className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-purple-600/20 transition-all active:scale-[0.98]"
+              >
+                🔄 Синхронизировать
+              </button>
+            )}
+          </div>
+        ) : searchQuery && currentProducts.length === 0 ? (
+          <div className="text-center py-12">
+             <p className="text-gray-500">Товары не найдены</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-200">

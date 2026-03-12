@@ -454,6 +454,47 @@ export default function HomePage() {
                 </Link>
               ))}
 
+              {/* Help & Support Footer */}
+              <div className="mt-8 pt-6 border-t border-gray-100">
+                <div className="flex flex-col gap-3">
+                  <Link 
+                    href="/help" 
+                    className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 hover:bg-gray-50 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center">
+                        ❓
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Помощь и инструкции</span>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                  
+                  <a 
+                    href="https://wa.me/77012345678" 
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 hover:bg-gray-50 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-green-50 text-green-600 rounded-lg flex items-center justify-center">
+                        💬
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">Написать в поддержку</span>
+                    </div>
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                  </a>
+                </div>
+                
+                <p className="text-center text-[10px] text-gray-400 mt-6 uppercase tracking-widest font-bold">
+                  v1.2.0 • Build 20260311
+                </p>
+              </div>
+
             </>
           )}
         </div>
