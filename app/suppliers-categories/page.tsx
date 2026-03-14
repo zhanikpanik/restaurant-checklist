@@ -319,29 +319,24 @@ export default function SuppliersCategoriesPage() {
               </div>
             ) : (
               <>
-                {/* Unsorted Action Card - Acts as Inbox */}
+                {/* Unsorted Action Card - Calmer Design */}
                 {unassignedCount > 0 && (
-                  <div 
+                  <button 
                     onClick={() => setSelectedSupplierId("unsorted")}
-                    className="mb-6 bg-red-50 hover:bg-red-100 border border-red-100 rounded-2xl p-4 cursor-pointer transition-colors flex items-center justify-between shadow-sm"
+                    className="w-full mb-6 bg-white border border-gray-200 hover:border-gray-300 rounded-xl p-4 text-left cursor-pointer transition-all flex items-center justify-between group"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <span className="text-xl">⚠️</span>
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-red-900">Требуют внимания</h3>
-                        <p className="text-sm text-red-700 mt-0.5">
-                          {unassignedCount} {unassignedCount % 10 === 1 && unassignedCount % 100 !== 11 ? "товар без поставщика" : [2,3,4].includes(unassignedCount % 10) && ![12,13,14].includes(unassignedCount % 100) ? "товара без поставщика" : "товаров без поставщика"}
-                        </p>
-                      </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">
+                        {unassignedCount} {unassignedCount % 10 === 1 && unassignedCount % 100 !== 11 ? "ингредиент" : [2,3,4].includes(unassignedCount % 10) && ![12,13,14].includes(unassignedCount % 100) ? "ингредиента" : "ингредиентов"} без поставщика
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        Требуют распределения для заказа
+                      </p>
                     </div>
-                    <div className="bg-white rounded-full p-2 shadow-sm text-red-600">
-                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                       </svg>
-                    </div>
-                  </div>
+                    <svg className="w-5 h-5 text-gray-400 group-hover:text-gray-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
                 )}
 
                 <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3 ml-2">Все поставщики</h2>
