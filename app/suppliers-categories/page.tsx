@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { SuppliersTab } from "@/components/manager/SuppliersTab";
@@ -9,22 +9,21 @@ import { useToast } from "@/components/ui/Toast";
 import { useCSRF } from "@/hooks/useCSRF";
 import type { Supplier, Product } from "@/types";
 
-type TabType = "suppliers" | "unsorted";
-
 export default function SuppliersCategoriesPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const toast = useToast();
   const { fetchWithCSRF } = useCSRF();
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | number>(
-    "suppliers",
-  );
+  
+  // "suppliers", "unsorted", or a supplier ID (number)
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | number>("suppliers");
+  
+  const [globalSearchQuery, setGlobalSearchQuery] = useState("");
+  
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [unassignedProducts, setUnassignedProducts] = useState<Product[]>([]);
   const [supplierProducts, setSupplierProducts] = useState<Product[]>([]);
-  const [relatedIdsMap, setRelatedIdsMap] = useState<Record<number, number[]>>(
-    {},
-  );
+  const [relatedIdsMap, setRelatedIdsMap] = useState<Record<number, number[]>>({});
   const [loading, setLoading] = useState(true);
   const [unassignedCount, setUnassignedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
@@ -63,18 +62,6 @@ export default function SuppliersCategoriesPage() {
     loadData();
   }, [selectedSupplierId, isAuthorized]);
 
-  // Show loading while checking auth
-  if (status === "loading" || !isAuthorized) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4" />
-          <p className="text-gray-600">Проверка доступа...</p>
-        </div>
-      </div>
-    );
-  }
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -83,7 +70,7 @@ export default function SuppliersCategoriesPage() {
       const suppliersData = await suppliersRes.json();
       if (suppliersData.success) setSuppliers(suppliersData.data);
 
-      // Always refetch products when explicitly requested (e.g., after assignment)
+      // Always refetch products when explicitly requested
       const productsRes = await fetch("/api/section-products?active=true");
       const productsData = await productsRes.json();
       if (productsData.success) {
@@ -91,16 +78,11 @@ export default function SuppliersCategoriesPage() {
         setProductsLoaded(true);
       }
 
-      // Filter from cache instead of fetching again
-      if (selectedSupplierId === "suppliers") {
-        // Just showing the list of suppliers (default view)
-      } else if (selectedSupplierId === "unsorted") {
+      if (selectedSupplierId === "unsorted") {
         const unassigned = productsData.data.filter(
           (p: Product) => !p.supplier_id,
         );
 
-        // Group by poster_ingredient_id to avoid duplicates in the UI
-        // This ensures one entry per ingredient, even if it exists in multiple sections
         const groupedMap = new Map<string, Product>();
         const idMap: Record<number, number[]> = {};
 
@@ -108,29 +90,18 @@ export default function SuppliersCategoriesPage() {
           const key = p.poster_ingredient_id || `local_${p.id}`;
 
           if (!groupedMap.has(key)) {
-            // First time seeing this ingredient
             groupedMap.set(key, { ...p });
-            // Initialize mapping for this representative ID
             idMap[p.id] = [p.id];
           } else {
-            // Duplicate found (same ingredient in another section)
             const existing = groupedMap.get(key)!;
+            existing.quantity = (Number(existing.quantity) || 0) + (Number(p.quantity) || 0);
 
-            // Aggregate quantity
-            existing.quantity =
-              (Number(existing.quantity) || 0) + (Number(p.quantity) || 0);
-
-            // Append section name
-            if (
-              p.section_name &&
-              !existing.section_name?.includes(p.section_name)
-            ) {
+            if (p.section_name && !existing.section_name?.includes(p.section_name)) {
               existing.section_name = existing.section_name
                 ? `${existing.section_name}, ${p.section_name}`
                 : p.section_name;
             }
 
-            // Link this duplicate ID to the representative ID
             if (idMap[existing.id]) {
               idMap[existing.id].push(p.id);
             }
@@ -139,8 +110,7 @@ export default function SuppliersCategoriesPage() {
 
         setUnassignedProducts(Array.from(groupedMap.values()));
         setRelatedIdsMap(idMap);
-      } else {
-        // Filter products for specific supplier from fresh data
+      } else if (typeof selectedSupplierId === "number") {
         const filtered = productsData.data.filter(
           (p: Product) => p.supplier_id === Number(selectedSupplierId),
         );
@@ -157,69 +127,30 @@ export default function SuppliersCategoriesPage() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      // 1. Sync Suppliers
       const suppliersRes = await fetchWithCSRF("/api/poster/sync-suppliers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
 
-      if (!suppliersRes.ok) {
-        const errorText = await suppliersRes.text();
-        console.error(
-          "Sync suppliers HTTP error:",
-          suppliersRes.status,
-          errorText,
-        );
-        throw new Error(
-          `HTTP ${suppliersRes.status}: ${errorText.substring(0, 200)}`,
-        );
-      }
+      if (!suppliersRes.ok) throw new Error(`HTTP ${suppliersRes.status}`);
 
       const suppliersData = await suppliersRes.json();
-      console.log("Suppliers sync response:", suppliersData);
+      if (!suppliersData.success) throw new Error(suppliersData.error || "Ошибка синхронизации поставщиков");
 
-      if (!suppliersData.success) {
-        console.error("Suppliers sync failed:", suppliersData.error);
-        throw new Error(
-          suppliersData.error || "Ошибка синхронизации поставщиков",
-        );
-      }
-
-      // 2. Sync Ingredients/Sections - ALSO USE CSRF
       const ingredientsRes = await fetchWithCSRF("/api/sync-sections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });
 
-      // Check if response is ok before parsing JSON
-      if (!ingredientsRes.ok) {
-        const errorText = await ingredientsRes.text();
-        console.error(
-          "Sync ingredients HTTP error:",
-          ingredientsRes.status,
-          errorText,
-        );
-        throw new Error(
-          `HTTP ${ingredientsRes.status}: ${errorText.substring(0, 200)}`,
-        );
-      }
+      if (!ingredientsRes.ok) throw new Error(`HTTP ${ingredientsRes.status}`);
 
       const ingredientsData = await ingredientsRes.json();
+      if (!ingredientsData.success) throw new Error(ingredientsData.error || "Ошибка синхронизации ингредиентов");
 
-      if (!ingredientsData.success) {
-        throw new Error(
-          ingredientsData.error || "Ошибка синхронизации ингредиентов",
-        );
-      }
-
-      // Success
       const { syncedCount, ingredientsSynced } = ingredientsData.data;
-      toast.success(
-        `Синхронизировано: поставщики, ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`,
-      );
+      toast.success(`Синхронизировано: поставщики, ${syncedCount} отделов, ${ingredientsSynced || 0} товаров`);
 
-      // Clear cache and reload
       setProductsLoaded(false);
       loadData();
     } catch (error: any) {
@@ -230,16 +161,84 @@ export default function SuppliersCategoriesPage() {
     }
   };
 
+  // Global Search Filtering
+  const searchedProducts = useMemo(() => {
+    if (!globalSearchQuery.trim()) return [];
+    
+    // Create a deduplicated view for search (like we did for unsorted) so we don't assign 3 copies of "Milk"
+    const lowerQuery = globalSearchQuery.toLowerCase();
+    const matched = allProducts.filter(p => 
+      p.name.toLowerCase().includes(lowerQuery) || 
+      (p.section_name && p.section_name.toLowerCase().includes(lowerQuery)) ||
+      (p.category_name && p.category_name.toLowerCase().includes(lowerQuery))
+    );
+
+    const groupedMap = new Map<string, Product>();
+    
+    matched.forEach((p: Product) => {
+      const key = p.poster_ingredient_id || `local_${p.id}`;
+
+      if (!groupedMap.has(key)) {
+        groupedMap.set(key, { ...p });
+      } else {
+        const existing = groupedMap.get(key)!;
+        if (p.section_name && !existing.section_name?.includes(p.section_name)) {
+          existing.section_name = existing.section_name
+            ? `${existing.section_name}, ${p.section_name}`
+            : p.section_name;
+        }
+      }
+    });
+
+    return Array.from(groupedMap.values());
+  }, [allProducts, globalSearchQuery]);
+
+  // Compute a global relatedIdsMap to ensure assigning a grouped product assigns all its instances
+  const globalRelatedIdsMap = useMemo(() => {
+    if (!globalSearchQuery.trim()) return {};
+    const lowerQuery = globalSearchQuery.toLowerCase();
+    const matched = allProducts.filter(p => 
+      p.name.toLowerCase().includes(lowerQuery) || 
+      (p.section_name && p.section_name.toLowerCase().includes(lowerQuery)) ||
+      (p.category_name && p.category_name.toLowerCase().includes(lowerQuery))
+    );
+
+    const idMap: Record<number, number[]> = {};
+    const firstSeenIdMap = new Map<string, number>();
+
+    matched.forEach((p: Product) => {
+      const key = p.poster_ingredient_id || `local_${p.id}`;
+      if (!firstSeenIdMap.has(key)) {
+        firstSeenIdMap.set(key, p.id);
+        idMap[p.id] = [p.id];
+      } else {
+        const representativeId = firstSeenIdMap.get(key)!;
+        idMap[representativeId].push(p.id);
+      }
+    });
+
+    return idMap;
+  }, [allProducts, globalSearchQuery]);
+
+  if (status === "loading" || !isAuthorized) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full" />
+      </div>
+    );
+  }
+
+  const isGlobalSearching = globalSearchQuery.trim().length > 0;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-4">
-          {/* Header Title & Actions */}
-          <div className="relative flex items-center justify-between mb-4">
+          <div className="relative flex items-center justify-between">
             <button
               onClick={() => {
-                if (typeof selectedSupplierId === "number") {
+                if (typeof selectedSupplierId === "number" || selectedSupplierId === "unsorted") {
                   setSelectedSupplierId("suppliers");
                 } else {
                   router.push("/");
@@ -247,122 +246,140 @@ export default function SuppliersCategoriesPage() {
               }}
               className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600 active:scale-[0.98]"
             >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
 
             <h1 className="absolute left-1/2 -translate-x-1/2 text-lg font-bold text-gray-900">
               {typeof selectedSupplierId === "number"
-                ? suppliers.find((s) => s.id === selectedSupplierId)?.name ||
-                  "Поставщик"
-                : "Поставщики и продукты"}
+                ? suppliers.find((s) => s.id === selectedSupplierId)?.name || "Поставщик"
+                : selectedSupplierId === "unsorted"
+                ? "Нераспределенные"
+                : "Каталог"}
             </h1>
 
             <button
               onClick={handleSync}
               disabled={syncing}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-[0.98] ${
-                syncing
-                  ? "bg-purple-100 text-purple-600"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                syncing ? "bg-purple-100 text-purple-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
               title="Синхронизировать с Poster"
             >
-              <svg
-                className={`w-5 h-5 ${syncing ? "animate-spin" : ""}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
+              <svg className={`w-5 h-5 ${syncing ? "animate-spin" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
             </button>
           </div>
-
-          {/* Segmented Control (Only show if not in detail view) */}
-          {typeof selectedSupplierId !== "number" && (
-            <div className="flex gap-2 bg-gray-100/80 p-1 rounded-xl">
-              <button
-                onClick={() => setSelectedSupplierId("suppliers")}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all active:scale-[0.98] ${
-                  selectedSupplierId === "suppliers"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Поставщики
-              </button>
-
-              <button
-                onClick={() => setSelectedSupplierId("unsorted")}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 active:scale-[0.98] ${
-                  selectedSupplierId === "unsorted"
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                Нераспределенные
-                {unassignedCount > 0 && (
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      selectedSupplierId === "unsorted"
-                        ? "bg-purple-100 text-purple-700"
-                        : "bg-gray-200 text-gray-500"
-                    }`}
-                  >
-                    {unassignedCount}
-                  </span>
-                )}
-              </button>
-            </div>
-          )}
         </div>
       </header>
 
-      <main className="max-w-2xl mx-auto pt-2">
+      <main className="max-w-2xl mx-auto pt-4 px-4 md:px-0">
         {selectedSupplierId === "suppliers" && (
-          <SuppliersTab
-            suppliers={suppliers}
-            setSuppliers={setSuppliers}
-            loading={loading}
-            onReload={loadData}
-            onSelectSupplier={(id) => setSelectedSupplierId(id)}
-          />
+          <>
+            {/* Global Search Bar */}
+            <div className="mb-4">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Поиск товаров (например: Молоко)..."
+                  value={globalSearchQuery}
+                  onChange={(e) => setGlobalSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 bg-white border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500 rounded-xl text-sm transition-all outline-none shadow-sm"
+                />
+                {globalSearchQuery && (
+                  <button
+                    onClick={() => setGlobalSearchQuery("")}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {isGlobalSearching ? (
+              <div className="-mx-4 md:mx-0">
+                <GenericProductListTab
+                  products={searchedProducts}
+                  suppliers={suppliers}
+                  onReload={loadData}
+                  title="Результаты поиска"
+                  hideSearch={true}
+                  relatedIdsMap={globalRelatedIdsMap}
+                />
+              </div>
+            ) : (
+              <>
+                {/* Unsorted Action Card - Acts as Inbox */}
+                {unassignedCount > 0 && (
+                  <div 
+                    onClick={() => setSelectedSupplierId("unsorted")}
+                    className="mb-6 bg-red-50 hover:bg-red-100 border border-red-100 rounded-2xl p-4 cursor-pointer transition-colors flex items-center justify-between shadow-sm"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <span className="text-xl">⚠️</span>
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-red-900">Требуют внимания</h3>
+                        <p className="text-sm text-red-700 mt-0.5">
+                          {unassignedCount} {unassignedCount % 10 === 1 && unassignedCount % 100 !== 11 ? "товар без поставщика" : [2,3,4].includes(unassignedCount % 10) && ![12,13,14].includes(unassignedCount % 100) ? "товара без поставщика" : "товаров без поставщика"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-full p-2 shadow-sm text-red-600">
+                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                       </svg>
+                    </div>
+                  </div>
+                )}
+
+                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3 ml-2">Все поставщики</h2>
+                <div className="-mx-4 md:mx-0">
+                  <SuppliersTab
+                    suppliers={suppliers}
+                    setSuppliers={setSuppliers}
+                    loading={loading}
+                    onReload={loadData}
+                    onSelectSupplier={(id) => setSelectedSupplierId(id)}
+                  />
+                </div>
+              </>
+            )}
+          </>
         )}
 
         {selectedSupplierId === "unsorted" && (
-          <GenericProductListTab
-            products={unassignedProducts}
-            suppliers={suppliers}
-            onReload={loadData}
-            title="Нераспределенные товары"
-            relatedIdsMap={relatedIdsMap}
-          />
+          <div className="-mx-4 md:mx-0">
+            <GenericProductListTab
+              products={unassignedProducts}
+              suppliers={suppliers}
+              onReload={loadData}
+              title="Нераспределенные товары"
+              relatedIdsMap={relatedIdsMap}
+            />
+          </div>
         )}
 
         {typeof selectedSupplierId === "number" && (
-          <GenericProductListTab
-            products={supplierProducts}
-            suppliers={suppliers}
-            onReload={loadData}
-            title={`Товары: ${suppliers.find((s) => s.id === selectedSupplierId)?.name}`}
-          />
+          <div className="-mx-4 md:mx-0">
+            <GenericProductListTab
+              products={supplierProducts}
+              suppliers={suppliers}
+              onReload={loadData}
+              title={`Товары: ${suppliers.find((s) => s.id === selectedSupplierId)?.name}`}
+            />
+          </div>
         )}
       </main>
     </div>

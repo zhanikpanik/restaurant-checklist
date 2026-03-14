@@ -11,6 +11,7 @@ export function GenericProductListTab({
   title,
   showSupplierSelect = true,
   relatedIdsMap,
+  hideSearch = false,
 }: {
   products: Product[];
   suppliers: any[];
@@ -18,6 +19,7 @@ export function GenericProductListTab({
   title: string;
   showSupplierSelect?: boolean;
   relatedIdsMap?: Record<number, number[]>;
+  hideSearch?: boolean;
 }) {
   const toast = useToast();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -26,14 +28,14 @@ export function GenericProductListTab({
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredProducts = useMemo(() => {
-    if (!searchQuery) return products;
+    if (hideSearch || !searchQuery) return products;
     const lowerQuery = searchQuery.toLowerCase();
     return products.filter(p => 
       p.name.toLowerCase().includes(lowerQuery) || 
       (p.section_name && p.section_name.toLowerCase().includes(lowerQuery)) ||
       (p.category_name && p.category_name.toLowerCase().includes(lowerQuery))
     );
-  }, [products, searchQuery]);
+  }, [products, searchQuery, hideSearch]);
 
   const handleSelectAll = () => {
     const filteredIds = filteredProducts.map(p => p.id);
@@ -107,30 +109,32 @@ export function GenericProductListTab({
       {/* Top Toolbar: Search & Select All */}
       <div className="bg-white px-4 py-4 border-b border-gray-100 flex flex-col gap-4">
         {/* Search Bar */}
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <input
-            type="text"
-            placeholder="Поиск товаров..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-3 bg-gray-50 border-transparent focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500 rounded-xl text-sm transition-all outline-none"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        {!hideSearch && (
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-            </button>
-          )}
-        </div>
+            </div>
+            <input
+              type="text"
+              placeholder="Поиск товаров..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-10 py-3 bg-gray-50 border-transparent focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500 rounded-xl text-sm transition-all outline-none"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Select All */}
         <label className="flex items-center gap-3 cursor-pointer w-max">
