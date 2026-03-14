@@ -41,7 +41,7 @@ const Card = forwardRef<HTMLDivElement, CardProps>(
     };
 
     const hoverStyles = hoverable
-      ? "cursor-pointer hover:shadow-md hover:ring-purple-500/20 active:scale-[0.98] transition-all duration-200"
+      ? "cursor-pointer hover:shadow-md hover:ring-brand-500/20 active:scale-[0.98] transition-all duration-200"
       : "";
 
     return (

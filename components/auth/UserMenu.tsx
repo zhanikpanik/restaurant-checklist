@@ -36,8 +36,8 @@ export function UserMenu({ showRestaurant = true }: UserMenuProps) {
   };
 
   const roleColors: Record<string, string> = {
-    admin: "bg-purple-100 text-purple-800",
-    manager: "bg-blue-100 text-blue-800",
+    admin: "bg-brand-100 text-brand-800",
+    manager: "bg-brand-100 text-brand-800",
     staff: "bg-green-100 text-green-800",
     delivery: "bg-orange-100 text-orange-800",
   };

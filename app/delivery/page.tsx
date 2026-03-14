@@ -339,7 +339,7 @@ const getStatusBadge = (status: string) => {
                           case "delivered":
                             return { bg: "bg-green-100 text-green-800", label: "Доставлено" };
                           case "sent":
-                            return { bg: "bg-blue-100 text-blue-800", label: "Отправлен" };
+                            return { bg: "bg-brand-100 text-brand-800", label: "Отправлен" };
                           default:
                             return { bg: "bg-yellow-100 text-yellow-800", label: "Ожидает" };
                         }
@@ -383,7 +383,7 @@ const getStatusBadge = (status: string) => {
                           handleMarkAsSent(order);
                         }}
                         disabled={updating === order.id}
-                        className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
+                        className="w-full mt-3 bg-brand-500 hover:bg-brand-600 text-white py-2 rounded-lg font-medium transition-colors disabled:opacity-50"
                       >
                         {updating === order.id ? (
                           <span className="inline-flex items-center gap-2">

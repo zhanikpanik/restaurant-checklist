@@ -2,12 +2,12 @@ import Link from "next/link";
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 p-8">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
         <div className="mb-6">
           <Link
             href="/"
-            className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+            className="text-brand-500 hover:text-brand-800 flex items-center gap-2"
           >
             ← Back to Home
           </Link>
@@ -161,14 +161,14 @@ export default function PrivacyPolicyPage() {
             </div>
           </section>
 
-          <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm text-blue-800">
+          <div className="mt-8 p-4 bg-brand-50 border border-brand-200 rounded-lg">
+            <p className="text-sm text-brand-800">
               <strong>Note:</strong> This application is integrated with Poster POS. Please also review the{" "}
               <a
                 href="https://joinposter.com/privacy"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:text-blue-900"
+                className="underline hover:text-brand-900"
               >
                 Poster Privacy Policy
               </a>

@@ -41,7 +41,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_BADGE_PROPS: Record<string, { variant: "default" | "success" | "warning" | "danger" | "info", className?: string }> = {
-  admin: { variant: "default", className: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300" },
+  admin: { variant: "default", className: "bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-purple-300" },
   manager: { variant: "info" },
   staff: { variant: "default" },
   delivery: { variant: "success" },
@@ -285,7 +285,7 @@ export default function AdminUsersPage() {
   if (status === "loading" || loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
       </div>
     );
   }
@@ -377,7 +377,7 @@ export default function AdminUsersPage() {
                     user.assigned_sections.map((section) => (
                       <span
                         key={section.id}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300 rounded text-xs"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-100 text-brand-800 dark:bg-brand-900 dark:text-blue-300 rounded text-xs"
                       >
                         {section.emoji} {section.name}
                       </span>
@@ -497,7 +497,7 @@ export default function AdminUsersPage() {
               name="role"
               value={formData.role}
               onChange={handleInputChange}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
               <option value="staff">Персонал</option>
               <option value="manager">Менеджер</option>
@@ -549,7 +549,7 @@ export default function AdminUsersPage() {
               name="role"
               value={formData.role}
               onChange={handleInputChange}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
             >
               <option value="staff">Персонал</option>
               <option value="manager">Менеджер</option>
@@ -604,7 +604,7 @@ export default function AdminUsersPage() {
                   key={section.id}
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                     selectedSectionIds.includes(section.id)
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                      ? "border-brand-500 bg-brand-50 dark:bg-brand-900/20"
                       : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800"
                   }`}
                 >
@@ -612,7 +612,7 @@ export default function AdminUsersPage() {
                     type="checkbox"
                     checked={selectedSectionIds.includes(section.id)}
                     onChange={() => toggleSection(section.id)}
-                    className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                    className="w-4 h-4 text-brand-500 rounded border-gray-300 focus:ring-brand-500"
                   />
                   <span className="text-xl">{section.emoji}</span>
                   <span className="font-medium text-gray-900 dark:text-white">

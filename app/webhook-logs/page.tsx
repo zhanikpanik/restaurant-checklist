@@ -47,7 +47,7 @@ export default function WebhookLogsPage() {
   if (status === "loading" || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full" />
+        <div className="animate-spin h-8 w-8 border-b-2 border-brand-500 rounded-full" />
       </div>
     );
   }
@@ -72,7 +72,7 @@ export default function WebhookLogsPage() {
             <div className="ml-auto flex items-center gap-2">
               <button
                 onClick={loadLogs}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="px-4 py-2 bg-brand-500 text-white rounded-lg hover:bg-brand-600"
               >
                 🔄 Refresh
               </button>
@@ -89,9 +89,9 @@ export default function WebhookLogsPage() {
             <p className="text-gray-500 mb-6">
               Create, update, or delete an ingredient in Poster to test webhooks
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-2xl mx-auto text-left">
-              <h4 className="font-semibold text-blue-900 mb-2">How to test webhooks:</h4>
-              <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+            <div className="bg-brand-50 border border-brand-200 rounded-lg p-4 max-w-2xl mx-auto text-left">
+              <h4 className="font-semibold text-brand-900 mb-2">How to test webhooks:</h4>
+              <ol className="text-sm text-brand-800 space-y-1 list-decimal list-inside">
                 <li>Go to your Poster account</li>
                 <li>Navigate to Storage → Ingredients</li>
                 <li>Add, edit, or delete an ingredient</li>
@@ -123,7 +123,7 @@ export default function WebhookLogsPage() {
                       </h3>
                       <span className={`px-2 py-1 rounded text-xs font-medium ${
                         log.action === "added" ? "bg-green-100 text-green-800" :
-                        log.action === "changed" ? "bg-blue-100 text-blue-800" :
+                        log.action === "changed" ? "bg-brand-100 text-brand-800" :
                         "bg-red-100 text-red-800"
                       }`}>
                         {log.action}
@@ -145,7 +145,7 @@ export default function WebhookLogsPage() {
                 </div>
 
                 <details className="mt-4">
-                  <summary className="cursor-pointer text-sm text-blue-600 hover:text-blue-800">
+                  <summary className="cursor-pointer text-sm text-brand-500 hover:text-brand-800">
                     View raw payload
                   </summary>
                   <pre className="mt-2 p-4 bg-gray-50 rounded text-xs overflow-x-auto">

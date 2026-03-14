@@ -223,7 +223,7 @@ export default function SuppliersCategoriesPage() {
   if (status === "loading" || !isAuthorized) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full" />
+        <div className="animate-spin h-8 w-8 border-b-2 border-brand-500 rounded-full" />
       </div>
     );
   }
@@ -263,7 +263,7 @@ export default function SuppliersCategoriesPage() {
               onClick={handleSync}
               disabled={syncing}
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-[0.98] ${
-                syncing ? "bg-purple-100 text-purple-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                syncing ? "bg-brand-100 text-brand-500" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
               }`}
               title="Синхронизировать с Poster"
             >
@@ -291,7 +291,7 @@ export default function SuppliersCategoriesPage() {
                   placeholder="Поиск товаров (например: Молоко)..."
                   value={globalSearchQuery}
                   onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-10 py-3 bg-white border border-gray-200 focus:border-purple-500 focus:ring-2 focus:ring-purple-500 rounded-xl text-sm transition-all outline-none shadow-sm"
+                  className="w-full pl-10 pr-10 py-3 bg-white border border-gray-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-500 rounded-xl text-sm transition-all outline-none shadow-sm"
                 />
                 {globalSearchQuery && (
                   <button
@@ -339,15 +339,13 @@ export default function SuppliersCategoriesPage() {
                   </button>
                 )}
 
-                <div className="-mx-4 md:mx-0">
-                  <SuppliersTab
-                    suppliers={suppliers}
-                    setSuppliers={setSuppliers}
-                    loading={loading}
-                    onReload={loadData}
-                    onSelectSupplier={(id) => setSelectedSupplierId(id)}
-                  />
-                </div>
+                <SuppliersTab
+                  suppliers={suppliers}
+                  setSuppliers={setSuppliers}
+                  loading={loading}
+                  onReload={loadData}
+                  onSelectSupplier={(id) => setSelectedSupplierId(id)}
+                />
               </>
             )}
           </>

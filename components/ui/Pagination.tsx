@@ -85,7 +85,7 @@ export function Pagination({
             <select
               value={pageSize}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-2 py-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
               {pageSizeOptions.map((size) => (
                 <option key={size} value={size}>
@@ -128,7 +128,7 @@ export function Pagination({
                     onClick={() => onGoToPage(page)}
                     className={`w-8 h-8 rounded text-sm font-medium transition-colors ${
                       page === currentPage
-                        ? "bg-blue-500 text-white"
+                        ? "bg-brand-500 text-white"
                         : "hover:bg-gray-100 text-gray-700"
                     }`}
                   >

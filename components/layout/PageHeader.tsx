@@ -27,7 +27,7 @@ export function PageHeader({
   const finalBackHref = backUrl || backHref || "/";
   
   const bgClass = variant === "purple" 
-    ? "bg-purple-600 text-white border-b-0" 
+    ? "bg-brand-500 text-white border-b-0" 
     : "bg-white text-gray-900 border-b border-gray-200";
   
   const textClass = variant === "purple" ? "text-white" : "text-gray-900";

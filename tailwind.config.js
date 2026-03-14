@@ -9,6 +9,19 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        brand: {
+          50: '#fff3eb',
+          100: '#ffe4d1',
+          200: '#ffcba3',
+          300: '#ffab6b',
+          400: '#ff842e',
+          500: '#ff6d01', // Primary FF6D01
+          600: '#eb5900',
+          700: '#c24200',
+          800: '#993400',
+          900: '#7a2d05',
+          950: '#421400',
+        },
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

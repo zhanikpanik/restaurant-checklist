@@ -32,7 +32,7 @@ interface LoadingStateProps {
 export function LoadingState({ message = "Загрузка..." }: LoadingStateProps) {
   return (
     <div className="p-12 text-center">
-      <div className="animate-spin h-10 w-10 border-b-2 border-blue-500 rounded-full mx-auto mb-4" />
+      <div className="animate-spin h-10 w-10 border-b-2 border-brand-500 rounded-full mx-auto mb-4" />
       <p className="text-gray-500">{message}</p>
     </div>
   );
@@ -57,7 +57,7 @@ export function ErrorState({
       {onRetry && (
         <button
           onClick={onRetry}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
+          className="bg-brand-500 hover:bg-brand-500 text-white px-6 py-2 rounded-lg"
         >
           Попробовать снова
         </button>

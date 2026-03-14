@@ -57,7 +57,7 @@ export function SuppliersTab({
                   {supplier.name}
                 </h3>
                 {supplier.poster_supplier_id && (
-                  <span className="flex-shrink-0 text-[10px] bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                  <span className="flex-shrink-0 text-[10px] bg-brand-50 text-brand-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
                     Poster
                   </span>
                 )}

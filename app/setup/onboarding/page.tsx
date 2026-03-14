@@ -48,7 +48,7 @@ function OnboardingContent() {
     <div className="max-w-md w-full bg-white rounded-3xl shadow-xl flex flex-col p-8 text-center">
       {syncing ? (
         <>
-          <div className="animate-spin h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-6" />
+          <div className="animate-spin h-12 w-12 border-4 border-brand-500 border-t-transparent rounded-full mx-auto mb-6" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Настраиваем ваш аккаунт...</h1>
           <p className="text-gray-500 mb-8">
             Загружаем отделы и ингредиенты из Poster. Это может занять несколько секунд.
@@ -63,7 +63,7 @@ function OnboardingContent() {
           </p>
           <Button 
             onClick={() => router.push("/login?registered=true")} 
-            className="w-full py-4 text-lg shadow-lg shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 text-white" 
+            className="w-full py-4 text-lg shadow-lg shadow-brand-500/20 bg-brand-500 hover:bg-brand-600 text-white" 
           >
             Всё равно войти
           </Button>
@@ -77,7 +77,7 @@ function OnboardingContent() {
           </p>
           <Button 
             onClick={() => router.push("/login?registered=true")} 
-            className="w-full py-4 text-lg shadow-lg shadow-blue-600/20 bg-blue-600 hover:bg-blue-700 text-white" 
+            className="w-full py-4 text-lg shadow-lg shadow-brand-500/20 bg-brand-500 hover:bg-brand-600 text-white" 
           >
             Войти в систему
           </Button>
@@ -89,7 +89,7 @@ function OnboardingContent() {
 
 export default function OnboardingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 flex items-center justify-center p-4">
       <Suspense fallback={<div>Загрузка...</div>}>
         <OnboardingContent />
       </Suspense>

@@ -302,10 +302,10 @@ export function StaffManagementModal({
               className="relative flex flex-col items-center p-4 bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl cursor-pointer hover:bg-gray-100 hover:border-blue-300 transition-all group"
             >
               <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mb-2">Registration Link</span>
-              <code className="text-blue-600 font-mono text-sm break-all text-center mb-3 px-2">
+              <code className="text-brand-500 font-mono text-sm break-all text-center mb-3 px-2">
                 {invitationUrl}
               </code>
-              <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${copied ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'}`}>
+              <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold transition-all ${copied ? 'bg-green-500 text-white' : 'bg-brand-500 text-white'}`}>
                 {copied ? (
                   <><span>✓</span> Copied to Clipboard</>
                 ) : (
@@ -378,15 +378,15 @@ export function StaffManagementModal({
             
             {loading ? (
               <div className="text-center py-8">
-                <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto" />
+                <div className="animate-spin h-6 w-6 border-2 border-brand-500 border-t-transparent rounded-full mx-auto" />
               </div>
             ) : assignedUsers.length > 0 ? (
               <div className="space-y-2">
                 {assignedUsers.map((user) => (
-                  <div key={user.id} className="relative group border border-gray-200 rounded-lg p-3 hover:border-blue-200 transition-colors bg-white">
+                  <div key={user.id} className="relative group border border-gray-200 rounded-lg p-3 hover:border-brand-200 transition-colors bg-white">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
+                        <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 font-bold text-xs">
                           {user.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -445,7 +445,7 @@ export function StaffManagementModal({
                           type="button"
                           onClick={() => handleTogglePermission(user.id, "can_send_orders", user.can_send_orders || false)}
                           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                            user.can_send_orders ? "bg-blue-600" : "bg-gray-300"
+                            user.can_send_orders ? "bg-brand-500" : "bg-gray-300"
                           }`}
                         >
                           <span
@@ -502,7 +502,7 @@ export function StaffManagementModal({
                     <button
                       onClick={() => handleAssignExistingDirectly(u.id)}
                       disabled={submitting}
-                      className="px-3 py-1.5 bg-white border border-gray-300 hover:border-blue-500 hover:text-blue-600 text-gray-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 shadow-sm disabled:opacity-50"
+                      className="px-3 py-1.5 bg-white border border-gray-300 hover:border-brand-500 hover:text-brand-500 text-gray-700 text-xs font-medium rounded-lg transition-colors flex items-center gap-1 shadow-sm disabled:opacity-50"
                     >
                       <span>+ Add</span>
                     </button>

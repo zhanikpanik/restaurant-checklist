@@ -138,7 +138,7 @@ function LoginLoading() {
     <div className="w-full max-w-md">
       <div className="bg-white rounded-xl shadow-lg p-8">
         <div className="text-center">
-          <div className="animate-spin h-8 w-8 border-b-2 border-blue-500 rounded-full mx-auto" />
+          <div className="animate-spin h-8 w-8 border-b-2 border-brand-500 rounded-full mx-auto" />
         </div>
       </div>
     </div>
@@ -147,7 +147,7 @@ function LoginLoading() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 flex items-center justify-center p-4">
       <Suspense fallback={<LoginLoading />}>
         <LoginForm />
       </Suspense>

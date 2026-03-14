@@ -64,7 +64,7 @@ export function TabNavigation({
               onClick={() => onTabChange(tab.id)}
               className={`relative flex-shrink-0 py-2 px-4 rounded-lg font-medium transition-colors ${
                 activeTab === tab.id
-                  ? "bg-blue-500 text-white"
+                  ? "bg-brand-500 text-white"
                   : "text-gray-600 hover:bg-gray-100"
               }`}
             >
@@ -104,7 +104,7 @@ export function TabNavigation({
               onClick={() => onTabChange(tab.id)}
               className={`relative flex-shrink-0 py-2.5 px-4 rounded-full font-medium text-sm transition-all ${
                 activeTab === tab.id
-                  ? "bg-blue-500 text-white shadow-md"
+                  ? "bg-brand-500 text-white shadow-md"
                   : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
               }`}
             >

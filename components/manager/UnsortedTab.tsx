@@ -121,7 +121,7 @@ export function GenericProductListTab({
               placeholder="Поиск товаров..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-10 py-3 bg-gray-50 border-transparent focus:bg-white focus:border-purple-500 focus:ring-2 focus:ring-purple-500 rounded-xl text-sm transition-all outline-none"
+              className="w-full pl-10 pr-10 py-3 bg-gray-50 border-transparent focus:bg-white focus:border-brand-500 focus:ring-2 focus:ring-brand-500 rounded-xl text-sm transition-all outline-none"
             />
             {searchQuery && (
               <button
@@ -143,7 +143,7 @@ export function GenericProductListTab({
               type="checkbox"
               checked={allFilteredSelected}
               onChange={handleSelectAll}
-              className="peer appearance-none w-6 h-6 border-2 border-gray-300 rounded-md checked:bg-purple-600 checked:border-purple-600 transition-all cursor-pointer"
+              className="peer appearance-none w-6 h-6 border-2 border-gray-300 rounded-md checked:bg-brand-500 checked:border-brand-500 transition-all cursor-pointer"
             />
             <svg 
               className={`absolute w-4 h-4 text-white pointer-events-none transition-opacity ${someFilteredSelected ? 'opacity-100' : 'opacity-0'}`} 
@@ -175,7 +175,7 @@ export function GenericProductListTab({
                 key={p.id} 
                 onClick={() => toggleSelection(p.id)}
                 className={`flex items-center gap-4 px-4 py-4 cursor-pointer transition-all active:scale-[0.98] ${
-                  selectedIds.includes(p.id) ? "bg-purple-50/50" : "hover:bg-gray-50"
+                  selectedIds.includes(p.id) ? "bg-brand-50/50" : "hover:bg-gray-50"
                 }`}
               >
                 <div className="relative flex items-center justify-center w-6 h-6 flex-shrink-0">
@@ -183,7 +183,7 @@ export function GenericProductListTab({
                     type="checkbox"
                     checked={selectedIds.includes(p.id)}
                     onChange={() => {}} 
-                    className="peer appearance-none w-6 h-6 border-2 border-gray-300 rounded-md checked:bg-purple-600 checked:border-purple-600 transition-all cursor-pointer"
+                    className="peer appearance-none w-6 h-6 border-2 border-gray-300 rounded-md checked:bg-brand-500 checked:border-brand-500 transition-all cursor-pointer"
                   />
                   <svg 
                     className="absolute w-4 h-4 text-white pointer-events-none peer-checked:block hidden" 
@@ -194,7 +194,7 @@ export function GenericProductListTab({
                 </div>
                 
                 <div className="min-w-0 flex-1">
-                  <div className={`font-medium truncate ${selectedIds.includes(p.id) ? 'text-purple-900' : 'text-gray-900'}`}>
+                  <div className={`font-medium truncate ${selectedIds.includes(p.id) ? 'text-brand-900' : 'text-gray-900'}`}>
                     {p.name}
                   </div>
                   <div className="flex gap-2 text-xs text-gray-500 mt-0.5">
@@ -213,7 +213,7 @@ export function GenericProductListTab({
         <div className="fixed bottom-6 left-0 right-0 z-20 flex justify-center pointer-events-none md:pl-64">
           <button
             onClick={() => setIsSheetOpen(true)}
-            className="pointer-events-auto bg-purple-600 hover:bg-purple-700 text-white px-6 py-4 rounded-full font-bold shadow-lg shadow-purple-600/30 flex items-center gap-3 active:scale-95 transition-all"
+            className="pointer-events-auto bg-brand-500 hover:bg-brand-600 text-white px-6 py-4 rounded-full font-bold shadow-lg shadow-brand-500/30 flex items-center gap-3 active:scale-95 transition-all"
           >
             <span>Назначить поставщика</span>
             <span className="bg-white/20 px-2 py-0.5 rounded-full text-sm">
@@ -232,7 +232,7 @@ export function GenericProductListTab({
         <div className="pb-4">
           {submitting ? (
             <div className="py-12 flex flex-col items-center justify-center">
-              <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin mb-4" />
+              <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-500 rounded-full animate-spin mb-4" />
               <p className="text-gray-500 font-medium">Перемещение товаров...</p>
             </div>
           ) : (
@@ -241,9 +241,9 @@ export function GenericProductListTab({
                 <button
                   key={s.id}
                   onClick={() => handleAssign(s.id)}
-                  className="w-full text-left px-4 py-4 rounded-xl border border-gray-100 hover:border-purple-200 hover:bg-purple-50 transition-all active:scale-[0.98] group"
+                  className="w-full text-left px-4 py-4 rounded-xl border border-gray-100 hover:border-brand-200 hover:bg-brand-50 transition-all active:scale-[0.98] group"
                 >
-                  <div className="font-medium text-gray-900 group-hover:text-purple-900">
+                  <div className="font-medium text-gray-900 group-hover:text-brand-900">
                     {s.name}
                   </div>
                   {(s.phone || s.contact_info) && (

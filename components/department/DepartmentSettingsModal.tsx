@@ -97,7 +97,7 @@ export function DepartmentSettingsModal({
                 onClick={() => setEmoji(emojiOption)}
                 className={`text-2xl p-2 rounded-lg border-2 transition-colors ${
                   emoji === emojiOption
-                    ? "border-blue-500 bg-blue-50"
+                    ? "border-brand-500 bg-brand-50"
                     : "border-gray-200 hover:border-gray-300"
                 }`}
               >

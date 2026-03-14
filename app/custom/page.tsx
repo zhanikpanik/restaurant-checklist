@@ -140,7 +140,7 @@ function CustomPageContent() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "pending": return "bg-yellow-100 text-yellow-800";
-      case "sent": return "bg-blue-100 text-blue-800";
+      case "sent": return "bg-brand-100 text-brand-800";
       case "delivered": return "bg-green-100 text-green-800";
       case "cancelled": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-800";
@@ -443,7 +443,7 @@ function CustomPageContent() {
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
       </div>
     );
   }
@@ -473,7 +473,7 @@ function CustomPageContent() {
           {canManage ? (
             <Link
               href="/suppliers-categories"
-              className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-medium px-6 py-3 rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-medium px-6 py-3 rounded-lg transition-colors"
             >
               <span className="text-lg">+</span>
               Создать поставщика
@@ -508,7 +508,7 @@ function CustomPageContent() {
           href="/orders"
           className="block max-w-md mx-auto px-4 pt-4 pb-3"
         >
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-3 hover:shadow-md transition-all">
+          <div className="bg-gradient-to-r from-brand-50 to-brand-50 border border-brand-200 rounded-xl p-3 hover:shadow-md transition-all">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <img src="/icons/box.svg" alt="Order" className="w-5 h-5 opacity-70" />
@@ -544,7 +544,7 @@ function CustomPageContent() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
+              className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-base"
               placeholder="Поиск товаров..."
               autoComplete="off"
             />
@@ -578,7 +578,7 @@ function CustomPageContent() {
             {canManage && (
               <button
                 onClick={() => router.push('/suppliers-categories')}
-                className="inline-flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-purple-600/20 transition-all active:scale-[0.98]"
+                className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-brand-500/20 transition-all active:scale-[0.98]"
               >
                 🔄 Синхронизировать
               </button>
@@ -616,7 +616,7 @@ function CustomPageContent() {
                     {!hasQuantity ? (
                       <button
                         onClick={() => handleIncreaseQuantity(product)}
-                        className="ml-3 w-10 h-10 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors shadow-sm"
+                        className="ml-3 w-10 h-10 flex items-center justify-center bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-colors shadow-sm"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -645,7 +645,7 @@ function CustomPageContent() {
         <div className="fixed bottom-4 right-4 z-50">
           <Link
             href="/cart"
-            className="flex items-center gap-3 px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white rounded-xl shadow-xl transition-all hover:shadow-2xl hover:scale-105"
+            className="flex items-center gap-3 px-6 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-xl transition-all hover:shadow-2xl hover:scale-105"
           >
             <div className="flex items-center gap-2">
               <div className="flex flex-col items-start">
@@ -758,8 +758,8 @@ function Header({
                     onClick={onManageStaff}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 ${
                       staffCount > 0
-                        ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                        : "border border-gray-300 text-gray-500 hover:border-blue-400 hover:text-blue-600"
+                        ? "bg-brand-100 text-brand-600 hover:bg-brand-200"
+                        : "border border-gray-300 text-gray-500 hover:border-blue-400 hover:text-brand-500"
                     }`}
                   >
                     {staffCount > 0 ? (
@@ -818,7 +818,7 @@ function SupplierTabs({
                 onClick={() => onSelect(supplier.id)}
                 className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
                   selectedId === supplier.id
-                    ? "bg-purple-600 text-white shadow-sm"
+                    ? "bg-brand-500 text-white shadow-sm"
                     : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
                 }`}
               >
@@ -827,7 +827,7 @@ function SupplierTabs({
                   <span
                     className={`text-xs px-1.5 py-0.5 rounded-full ${
                       selectedId === supplier.id
-                        ? "bg-purple-500"
+                        ? "bg-brand-500"
                         : "bg-gray-100"
                     }`}
                   >
@@ -907,7 +907,7 @@ export default function CustomPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-white flex items-center justify-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500" />
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
         </div>
       }
     >

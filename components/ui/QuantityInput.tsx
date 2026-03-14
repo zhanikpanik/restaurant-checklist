@@ -92,13 +92,13 @@ export function QuantityInput({
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
             onKeyDown={handleKeyDown}
-            className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
             aria-label={`Количество ${productName}`}
           />
         </div>
         <button
           onClick={handleIncrease}
-          className="w-9 h-9 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-lg"
+          className="w-9 h-9 flex items-center justify-center bg-brand-500 hover:bg-brand-600 text-white rounded-lg transition-colors text-lg"
           aria-label="Увеличить"
         >
           +
@@ -138,13 +138,13 @@ export function QuantityInput({
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}
           onKeyDown={handleKeyDown}
-          className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-sm font-medium focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          className="w-16 text-center border border-gray-300 rounded-lg px-2 py-2 text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
           aria-label={`Количество ${productName}`}
         />
       </div>
       <button
         onClick={handleIncrease}
-        className="w-10 h-10 flex items-center justify-center bg-purple-600 hover:bg-purple-700 text-white rounded-xl transition-colors shadow-sm"
+        className="w-10 h-10 flex items-center justify-center bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-colors shadow-sm"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

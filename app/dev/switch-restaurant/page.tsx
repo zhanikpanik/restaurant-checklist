@@ -72,7 +72,7 @@ export default function DevSwitchRestaurantPage() {
           <div className="text-center">
             <a
               href="/"
-              className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+              className="inline-block bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-lg transition-colors"
             >
               ← Back to Home
             </a>
@@ -84,7 +84,7 @@ export default function DevSwitchRestaurantPage() {
 
   // Development mode - show restaurant switcher
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-brand-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
         <div className="text-6xl text-center mb-4">🔧</div>
 
@@ -96,8 +96,8 @@ export default function DevSwitchRestaurantPage() {
         </p>
 
         {currentRestaurantId && (
-          <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
-            <p className="text-sm text-purple-800 text-center">
+          <div className="mb-4 p-3 bg-brand-50 border border-brand-200 rounded-lg">
+            <p className="text-sm text-brand-800 text-center">
               Current: <strong>{currentRestaurantId}</strong>
             </p>
           </div>
@@ -105,7 +105,7 @@ export default function DevSwitchRestaurantPage() {
 
         {loading ? (
           <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-500 mx-auto" />
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500 mx-auto" />
           </div>
         ) : restaurants.length === 0 ? (
           <div className="text-center py-8">
@@ -119,8 +119,8 @@ export default function DevSwitchRestaurantPage() {
                 onClick={() => selectRestaurant(restaurant.id)}
                 className={`w-full p-4 border-2 rounded-lg transition-all text-left ${
                   restaurant.id === currentRestaurantId
-                    ? 'bg-purple-50 border-purple-500'
-                    : 'bg-gray-50 hover:bg-blue-50 border-gray-200 hover:border-blue-500'
+                    ? 'bg-brand-50 border-brand-500'
+                    : 'bg-gray-50 hover:bg-brand-50 border-gray-200 hover:border-brand-500'
                 }`}
               >
                 <div className="flex items-center gap-3">
@@ -134,7 +134,7 @@ export default function DevSwitchRestaurantPage() {
                     </div>
                   </div>
                   {restaurant.id === currentRestaurantId && (
-                    <span className="ml-auto text-purple-600 text-sm font-medium">
+                    <span className="ml-auto text-brand-500 text-sm font-medium">
                       ✓ Active
                     </span>
                   )}

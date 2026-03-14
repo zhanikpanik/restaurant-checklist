@@ -204,7 +204,7 @@ export default function CartPage() {
             </p>
             <Link
               href="/"
-              className="inline-flex bg-purple-600 hover:bg-purple-700 text-white px-8 py-3.5 rounded-xl font-medium shadow-lg shadow-purple-600/30 transition-all active:scale-[0.98]"
+              className="inline-flex bg-brand-500 hover:bg-brand-600 text-white px-8 py-3.5 rounded-xl font-medium shadow-lg shadow-brand-500/30 transition-all active:scale-[0.98]"
             >
               Перейти к выбору товаров
             </Link>
@@ -310,7 +310,7 @@ export default function CartPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Добавьте комментарий к заказу..."
-                className="w-full bg-white shadow-sm ring-1 ring-gray-900/5 rounded-2xl px-4 py-4 resize-none focus:ring-2 focus:ring-purple-500 focus:outline-none transition-shadow"
+                className="w-full bg-white shadow-sm ring-1 ring-gray-900/5 rounded-2xl px-4 py-4 resize-none focus:ring-2 focus:ring-brand-500 focus:outline-none transition-shadow"
                 rows={3}
               />
             </div>

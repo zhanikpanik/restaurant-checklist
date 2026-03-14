@@ -82,7 +82,7 @@ function SetupContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
         {/* Logo */}
         <div className="text-6xl text-center mb-4">🍽️</div>
@@ -127,12 +127,12 @@ function SetupContent() {
 
         {/* Sync Status */}
         {success === "oauth" && syncing && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-6 p-4 bg-brand-50 border border-brand-200 rounded-lg">
             <div className="flex items-center">
-              <div className="animate-spin h-5 w-5 border-2 border-blue-600 border-t-transparent rounded-full mr-3" />
+              <div className="animate-spin h-5 w-5 border-2 border-brand-500 border-t-transparent rounded-full mr-3" />
               <div>
-                <h3 className="text-sm font-medium text-blue-800">Синхронизация данных...</h3>
-                <p className="text-sm text-blue-600 mt-1">Загружаем отделы и товары из Poster</p>
+                <h3 className="text-sm font-medium text-brand-800">Синхронизация данных...</h3>
+                <p className="text-sm text-brand-500 mt-1">Загружаем отделы и товары из Poster</p>
               </div>
             </div>
           </div>
@@ -184,14 +184,14 @@ function SetupContent() {
 
         {/* Admin Credentials Box - Only shown when admin was created */}
         {adminCreated && adminEmail && tempPassword && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mb-6 p-4 bg-brand-50 border border-brand-200 rounded-lg">
             <div className="flex items-start justify-between mb-3">
-              <h3 className="text-sm font-medium text-blue-800">
+              <h3 className="text-sm font-medium text-brand-800">
                 🔐 Your Admin Account
               </h3>
               <button
                 onClick={copyCredentials}
-                className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                className="text-xs text-brand-500 hover:text-brand-800 font-medium"
               >
                 {copied ? "✓ Copied!" : "Copy"}
               </button>
@@ -230,7 +230,7 @@ function SetupContent() {
               </div>
             </div>
             
-            <p className="mt-3 text-xs text-blue-700">
+            <p className="mt-3 text-xs text-brand-600">
               ⚠️ Save these credentials! This is the only time the password will be shown.
             </p>
           </div>
@@ -241,7 +241,7 @@ function SetupContent() {
           <div className="mb-6">
             <Link
               href="/login"
-              className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+              className="w-full flex items-center justify-center gap-3 bg-brand-500 hover:bg-brand-600 text-white font-medium py-3 px-4 rounded-lg transition-colors"
             >
               <svg
                 width="24"
@@ -265,7 +265,7 @@ function SetupContent() {
           <div className="mb-6">
             <a
               href="/api/poster/oauth/authorize"
-              className="w-full flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+              className="w-full flex items-center justify-center gap-3 bg-brand-500 hover:bg-brand-600 text-white font-medium py-3 px-4 rounded-lg transition-colors"
             >
               <svg
                 width="24"
@@ -317,7 +317,7 @@ function SetupContent() {
                 href="https://joinposter.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 font-medium"
+                className="text-brand-500 hover:text-brand-600 font-medium"
               >
                 Sign up here
               </a>
@@ -343,7 +343,7 @@ function SetupContent() {
 
 function LoginLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
         <div className="text-6xl text-center mb-4">🍽️</div>
         <div className="text-center text-gray-600">Loading...</div>

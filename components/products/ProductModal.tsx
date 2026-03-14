@@ -182,7 +182,7 @@ export function ProductModal({
             onChange={(e) =>
               setFormData({ ...formData, is_active: e.target.checked })
             }
-            className="w-4 h-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500"
+            className="w-4 h-4 text-brand-500 rounded border-gray-300 focus:ring-brand-500"
           />
           <label htmlFor="is_active" className="text-sm text-gray-700">
             Активный товар

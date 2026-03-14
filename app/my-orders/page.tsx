@@ -47,7 +47,7 @@ export default function MyOrdersPage() {
   const getStatusColor = (orderStatus: string) => {
     switch (orderStatus) {
       case "pending": return "bg-yellow-100 text-yellow-800";
-      case "sent": return "bg-blue-100 text-blue-800";
+      case "sent": return "bg-brand-100 text-brand-800";
       case "delivered": return "bg-green-100 text-green-800";
       case "cancelled": return "bg-red-100 text-red-800";
       default: return "bg-gray-100 text-gray-800";
@@ -124,13 +124,13 @@ export default function MyOrdersPage() {
                 onClick={() => setStatusFilter(filterStatus)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
                   statusFilter === filterStatus
-                    ? "bg-blue-100 text-blue-700"
+                    ? "bg-brand-100 text-brand-600"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
               >
                 {filterStatus === "all" ? "Все" : getStatusLabel(filterStatus)}
                 <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                  statusFilter === filterStatus ? "bg-blue-200" : "bg-gray-200"
+                  statusFilter === filterStatus ? "bg-brand-200" : "bg-gray-200"
                 }`}>
                   {statusCounts[filterStatus]}
                 </span>
@@ -144,7 +144,7 @@ export default function MyOrdersPage() {
       <main className="max-w-2xl mx-auto px-4 py-4">
         {loading ? (
           <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-12">
@@ -160,7 +160,7 @@ export default function MyOrdersPage() {
             </p>
             <Link
               href="/"
-              className="inline-block bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium"
+              className="inline-block bg-brand-500 hover:bg-brand-500 text-white px-6 py-2 rounded-lg font-medium"
             >
               Перейти к отделам
             </Link>

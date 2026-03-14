@@ -19,7 +19,7 @@ export default function HelpPage() {
           </h2>
           <ol className="space-y-6 text-gray-700">
             <li className="flex gap-4">
-              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 text-blue-600 text-sm font-bold flex items-center justify-center">
+              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-50 text-brand-500 text-sm font-bold flex items-center justify-center">
                 1
               </span>
               <div className="mt-1">
@@ -28,7 +28,7 @@ export default function HelpPage() {
               </div>
             </li>
             <li className="flex gap-4">
-              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 text-blue-600 text-sm font-bold flex items-center justify-center">
+              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-50 text-brand-500 text-sm font-bold flex items-center justify-center">
                 2
               </span>
               <div className="mt-1">
@@ -37,7 +37,7 @@ export default function HelpPage() {
               </div>
             </li>
             <li className="flex gap-4">
-              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 text-blue-600 text-sm font-bold flex items-center justify-center">
+              <span className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-50 text-brand-500 text-sm font-bold flex items-center justify-center">
                 3
               </span>
               <div className="mt-1">
@@ -117,7 +117,7 @@ export default function HelpPage() {
                   <span className="text-sm pt-0.5">— заказ создан, но не отправлен</span>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="inline-block px-2.5 py-1 bg-blue-100 text-blue-800 rounded-lg text-xs font-bold mt-0.5">
+                  <span className="inline-block px-2.5 py-1 bg-brand-100 text-brand-800 rounded-lg text-xs font-bold mt-0.5">
                     Отправлен
                   </span>
                   <span className="text-sm pt-0.5">— заказ отправлен поставщику</span>

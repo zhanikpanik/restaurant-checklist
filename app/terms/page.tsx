@@ -2,12 +2,12 @@ import Link from "next/link";
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 p-8">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
         <div className="mb-6">
           <Link
             href="/"
-            className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+            className="text-brand-500 hover:text-brand-800 flex items-center gap-2"
           >
             ← Back to Home
           </Link>

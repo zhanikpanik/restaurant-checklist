@@ -119,7 +119,7 @@ export function FormInput({
         placeholder={placeholder}
         required={required}
         autoFocus={autoFocus}
-        className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-shadow"
+        className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-shadow"
       />
     </div>
   );
@@ -152,7 +152,7 @@ export function FormSelect({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white appearance-none"
+        className="w-full px-4 py-3 border border-gray-300 rounded-xl text-base focus:ring-2 focus:ring-brand-500 focus:border-brand-500 bg-white appearance-none"
         style={{
           backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
           backgroundRepeat: "no-repeat",
@@ -194,7 +194,7 @@ export function FormButton({
 }: FormButtonProps) {
   const baseStyles = "w-full py-3.5 rounded-xl font-medium text-base transition-colors flex items-center justify-center gap-2";
   const variants = {
-    primary: "bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-300",
+    primary: "bg-brand-500 hover:bg-brand-600 text-white disabled:bg-gray-300",
     secondary: "bg-gray-100 hover:bg-gray-200 text-gray-700 disabled:bg-gray-100",
   };
 

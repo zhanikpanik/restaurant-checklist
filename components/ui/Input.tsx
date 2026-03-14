@@ -39,7 +39,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
             id={inputId}
             className={cn(
               "block w-full px-4 py-3 border rounded-xl text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-800 transition-all",
-              "focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
+              "focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500",
               "disabled:bg-gray-50 dark:disabled:bg-gray-900 disabled:text-gray-500 disabled:cursor-not-allowed",
               error
                 ? "border-red-500 focus:ring-red-500 focus:border-red-500"
@@ -92,7 +92,7 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           id={inputId}
           className={cn(
             "block w-full px-4 py-3 border rounded-xl text-gray-900 placeholder-gray-500 transition-all",
-            "focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
+            "focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500",
             "disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed",
             "resize-none",
             error
@@ -140,7 +140,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           id={inputId}
           className={cn(
             "block w-full px-4 py-3 border rounded-xl text-gray-900 transition-all bg-white",
-            "focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
+            "focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500",
             "disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed",
             error
               ? "border-red-500 focus:ring-red-500 focus:border-red-500"

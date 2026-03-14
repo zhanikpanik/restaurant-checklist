@@ -126,15 +126,15 @@ export default function RegisterPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="animate-spin h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 to-brand-50">
+        <div className="animate-spin h-8 w-8 border-2 border-brand-500 border-t-transparent rounded-full" />
       </div>
     );
   }
 
   if (error && !invitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 to-brand-50 p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="text-6xl mb-4">⚠️</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -143,7 +143,7 @@ export default function RegisterPage() {
           <p className="text-gray-600 mb-6">{error}</p>
           <Link
             href="/login"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            className="inline-block bg-brand-500 text-white px-6 py-3 rounded-lg hover:bg-brand-600 transition-colors"
           >
             Войти
           </Link>
@@ -153,7 +153,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-50 to-brand-50 p-4">
       <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full">
         
         {/* Header */}
@@ -169,20 +169,20 @@ export default function RegisterPage() {
 
         {/* Invitation Info */}
         {invitation && (
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 mb-6 border border-blue-200">
+          <div className="bg-gradient-to-r from-brand-50 to-brand-50 rounded-lg p-4 mb-6 border border-brand-200">
             <div className="text-sm space-y-2">
-              <p className="text-blue-900">
+              <p className="text-brand-900">
                 <strong>Должность:</strong> {ROLE_LABELS[invitation.role] || invitation.role}
               </p>
               <div>
-                <p className="text-blue-900 font-semibold mb-2">
+                <p className="text-brand-900 font-semibold mb-2">
                   Доступ к отделам:
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {invitation.sections.map((s) => (
                     <span
                       key={s.section_id}
-                      className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-blue-200 text-blue-900 rounded text-xs"
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-brand-200 text-brand-900 rounded text-xs"
                     >
                       <span>{s.section_emoji}</span>
                       <span>{s.section_name}</span>
@@ -190,7 +190,7 @@ export default function RegisterPage() {
                         <span title="Может отправлять заказы" className="text-green-600">📤</span>
                       )}
                       {s.can_receive_supplies && (
-                        <span title="Может принимать поставки" className="text-blue-600">📦</span>
+                        <span title="Может принимать поставки" className="text-brand-500">📦</span>
                       )}
                     </span>
                   ))}
@@ -212,7 +212,7 @@ export default function RegisterPage() {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               placeholder="Иван Иванов"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
               required
               disabled={submitting}
             />
@@ -227,7 +227,7 @@ export default function RegisterPage() {
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               placeholder="ivan@example.com"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
               required
               disabled={submitting}
             />
@@ -242,7 +242,7 @@ export default function RegisterPage() {
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               placeholder="Минимум 6 символов"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
               required
               minLength={6}
               disabled={submitting}
@@ -258,7 +258,7 @@ export default function RegisterPage() {
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
               placeholder="Повторите пароль"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
               required
               disabled={submitting}
             />
@@ -273,7 +273,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-brand-500 hover:bg-brand-600 disabled:bg-gray-400 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             {submitting ? (
               <>

@@ -32,7 +32,7 @@ export default function SelectRestaurantPage() {
         <div className="text-center">
           <a
             href="/"
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors"
+            className="inline-block bg-brand-500 hover:bg-brand-600 text-white px-6 py-3 rounded-lg transition-colors"
           >
             ← Вернуться на главную
           </a>
