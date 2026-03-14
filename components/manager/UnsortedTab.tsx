@@ -202,19 +202,6 @@ export function GenericProductListTab({
                     {p.category_name && <span>• {p.category_name}</span>}
                   </div>
                 </div>
-                
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <div className={`px-2 py-1 flex items-center justify-center rounded-lg font-medium text-sm border ${
-                    selectedIds.includes(p.id) 
-                      ? 'bg-white border-purple-200 text-purple-700' 
-                      : 'bg-gray-50 border-gray-200 text-gray-600'
-                  }`}>
-                    {p.quantity || 0}
-                  </div>
-                  <div className="text-xs text-gray-400 font-medium">
-                    {p.unit}
-                  </div>
-                </div>
               </div>
             ))}
           </div>

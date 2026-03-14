@@ -339,7 +339,6 @@ export default function SuppliersCategoriesPage() {
                   </button>
                 )}
 
-                <h2 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3 ml-2">Все поставщики</h2>
                 <div className="-mx-4 md:mx-0">
                   <SuppliersTab
                     suppliers={suppliers}
