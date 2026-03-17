@@ -102,7 +102,77 @@ export async function GET(request: NextRequest) {
          LIMIT $2`,
         [restaurantId, limit]
       );
-      return result.rows;
+      const orders = result.rows;
+
+      // 4. DATA ENRICHMENT: For pending and sent orders, we MUST ensure the supplier 
+      // names and costs are the absolute latest from the DB.
+      const activeOrders = orders.filter(o => o.status === 'pending' || o.status === 'sent');
+      
+      if (activeOrders.length > 0) {
+        // Fetch all product-supplier and cost mappings for this restaurant
+        const enrichmentResult = await client.query(`
+          WITH product_data AS (
+            -- Products mapped to suppliers via categories
+            SELECT 
+              sp.id as product_id, 
+              s.name as supplier_name, 
+              s.id as supplier_id,
+              COALESCE(pi.cost, pp.cost, 0) as cost
+            FROM section_products sp
+            JOIN sections sec ON sp.section_id = sec.id
+            LEFT JOIN product_categories pc ON sp.category_id = pc.id
+            LEFT JOIN suppliers s ON pc.supplier_id = s.id
+            LEFT JOIN poster_ingredients pi ON sp.poster_ingredient_id = pi.poster_ingredient_id AND pi.restaurant_id = sec.restaurant_id
+            LEFT JOIN poster_products pp ON sp.poster_ingredient_id = pp.poster_product_id AND pp.restaurant_id = sec.restaurant_id
+            WHERE sec.restaurant_id = $1 AND sp.is_active = true
+            
+            UNION
+            
+            -- Products mapped directly to suppliers
+            SELECT 
+              sp.id as product_id, 
+              s.name as supplier_name, 
+              s.id as supplier_id,
+              COALESCE(pi.cost, pp.cost, 0) as cost
+            FROM section_products sp
+            JOIN sections sec ON sp.section_id = sec.id
+            LEFT JOIN suppliers s ON sp.supplier_id = s.id
+            LEFT JOIN poster_ingredients pi ON sp.poster_ingredient_id = pi.poster_ingredient_id AND pi.restaurant_id = sec.restaurant_id
+            LEFT JOIN poster_products pp ON sp.poster_ingredient_id = pp.poster_product_id AND pp.restaurant_id = sec.restaurant_id
+            WHERE sec.restaurant_id = $1 AND sp.is_active = true
+          )
+          SELECT * FROM product_data
+        `, [restaurantId]);
+        
+        const enrichmentMap = new Map();
+        enrichmentResult.rows.forEach(row => {
+          enrichmentMap.set(row.product_id, { 
+            supplier_name: row.supplier_name, 
+            supplier_id: row.supplier_id,
+            cost: parseFloat(row.cost || 0)
+          });
+        });
+
+        // Inject latest data into order items
+        activeOrders.forEach(order => {
+          if (order.order_data?.items) {
+            order.order_data.items = order.order_data.items.map((item: any) => {
+              if (item.productId && enrichmentMap.has(item.productId)) {
+                const latest = enrichmentMap.get(item.productId);
+                return { 
+                  ...item, 
+                  supplier: latest.supplier_name || item.supplier, 
+                  supplier_id: latest.supplier_id || item.supplier_id,
+                  price: (item.price === undefined || item.price === 0) ? latest.cost : item.price
+                };
+              }
+              return item;
+            });
+          }
+        });
+      }
+
+      return orders;
     });
 
     return NextResponse.json<ApiResponse<Order[]>>({

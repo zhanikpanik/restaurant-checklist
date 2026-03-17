@@ -162,6 +162,24 @@ function CustomPageContent() {
     return orderDate.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
   };
 
+  const translateUnit = (u: string) => {
+    const unitMap: Record<string, string> = {
+      'kg': 'кг',
+      'l': 'л',
+      'pcs': 'шт',
+      'p': 'шт',
+      'pt': 'шт',
+      'unit': 'шт',
+      'pack': 'уп',
+      'bottle': 'бут',
+      'can': 'банка',
+      'portion': 'порц',
+      'g': 'г',
+      'ml': 'мл'
+    };
+    return unitMap[u.toLowerCase()] || u;
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -607,7 +625,7 @@ function CustomPageContent() {
                         )}
                         {stock !== undefined && (
                           <p className={`text-xs font-medium ${stock <= 0 ? 'text-red-500' : 'text-green-600'}`}>
-                            Остаток: {stock} {product.unit}
+                            Остаток: {stock} {translateUnit(product.unit)}
                           </p>
                         )}
                       </div>
@@ -752,37 +770,12 @@ function Header({
             
             {canManage && (
               <>
-                {/* Manage staff - stateful people pill */}
                 {onManageStaff && (
                   <button
                     onClick={onManageStaff}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 ${
-                      staffCount > 0
-                        ? "bg-brand-100 text-brand-600 hover:bg-brand-200"
-                        : "border border-gray-300 text-gray-500 hover:border-blue-400 hover:text-brand-500"
-                    }`}
+                    className="px-3 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 border border-gray-300 text-gray-500 hover:border-brand-400 hover:text-brand-500 bg-white"
                   >
-                    {staffCount > 0 ? (
-                      <>
-                        {/* Mini avatar dots */}
-                        <span className="flex -space-x-1">
-                          {Array.from({ length: Math.min(staffCount, 3) }).map((_, i) => (
-                            <span
-                              key={i}
-                              className="w-4 h-4 rounded-full bg-blue-400 border border-white flex items-center justify-center"
-                            />
-                          ))}
-                        </span>
-                        <span>{staffCount}</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
-                        <span>Персонал</span>
-                      </>
-                    )}
+                    <span>Персонал</span>
                   </button>
                 )}
               </>

@@ -256,7 +256,7 @@ export default function SuppliersCategoriesPage() {
                 ? suppliers.find((s) => s.id === selectedSupplierId)?.name || "Поставщик"
                 : selectedSupplierId === "unsorted"
                 ? "Нераспределенные"
-                : "Каталог"}
+                : "Поставщики"}
             </h1>
 
             <button

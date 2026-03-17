@@ -45,6 +45,24 @@ export function SupplierGroupCard({
     return `${count} заказов`;
   };
 
+  const translateUnit = (u: string) => {
+    const unitMap: Record<string, string> = {
+      'kg': 'кг',
+      'l': 'л',
+      'pcs': 'шт',
+      'p': 'шт',
+      'pt': 'шт',
+      'unit': 'шт',
+      'pack': 'уп',
+      'bottle': 'бут',
+      'can': 'банка',
+      'portion': 'порц',
+      'g': 'г',
+      'ml': 'мл'
+    };
+    return unitMap[u.toLowerCase()] || u;
+  };
+
   return (
     <div className="bg-white border-2 border-gray-200 rounded-xl overflow-hidden shadow-sm">
       {/* Supplier Header */}
@@ -124,7 +142,7 @@ export function SupplierGroupCard({
                   </div>
                   <div className="text-right ml-3">
                     <p className="font-semibold text-gray-900">
-                      {item.quantity} {item.unit || "шт"}
+                      {item.quantity} {translateUnit(item.unit || "шт")}
                     </p>
                   </div>
                 </div>

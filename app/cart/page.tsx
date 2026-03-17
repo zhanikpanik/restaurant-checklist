@@ -180,6 +180,24 @@ export default function CartPage() {
     );
   }
 
+  const translateUnit = (u: string) => {
+    const unitMap: Record<string, string> = {
+      'kg': 'кг',
+      'l': 'л',
+      'pcs': 'шт',
+      'p': 'шт',
+      'pt': 'шт',
+      'unit': 'шт',
+      'pack': 'уп',
+      'bottle': 'бут',
+      'can': 'банка',
+      'portion': 'порц',
+      'g': 'г',
+      'ml': 'мл'
+    };
+    return unitMap[u.toLowerCase()] || u;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <PageHeader
@@ -232,6 +250,7 @@ export default function CartPage() {
                         item={item}
                         onQuantityChange={handleQuantityChange}
                         onRemove={() => cart.remove(item.cartId)}
+                        translateUnit={translateUnit}
                       />
                     ))}
                   </div>
@@ -256,6 +275,7 @@ export default function CartPage() {
                         item={item}
                         onQuantityChange={handleQuantityChange}
                         onRemove={() => cart.remove(item.cartId)}
+                        translateUnit={translateUnit}
                       />
                     ))}
                   </div>
@@ -364,17 +384,19 @@ function CartItemRow({
   item,
   onQuantityChange,
   onRemove,
+  translateUnit,
 }: {
   item: CartItem;
   onQuantityChange: (cartId: string, quantity: number) => void;
   onRemove: () => void;
+  translateUnit: (u: string) => string;
 }) {
   return (
     <div className="px-4 py-4 hover:bg-gray-50/50 transition-colors">
       <div className="flex items-center justify-between">
         <div className="flex-1 min-w-0 pr-4">
           <h4 className="font-medium text-gray-900 truncate text-[15px]">{item.name}</h4>
-          <p className="text-[13px] text-gray-500 mt-0.5">{item.unit}</p>
+          <p className="text-[13px] text-gray-500 mt-0.5">{translateUnit(item.unit || "шт")}</p>
         </div>
         <div className="flex items-center gap-3">
           <QuantityInput

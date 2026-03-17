@@ -73,6 +73,24 @@ export function QuantityInput({
     }
   };
 
+  const translateUnit = (u: string) => {
+    const unitMap: Record<string, string> = {
+      'kg': 'кг',
+      'l': 'л',
+      'pcs': 'шт',
+      'p': 'шт',
+      'pt': 'шт',
+      'unit': 'шт',
+      'pack': 'уп',
+      'bottle': 'бут',
+      'can': 'банка',
+      'portion': 'порц',
+      'g': 'г',
+      'ml': 'мл'
+    };
+    return unitMap[u.toLowerCase()] || u;
+  };
+
   if (compact) {
     return (
       <div className="flex items-center gap-2">
@@ -87,7 +105,7 @@ export function QuantityInput({
           <input
             type="text"
             inputMode="decimal"
-            value={isFocused ? inputValue : `${quantity}${unit}`}
+            value={isFocused ? inputValue : `${quantity}${translateUnit(unit)}`}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
@@ -133,7 +151,7 @@ export function QuantityInput({
         <input
           type="text"
           inputMode="decimal"
-          value={isFocused ? inputValue : `${quantity}${unit}`}
+          value={isFocused ? inputValue : `${quantity}${translateUnit(unit)}`}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
           onBlur={handleInputBlur}

@@ -98,6 +98,7 @@ export interface OrderItem {
   supplier_id?: number | string;
   poster_id?: string;
   productId?: number;
+  price?: number;
 }
 
 export interface Order {
@@ -153,6 +154,7 @@ export interface PosterIngredient {
   ingredient_unit?: string;
   ingredient_category_id?: number;
   type?: string;
+  average_price?: number;
 }
 
 export interface PosterSupplier {
