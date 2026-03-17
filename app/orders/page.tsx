@@ -53,7 +53,7 @@ export default function OrdersPage() {
 
   const fetchPosterPrices = async () => {
     try {
-      const res = await api.get<{ success: boolean, data: Record<string, { price: number; unit: string }> }>("/api/poster/ingredients");
+      const res = await api.get<Record<string, { price: number; unit: string }>>("/api/poster/ingredients");
       if (res.success && res.data) {
         setPosterPrices(res.data);
       }
