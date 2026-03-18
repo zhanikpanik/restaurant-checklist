@@ -248,6 +248,9 @@ export class PosterAPI {
     comment?: string;
   }): Promise<any> {
     const now = new Date();
+    // Offset by a few seconds/minutes to avoid edge cases where server time is slightly ahead of Poster's server time
+    now.setMinutes(now.getMinutes() - 5);
+    
     // Format date as YYYY-MM-DD HH:mm:ss (required by Poster API)
     const date = [
       now.getFullYear(),

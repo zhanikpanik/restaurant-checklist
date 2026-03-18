@@ -700,7 +700,8 @@ function CustomPageContent() {
         />
       )}
 
-      {/* Staff Management Modal */}
+      {/* Staff Management Modal - Currently disabled in favor of global Team page */}
+      {/* 
       {currentSection && (
         <StaffManagementModal
           isOpen={showStaffModal}
@@ -709,6 +710,7 @@ function CustomPageContent() {
           onUpdate={loadData}
         />
       )}
+      */}
     </div>
   );
 }
@@ -770,6 +772,7 @@ function Header({
             
             {canManage && (
               <>
+                {/* 
                 {onManageStaff && (
                   <button
                     onClick={onManageStaff}
@@ -778,6 +781,7 @@ function Header({
                     <span>Персонал</span>
                   </button>
                 )}
+                */}
               </>
             )}
           </div>

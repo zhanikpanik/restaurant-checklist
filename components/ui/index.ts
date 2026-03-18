@@ -15,6 +15,7 @@ export { Input, Textarea, Select } from "./Input";
 export type { InputProps, TextareaProps, SelectProps } from "./Input";
 
 export { QuantityInput } from "./QuantityInput";
+export { Toggle } from "./Toggle";
 
 // Re-export all for convenience
 export * from "./Skeleton";

@@ -31,6 +31,8 @@ export const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   role: userRoleSchema.optional(),
   is_active: z.boolean().optional(),
+  can_send_orders: z.boolean().optional(),
+  can_receive_supplies: z.boolean().optional(),
 });
 
 // ============================================

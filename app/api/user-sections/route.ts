@@ -26,8 +26,8 @@ export async function GET(request: NextRequest) {
         const users = await withTenant(session.user.restaurantId, async (client) => {
           const result = await client.query(
             `SELECT u.id, u.name, u.email, u.role,
-                    COALESCE(us.can_send_orders, false) as can_send_orders,
-                    COALESCE(us.can_receive_supplies, false) as can_receive_supplies
+                    COALESCE(u.can_send_orders, false) as can_send_orders,
+                    COALESCE(u.can_receive_supplies, false) as can_receive_supplies
              FROM user_sections us
              JOIN users u ON u.id = us.user_id
              JOIN sections s ON s.id = us.section_id
@@ -65,10 +65,11 @@ export async function GET(request: NextRequest) {
         try {
           const result = await client.query(
             `SELECT s.id, s.name, s.emoji, s.poster_storage_id,
-                    COALESCE(us.can_send_orders, false) as can_send_orders,
-                    COALESCE(us.can_receive_supplies, false) as can_receive_supplies
+                    COALESCE(u.can_send_orders, false) as can_send_orders,
+                    COALESCE(u.can_receive_supplies, false) as can_receive_supplies
              FROM user_sections us
              JOIN sections s ON s.id = us.section_id
+             JOIN users u ON u.id = us.user_id
              WHERE us.user_id = $1 AND s.is_active = true
              ORDER BY s.name`,
             [targetUserId]

@@ -26,8 +26,8 @@ export default function OrdersPage() {
   const [pendingQuantities, setPendingQuantities] = useState<Record<string, number>>({});
   
   // Received quantities for in-transit items: { `${orderId}-${itemIdx}`: quantity }
-  const [receivedQuantities, setReceivedQuantities] = useState<Record<string, number>>({});
-  const [receivedPrices, setReceivedPrices] = useState<Record<string, number>>({});
+  const [receivedQuantities, setReceivedQuantities] = useState<Record<string, number | "">>({});
+  const [receivedPrices, setReceivedPrices] = useState<Record<string, number | "">>({});
   const [posterPrices, setPosterPrices] = useState<Record<string, { price: number; unit: string }>>({});
   
   // Track which supplier group is being sent
@@ -226,13 +226,22 @@ export default function OrdersPage() {
     setPendingQuantities(prev => ({ ...prev, [key]: Math.max(0, value) }));
   };
 
-  const handleReceivedQuantityChange = (key: string, value: number) => {
-    setReceivedQuantities(prev => ({ ...prev, [key]: Math.max(0, value) }));
+  const handleReceivedQuantityChange = (key: string, value: string | number) => {
+    if (value === "") {
+      setReceivedQuantities(prev => ({ ...prev, [key]: "" }));
+    } else {
+      const num = typeof value === "string" ? parseFloat(value) : value;
+      setReceivedQuantities(prev => ({ ...prev, [key]: Math.max(0, num || 0) }));
+    }
   };
 
   const handleReceivedPriceChange = (key: string, value: string) => {
-    const num = parseFloat(value) || 0;
-    setReceivedPrices(prev => ({ ...prev, [key]: Math.max(0, num) }));
+    if (value === "") {
+      setReceivedPrices(prev => ({ ...prev, [key]: "" }));
+    } else {
+      const num = parseFloat(value) || 0;
+      setReceivedPrices(prev => ({ ...prev, [key]: Math.max(0, num) }));
+    }
   };
 
   const handleRemoveItem = (key: string) => {
@@ -398,7 +407,8 @@ export default function OrdersPage() {
     try {
       // 1. Prepare items for Poster (ONLY items with Fact > 0)
       const receivedItems = items.filter(item => {
-        const qty = receivedQuantities[item._key] ?? item._orderedQty;
+        const rawQty = receivedQuantities[item._key] ?? item._orderedQty;
+        const qty = rawQty === "" ? 0 : rawQty;
         return qty > 0 && (item.poster_id || item.productId);
       });
       
@@ -409,11 +419,15 @@ export default function OrdersPage() {
         const posterPayload = {
           supplier_id: localSupplierId,
           storage_id: 1,
-          items: receivedItems.map(item => ({
-            ingredient_id: String(item.poster_id || item.productId),
-            quantity: receivedQuantities[item._key] ?? item._orderedQty,
-            price: receivedPrices[item._key] ?? item._receivedPrice ?? 0,
-          })),
+          items: receivedItems.map(item => {
+            const rawQty = receivedQuantities[item._key] ?? item._orderedQty;
+            const rawPrice = receivedPrices[item._key] ?? item._receivedPrice ?? 0;
+            return {
+              ingredient_id: String(item.poster_id || item.productId),
+              quantity: rawQty === "" ? 0 : rawQty,
+              price: rawPrice === "" ? 0 : rawPrice,
+            };
+          }),
           comment: `Приёмка от ${supplierName}`,
         };
         
@@ -431,12 +445,16 @@ export default function OrdersPage() {
       }
       
       // 2. Prepare items for the new split API
-      const apiItems = items.map(item => ({
-        _orderId: item._orderId,
-        _itemIdx: item._itemIdx,
-        receivedQty: receivedQuantities[item._key] ?? item._orderedQty,
-        receivedPrice: receivedPrices[item._key] ?? item._receivedPrice ?? 0,
-      }));
+      const apiItems = items.map(item => {
+        const rawQty = receivedQuantities[item._key] ?? item._orderedQty;
+        const rawPrice = receivedPrices[item._key] ?? item._receivedPrice ?? 0;
+        return {
+          _orderId: item._orderId,
+          _itemIdx: item._itemIdx,
+          receivedQty: rawQty === "" ? 0 : rawQty,
+          receivedPrice: rawPrice === "" ? 0 : rawPrice,
+        };
+      });
 
       const updateResult = await api.post("/api/orders/receive", { 
         items: apiItems,
@@ -461,8 +479,8 @@ export default function OrdersPage() {
   };
 
   const handleAcceptAll = async (supplierName: string, items: any[]) => {
-    const newReceivedQty: Record<string, number> = { ...receivedQuantities };
-    const newReceivedPrices: Record<string, number> = { ...receivedPrices };
+    const newReceivedQty: Record<string, number | ""> = { ...receivedQuantities };
+    const newReceivedPrices: Record<string, number | ""> = { ...receivedPrices };
     
     items.forEach(item => {
       delete newReceivedQty[item._key];
@@ -476,7 +494,10 @@ export default function OrdersPage() {
   };
 
   const handleOpenConfirmModal = (supplierName: string, items: any[]) => {
-    const missingItems = items.filter(i => (receivedQuantities[i._key] ?? i._orderedQty) === 0);
+    const missingItems = items.filter(i => {
+      const q = receivedQuantities[i._key] ?? i._orderedQty;
+      return (q === "" ? 0 : q) === 0;
+    });
     if (missingItems.length > 0) {
       setConfirmingSupplier(supplierName);
     } else {
@@ -644,7 +665,10 @@ export default function OrdersPage() {
             ) : (
               <div className="pb-20">
                 {sentBySupplier.map(([supplier, group]) => {
-                  const acceptedCount = group.items.filter(i => (receivedQuantities[i._key] ?? i._orderedQty) > 0).length;
+                  const acceptedCount = group.items.filter(i => {
+                    const q = receivedQuantities[i._key] ?? i._orderedQty;
+                    return (q === "" ? 0 : q) > 0;
+                  }).length;
                   
                   return (
                     <div key={supplier}>
@@ -656,9 +680,11 @@ export default function OrdersPage() {
                       </div>
                       <div className="divide-y divide-gray-100">
                         {group.items.map((item, idx) => {
-                          const currentQty = receivedQuantities[item._key] ?? item._orderedQty;
-                          const isExcluded = currentQty === 0;
-                          const diff = currentQty - item._orderedQty;
+                          const rawQty = receivedQuantities[item._key] ?? item._orderedQty;
+                          const currentQty = rawQty === "" ? "" : rawQty;
+                          const calcQty = rawQty === "" ? 0 : rawQty;
+                          const isExcluded = calcQty === 0;
+                          const diff = calcQty - item._orderedQty;
                           const isDifferent = diff !== 0;
                           const orderedTextColor = isDifferent ? (diff < 0 ? "text-orange-600" : "text-green-600") : "text-gray-500";
                           
@@ -673,16 +699,41 @@ export default function OrdersPage() {
                                     </p>
                                     {isExcluded && <span className="text-[10px] text-gray-400 uppercase">Пропущено</span>}
                                   </div>
-                                  <div className="flex items-center gap-3 ml-auto sm:ml-0">
+                                  
+                                  <div className="flex flex-wrap items-center gap-4 ml-auto sm:ml-0 justify-end mt-2 sm:mt-0">
                                     {!isExcluded && (
-                                      <div className="flex items-center gap-1.5">
-                                        <span className="text-[11px] text-gray-400">Цена:</span>
-                                        <input type="number" value={receivedPrices[item._key] ?? item._receivedPrice} onChange={(e) => handleReceivedPriceChange(item._key, e.target.value)} className="w-16 bg-white border border-gray-200 rounded-lg px-1 py-1 text-gray-900 text-center text-xs font-bold focus:outline-none focus:ring-1 focus:ring-green-500" step="0.01" min="0" />
+                                      <div className="flex flex-col items-end gap-1">
+                                        <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Цена</span>
+                                        <div className="relative">
+                                          <input 
+                                            type="number" 
+                                            value={receivedPrices[item._key] ?? item._receivedPrice} 
+                                            onChange={(e) => handleReceivedPriceChange(item._key, e.target.value)} 
+                                            onFocus={(e) => e.target.select()}
+                                            className="w-24 bg-white border border-gray-300 rounded-lg pl-2 pr-6 py-2 text-gray-900 text-right text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all" 
+                                            step="0.01" 
+                                            min="0" 
+                                          />
+                                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">₸</span>
+                                        </div>
                                       </div>
                                     )}
-                                    <div className="flex items-center gap-1.5">
-                                      <span className="text-[11px] text-gray-400">Факт ({translateUnit(item.unit || "шт")}):</span>
-                                      <input type="number" value={currentQty} onChange={(e) => handleReceivedQuantityChange(item._key, parseFloat(e.target.value) || 0)} className={`w-16 bg-white border rounded-lg px-1 py-1 text-center text-xs font-bold focus:outline-none focus:ring-1 focus:ring-green-500 ${isDifferent ? 'border-orange-300 text-orange-700' : 'border-gray-200 text-gray-900'}`} step="0.1" />
+                                    <div className="flex flex-col items-end gap-1">
+                                      <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Факт</span>
+                                      <div className="relative">
+                                        <input
+                                          type="number"
+                                          value={currentQty}
+                                          onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
+                                          onFocus={(e) => e.target.select()}
+                                          className={`w-24 border rounded-lg pl-2 pr-8 py-2 text-right text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all ${isDifferent ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-300 text-gray-900'}`}
+                                          step="0.01"
+                                          min="0"
+                                        />
+                                        <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-sm font-medium pointer-events-none ${isDifferent ? 'text-orange-400' : 'text-gray-400'}`}>
+                                          {translateUnit(item.unit || "шт")}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                 </div>

@@ -144,17 +144,15 @@ export default function HelpPage() {
                 Панель управления
               </h3>
               <p className="leading-relaxed">
-                Перейдите в <strong>Каталог</strong> для доступа к настройкам:
-                секции, товары, категории, поставщики.
+                Перейдите в раздел <strong>Поставщики</strong> на главной странице для доступа к настройкам товаров, категорий и привязки поставщиков.
               </p>
             </div>
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">
-                Массовое назначение категорий
+                Управление персоналом
               </h3>
               <p className="leading-relaxed">
-                В разделе «Каталог» выберите несколько товаров галочками, затем
-                нажмите «Назначить поставщика».
+                В разделе <strong>Команда</strong> вы можете приглашать новых сотрудников, назначать им отделы и настраивать права на отправку заказов и приёмку поставок.
               </p>
             </div>
             <div>
@@ -162,7 +160,7 @@ export default function HelpPage() {
                 Синхронизация с Poster
               </h3>
               <p className="leading-relaxed">
-                Нажмите значок обновления в правом верхнем углу в разделе Каталог для обновления
+                В разделе <strong>Поставщики</strong> нажмите значок обновления в правом верхнем углу для синхронизации
                 списка складов и ингредиентов из Poster.
               </p>
             </div>
@@ -190,20 +188,14 @@ export default function HelpPage() {
                 <tr>
                   <td className="py-3 px-4 font-semibold text-gray-900">Менеджер</td>
                   <td className="py-3 px-4 leading-relaxed">
-                    Полный доступ: настройки, пользователи, все секции, история
+                    Полный доступ: настройки, команда, все секции, история
                     заказов
                   </td>
                 </tr>
                 <tr>
-                  <td className="py-3 px-4 font-semibold text-gray-900">Бармен / Повар</td>
+                  <td className="py-3 px-4 font-semibold text-gray-900">Персонал</td>
                   <td className="py-3 px-4 leading-relaxed">
-                    Создание заказов, просмотр назначенных секций
-                  </td>
-                </tr>
-                <tr>
-                  <td className="py-3 px-4 font-semibold text-gray-900">Доставка</td>
-                  <td className="py-3 px-4 leading-relaxed">
-                    Просмотр и подтверждение доставки заказов
+                    Сбор заявок, просмотр назначенных отделов
                   </td>
                 </tr>
               </tbody>
@@ -225,7 +217,7 @@ export default function HelpPage() {
                 </span>
               </summary>
               <p className="text-gray-600 px-4 pb-4 leading-relaxed">
-                Менеджер → Откройте любую секцию → Нажмите на иконку пользователей → Добавить. Сгенерируйте ссылку и отправьте её.
+                Главная → Команда → Нажмите «+ Пригласить». Сгенерируйте ссылку и отправьте её сотруднику.
               </p>
             </details>
             <details className="group bg-gray-50 rounded-2xl border border-gray-100">
@@ -236,7 +228,7 @@ export default function HelpPage() {
                 </span>
               </summary>
               <p className="text-gray-600 px-4 pb-4 leading-relaxed">
-                Товары отображаются только для назначенных вам секций.
+                Товары отображаются только для назначенных вам отделов.
                 Обратитесь к менеджеру для добавления доступа.
               </p>
             </details>
@@ -248,7 +240,7 @@ export default function HelpPage() {
                 </span>
               </summary>
               <p className="text-gray-600 px-4 pb-4 leading-relaxed">
-                Главная → Каталог → Воспользуйтесь поиском → выберите товар
+                Главная → Поставщики → Воспользуйтесь поиском → выберите товар
                 → Назначить поставщика.
               </p>
             </details>
@@ -260,8 +252,8 @@ export default function HelpPage() {
                 </span>
               </summary>
               <p className="text-gray-600 px-4 pb-4 leading-relaxed">
-                Главная → Каталог → нажмите иконку 🔄 в правом верхнем углу.
-                Новые ингредиенты появятся в списке «Требуют внимания».
+                Главная → Поставщики → нажмите иконку 🔄 в правом верхнем углу.
+                Новые ингредиенты появятся в списке «Новые товары».
               </p>
             </details>
           </div>

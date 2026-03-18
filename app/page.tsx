@@ -415,22 +415,37 @@ export default function HomePage() {
               {/* Dynamic Priority Status Card */}
               {renderStatusCard()}
 
-              {/* Suppliers Section - Only for admin/manager */}
+              {/* Admin/Manager Section */}
               {(isAdmin || isManager) && (
-                <Link
-                  href="/suppliers-categories"
-                  className="relative w-full bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start overflow-hidden group"
-                >
-                  <img src="/icons/box.svg" alt="Suppliers" className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter group-hover:scale-110 transition-transform" />
-                  <div className="text-left flex-1">
-                    <div className="font-semibold text-base md:text-lg">Поставщики и продукты</div>
-                    {unsortedCount !== null && unsortedCount > 0 && (
-                      <div className="mt-1 text-xs md:text-sm opacity-90 font-normal">
-                        {unsortedCount} {getPluralForm(unsortedCount, ["товар без поставщика", "товара без поставщика", "товаров без поставщика"])}
+                <div className="flex flex-col gap-3 md:gap-4 mb-2">
+                  <Link
+                    href="/suppliers-categories"
+                    className="w-full bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium py-4 px-4 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                  >
+                    <img src="/icons/box.svg" alt="Suppliers" className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter shrink-0" />
+                    <div className="text-left flex-1">
+                      <div className="font-semibold text-base md:text-lg">Поставщики</div>
+                      {unsortedCount !== null && unsortedCount > 0 && (
+                        <div className="text-sm opacity-90 font-normal">
+                          {unsortedCount} новых
+                        </div>
+                      )}
+                    </div>
+                  </Link>
+
+                  <Link
+                    href="/team"
+                    className="w-full bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-medium py-4 px-4 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                  >
+                    <img src="/icons/face.svg" alt="Команда" className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter shrink-0" />
+                    <div className="text-left flex-1">
+                      <div className="font-semibold text-base md:text-lg">Команда</div>
+                      <div className="text-sm opacity-90 font-normal">
+                        Доступ и роли
                       </div>
-                    )}
-                  </div>
-                </Link>
+                    </div>
+                  </Link>
+                </div>
               )}
 
               {/* Dynamic Sections - Filtered by user assignments */}
@@ -443,11 +458,11 @@ export default function HomePage() {
                   <img 
                     src={getSectionIcon(section.name)} 
                     alt={section.name} 
-                    className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter" 
+                    className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter shrink-0" 
                   />
-                  <div className="text-left">
+                  <div className="text-left flex-1">
                     <div className="font-semibold text-base md:text-lg">{section.name}</div>
-                    <div className="text-xs md:text-sm opacity-90">
+                    <div className="text-sm opacity-90 font-normal">
                       {formatProductCount(section.custom_products_count || 0)}
                     </div>
                   </div>

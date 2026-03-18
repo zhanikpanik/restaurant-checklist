@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-config";
-import { createUser, getUsersByRestaurant, getUsersWithSections, updateUserRole, deactivateUser } from "@/lib/users";
+import { createUser, getUsersByRestaurant, getUsersWithSections, updateUserRole, updateUserPermissions, deactivateUser } from "@/lib/users";
 import { validateBody, validateId, createUserSchema, updateUserSchema } from "@/lib/validations";
 
 // GET - List users (admin/manager only)
@@ -133,10 +133,14 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { id, role } = validation.data;
+    const { id, role, can_send_orders, can_receive_supplies } = validation.data;
 
     if (role) {
       await updateUserRole(id, role);
+    }
+    
+    if (can_send_orders !== undefined || can_receive_supplies !== undefined) {
+      await updateUserPermissions(id, { can_send_orders, can_receive_supplies });
     }
 
     return NextResponse.json({

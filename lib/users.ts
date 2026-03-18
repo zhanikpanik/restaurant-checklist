@@ -154,7 +154,8 @@ export async function getUsersByRestaurant(restaurantId: string) {
 
   return await withTenant(restaurantId, async (client) => {
     const result = await client.query(
-      `SELECT id, email, name, role, is_active, last_login, created_at
+      `SELECT id, email, name, role, is_active, last_login, created_at,
+              can_send_orders, can_receive_supplies
        FROM users
        WHERE restaurant_id = $1 AND is_active = true
        ORDER BY created_at DESC`,
@@ -177,7 +178,8 @@ export async function getUsersWithSections(restaurantId: string) {
   return await withTenant(restaurantId, async (client) => {
     // Get all users (only active)
     const usersResult = await client.query(
-      `SELECT id, email, name, role, is_active, last_login, created_at
+      `SELECT id, email, name, role, is_active, last_login, created_at,
+              can_send_orders, can_receive_supplies
        FROM users
        WHERE restaurant_id = $1 AND is_active = true
        ORDER BY created_at DESC`,
@@ -261,6 +263,40 @@ export async function updateUserRole(
        WHERE id = $2`,
       [role, userId]
     );
+  });
+}
+
+/**
+ * Update user global permissions
+ */
+export async function updateUserPermissions(
+  userId: number,
+  permissions: { can_send_orders?: boolean; can_receive_supplies?: boolean }
+) {
+  if (!pool) {
+    throw new Error("Database pool not initialized");
+  }
+
+  return await withoutTenant(async (client) => {
+    const updates: string[] = [];
+    const values: any[] = [];
+    let paramIndex = 1;
+
+    if (permissions.can_send_orders !== undefined) {
+      updates.push(`can_send_orders = $${paramIndex++}`);
+      values.push(permissions.can_send_orders);
+    }
+    if (permissions.can_receive_supplies !== undefined) {
+      updates.push(`can_receive_supplies = $${paramIndex++}`);
+      values.push(permissions.can_receive_supplies);
+    }
+
+    if (updates.length === 0) return;
+
+    values.push(userId);
+    const query = `UPDATE users SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramIndex}`;
+
+    await client.query(query, values);
   });
 }
 

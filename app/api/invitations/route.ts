@@ -119,6 +119,23 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (expires_in_days || 7));
 
+    console.log("Attempting to create invitation with user ID:", session.user.id);
+    const userId = parseInt(session.user.id, 10);
+    
+    if (isNaN(userId)) {
+      throw new Error(`Invalid user ID in session: ${session.user.id}`);
+    }
+
+    // Verify user exists in database first (to catch stale sessions)
+    const userExists = await withoutTenant(async (client) => {
+      const res = await client.query("SELECT id FROM users WHERE id = $1", [userId]);
+      return res.rowCount !== null && res.rowCount > 0;
+    });
+
+    if (!userExists) {
+      throw new Error(`User ID ${userId} does not exist in the database. Your session may be stale. Please log out and log back in.`);
+    }
+
     // Create invitation
     await withoutTenant(async (client) => {
       await client.query(
@@ -134,7 +151,7 @@ export async function POST(request: NextRequest) {
           role,
           JSON.stringify(sections),
           expiresAt,
-          session.user.id,
+          userId,
           "pending",
         ]
       );
@@ -153,10 +170,10 @@ export async function POST(request: NextRequest) {
         expires_at: expiresAt,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating invitation:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to create invitation" },
+      { success: false, error: "Failed to create invitation: " + (error.message || String(error)) },
       { status: 500 }
     );
   }
