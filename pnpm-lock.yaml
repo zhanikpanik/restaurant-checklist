@@ -43,10 +43,10 @@ importers:
         version: 15.5.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       next-auth:
         specifier: ^5.0.0-beta.30
-        version: 5.0.0-beta.30(next@15.5.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(nodemailer@8.0.2)(react@18.3.1)
+        version: 5.0.0-beta.30(next@15.5.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(nodemailer@7.0.0)(react@18.3.1)
       nodemailer:
-        specifier: ^8.0.2
-        version: 8.0.2
+        specifier: ^7.0.0
+        version: 7.0.0
       pg:
         specifier: ^8.13.1
         version: 8.20.0
@@ -83,7 +83,7 @@ importers:
     devDependencies:
       '@auth/core':
         specifier: ^0.34.3
-        version: 0.34.3(nodemailer@8.0.2)
+        version: 0.34.3(nodemailer@7.0.0)
       '@types/nodemailer':
         specifier: ^7.0.11
         version: 7.0.11
@@ -755,8 +755,8 @@ packages:
   node-releases@2.0.36:
     resolution: {integrity: sha512-TdC8FSgHz8Mwtw9g5L4gR/Sh9XhSP/0DEkQxfEFXOpiul5IiHgHan2VhYYb6agDSfp4KuvltmGApc8HMgUrIkA==}
 
-  nodemailer@8.0.2:
-    resolution: {integrity: sha512-zbj002pZAIkWQFxyAaqoxvn+zoIwRnS40hgjqTXudKOOJkiFFgBeNqjgD3/YCR12sZnrghWYBY+yP1ZucdDRpw==}
+  nodemailer@7.0.0:
+    resolution: {integrity: sha512-9QyEp969UmUWVDB2gVQvxHm1bqkyuC5YZIyX/ySJUpIVyXpuEFyBAuoFFs+G5/C2ZaUp9F5A65DPfxedfVHXXQ==}
     engines: {node: '>=6.0.0'}
 
   normalize-path@3.0.0:
@@ -1120,7 +1120,7 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@auth/core@0.34.3(nodemailer@8.0.2)':
+  '@auth/core@0.34.3(nodemailer@7.0.0)':
     dependencies:
       '@panva/hkdf': 1.2.1
       '@types/cookie': 0.6.0
@@ -1130,9 +1130,9 @@ snapshots:
       preact: 10.11.3
       preact-render-to-string: 5.2.3(preact@10.11.3)
     optionalDependencies:
-      nodemailer: 8.0.2
+      nodemailer: 7.0.0
 
-  '@auth/core@0.41.0(nodemailer@8.0.2)':
+  '@auth/core@0.41.0(nodemailer@7.0.0)':
     dependencies:
       '@panva/hkdf': 1.2.1
       jose: 6.2.1
@@ -1140,7 +1140,7 @@ snapshots:
       preact: 10.24.3
       preact-render-to-string: 6.5.11(preact@10.24.3)
     optionalDependencies:
-      nodemailer: 8.0.2
+      nodemailer: 7.0.0
 
   '@emnapi/runtime@1.9.0':
     dependencies:
@@ -1629,13 +1629,13 @@ snapshots:
 
   nanoid@3.3.11: {}
 
-  next-auth@5.0.0-beta.30(next@15.5.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(nodemailer@8.0.2)(react@18.3.1):
+  next-auth@5.0.0-beta.30(next@15.5.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(nodemailer@7.0.0)(react@18.3.1):
     dependencies:
-      '@auth/core': 0.41.0(nodemailer@8.0.2)
+      '@auth/core': 0.41.0(nodemailer@7.0.0)
       next: 15.5.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react: 18.3.1
     optionalDependencies:
-      nodemailer: 8.0.2
+      nodemailer: 7.0.0
 
   next@15.5.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1):
     dependencies:
@@ -1662,7 +1662,7 @@ snapshots:
 
   node-releases@2.0.36: {}
 
-  nodemailer@8.0.2: {}
+  nodemailer@7.0.0: {}
 
   normalize-path@3.0.0: {}
 
