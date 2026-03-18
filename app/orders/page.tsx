@@ -600,7 +600,7 @@ export default function OrdersPage() {
               </div>
             ) : (
               <div>
-                <div className="bg-white pt-4 pb-24">
+                <div className="bg-white pt-4 pb-2">
                   {pendingBySupplier.map(([supplier, group]) => (
                     <div key={supplier} className="mt-6 first:mt-0">
                       <div className="px-4 mb-3 flex items-center justify-between">
@@ -654,7 +654,7 @@ export default function OrdersPage() {
         )}
 
         {activeTab === "transit" && (
-          <div className="bg-white">
+          <div >
             {sentBySupplier.length === 0 ? (
               <div className="text-center py-16">
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -663,7 +663,7 @@ export default function OrdersPage() {
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Нет доставок</h3>
               </div>
             ) : (
-              <div className="pb-20">
+              <div>
                 {sentBySupplier.map(([supplier, group]) => {
                   const acceptedCount = group.items.filter(i => {
                     const q = receivedQuantities[i._key] ?? i._orderedQty;
@@ -671,14 +671,13 @@ export default function OrdersPage() {
                   }).length;
                   
                   return (
-                    <div key={supplier}>
-                      <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-y border-gray-200">
+                    <div key={supplier} className="mb-8 last:mb-0">
+                      <div className="bg-white px-4 py-3 flex items-center justify-between">
                         <div>
-                          <h3 className="font-bold text-gray-900 text-sm">{supplier}</h3>
-                          <p className="text-xs text-gray-500">{group.items.length} поз. • {acceptedCount} к приёмке</p>
+                          <h3 className="text-sm font-medium text-gray-500">{supplier}</h3>
                         </div>
                       </div>
-                      <div className="divide-y divide-gray-100">
+                      <div className=" bg-white divide-y divide-gray-100">
                         {group.items.map((item, idx) => {
                           const rawQty = receivedQuantities[item._key] ?? item._orderedQty;
                           const currentQty = rawQty === "" ? "" : rawQty;
@@ -742,7 +741,7 @@ export default function OrdersPage() {
                           );
                         })}
                       </div>
-                      <div className="px-4 py-3 bg-gray-50 flex gap-3 justify-end border-t border-gray-200 sticky bottom-0 z-30 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+                      <div className="px-4 py-3 flex gap-3 justify-end border-t border-gray-200 sticky bottom-0 z-30">
                         <button onClick={() => handleRevertToPending(group.items)} disabled={updating} className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">↩ Вернуть</button>
                         <button onClick={() => handleOpenConfirmModal(supplier, group.items)} disabled={updating} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"> {updating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : `Принять (${acceptedCount})`} </button>
                       </div>

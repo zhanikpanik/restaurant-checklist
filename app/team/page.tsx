@@ -239,14 +239,14 @@ export default function TeamPage() {
 
   if (status === "loading" || loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+      <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <PageHeader 
         title="Команда" 
         backHref="/"
@@ -328,7 +328,7 @@ export default function TeamPage() {
                         className={`flex flex-col p-3 rounded-xl border transition-colors ${
                           isAssigned 
                             ? "bg-brand-50 border-brand-200" 
-                            : "bg-white border-gray-200 hover:bg-gray-50"
+                            : "bg-white border-gray-200 hover:bg-gray-100"
                         }`}
                       >
                         <label className="flex items-center gap-3 cursor-pointer">
@@ -424,7 +424,7 @@ export default function TeamPage() {
                         className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
                           isAssigned 
                             ? "bg-brand-50 border-brand-200" 
-                            : "bg-white border-gray-200 hover:bg-gray-50"
+                            : "bg-white border-gray-200 hover:bg-gray-100"
                         } ${inviteUrl ? "opacity-50 pointer-events-none" : ""}`}
                       >
                         <input
