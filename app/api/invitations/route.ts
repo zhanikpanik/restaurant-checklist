@@ -13,7 +13,9 @@ interface CreateInvitationRequest {
   name?: string;
   email?: string;
   role: "admin" | "manager" | "staff" | "delivery";
-  sections: SectionPermission[];
+  sections: SectionPermission[]; // Keep for backward compatibility, but we rely on section_id mainly
+  can_send_orders?: boolean;
+  can_receive_supplies?: boolean;
   expires_in_days?: number;
 }
 
@@ -95,7 +97,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: CreateInvitationRequest = await request.json();
-    const { name, email, role, sections, expires_in_days } = body;
+    const { name, email, role, sections, can_send_orders, can_receive_supplies, expires_in_days } = body;
 
     // Validation
     if (!role || !["admin", "manager", "staff", "delivery"].includes(role)) {
@@ -105,7 +107,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!sections || sections.length === 0) {
+    if (!["admin", "manager"].includes(role) && (!sections || sections.length === 0)) {
       return NextResponse.json(
         { success: false, error: "At least one section must be assigned" },
         { status: 400 }
@@ -136,20 +138,26 @@ export async function POST(request: NextRequest) {
       throw new Error(`User ID ${userId} does not exist in the database. Your session may be stale. Please log out and log back in.`);
     }
 
+    const sendOrders = can_send_orders ?? true;
+    const receiveSupplies = can_receive_supplies ?? true;
+
     // Create invitation
     await withoutTenant(async (client) => {
       await client.query(
         `INSERT INTO invitations (
           token, restaurant_id, name, email, role, sections,
+          can_send_orders, can_receive_supplies,
           expires_at, created_by, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
         [
           token,
           session.user.restaurantId,
           name || null,
           email?.toLowerCase() || null,
           role,
-          JSON.stringify(sections),
+          JSON.stringify(sections || []),
+          sendOrders,
+          receiveSupplies,
           expiresAt,
           userId,
           "pending",

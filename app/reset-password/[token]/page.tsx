@@ -61,6 +61,10 @@ export default function ResetPasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8">
         
+        <div className="flex justify-center mb-6">
+          <img src="/icons/logo.svg" alt="Logo" className="w-16 h-16" />
+        </div>
+
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Новый пароль</h1>
         <p className="text-gray-600 mb-8">
           Придумайте надежный пароль для вашего аккаунта.

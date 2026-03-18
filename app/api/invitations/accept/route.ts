@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
       try {
         // Create user
         const userResult = await client.query(
-          `INSERT INTO users (email, password_hash, name, role, restaurant_id, is_active)
-           VALUES ($1, $2, $3, $4, $5, true)
+          `INSERT INTO users (email, password_hash, name, role, restaurant_id, is_active, can_send_orders, can_receive_supplies)
+           VALUES ($1, $2, $3, $4, $5, true, $6, $7)
            RETURNING id`,
           [
             email.toLowerCase(),
@@ -86,6 +86,8 @@ export async function POST(request: NextRequest) {
             name,
             invitation.role,
             invitation.restaurant_id,
+            invitation.can_send_orders ?? false,
+            invitation.can_receive_supplies ?? false,
           ]
         );
 

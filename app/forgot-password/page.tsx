@@ -47,6 +47,10 @@ export default function ForgotPasswordPage() {
           Назад к входу
         </Link>
 
+        <div className="flex justify-center mb-6">
+          <img src="/icons/logo.svg" alt="Logo" className="w-16 h-16" />
+        </div>
+
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Забыли пароль?</h1>
         <p className="text-gray-600 mb-8">
           Введите ваш email, и мы отправим вам ссылку для создания нового пароля.

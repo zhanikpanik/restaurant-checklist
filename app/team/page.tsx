@@ -53,6 +53,8 @@ export default function TeamPage() {
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteRole, setInviteRole] = useState<"admin" | "manager" | "staff" | "delivery">("staff");
   const [inviteSections, setInviteSections] = useState<number[]>([]);
+  const [inviteCanSend, setInviteCanSend] = useState(false);
+  const [inviteCanReceive, setInviteCanReceive] = useState(false);
   
   const [error, setError] = useState("");
 
@@ -128,6 +130,8 @@ export default function TeamPage() {
 
       const res = await api.post<{ url: string }>("/api/invitations", {
         role: inviteRole,
+        can_send_orders: inviteCanSend,
+        can_receive_supplies: inviteCanReceive,
         sections: sectionsToAssign.map(id => ({
           section_id: id,
           can_send_orders: true,
@@ -288,26 +292,28 @@ export default function TeamPage() {
               )}
             </div>
 
-            {/* Global Permissions */}
-            <div className="space-y-2 pt-2 border-t border-gray-100">
-              <span className="text-xs font-semibold text-gray-500 block">Может</span>
-              <div className="flex flex-col gap-3 mt-1">
-                <div className="flex items-center justify-between p-3 rounded-xl border bg-white border-gray-200">
-                  <span className="font-medium text-gray-900 text-sm">Отправлять заказы</span>
-                  <Toggle 
-                    checked={user.can_send_orders ?? false}
-                    onChange={(checked) => handlePermissionChange(user.id, "can_send_orders", checked)}
-                  />
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl border bg-white border-gray-200">
-                  <span className="font-medium text-gray-900 text-sm">Принимать поставки</span>
-                  <Toggle 
-                    checked={user.can_receive_supplies ?? false}
-                    onChange={(checked) => handlePermissionChange(user.id, "can_receive_supplies", checked)}
-                  />
+            {/* Global Permissions - Only for staff/delivery since admin/manager have it by default */}
+            {!["admin", "manager"].includes(user.role) && (
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <span className="text-xs font-semibold text-gray-500 block">Может</span>
+                <div className="flex flex-col gap-3 mt-1">
+                  <div className="flex items-center justify-between p-3 rounded-xl border bg-white border-gray-200">
+                    <span className="font-medium text-gray-900 text-sm">Отправлять заказы</span>
+                    <Toggle 
+                      checked={user.can_send_orders ?? false}
+                      onChange={(checked) => handlePermissionChange(user.id, "can_send_orders", checked)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl border bg-white border-gray-200">
+                    <span className="font-medium text-gray-900 text-sm">Принимать поставки</span>
+                    <Toggle 
+                      checked={user.can_receive_supplies ?? false}
+                      onChange={(checked) => handlePermissionChange(user.id, "can_receive_supplies", checked)}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Department Multi-select (Checkboxes) */}
             {["staff", "delivery"].includes(user.role) && (
@@ -384,42 +390,66 @@ export default function TeamPage() {
           </div>
 
           {["staff", "delivery"].includes(inviteRole) && (
-            <div className="space-y-2">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Доступ к отделам</span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {sections.map((section) => {
-                  const isAssigned = inviteSections.includes(section.id);
-                  return (
-                    <label 
-                      key={section.id} 
-                      className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
-                        isAssigned 
-                          ? "bg-brand-50 border-brand-200" 
-                          : "bg-white border-gray-200 hover:bg-gray-50"
-                      } ${inviteUrl ? "opacity-50 pointer-events-none" : ""}`}
-                    >
-                      <input
-                        type="checkbox"
-                        disabled={!!inviteUrl}
-                        checked={isAssigned}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setInviteSections(prev => [...prev, section.id]);
-                          } else {
-                            setInviteSections(prev => prev.filter(id => id !== section.id));
-                          }
-                        }}
-                        className="w-5 h-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                      />
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{section.emoji}</span>
-                        <span className="font-medium text-gray-900 text-sm">{section.name}</span>
-                      </div>
-                    </label>
-                  );
-                })}
+            <>
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider block">Может</span>
+                <div className="flex flex-col gap-3 mt-1">
+                  <div className="flex items-center justify-between p-3 rounded-xl border bg-white border-gray-200">
+                    <span className="font-medium text-gray-900 text-sm">Отправлять заказы</span>
+                    <Toggle 
+                      disabled={!!inviteUrl}
+                      checked={inviteCanSend}
+                      onChange={setInviteCanSend}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl border bg-white border-gray-200">
+                    <span className="font-medium text-gray-900 text-sm">Принимать поставки</span>
+                    <Toggle 
+                      disabled={!!inviteUrl}
+                      checked={inviteCanReceive}
+                      onChange={setInviteCanReceive}
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
+
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Доступ к отделам</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {sections.map((section) => {
+                    const isAssigned = inviteSections.includes(section.id);
+                    return (
+                      <label 
+                        key={section.id} 
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${
+                          isAssigned 
+                            ? "bg-brand-50 border-brand-200" 
+                            : "bg-white border-gray-200 hover:bg-gray-50"
+                        } ${inviteUrl ? "opacity-50 pointer-events-none" : ""}`}
+                      >
+                        <input
+                          type="checkbox"
+                          disabled={!!inviteUrl}
+                          checked={isAssigned}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setInviteSections(prev => [...prev, section.id]);
+                            } else {
+                              setInviteSections(prev => prev.filter(id => id !== section.id));
+                            }
+                          }}
+                          className="w-5 h-5 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
+                        />
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{section.emoji}</span>
+                          <span className="font-medium text-gray-900 text-sm">{section.name}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
           )}
 
           {error && (

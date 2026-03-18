@@ -15,7 +15,7 @@ function OnboardingContent() {
   useEffect(() => {
     const runSync = async () => {
       if (!restaurantId) {
-        setError("Restaurant ID is missing");
+        setError("ID ресторана отсутствует");
         setSyncing(false);
         return;
       }
@@ -32,10 +32,10 @@ function OnboardingContent() {
         const data = await response.json();
 
         if (!data.success) {
-          setError(data.error || "Failed to sync initial data");
+          setError(data.error || "Не удалось синхронизировать начальные данные");
         }
       } catch (err) {
-        setError("Network error during sync");
+        setError("Ошибка сети при синхронизации");
       } finally {
         setSyncing(false);
       }
@@ -70,7 +70,9 @@ function OnboardingContent() {
         </>
       ) : (
         <>
-          <div className="text-6xl mb-6">🎉</div>
+          <div className="flex justify-center mb-6">
+            <img src="/icons/logo.svg" alt="Logo" className="w-20 h-20" />
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Отлично! Всё готово.</h1>
           <p className="text-gray-500 mb-8">
             Ваш ресторан успешно подключен к Poster и данные загружены.

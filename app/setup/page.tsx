@@ -23,7 +23,7 @@ function SetupContent() {
     if (success === "oauth" && !syncComplete && !syncing) {
       runAutoSync();
     }
-  }, [success]);
+  }, [success, syncComplete, syncing]);
 
   const runAutoSync = async () => {
     setSyncing(true);
@@ -63,11 +63,11 @@ function SetupContent() {
     if (!errorCode) return "";
 
     const errors: Record<string, string> = {
-      no_code: "Authorization code not received",
-      token_exchange_failed: "Failed to exchange token with Poster",
-      no_token: "No access token received from Poster",
-      database_error: "Failed to save restaurant data",
-      unknown: "An unknown error occurred",
+      no_code: "Код авторизации не получен",
+      token_exchange_failed: "Не удалось получить токен от Poster",
+      no_token: "Токен доступа не получен от Poster",
+      database_error: "Не удалось сохранить данные ресторана",
+      unknown: "Произошла неизвестная ошибка",
     };
 
     return errors[errorCode] || errorCode;
@@ -75,7 +75,7 @@ function SetupContent() {
 
   const copyCredentials = () => {
     if (adminEmail && tempPassword) {
-      navigator.clipboard.writeText(`Email: ${adminEmail}\nPassword: ${tempPassword}`);
+      navigator.clipboard.writeText(`Email: ${adminEmail}\nПароль: ${tempPassword}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -85,16 +85,18 @@ function SetupContent() {
     <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
         {/* Logo */}
-        <div className="text-6xl text-center mb-4">🍽️</div>
+        <div className="flex justify-center mb-6">
+          <img src="/icons/logo.svg" alt="Logo" className="w-20 h-20" />
+        </div>
 
         {/* Title */}
         <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">
-          {success === "oauth" ? "Setup Complete!" : "Connect Your Restaurant"}
+          {success === "oauth" ? "Настройка завершена!" : "Подключите ваш ресторан"}
         </h1>
         <p className="text-gray-600 text-center mb-6">
           {success === "oauth" 
-            ? "Your restaurant is now connected to Poster POS"
-            : "Connect your Poster POS account to sync suppliers, products, and inventory"
+            ? "Ваш ресторан теперь подключен к Poster POS"
+            : "Подключите свой аккаунт Poster POS для синхронизации поставщиков, товаров и инвентаря"
           }
         </p>
 
@@ -116,7 +118,7 @@ function SetupContent() {
                 </svg>
               </div>
               <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">Error</h3>
+                <h3 className="text-sm font-medium text-red-800">Ошибка</h3>
                 <div className="mt-1 text-sm text-red-700">
                   {getErrorMessage(error)}
                 </div>
@@ -187,13 +189,13 @@ function SetupContent() {
           <div className="mb-6 p-4 bg-brand-50 border border-brand-200 rounded-lg">
             <div className="flex items-start justify-between mb-3">
               <h3 className="text-sm font-medium text-brand-800">
-                🔐 Your Admin Account
+                🔐 Ваш аккаунт администратора
               </h3>
               <button
                 onClick={copyCredentials}
                 className="text-xs text-brand-500 hover:text-brand-800 font-medium"
               >
-                {copied ? "✓ Copied!" : "Copy"}
+                {copied ? "✓ Скопировано!" : "Копировать"}
               </button>
             </div>
             
@@ -206,7 +208,7 @@ function SetupContent() {
               </div>
               
               <div className="flex items-center justify-between bg-white rounded px-3 py-2">
-                <span className="text-sm text-gray-600">Password:</span>
+                <span className="text-sm text-gray-600">Пароль:</span>
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-mono font-medium text-gray-900">
                     {showPassword ? tempPassword : "••••••••••••"}
@@ -231,7 +233,7 @@ function SetupContent() {
             </div>
             
             <p className="mt-3 text-xs text-brand-600">
-              ⚠️ Save these credentials! This is the only time the password will be shown.
+              ⚠️ Сохраните эти данные! Это единственный раз, когда пароль будет показан.
             </p>
           </div>
         )}
@@ -255,7 +257,7 @@ function SetupContent() {
                 <polyline points="10 17 15 12 10 7" />
                 <line x1="15" y1="12" x2="3" y2="12" />
               </svg>
-              Go to Login
+              Перейти к входу
             </Link>
           </div>
         )}
@@ -279,7 +281,7 @@ function SetupContent() {
                 <polyline points="10 17 15 12 10 7" />
                 <line x1="15" y1="12" x2="3" y2="12" />
               </svg>
-              Connect with Poster POS
+              Подключиться через Poster POS
             </a>
           </div>
         )}
@@ -291,19 +293,19 @@ function SetupContent() {
               <span className="flex-shrink-0 w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-bold">
                 ✓
               </span>
-              <span>Automatic supplier sync</span>
+              <span>Автоматическая синхронизация поставщиков</span>
             </div>
             <div className="flex items-center gap-3 text-sm text-gray-700">
               <span className="flex-shrink-0 w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-bold">
                 ✓
               </span>
-              <span>Product inventory integration</span>
+              <span>Интеграция товарных запасов</span>
             </div>
             <div className="flex items-center gap-3 text-sm text-gray-700">
               <span className="flex-shrink-0 w-5 h-5 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-xs font-bold">
                 ✓
               </span>
-              <span>Auto-create supplies on delivery</span>
+              <span>Автосоздание поставок при приёмке</span>
             </div>
           </div>
         )}
@@ -312,14 +314,14 @@ function SetupContent() {
         {!success && (
           <div className="text-center pt-6 border-t border-gray-200">
             <p className="text-sm text-gray-600">
-              Don't have a Poster account?{" "}
+              Нет аккаунта Poster?{" "}
               <a
                 href="https://joinposter.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-brand-500 hover:text-brand-600 font-medium"
               >
-                Sign up here
+                Зарегистрируйтесь здесь
               </a>
             </p>
           </div>
@@ -332,7 +334,7 @@ function SetupContent() {
               href="/api/poster/oauth/authorize"
               className="text-sm text-gray-600 hover:text-gray-900"
             >
-              + Connect another restaurant
+              + Подключить другой ресторан
             </a>
           </div>
         )}
@@ -344,9 +346,9 @@ function SetupContent() {
 function LoginLoading() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
-        <div className="text-6xl text-center mb-4">🍽️</div>
-        <div className="text-center text-gray-600">Loading...</div>
+      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 flex flex-col items-center">
+        <img src="/icons/logo.svg" alt="Logo" className="w-20 h-20 mb-6" />
+        <div className="text-center text-gray-600">Загрузка...</div>
       </div>
     </div>
   );

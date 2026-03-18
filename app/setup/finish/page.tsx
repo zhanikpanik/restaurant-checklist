@@ -76,9 +76,11 @@ function FinishSetupContent() {
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
+    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 flex flex-col">
       <div className="text-center mb-6">
-        <div className="text-6xl mb-4">🔐</div>
+        <div className="flex justify-center mb-6">
+          <img src="/icons/logo.svg" alt="Logo" className="w-20 h-20" />
+        </div>
         <h1 className="text-2xl font-bold text-gray-900">Завершение регистрации</h1>
         <p className="text-gray-500 mt-2">Установите пароль для вашего аккаунта</p>
       </div>

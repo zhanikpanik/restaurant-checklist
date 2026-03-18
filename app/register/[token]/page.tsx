@@ -158,7 +158,9 @@ export default function RegisterPage() {
         
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="text-6xl mb-4">👋</div>
+          <div className="flex justify-center mb-6">
+            <img src="/icons/logo.svg" alt="Logo" className="w-20 h-20" />
+          </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
             Добро пожаловать!
           </h1>
