@@ -65,7 +65,13 @@ export async function POST(request: NextRequest) {
     // Create user and assign sections
     const passwordHash = await hash(password, 12);
 
-    await withoutTenant(async (client) => {
+    console.log("Creating user for invitation:", { 
+      email: email.toLowerCase(), 
+      role: invitation.role, 
+      restaurant_id: invitation.restaurant_id 
+    });
+
+    return await withoutTenant(async (client) => {
       await client.query("BEGIN");
 
       try {
@@ -84,13 +90,32 @@ export async function POST(request: NextRequest) {
         );
 
         const userId = userResult.rows[0].id;
+        console.log("User created with ID:", userId);
 
         // Assign sections with permissions
-        const sections = invitation.sections as any[];
+        // Ensure sections is an array and handle potential stringified JSON from PG
+        let sections = invitation.sections;
+        if (typeof sections === 'string') {
+          try {
+            sections = JSON.parse(sections);
+          } catch (e) {
+            console.error("Failed to parse sections string:", sections);
+            sections = [];
+          }
+        }
         
-        await withTenant(invitation.restaurant_id, async (tenantClient) => {
+        if (Array.isArray(sections) && sections.length > 0) {
+          console.log(`Assigning ${sections.length} sections to user ${userId}`);
+          
+          // CRITICAL: We MUST use the SAME client for inserting user_sections 
+          // because the user creation is in a transaction that hasn't been committed.
+          // withTenant helper would use a new connection and fail with FK error.
+          
+          // Set tenant for this transaction if needed (though user_sections might not have RLS enabled yet)
+          await client.query("SELECT set_config('app.current_tenant', $1, true)", [String(invitation.restaurant_id)]);
+          
           for (const section of sections) {
-            await tenantClient.query(
+            await client.query(
               `INSERT INTO user_sections (user_id, section_id, can_send_orders, can_receive_supplies)
                VALUES ($1, $2, $3, $4)
                ON CONFLICT (user_id, section_id) DO UPDATE
@@ -103,7 +128,9 @@ export async function POST(request: NextRequest) {
               ]
             );
           }
-        });
+        } else {
+          console.log("No sections to assign for this invitation");
+        }
 
         // Mark invitation as accepted
         await client.query(
@@ -126,6 +153,7 @@ export async function POST(request: NextRequest) {
           },
         });
       } catch (error) {
+        console.error("Transaction failed during registration:", error);
         await client.query("ROLLBACK");
         throw error;
       }
@@ -141,7 +169,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { success: false, error: "Ошибка регистрации" },
+      { success: false, error: `Ошибка регистрации: ${error.message || "Unknown error"}` },
       { status: 500 }
     );
   }

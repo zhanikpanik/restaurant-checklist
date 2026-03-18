@@ -18,15 +18,6 @@ declare module "next-auth" {
   }
 }
 
-declare module "@auth/core/jwt" {
-  interface JWT {
-    id: string;
-    role: UserRole;
-    restaurantId: string;
-    restaurantName?: string;
-  }
-}
-
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -71,19 +62,23 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.restaurantId = user.restaurantId;
-        token.restaurantName = user.restaurantName;
+        const t = token as any;
+        const u = user as any;
+        t.id = u.id;
+        t.role = u.role;
+        t.restaurantId = u.restaurantId;
+        t.restaurantName = u.restaurantName;
       }
       return token;
     },
     async session({ session, token }) {
       if (token) {
-        session.user.id = token.id;
-        session.user.role = token.role;
-        session.user.restaurantId = token.restaurantId;
-        session.user.restaurantName = token.restaurantName;
+        const s = session as any;
+        const t = token as any;
+        s.user.id = t.id;
+        s.user.role = t.role;
+        s.user.restaurantId = t.restaurantId;
+        s.user.restaurantName = t.restaurantName;
       }
       return session;
     },

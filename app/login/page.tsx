@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Button, Input } from "@/components/ui";
 
 function LoginForm() {
@@ -97,15 +98,22 @@ function LoginForm() {
             autoComplete="email"
           />
 
-          <Input
-            label="Пароль"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            required
-            autoComplete="current-password"
-          />
+          <div className="space-y-1">
+            <Input
+              label="Пароль"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              autoComplete="current-password"
+            />
+            <div className="flex justify-end pt-1">
+              <Link href="/forgot-password" className="text-sm text-brand-600 hover:text-brand-700 transition-colors">
+                Забыли пароль?
+              </Link>
+            </div>
+          </div>
 
           <Button
             type="submit"

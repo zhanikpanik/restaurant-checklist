@@ -32,8 +32,11 @@ export async function GET(
     }
 
     // Fetch section details
-    const sections = await withTenant(invitation.restaurant_id, async (client) => {
-      const sectionPermissions = invitation.sections as any[];
+    const sections = await withTenant(String(invitation.restaurant_id), async (client) => {
+      const sectionPermissions = (typeof invitation.sections === 'string') 
+        ? JSON.parse(invitation.sections) 
+        : invitation.sections;
+      
       const sectionIds = sectionPermissions.map((s: any) => s.section_id);
       
       const result = await client.query(
