@@ -11,6 +11,7 @@ import { StaffManagementModal } from "@/components/department/StaffManagementMod
 import { DepartmentSettingsModal } from "@/components/department/DepartmentSettingsModal";
 import { QuantityInput } from "@/components/ui/QuantityInput";
 import { api } from "@/lib/api-client";
+import { clientCache, fetchWithCache } from "@/lib/client-cache";
 
 interface Product {
   id: number;
@@ -55,26 +56,26 @@ function CustomPageContent() {
   const isManager = session?.user?.role === "manager";
   const canManage = isAdmin || isManager;
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>(() => clientCache.get(`custom_products_${sectionId}`) || []);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => clientCache.get("custom_suppliers") || []);
+  const [categories, setCategories] = useState<Category[]>(() => clientCache.get("custom_categories") || []);
+  const [loading, setLoading] = useState(!clientCache.has(`custom_products_${sectionId}`));
   const [searchQuery, setSearchQuery] = useState("");
-  const [sectionName, setSectionName] = useState("");
+  const [sectionName, setSectionName] = useState(dept || "");
   const [productQuantities, setProductQuantities] = useState<ProductQuantity>({});
   
   // Leftovers (Stock) state
-  const [leftovers, setLeftovers] = useState<Record<string, number>>({});
+  const [leftovers, setLeftovers] = useState<Record<string, number>>(() => clientCache.get("custom_leftovers") || {});
 
   // Last Order state
-  const [lastOrder, setLastOrder] = useState<any>(null);
-  const [loadingLastOrder, setLoadingLastOrder] = useState(true);
+  const [lastOrder, setLastOrder] = useState<any>(() => clientCache.get(`custom_last_order_${sectionId}`) || null);
+  const [loadingLastOrder, setLoadingLastOrder] = useState(!clientCache.has(`custom_last_order_${sectionId}`));
 
   // Caching state
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([]);
-  const [allCategories, setAllCategories] = useState<Category[]>([]);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [allProducts, setAllProducts] = useState<Product[]>(() => clientCache.get(`custom_products_${sectionId}`) || []);
+  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>(() => clientCache.get("custom_suppliers") || []);
+  const [allCategories, setAllCategories] = useState<Category[]>(() => clientCache.get("custom_categories") || []);
+  const [dataLoaded, setDataLoaded] = useState(clientCache.has(`custom_products_${sectionId}`));
 
   // Modal states
   const [showProductModal, setShowProductModal] = useState(false);
@@ -181,21 +182,20 @@ function CustomPageContent() {
   };
 
   const loadData = async () => {
-    setLoading(true);
+    if (!dataLoaded) setLoading(true);
     try {
-      const [sectionsRes, productsRes, suppliersRes, categoriesRes, ordersRes, leftoversRes, usersRes] = await Promise.all([
-        fetch("/api/sections"),
-        fetch(`/api/section-products?section_id=${sectionId}&active=true`),
-        fetch("/api/suppliers"),
-        fetch("/api/categories"),
-        canManage ? fetch("/api/orders?all=true") : Promise.resolve(null),
-        fetch("/api/poster/leftovers"),
-        canManage ? fetch(`/api/user-sections?section_id=${sectionId}`) : Promise.resolve(null),
+      const [sectionsData, productsData, suppliersData, categoriesData, ordersData, leftoversData, usersData] = await Promise.all([
+        fetchWithCache("/api/sections"),
+        fetchWithCache(`/api/section-products?section_id=${sectionId}&active=true`),
+        fetchWithCache("/api/suppliers"),
+        fetchWithCache("/api/categories"),
+        canManage ? fetchWithCache("/api/orders?all=true") : Promise.resolve(null),
+        fetchWithCache("/api/poster/leftovers"),
+        canManage ? fetchWithCache(`/api/user-sections?section_id=${sectionId}`) : Promise.resolve(null),
       ]);
 
-      const sectionsData = await sectionsRes.json();
       let currentSectionName = "";
-      if (sectionsData.success) {
+      if (sectionsData?.success) {
         const section = sectionsData.data.find(
           (s: any) => s.id === Number(sectionId)
         );
@@ -207,54 +207,48 @@ function CustomPageContent() {
         }
       }
 
-      const productsData = await productsRes.json();
-      if (productsData.success) {
+      if (productsData?.success) {
         setAllProducts(productsData.data);
         setProducts(productsData.data);
+        clientCache.set(`custom_products_${sectionId}`, productsData.data);
         setDataLoaded(true);
       }
 
-      const suppliersData = await suppliersRes.json();
-      if (suppliersData.success) {
+      if (suppliersData?.success) {
         setAllSuppliers(suppliersData.data);
         setSuppliers(suppliersData.data);
+        clientCache.set("custom_suppliers", suppliersData.data);
       }
 
-      const categoriesData = await categoriesRes.json();
-      if (categoriesData.success) {
+      if (categoriesData?.success) {
         setAllCategories(categoriesData.data);
         setCategories(categoriesData.data);
+        clientCache.set("custom_categories", categoriesData.data);
       }
 
       // Load pending orders count for this department (managers only)
-      if (ordersRes && currentSectionName) {
-        const ordersData = await ordersRes.json();
-        if (ordersData.success) {
-          const pendingCount = ordersData.data.filter(
-            (o: any) => (o.status === "pending" || o.status === "sent") && 
-                        o.order_data?.department === currentSectionName
-          ).length;
-          setPendingOrdersCount(pendingCount);
-        }
+      if (ordersData?.success && currentSectionName) {
+        const pendingCount = ordersData.data.filter(
+          (o: any) => (o.status === "pending" || o.status === "sent") && 
+                      o.order_data?.department === currentSectionName
+        ).length;
+        setPendingOrdersCount(pendingCount);
       }
       
       // Load leftovers
-      const leftoversData = await leftoversRes.json();
-      if (leftoversData.success) {
+      if (leftoversData?.success) {
         const dataWithDebug = { ...leftoversData.data };
         if (leftoversData.debug) {
             // @ts-ignore
             dataWithDebug._debug_raw = leftoversData.debug;
         }
         setLeftovers(dataWithDebug);
+        clientCache.set("custom_leftovers", dataWithDebug);
       }
 
       // Load assigned users count
-      if (usersRes) {
-        const usersData = await usersRes.json();
-        if (usersData.success) {
-          setAssignedUsersCount(usersData.data.length);
-        }
+      if (usersData?.success) {
+        setAssignedUsersCount(usersData.data.length);
       }
 
     } catch (error) {

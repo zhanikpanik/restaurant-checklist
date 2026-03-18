@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ui/Toast";
 import { BottomSheet, FormInput, FormButton } from "@/components/ui/BottomSheet";
 import type { Order } from "@/types";
+import { clientCache, fetchWithCache } from "@/lib/client-cache";
 
 interface Section {
   id: string;
@@ -26,11 +27,28 @@ interface OrderSummary {
 
 export default function HomePage() {
   const { data: session, status } = useSession();
-  const [allSections, setAllSections] = useState<Section[]>([]);
-  const [userSectionIds, setUserSectionIds] = useState<number[]>([]);
-  const [orderSummary, setOrderSummary] = useState<OrderSummary | null>(null);
-  const [unsortedCount, setUnsortedCount] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
+  
+  // Use cache to instantly render previously loaded data
+  const [allSections, setAllSections] = useState<Section[]>(() => {
+    const cached = clientCache.get("/api/sections");
+    return cached?.success ? (cached.data || []) : [];
+  });
+  
+  const [userSectionIds, setUserSectionIds] = useState<number[]>(() => {
+    const cached = clientCache.get("/api/user-sections");
+    return cached?.success ? cached.data.map((s: Section) => parseInt(s.id)) : [];
+  });
+  
+  const [orderSummary, setOrderSummary] = useState<OrderSummary | null>(() => 
+    clientCache.get("home_order_summary")
+  );
+  
+  const [unsortedCount, setUnsortedCount] = useState<number | null>(() => 
+    clientCache.get("home_unsorted_count")
+  );
+  
+  // Only show loading if we don't have sections cached
+  const [loading, setLoading] = useState(!clientCache.has("/api/sections"));
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const toast = useToast();
@@ -42,12 +60,15 @@ export default function HomePage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      loadSections();
-      loadUserSections();
-      loadOrderSummary();
-      if (isAdmin || isManager) {
-        loadUnsortedCount();
-      }
+      // Fetch fresh data in the background (or foreground if cache was empty)
+      Promise.all([
+        loadSections(),
+        loadUserSections(),
+        loadOrderSummary(),
+        (isAdmin || isManager) ? loadUnsortedCount() : Promise.resolve()
+      ]).finally(() => {
+        setLoading(false);
+      });
     } else if (status === "unauthenticated") {
       setLoading(false);
     }
@@ -55,10 +76,10 @@ export default function HomePage() {
 
   const loadUnsortedCount = async () => {
     try {
-      const response = await fetch("/api/section-products/unsorted-count");
-      const data = await response.json();
+      const data = await fetchWithCache("/api/section-products/unsorted-count");
       if (data.success) {
         setUnsortedCount(data.count);
+        clientCache.set("home_unsorted_count", data.count);
       }
     } catch (err) {
       console.error("Error loading unsorted count:", err);
@@ -67,9 +88,8 @@ export default function HomePage() {
 
   const loadSections = async () => {
     try {
-      setLoading(true);
-      const response = await fetch("/api/sections");
-      const data = await response.json();
+      if (!allSections.length) setLoading(true);
+      const data = await fetchWithCache("/api/sections");
 
       if (data.success) {
         setAllSections(data.data || []);
@@ -79,15 +99,12 @@ export default function HomePage() {
       }
     } catch (err) {
       setError("Не удалось загрузить данные. Проверьте подключение к базе данных.");
-    } finally {
-      setLoading(false);
     }
   };
 
   const loadUserSections = async () => {
     try {
-      const response = await fetch("/api/user-sections");
-      const data = await response.json();
+      const data = await fetchWithCache("/api/user-sections");
       if (data.success) {
         setUserSectionIds(data.data.map((s: Section) => parseInt(s.id)));
       }
@@ -98,11 +115,12 @@ export default function HomePage() {
 
   const loadOrderSummary = async () => {
     try {
-      const response = await fetch("/api/orders?limit=50");
-      const data = await response.json();
+      const data = await fetchWithCache("/api/orders?limit=50");
       
       if (data.success && Array.isArray(data.data)) {
         const orders = data.data as Order[];
+        
+        let newSummary: OrderSummary | null = null;
         
         // 1. Check for Pending (Priority 1)
         const pendingOrders = orders.filter(o => o.status === 'pending');
@@ -114,20 +132,18 @@ export default function HomePage() {
             deptCounts[dept] = (deptCounts[dept] || 0) + count;
           });
 
-          setOrderSummary({
+          newSummary = {
             type: 'pending',
             count: pendingOrders.length,
             departments: deptCounts
-          });
-          return;
+          };
         }
-
         // 2. Check for In Transit (Priority 2)
-        const transitOrders = orders.filter(o => o.status === 'sent');
-        if (transitOrders.length > 0) {
+        else if (orders.filter(o => o.status === 'sent').length > 0) {
+          const transitOrders = orders.filter(o => o.status === 'sent');
           const supplierCounts: Record<string, number> = {};
           transitOrders.forEach(o => {
-            o.order_data.items?.forEach(i => {
+            o.order_data.items?.forEach((i: any) => {
               if (i.supplier) {
                 // Approximate item count per supplier
                 supplierCounts[i.supplier] = (supplierCounts[i.supplier] || 0) + 1;
@@ -135,21 +151,24 @@ export default function HomePage() {
             });
           });
           
-          setOrderSummary({
+          newSummary = {
             type: 'transit',
             count: transitOrders.length,
             suppliers: supplierCounts
-          });
-          return;
+          };
         }
-
         // 3. Fallback to Last Order (Priority 3)
-        if (orders.length > 0) {
-          setOrderSummary({
+        else if (orders.length > 0) {
+          newSummary = {
             type: 'last_order',
             count: 1,
             lastOrder: orders[0]
-          });
+          };
+        }
+        
+        if (newSummary) {
+          setOrderSummary(newSummary);
+          clientCache.set("home_order_summary", newSummary);
         }
       }
     } catch (err) {

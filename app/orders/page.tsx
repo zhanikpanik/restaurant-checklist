@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { api } from "@/lib/api-client";
+import { clientCache, fetchWithCache } from "@/lib/client-cache";
 import { getUserRootUrlSync } from "@/lib/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { QuantityInput } from "@/components/ui/QuantityInput";
@@ -14,10 +15,11 @@ type TabType = "pending" | "transit" | "history";
 export default function OrdersPage() {
   const { data: session, status } = useSession();
   const toast = useToast();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [permissions, setPermissions] = useState<UserOrderPermissions | null>(null);
-  const [loading, setLoading] = useState(true);
+  
+  const [orders, setOrders] = useState<Order[]>(() => clientCache.get("orders_list") || []);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => clientCache.get("orders_suppliers") || []);
+  const [permissions, setPermissions] = useState<UserOrderPermissions | null>(() => clientCache.get("orders_permissions") || null);
+  const [loading, setLoading] = useState(!clientCache.has("orders_list"));
   const [activeTab, setActiveTab] = useState<TabType>("pending");
   const [updating, setUpdating] = useState(false);
   const [backLink, setBackLink] = useState<string>("/"); // Dynamic back link based on user role
@@ -28,7 +30,7 @@ export default function OrdersPage() {
   // Received quantities for in-transit items: { `${orderId}-${itemIdx}`: quantity }
   const [receivedQuantities, setReceivedQuantities] = useState<Record<string, number | "">>({});
   const [receivedPrices, setReceivedPrices] = useState<Record<string, number | "">>({});
-  const [posterPrices, setPosterPrices] = useState<Record<string, { price: number; unit: string }>>({});
+  const [posterPrices, setPosterPrices] = useState<Record<string, { price: number; unit: string }>>(() => clientCache.get("poster_prices") || {});
   
   // Track which supplier group is being sent
   const [sendingSupplier, setSendingSupplier] = useState<string | null>(null);
@@ -53,9 +55,10 @@ export default function OrdersPage() {
 
   const fetchPosterPrices = async () => {
     try {
-      const res = await api.get<Record<string, { price: number; unit: string }>>("/api/poster/ingredients");
-      if (res.success && res.data) {
-        setPosterPrices(res.data);
+      const data = await fetchWithCache("/api/poster/ingredients");
+      if (data?.success && data.data) {
+        setPosterPrices(data.data);
+        clientCache.set("poster_prices", data.data);
       }
     } catch (e) {
       console.error("Failed to fetch Poster prices", e);
@@ -63,22 +66,23 @@ export default function OrdersPage() {
   };
 
   const loadData = async () => {
-    setLoading(true);
+    if (!orders.length) setLoading(true);
     try {
       // First load permissions to determine what orders to fetch
-      const permissionsRes = await api.get<UserOrderPermissions>("/api/user-sections?permissions=true");
+      const permissionsData = await fetchWithCache("/api/user-sections?permissions=true");
       
       let userCanSend = isManager;
       let userSections: { id: number; name: string }[] = [];
       
-      if (permissionsRes.success && permissionsRes.data) {
-        setPermissions(permissionsRes.data);
-        userCanSend = isManager || (permissionsRes.data.canSendOrders ?? false);
+      if (permissionsData?.success && permissionsData.data) {
+        setPermissions(permissionsData.data);
+        clientCache.set("orders_permissions", permissionsData.data);
+        userCanSend = isManager || (permissionsData.data.canSendOrders ?? false);
         
         // Extract sections from sectionPermissions
-        userSections = permissionsRes.data.sectionPermissions
-          .filter(sp => sp.section_name) // Filter out any without names
-          .map(sp => ({
+        userSections = permissionsData.data.sectionPermissions
+          .filter((sp: any) => sp.section_name) // Filter out any without names
+          .map((sp: any) => ({
             id: sp.section_id,
             name: sp.section_name!
           }));
@@ -94,16 +98,18 @@ export default function OrdersPage() {
         ? "/api/orders?my=true&limit=50" 
         : "/api/orders";
 
-      const [ordersRes, suppliersRes] = await Promise.all([
-        api.get<Order[]>(ordersUrl),
-        api.get<Supplier[]>("/api/suppliers"),
+      const [ordersData, suppliersData] = await Promise.all([
+        fetchWithCache(ordersUrl),
+        fetchWithCache("/api/suppliers"),
       ]);
 
-      if (ordersRes.success && Array.isArray(ordersRes.data)) {
-        setOrders(ordersRes.data);
+      if (ordersData?.success && Array.isArray(ordersData.data)) {
+        setOrders(ordersData.data);
+        clientCache.set("orders_list", ordersData.data);
       }
-      if (suppliersRes.success && Array.isArray(suppliersRes.data)) {
-        setSuppliers(suppliersRes.data);
+      if (suppliersData?.success && Array.isArray(suppliersData.data)) {
+        setSuppliers(suppliersData.data);
+        clientCache.set("orders_suppliers", suppliersData.data);
       }
     } catch (error) {
       console.error("Error loading data:", error);

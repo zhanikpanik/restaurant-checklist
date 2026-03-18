@@ -11,26 +11,28 @@ if (!databaseUrl) {
 let pool: Pool | null = null;
 
 try {
+  const isInternal = databaseUrl?.includes("railway.internal");
+  
   pool = databaseUrl
     ? new Pool({
         connectionString: databaseUrl,
-        ssl: databaseUrl?.includes("railway.internal")
+        ssl: isInternal
           ? false
           : {
-              rejectUnauthorized: false, // Required for some cloud database providers
+              rejectUnauthorized: false,
             },
-        // Connection pool settings optimized for 5-10 restaurants
-        max: 20, // Maximum connections (was 10, increased for multiple restaurants)
-        min: 2, // Minimum idle connections (keep 2 connections always ready)
-        idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-        connectionTimeoutMillis: 10000, // 10 seconds timeout
-        maxUses: 7500, // Recycle connection after 7500 queries (prevent memory leaks)
-        allowExitOnIdle: true, // Allow pool to close if no activity
+        // Connection pool settings
+        max: 20,
+        min: 2,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 20000, // Increased to 20s for slow cold starts
+        maxUses: 7500,
+        allowExitOnIdle: true,
 
         // Add connection retry settings
         application_name: "restaurant-checklist",
-        statement_timeout: 10000, // 10 second query timeout
-        query_timeout: 10000,
+        statement_timeout: 30000, // Increased to 30s
+        query_timeout: 30000,
       })
     : null;
 } catch (error) {

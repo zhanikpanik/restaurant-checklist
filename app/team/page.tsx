@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { Toggle } from "@/components/ui/Toggle";
 import { api } from "@/lib/api-client";
+import { clientCache, fetchWithCache } from "@/lib/client-cache";
 
 interface User {
   id: number;
@@ -44,9 +45,9 @@ export default function TeamPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   
-  const [users, setUsers] = useState<User[]>([]);
-  const [sections, setSections] = useState<Section[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users, setUsers] = useState<User[]>(() => clientCache.get("team_users") || []);
+  const [sections, setSections] = useState<Section[]>(() => clientCache.get("team_sections") || []);
+  const [loading, setLoading] = useState(!clientCache.has("team_users"));
   
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [inviteUrl, setInviteUrl] = useState("");
@@ -66,41 +67,39 @@ export default function TeamPage() {
         router.push("/");
         return;
       }
-      fetchUsers();
-      fetchSections();
+      Promise.all([fetchUsers(), fetchSections()]).finally(() => {
+        setLoading(false);
+      });
     }
   }, [status, session, router]);
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch("/api/users");
-      const data = await res.json();
-      if (data.success) {
+      const data = await fetchWithCache("/api/users");
+      if (data?.success) {
         const usersWithSections = await Promise.all(
           data.data.map(async (user: User) => {
-            const sectionsRes = await fetch(`/api/user-sections?user_id=${user.id}`);
-            const sectionsData = await sectionsRes.json();
+            const sectionsData = await fetchWithCache(`/api/user-sections?user_id=${user.id}`);
             return {
               ...user,
-              assigned_sections: sectionsData.success ? sectionsData.data : [],
+              assigned_sections: sectionsData?.success ? sectionsData.data : [],
             };
           })
         );
         setUsers(usersWithSections);
+        clientCache.set("team_users", usersWithSections);
       }
     } catch (err) {
       console.error("Error fetching users:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
   const fetchSections = async () => {
     try {
-      const res = await fetch("/api/sections");
-      const data = await res.json();
-      if (data.success) {
+      const data = await fetchWithCache("/api/sections");
+      if (data?.success) {
         setSections(data.data);
+        clientCache.set("team_sections", data.data);
       }
     } catch (err) {
       console.error("Error fetching sections:", err);

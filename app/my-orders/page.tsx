@@ -3,14 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { clientCache, fetchWithCache } from "@/lib/client-cache";
 import type { Order } from "@/types";
 
 type OrderStatusFilter = "all" | "pending" | "sent" | "delivered" | "cancelled";
 
 export default function MyOrdersPage() {
   const { data: session, status } = useSession();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<Order[]>(() => clientCache.get("my_orders") || []);
+  const [loading, setLoading] = useState(!clientCache.has("my_orders"));
   const [statusFilter, setStatusFilter] = useState<OrderStatusFilter>("all");
 
   useEffect(() => {
@@ -20,12 +21,12 @@ export default function MyOrdersPage() {
   }, [status]);
 
   const loadOrders = async () => {
-    setLoading(true);
+    if (!orders.length) setLoading(true);
     try {
-      const response = await fetch("/api/orders?my=true&limit=50");
-      const data = await response.json();
-      if (data.success) {
+      const data = await fetchWithCache("/api/orders?my=true&limit=50");
+      if (data?.success) {
         setOrders(data.data);
+        clientCache.set("my_orders", data.data);
       }
     } catch (error) {
       console.error("Error loading orders:", error);

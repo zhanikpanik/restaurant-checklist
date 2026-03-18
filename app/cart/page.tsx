@@ -9,6 +9,7 @@ import { api } from "@/lib/api-client";
 import { getUserRootUrl } from "@/lib/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { QuantityInput } from "@/components/ui/QuantityInput";
+import { clientCache, fetchWithCache } from "@/lib/client-cache";
 import type { CartItem } from "@/types";
 
 type SubmitState = 'idle' | 'submitting' | 'success' | 'error';
@@ -24,15 +25,17 @@ export default function CartPage() {
   const [submittedOrderId, setSubmittedOrderId] = useState<number | null>(null);
   const [backLink, setBackLink] = useState<string>("/"); // Dynamic back link
   const [bulkSupplierId, setBulkSupplierId] = useState<string>("");
-  const [allSuppliers, setAllSuppliers] = useState<any[]>([]);
+  const [allSuppliers, setAllSuppliers] = useState<any[]>(() => clientCache.get("cart_suppliers") || []);
 
   // Load suppliers for bulk assignment
   useEffect(() => {
     const fetchSuppliers = async () => {
       try {
-        const res = await fetch("/api/suppliers");
-        const data = await res.json();
-        if (data.success) setAllSuppliers(data.data);
+        const data = await fetchWithCache("/api/suppliers");
+        if (data?.success) {
+          setAllSuppliers(data.data);
+          clientCache.set("cart_suppliers", data.data);
+        }
       } catch (err) {
         console.error("Error loading suppliers:", err);
       }

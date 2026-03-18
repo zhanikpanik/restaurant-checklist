@@ -7,6 +7,7 @@ import { SuppliersTab } from "@/components/manager/SuppliersTab";
 import { GenericProductListTab } from "@/components/manager/UnsortedTab";
 import { useToast } from "@/components/ui/Toast";
 import { useCSRF } from "@/hooks/useCSRF";
+import { clientCache, fetchWithCache } from "@/lib/client-cache";
 import type { Supplier, Product } from "@/types";
 
 export default function SuppliersCategoriesPage() {
@@ -20,17 +21,17 @@ export default function SuppliersCategoriesPage() {
   
   const [globalSearchQuery, setGlobalSearchQuery] = useState("");
   
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>(() => clientCache.get("manager_suppliers") || []);
   const [unassignedProducts, setUnassignedProducts] = useState<Product[]>([]);
   const [supplierProducts, setSupplierProducts] = useState<Product[]>([]);
   const [relatedIdsMap, setRelatedIdsMap] = useState<Record<number, number[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!clientCache.has("manager_suppliers"));
   const [unassignedCount, setUnassignedCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
 
   // Cache all products to avoid refetching
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [productsLoaded, setProductsLoaded] = useState(false);
+  const [allProducts, setAllProducts] = useState<Product[]>(() => clientCache.get("manager_all_products") || []);
+  const [productsLoaded, setProductsLoaded] = useState(clientCache.has("manager_all_products"));
 
   // Role-based access control - redirect unauthorized users
   const isAuthorized =
@@ -63,22 +64,24 @@ export default function SuppliersCategoriesPage() {
   }, [selectedSupplierId, isAuthorized]);
 
   const loadData = async () => {
-    setLoading(true);
+    if (!suppliers.length || !productsLoaded) setLoading(true);
     try {
       // Always load suppliers for the tabs
-      const suppliersRes = await fetch("/api/suppliers");
-      const suppliersData = await suppliersRes.json();
-      if (suppliersData.success) setSuppliers(suppliersData.data);
+      const suppliersData = await fetchWithCache("/api/suppliers");
+      if (suppliersData?.success) {
+        setSuppliers(suppliersData.data);
+        clientCache.set("manager_suppliers", suppliersData.data);
+      }
 
       // Always refetch products when explicitly requested
-      const productsRes = await fetch("/api/section-products?active=true");
-      const productsData = await productsRes.json();
-      if (productsData.success) {
+      const productsData = await fetchWithCache("/api/section-products?active=true");
+      if (productsData?.success) {
         setAllProducts(productsData.data);
+        clientCache.set("manager_all_products", productsData.data);
         setProductsLoaded(true);
       }
 
-      if (selectedSupplierId === "unsorted") {
+      if (selectedSupplierId === "unsorted" && productsData?.success) {
         const unassigned = productsData.data.filter(
           (p: Product) => !p.supplier_id,
         );
@@ -110,7 +113,7 @@ export default function SuppliersCategoriesPage() {
 
         setUnassignedProducts(Array.from(groupedMap.values()));
         setRelatedIdsMap(idMap);
-      } else if (typeof selectedSupplierId === "number") {
+      } else if (typeof selectedSupplierId === "number" && productsData?.success) {
         const filtered = productsData.data.filter(
           (p: Product) => p.supplier_id === Number(selectedSupplierId),
         );
