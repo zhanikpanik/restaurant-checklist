@@ -6,7 +6,8 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { useCart, useSections } from "@/store/useStore";
 import { useToast } from "@/components/ui/Toast";
-import { BottomSheet, FormInput, FormSelect, FormButton } from "@/components/ui/BottomSheet";
+import { Modal } from "@/components/ui/Modal";
+import { FormInput, FormSelect, FormButton } from "@/components/ui/BottomSheet"; // keeping these helpers but using standard Modal
 import { StaffManagementModal } from "@/components/department/StaffManagementModal";
 import { DepartmentSettingsModal } from "@/components/department/DepartmentSettingsModal";
 import { QuantityInput } from "@/components/ui/QuantityInput";
@@ -516,14 +517,14 @@ function CustomPageContent() {
 
       {/* Last Order Card - Compact */}
       {lastOrder && !loadingLastOrder && (
-        <Link 
-          href="/orders"
-          className="block max-w-md mx-auto px-4 pt-4 pb-3"
-        >
-          <div className="bg-gradient-to-r from-brand-50 to-brand-50 border border-brand-200 rounded-xl p-3 hover:shadow-md transition-all">
+        <div className="max-w-md mx-auto px-4 pt-4 pb-3">
+          <Link 
+            href="/orders"
+            className="block w-full bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <img src="/icons/box.svg" alt="Order" className="w-5 h-5 opacity-70" />
+                <img src="/icons/box.svg" alt="Order" className="w-9 h-9 opacity-70" />
                 <div>
                   <p className="text-xs text-gray-600 flex items-center gap-2">
                     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(lastOrder.status)}`}>
@@ -537,12 +538,12 @@ function CustomPageContent() {
                   </p>
                 </div>
               </div>
-              <svg className="w-5 h-5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-gray-400 group-hover:text-brand-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </div>
-          </div>
-        </Link>
+          </Link>
+        </div>
       )}
 
       {/* Search - only show if there are products */}
@@ -860,36 +861,38 @@ function ProductModal({
   ];
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="Новый товар">
-      <FormInput
-        label="Название"
-        value={form.name}
-        onChange={(v) => setForm({ ...form, name: v })}
-        placeholder="Например: Яблоки"
-        required
-        autoFocus
-      />
-      <FormSelect
-        label="Единица измерения"
-        value={form.unit}
-        onChange={(v) => setForm({ ...form, unit: v })}
-        options={unitOptions}
-      />
-      {categories.length > 0 && (
-        <FormSelect
-          label="Категория"
-          value={form.category_id}
-          onChange={(v) => setForm({ ...form, category_id: v })}
-          options={categories.map((c) => ({ value: c.id, label: c.name }))}
-          placeholder="Выберите категорию"
+    <Modal isOpen={isOpen} onClose={onClose} title="Новый товар" size="sm">
+      <div className="space-y-4">
+        <FormInput
+          label="Название"
+          value={form.name}
+          onChange={(v) => setForm({ ...form, name: v })}
+          placeholder="Например: Яблоки"
+          required
+          autoFocus
         />
-      )}
-      <div className="mt-6">
-        <FormButton onClick={onSubmit} loading={submitting}>
-          Добавить товар
-        </FormButton>
+        <FormSelect
+          label="Единица измерения"
+          value={form.unit}
+          onChange={(v) => setForm({ ...form, unit: v })}
+          options={unitOptions}
+        />
+        {categories.length > 0 && (
+          <FormSelect
+            label="Категория"
+            value={form.category_id}
+            onChange={(v) => setForm({ ...form, category_id: v })}
+            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            placeholder="Выберите категорию"
+          />
+        )}
+        <div className="mt-6">
+          <FormButton onClick={onSubmit} loading={submitting}>
+            Добавить товар
+          </FormButton>
+        </div>
       </div>
-    </BottomSheet>
+    </Modal>
   );
 }
 

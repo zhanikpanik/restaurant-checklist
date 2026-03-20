@@ -437,7 +437,7 @@ const getStatusBadge = (status: string) => {
                                     </div>
                                     <div className="flex-1">
                                       <label className="block text-xs text-gray-600 mb-1">
-                                        Цена
+                                        Цена, ₸
                                       </label>
                                       <input
                                         type="number"

@@ -225,7 +225,7 @@ export default function SuppliersCategoriesPage() {
 
   if (status === "loading" || !isAuthorized) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-b-2 border-brand-500 rounded-full" />
       </div>
     );
@@ -234,7 +234,7 @@ export default function SuppliersCategoriesPage() {
   const isGlobalSearching = globalSearchQuery.trim().length > 0;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-white pb-20">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-4">

@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Product } from "@/types";
-import { BottomSheet } from "@/components/ui/BottomSheet";
+import { Modal } from "@/components/ui/Modal";
 import { api } from "@/lib/api-client";
 import { useToast } from "@/components/ui/Toast";
 
@@ -223,11 +223,12 @@ export function GenericProductListTab({
         </div>
       )}
 
-      {/* Assignment Bottom Sheet */}
-      <BottomSheet
+      {/* Assignment Modal */}
+      <Modal
         isOpen={isSheetOpen}
         onClose={() => !submitting && setIsSheetOpen(false)}
         title="Выберите поставщика"
+        size="md"
       >
         <div className="pb-4">
           {submitting ? (
@@ -256,7 +257,7 @@ export function GenericProductListTab({
             </div>
           )}
         </div>
-      </BottomSheet>
+      </Modal>
     </div>
   );
 }

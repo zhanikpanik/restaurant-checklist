@@ -357,6 +357,7 @@ export default function TeamPage() {
         isOpen={isInviteModalOpen}
         onClose={() => setIsInviteModalOpen(false)}
         title="Пригласить в команду"
+        size="sm"
       >
         <div className="space-y-5">
           <p className="text-sm text-gray-600">

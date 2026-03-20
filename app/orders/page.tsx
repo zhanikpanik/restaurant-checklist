@@ -8,6 +8,7 @@ import { clientCache, fetchWithCache } from "@/lib/client-cache";
 import { getUserRootUrlSync } from "@/lib/navigation";
 import { useToast } from "@/components/ui/Toast";
 import { QuantityInput } from "@/components/ui/QuantityInput";
+import { Modal } from "@/components/ui/Modal";
 import type { Order, Supplier, UserOrderPermissions } from "@/types";
 
 type TabType = "pending" | "transit" | "history";
@@ -547,7 +548,7 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-white pb-24">
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="relative flex items-center justify-center mb-4">
@@ -695,50 +696,47 @@ export default function OrdersPage() {
                           
                           return (
                             <div key={idx} className={`px-4 py-4 transition-colors ${isExcluded ? 'opacity-40 bg-gray-50' : isDifferent ? 'bg-orange-50/30' : 'hover:bg-gray-50'}`}>
-                              <div className="flex flex-col gap-2">
-                                <h3 className={`font-medium text-gray-900 ${isExcluded ? 'line-through' : ''}`}>{item.name}</h3>
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                  <div className="flex flex-col">
-                                    <p className={`text-xs font-medium ${orderedTextColor} whitespace-nowrap`}>
+                              <div className="flex items-end sm:items-center justify-between gap-2 sm:gap-4">
+                                <div className="flex-1 min-w-0 pb-1 sm:pb-0">
+                                  <h3 className={`font-medium text-sm sm:text-base text-gray-900 leading-tight ${isExcluded ? 'line-through' : ''}`}>{item.name}</h3>
+                                  <div className="flex items-center gap-2 mt-1 sm:mt-1">
+                                    <p className={`text-[11px] sm:text-xs font-medium ${orderedTextColor} whitespace-nowrap`}>
                                       Заказано: {item._orderedQty} {translateUnit(item.unit || "шт")}{isDifferent && !isExcluded && ` (${diff > 0 ? '+' : ''}${diff.toFixed(1)})`}
                                     </p>
-                                    {isExcluded && <span className="text-[10px] text-gray-400 uppercase">Пропущено</span>}
+                                    {isExcluded && <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase">Пропущено</span>}
                                   </div>
-                                  
-                                  <div className="flex flex-wrap items-center gap-4 ml-auto sm:ml-0 justify-end mt-2 sm:mt-0">
-                                    {!isExcluded && (
-                                      <div className="flex flex-col items-end gap-1">
-                                        <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Цена</span>
-                                        <div className="relative">
-                                          <input 
-                                            type="number" 
-                                            value={receivedPrices[item._key] ?? item._receivedPrice} 
-                                            onChange={(e) => handleReceivedPriceChange(item._key, e.target.value)} 
-                                            onFocus={(e) => e.target.select()}
-                                            className="w-24 bg-white border border-gray-300 rounded-lg pl-2 pr-6 py-2 text-gray-900 text-right text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all" 
-                                            step="0.01" 
-                                            min="0" 
-                                          />
-                                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">₸</span>
-                                        </div>
-                                      </div>
-                                    )}
-                                    <div className="flex flex-col items-end gap-1">
-                                      <span className="text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Факт</span>
-                                      <div className="relative">
-                                        <input
-                                          type="number"
-                                          value={currentQty}
-                                          onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
-                                          onFocus={(e) => e.target.select()}
-                                          className={`w-24 border rounded-lg pl-2 pr-8 py-2 text-right text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all ${isDifferent ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-300 text-gray-900'}`}
-                                          step="0.01"
-                                          min="0"
-                                        />
-                                        <span className={`absolute right-2 top-1/2 -translate-y-1/2 text-sm font-medium pointer-events-none ${isDifferent ? 'text-orange-400' : 'text-gray-400'}`}>
-                                          {translateUnit(item.unit || "шт")}
-                                        </span>
-                                      </div>
+                                </div>
+                                
+                                <div className="flex items-center justify-end gap-2 sm:gap-4 shrink-0">
+                                  {!isExcluded && (
+                                    <div className="flex flex-col items-start gap-1">
+                                      <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Цена, ₸</span>
+                                      <input
+                                        type="number"
+                                        value={receivedPrices[item._key] ?? item._receivedPrice}
+                                        onChange={(e) => handleReceivedPriceChange(item._key, e.target.value)}
+                                        onFocus={(e) => e.target.select()}
+                                        className="w-16 sm:w-24 bg-white border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-gray-900 text-left text-xs sm:text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
+                                        step="0.01"
+                                        min="0"
+                                      />
+                                    </div>                                    
+                                  )}
+                                  <div className="flex flex-col items-start gap-1">
+                                    <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Факт</span>
+                                    <div className="relative">
+                                      <input
+                                        type="number"
+                                        value={currentQty}
+                                        onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
+                                        onFocus={(e) => e.target.select()}
+                                        className={`w-20 sm:w-24 border rounded-lg pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all ${isDifferent ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-300 text-gray-900'}`}
+                                        step="0.01"
+                                        min="0"
+                                      />
+                                      <span className={`absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-xs sm:text-sm font-medium pointer-events-none ${isDifferent ? 'text-orange-400' : 'text-gray-400'}`}>
+                                        {translateUnit(item.unit || "шт")}
+                                      </span>
                                     </div>
                                   </div>
                                 </div>
@@ -776,72 +774,69 @@ export default function OrdersPage() {
         )}
       </main>
 
-      {/* Missing Items Action Modal */}
-      {confirmingSupplier && (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center px-0 sm:px-4">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => !updating && setConfirmingSupplier(null)} />
-          <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom duration-300">
-            <div className="px-6 pt-8 pb-6">
-              <div className="w-12 h-12 bg-orange-100 rounded-2xl flex items-center justify-center mb-4 text-orange-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+      <Modal
+        isOpen={!!confirmingSupplier}
+        onClose={() => !updating && setConfirmingSupplier(null)}
+        title="Обнаружены расхождения"
+      >
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center gap-3 text-orange-600 bg-orange-50 p-3 rounded-lg">
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+            <p className="text-sm">Часть товаров не была получена. Что сделать с недостающим количеством?</p>
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <button 
+              onClick={() => confirmingSupplier && handleConfirmDelivery(confirmingSupplier, sentBySupplier.find(s => s[0] === confirmingSupplier)?.[1].items || [], 'transit')}
+              disabled={updating}
+              className="w-full p-4 text-left hover:bg-gray-50 rounded-2xl border border-gray-100 transition-colors flex items-center gap-4 group"
+            >
+              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
               </div>
-              <h3 className="text-xl font-black text-gray-900 mb-2">Обнаружены расхождения</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">Часть товаров не была получена. Что сделать с недостающим количеством?</p>
-            </div>
-            
-            <div className="px-4 pb-8 flex flex-col gap-2">
-              <button 
-                onClick={() => handleConfirmDelivery(confirmingSupplier, sentBySupplier.find(s => s[0] === confirmingSupplier)?.[1].items || [], 'transit')}
-                disabled={updating}
-                className="w-full p-4 text-left hover:bg-gray-50 rounded-2xl border border-gray-100 transition-colors flex items-center gap-4 group"
-              >
-                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-gray-900 text-sm">Оставить «В пути»</p>
-                  <p className="text-xs text-gray-400">Поставщик довезет их позже</p>
-                </div>
-              </button>
+              <div className="flex-1">
+                <p className="font-bold text-gray-900 text-sm">Оставить «В пути»</p>
+                <p className="text-xs text-gray-400">Поставщик довезет их позже</p>
+              </div>
+            </button>
 
-              <button 
-                onClick={() => handleConfirmDelivery(confirmingSupplier, sentBySupplier.find(s => s[0] === confirmingSupplier)?.[1].items || [], 'pending')}
-                disabled={updating}
-                className="w-full p-4 text-left hover:bg-gray-50 rounded-2xl border border-gray-100 transition-colors flex items-center gap-4 group"
-              >
-                <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-gray-900 text-sm">Вернуть в «Ожидание»</p>
-                  <p className="text-xs text-gray-400">Перезаказать у другого поставщика</p>
-                </div>
-              </button>
+            <button 
+              onClick={() => confirmingSupplier && handleConfirmDelivery(confirmingSupplier, sentBySupplier.find(s => s[0] === confirmingSupplier)?.[1].items || [], 'pending')}
+              disabled={updating}
+              className="w-full p-4 text-left hover:bg-gray-50 rounded-2xl border border-gray-100 transition-colors flex items-center gap-4 group"
+            >
+              <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-gray-900 text-sm">Вернуть в «Ожидание»</p>
+                <p className="text-xs text-gray-400">Перезаказать у другого поставщика</p>
+              </div>
+            </button>
 
-              <button 
-                onClick={() => handleConfirmDelivery(confirmingSupplier, sentBySupplier.find(s => s[0] === confirmingSupplier)?.[1].items || [], 'cancel')}
-                disabled={updating}
-                className="w-full p-4 text-left hover:bg-red-50 rounded-2xl border border-gray-100 hover:border-red-100 transition-colors flex items-center gap-4 group"
-              >
-                <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center group-hover:bg-red-100 transition-colors">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-gray-900 text-sm text-red-600">Отменить товары</p>
-                  <p className="text-xs text-red-400">Товары больше не нужны</p>
-                </div>
-              </button>
+            <button 
+              onClick={() => confirmingSupplier && handleConfirmDelivery(confirmingSupplier, sentBySupplier.find(s => s[0] === confirmingSupplier)?.[1].items || [], 'cancel')}
+              disabled={updating}
+              className="w-full p-4 text-left hover:bg-red-50 rounded-2xl border border-gray-100 hover:border-red-100 transition-colors flex items-center gap-4 group"
+            >
+              <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center group-hover:bg-red-100 transition-colors shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </div>
+              <div className="flex-1">
+                <p className="font-bold text-gray-900 text-sm text-red-600">Отменить товары</p>
+                <p className="text-xs text-red-400">Товары больше не нужны</p>
+              </div>
+            </button>
 
-              <button 
-                onClick={() => !updating && setConfirmingSupplier(null)}
-                className="w-full p-4 text-center font-bold text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                Отмена
-              </button>
-            </div>
+            <button 
+              onClick={() => !updating && setConfirmingSupplier(null)}
+              className="w-full p-4 mt-2 text-center font-bold text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Отмена
+            </button>
           </div>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
