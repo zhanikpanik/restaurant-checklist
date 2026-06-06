@@ -105,6 +105,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
   trustHost: true,
-  secret: process.env.AUTH_SECRET,
+  // Railway sets AUTH_SECRET at runtime. Fallback prevents build errors.
+  secret: process.env.AUTH_SECRET || 'placeholder-secret-override-in-production',
   debug: process.env.NODE_ENV === "development",
 });
