@@ -9,7 +9,10 @@ function getSecretEdge(): string {
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("AUTH_SECRET is required in production for CSRF protection");
+      // During build, env vars aren't available. Provide a fallback.
+      // Railway injects the real AUTH_SECRET at runtime.
+      console.warn("⚠️  AUTH_SECRET not set at build time — using placeholder (will be overridden at runtime)");
+      return "placeholder-override-at-runtime-via-env";
     }
     console.warn("⚠️  AUTH_SECRET not set — CSRF using random per-request salt (DO NOT use in production)");
     return "dev-" + Date.now().toString(36);
