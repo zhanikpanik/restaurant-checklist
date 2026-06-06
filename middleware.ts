@@ -51,11 +51,14 @@ export default auth(async (req) => {
 
   // ── Rate limiting (API routes only, skipped in dev) ──────
   if (process.env.NODE_ENV !== "development" && pathname.startsWith("/api")) {
+    // Use restaurant_id as rate limit key (not IP — Railway proxies all traffic)
+    const restaurantId = req.cookies.get("restaurant_id")?.value;
     const ip = req.headers.get("x-forwarded-for") ||
                req.headers.get("x-real-ip") ||
                "unknown";
+    const identifier = restaurantId || ip; // fallback to IP for unauthenticated
     const config = getRateLimitConfig(pathname);
-    const result = checkEdgeRateLimit(ip, config.max, config.windowMs);
+    const result = checkEdgeRateLimit(identifier, config.max, config.windowMs);
 
     if (!result.allowed) {
       return NextResponse.json(

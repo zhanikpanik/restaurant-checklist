@@ -60,14 +60,14 @@ export function checkEdgeRateLimit(
 
 /** Configs by path prefix */
 const PATH_LIMITS: Record<string, { max: number; windowMs: number }> = {
-  "/api/auth": { max: 10, windowMs: 900_000 }, // auth: 10 req/15min
-  "/api/orders": { max: 60, windowMs: 60_000 }, // orders: 60 req/min
-  "/api/poster": { max: 30, windowMs: 60_000 }, // poster: 30 req/min
+  "/api/auth": { max: 20, windowMs: 900_000 },  // auth: 20 req/15min
+  "/api/orders": { max: 120, windowMs: 60_000 }, // orders: 120 req/min
+  "/api/poster": { max: 60, windowMs: 60_000 },  // poster: 60 req/min
 };
 
 export function getRateLimitConfig(pathname: string) {
   for (const [prefix, config] of Object.entries(PATH_LIMITS)) {
     if (pathname.startsWith(prefix)) return config;
   }
-  return { max: 100, windowMs: 60_000 }; // default: 100 req/min
+  return { max: 300, windowMs: 60_000 }; // default: 300 req/min (was 100)
 }
