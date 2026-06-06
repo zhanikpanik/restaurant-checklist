@@ -76,22 +76,8 @@ export async function setupDatabaseSchema() {
       );
     `);
 
-    // Create products table with restaurant_id
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS products (
-        id SERIAL PRIMARY KEY,
-        restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-        name VARCHAR(255) NOT NULL,
-        category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
-        supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
-        poster_id VARCHAR(100),
-        unit VARCHAR(50),
-        department VARCHAR(50),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(restaurant_id, name, department)
-      );
-    `);
+    // NOTE: The legacy `products` table has been replaced by `section_products`.
+    // It's kept in existing databases for historical data but no longer created for new ones.
 
     // Create orders table with restaurant_id
     await client.query(`
@@ -102,43 +88,23 @@ export async function setupDatabaseSchema() {
         status VARCHAR(50) DEFAULT 'pending',
         created_by_role VARCHAR(50),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         sent_at TIMESTAMP,
         delivered_at TIMESTAMP
       );
     `);
 
-    // Create departments table for custom sections
+    // Add updated_at if it doesn't exist (for existing databases)
     await client.query(`
-      CREATE TABLE IF NOT EXISTS departments (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        emoji VARCHAR(10) DEFAULT '📦',
-        poster_storage_id INTEGER,
-        restaurant_id VARCHAR(50) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
-        is_active BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(restaurant_id, poster_storage_id)
-      );
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'updated_at') THEN
+          ALTER TABLE orders ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+        END IF;
+      END $$;
     `);
 
-    // Create custom_products table
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS custom_products (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        unit VARCHAR(50) DEFAULT 'шт',
-        category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
-        department_id INTEGER REFERENCES departments(id) ON DELETE CASCADE,
-        restaurant_id VARCHAR(50) REFERENCES restaurants(id) ON DELETE CASCADE,
-        min_quantity INTEGER DEFAULT 1,
-        current_quantity INTEGER DEFAULT 0,
-        is_active BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(name, department_id)
-      );
-    `);
+    // NOTE: The legacy `departments` and `custom_products` tables have been
+    // replaced by `sections` and `section_products`. They are no longer created.
 
     // Create sections table (Poster storages as default sections)
     await client.query(`
@@ -166,10 +132,37 @@ export async function setupDatabaseSchema() {
         unit VARCHAR(50),
         category_id INTEGER REFERENCES product_categories(id) ON DELETE SET NULL,
         is_active BOOLEAN DEFAULT true,
+        is_manual_check BOOLEAN DEFAULT false,
+        stock_alert_days NUMERIC(3) DEFAULT 2,
+        pinned BOOLEAN DEFAULT false,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(section_id, poster_ingredient_id)
       );
+    `);
+
+    // Add new columns if they don't exist (for existing databases)
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'section_products' AND column_name = 'is_manual_check') THEN
+          ALTER TABLE section_products ADD COLUMN is_manual_check BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'section_products' AND column_name = 'stock_alert_days') THEN
+          ALTER TABLE section_products ADD COLUMN stock_alert_days NUMERIC(3) DEFAULT 2;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'section_products' AND column_name = 'pinned') THEN
+          ALTER TABLE section_products ADD COLUMN pinned BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'section_products' AND column_name = 'supplier_id') THEN
+          ALTER TABLE section_products ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'section_products' AND column_name = 'stock') THEN
+          ALTER TABLE section_products ADD COLUMN stock NUMERIC(10,2) DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'section_products' AND column_name = 'stock_updated_at') THEN
+          ALTER TABLE section_products ADD COLUMN stock_updated_at TIMESTAMP;
+        END IF;
+      END $$;
     `);
 
 // Create section_leftovers table (Inventory for each section)
@@ -210,6 +203,46 @@ export async function setupDatabaseSchema() {
       );
     `);
 
+    // Create invitations table (for team member invite links)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invitations (
+        id SERIAL PRIMARY KEY,
+        token VARCHAR(255) UNIQUE NOT NULL,
+        restaurant_id VARCHAR(255) NOT NULL REFERENCES restaurants(id) ON DELETE CASCADE,
+        name VARCHAR(255),
+        email VARCHAR(255),
+        role VARCHAR(50) NOT NULL DEFAULT 'staff',
+        sections JSONB NOT NULL DEFAULT '[]',
+        can_send_orders BOOLEAN DEFAULT true,
+        can_receive_supplies BOOLEAN DEFAULT true,
+        status VARCHAR(50) DEFAULT 'pending',
+        user_id INT REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        expires_at TIMESTAMP DEFAULT (NOW() + INTERVAL '7 days'),
+        accepted_at TIMESTAMP,
+        created_by INT REFERENCES users(id) ON DELETE SET NULL
+      );
+    `);
+
+    // Indexes + constraints for invitations
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_invitations_token ON invitations(token);
+      CREATE INDEX IF NOT EXISTS idx_invitations_restaurant ON invitations(restaurant_id);
+      CREATE INDEX IF NOT EXISTS idx_invitations_status ON invitations(status);
+    `);
+
+    // Add constraints if not already present (safe — skips if exists)
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_invitation_status') THEN
+          ALTER TABLE invitations ADD CONSTRAINT chk_invitation_status CHECK (status IN ('pending', 'accepted', 'expired'));
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_invitation_role') THEN
+          ALTER TABLE invitations ADD CONSTRAINT chk_invitation_role CHECK (role IN ('admin', 'manager', 'staff', 'delivery'));
+        END IF;
+      END $$;
+    `);
+
     // Add permission columns if they don't exist (for existing databases)
     await client.query(`
       DO $$ 
@@ -227,19 +260,9 @@ export async function setupDatabaseSchema() {
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_suppliers_restaurant_id ON suppliers(restaurant_id);
       CREATE INDEX IF NOT EXISTS idx_categories_restaurant_id ON product_categories(restaurant_id);
-      CREATE INDEX IF NOT EXISTS idx_products_restaurant_id ON products(restaurant_id);
-      CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
-      CREATE INDEX IF NOT EXISTS idx_products_supplier_id ON products(supplier_id);
-      CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
-      CREATE INDEX IF NOT EXISTS idx_products_restaurant_category ON products(restaurant_id, category_id);
-      CREATE INDEX IF NOT EXISTS idx_products_poster_id ON products(poster_id) WHERE poster_id IS NOT NULL;
-      CREATE INDEX IF NOT EXISTS idx_products_department ON products(department);
       CREATE INDEX IF NOT EXISTS idx_orders_restaurant_id ON orders(restaurant_id);
       CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(restaurant_id, status);
       CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_custom_products_department ON custom_products(department_id);
-      CREATE INDEX IF NOT EXISTS idx_custom_products_category ON custom_products(category_id);
-      CREATE INDEX IF NOT EXISTS idx_departments_active ON departments(is_active);
       CREATE INDEX IF NOT EXISTS idx_sections_restaurant_id ON sections(tenant_id);
       CREATE INDEX IF NOT EXISTS idx_sections_poster_storage_id ON sections(poster_storage_id) WHERE poster_storage_id IS NOT NULL;
       CREATE INDEX IF NOT EXISTS idx_sections_active ON sections(tenant_id, is_active);
@@ -260,7 +283,4 @@ CREATE INDEX IF NOT EXISTS idx_section_leftovers_section_id ON section_leftovers
   }
 }
 
-// Initialize database on module load in development
-if (process.env.NODE_ENV === "development") {
-  setupDatabaseSchema().catch(console.error);
-}
+// Schema auto-migration is triggered from lib/db.ts on first database import.
