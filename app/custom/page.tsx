@@ -110,15 +110,19 @@ function SearchBar({
 }
 
 // ── Product List (sectioned: InCart | Low | Rest) ──────────
-function ProductList() {
-  const {
-    lowProducts,
-    restProducts,
-    cart,
-    handleToggleCart,
-  } = useCustomSection();
+function ProductList({
+  lowProducts,
+  restProducts,
+  cart,
+  handleToggleCart,
+}: {
+  lowProducts: any[];
+  restProducts: any[];
+  cart: any;
+  handleToggleCart: (product: any) => void;
+}) {
 
-  const inCartIds = new Set(cart.items.filter(i => i.productId).map(i => i.productId));
+  const inCartIds = new Set(cart.items.filter((i: any) => i.productId).map((i: any) => i.productId));
 
   const renderRow = (product: any) => {
     const isInCart = inCartIds.has(product.id);
@@ -398,6 +402,8 @@ function CustomPageContent() {
     assignedUsersCount,
     lastOrder,
     loadingLastOrder,
+    lowProducts,
+    restProducts,
     searchQuery,
     setSearchQuery,
     currentProducts,
@@ -407,6 +413,7 @@ function CustomPageContent() {
     closeProductModal,
     currentSection,
     cart,
+    handleToggleCart,
     loadData,
     router,
   } = useCustomSection();
@@ -455,7 +462,7 @@ function CustomPageContent() {
             <p className="text-gray-500">Товары не найдены</p>
           </div>
         ) : (
-          <ProductList />
+          <ProductList lowProducts={lowProducts} restProducts={restProducts} cart={cart} handleToggleCart={handleToggleCart} />
         )}
       </main>
 

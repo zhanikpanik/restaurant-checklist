@@ -376,14 +376,28 @@ function CartItemRow({
   onRemove: () => void;
   translateUnit: (u: string) => string;
 }) {
+  const [editValue, setEditValue] = useState(item.quantity.toString());
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setEditValue(item.quantity.toString());
+  }, [item.quantity, focused]);
+
+  const commit = () => {
+    const v = parseFloat(editValue);
+    if (!isNaN(v) && v >= 0) {
+      onQuantityChange(item.cartId, v);
+    } else {
+      setEditValue(item.quantity.toString());
+    }
+  };
+
+  const unit = translateUnit(item.unit || 'шт');
+
   return (
     <div className="flex items-center gap-3 min-h-[52px] active:bg-black/5 transition-colors border-b border-gray-100/80">
       <div className="flex-1 min-w-0 py-2">
-        <p className="text-base text-[#1a1008] truncate">
-          {item.name}
-          {' '}
-          <span className="text-gray-400">{translateUnit(item.unit || 'шт')}</span>
-        </p>
+        <p className="text-base text-[#1a1008] truncate">{item.name}</p>
       </div>
       <div className="flex items-center gap-1 shrink-0">
         <button
@@ -393,9 +407,21 @@ function CartItemRow({
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
         </button>
-        <span className="w-8 text-center text-sm font-semibold tabular-nums select-none">
-          {item.quantity}
-        </span>
+        <div className="relative flex items-center">
+          <input
+            type="text"
+            inputMode="decimal"
+            value={focused ? editValue : `${item.quantity} ${unit}`}
+            onChange={(e) => {
+              const val = e.target.value.replace(/,/g, '.');
+              if (val === '' || /^\d*\.?\d*$/.test(val)) setEditValue(val);
+            }}
+            onFocus={() => { setFocused(true); setEditValue(item.quantity.toString()); }}
+            onBlur={() => { setFocused(false); commit(); }}
+            onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+            className="w-12 text-center text-sm font-semibold tabular-nums bg-transparent outline-none"
+          />
+        </div>
         <button
           onClick={() => onQuantityChange(item.cartId, item.quantity + 1)}
           className="w-9 h-9 flex items-center justify-center rounded-lg bg-brand-500 text-white active:bg-brand-600 transition-colors select-none"
