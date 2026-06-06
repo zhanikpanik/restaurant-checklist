@@ -4,11 +4,28 @@ import { SuppliersTab } from "@/components/manager/SuppliersTab";
 import { GenericProductListTab } from "@/components/manager/UnsortedTab";
 import { useSuppliersCategories } from "@/hooks/useSuppliersCategories";
 
-// ── Header ──────────────────────────────────────────────────
-function Header() {
-  const { pageTitle, selectedSupplierId, setSelectedSupplierId, syncing, handleSync, handleBack, router } =
-    useSuppliersCategories();
+interface PageProps {
+  pageTitle: string;
+  syncing: boolean;
+  selectedSupplierId: string | number;
+  setSelectedSupplierId: (id: string | number) => void;
+  handleSync: () => void;
+  handleBack: () => void;
+  suppliers: any[];
+  loading: boolean;
+  unassignedCount: number;
+  globalSearchQuery: string;
+  setGlobalSearchQuery: (q: string) => void;
+  searchedProducts: any[];
+  globalRelatedIdsMap: Record<number, number[]>;
+  loadData: () => void;
+  unassignedProducts: any[];
+  relatedIdsMap: Record<number, number[]>;
+  supplierProducts: any[];
+}
 
+// ── Header ──────────────────────────────────────────────────
+function Header({ pageTitle, syncing, handleSync, handleBack }: PageProps) {
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-2xl mx-auto px-4 py-4">
@@ -50,19 +67,17 @@ function Header() {
 }
 
 // ── Suppliers View ──────────────────────────────────────────
-function SuppliersView() {
-  const {
-    suppliers,
-    loading,
-    unassignedCount,
-    globalSearchQuery,
-    setGlobalSearchQuery,
-    setSelectedSupplierId,
-    searchedProducts,
-    globalRelatedIdsMap,
-    loadData,
-  } = useSuppliersCategories();
-
+function SuppliersView({
+  suppliers,
+  loading,
+  unassignedCount,
+  globalSearchQuery,
+  setGlobalSearchQuery,
+  setSelectedSupplierId,
+  searchedProducts,
+  globalRelatedIdsMap,
+  loadData,
+}: PageProps) {
   const isGlobalSearching = globalSearchQuery.trim().length > 0;
 
   return (
@@ -140,9 +155,7 @@ function SuppliersView() {
 }
 
 // ── Unsorted View ───────────────────────────────────────────
-function UnsortedView() {
-  const { unassignedProducts, suppliers, relatedIdsMap, loadData } =
-    useSuppliersCategories();
+function UnsortedView({ unassignedProducts, suppliers, relatedIdsMap, loadData }: PageProps) {
   return (
     <div className="-mx-4 md:mx-0">
       <GenericProductListTab
@@ -157,12 +170,10 @@ function UnsortedView() {
 }
 
 // ── Supplier Detail View ────────────────────────────────────
-function SupplierDetailView() {
-  const { supplierProducts, suppliers, selectedSupplierId, loadData } =
-    useSuppliersCategories();
+function SupplierDetailView({ supplierProducts, suppliers, selectedSupplierId, loadData }: PageProps) {
   const supplierName =
     typeof selectedSupplierId === "number"
-      ? suppliers.find((s) => s.id === selectedSupplierId)?.name
+      ? suppliers.find((s: any) => s.id === selectedSupplierId)?.name
       : "";
 
   return (
@@ -179,10 +190,9 @@ function SupplierDetailView() {
 
 // ── Main Page ───────────────────────────────────────────────
 export default function SuppliersCategoriesPage() {
-  const { status, isAuthorized, selectedSupplierId } =
-    useSuppliersCategories();
+  const props = useSuppliersCategories();
 
-  if (status === "loading" || !isAuthorized) {
+  if (props.status === "loading" || !props.isAuthorized) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="animate-spin h-8 w-8 border-b-2 border-brand-500 rounded-full" />
@@ -192,12 +202,12 @@ export default function SuppliersCategoriesPage() {
 
   return (
     <div className="min-h-screen bg-white pb-20">
-      <Header />
+      <Header {...props} />
 
       <main className="max-w-2xl mx-auto pt-4 px-4 md:px-0">
-        {selectedSupplierId === "suppliers" && <SuppliersView />}
-        {selectedSupplierId === "unsorted" && <UnsortedView />}
-        {typeof selectedSupplierId === "number" && <SupplierDetailView />}
+        {props.selectedSupplierId === "suppliers" && <SuppliersView {...props} />}
+        {props.selectedSupplierId === "unsorted" && <UnsortedView {...props} />}
+        {typeof props.selectedSupplierId === "number" && <SupplierDetailView {...props} />}
       </main>
     </div>
   );
