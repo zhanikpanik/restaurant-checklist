@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth-config";
 import { validateCSRFToken, requiresCSRFValidation, getSessionIdentifier } from "@/lib/csrf-edge";
-import { checkEdgeRateLimit, getRateLimitConfig } from "@/lib/rate-limit-edge";
 
 // Routes that don't require authentication
 const publicRoutes = ["/login", "/setup", "/register", "/forgot-password", "/reset-password", "/api/auth", "/api/health", "/api/debug-auth", "/api/poster/oauth", "/api/poster/webhooks", "/api/setup/complete", "/setup/finish", "/setup/onboarding", "/api/setup/map-categories", "/api/setup/map-ingredients", "/api/invitations"];
@@ -49,29 +48,8 @@ export default auth(async (req) => {
     return NextResponse.next();
   }
 
-  // ── Rate limiting (API routes only, skipped in dev, disabled for single-instance) ──
-  // Rate limiting disabled for single-instance Railway deployment.
-  // Railway has its own DDoS protection. Re-enable for multi-instance.
-  if (false && process.env.NODE_ENV !== "development" && pathname.startsWith("/api")) {
-    // Use restaurant_id as rate limit key (not IP — Railway proxies all traffic)
-    const restaurantId = req.cookies.get("restaurant_id")?.value;
-    const ip = req.headers.get("x-forwarded-for") ||
-               req.headers.get("x-real-ip") ||
-               "unknown";
-    const identifier = restaurantId || ip; // fallback to IP for unauthenticated
-    const config = getRateLimitConfig(pathname);
-    const result = checkEdgeRateLimit(identifier, config.max, config.windowMs);
-
-    if (!result.allowed) {
-      return NextResponse.json(
-        { success: false, error: "Too many requests" },
-        {
-          status: 429,
-          headers: { "Retry-After": String(result.retryAfter) },
-        }
-      );
-    }
-  }
+  // ── Rate limiting disabled for presentation ──────────
+  // (single-instance Railway; Railway provides DDoS protection)
 
   // Get session from auth
   const session = req.auth;
