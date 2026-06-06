@@ -19,6 +19,9 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <head>
         <meta name="theme-color" content="#ffffff" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        {/* Preconnect to speed up API calls */}
+        <link rel="dns-prefetch" href="//api.telegram.org" />
         <script
           dangerouslySetInnerHTML={{
             __html: `

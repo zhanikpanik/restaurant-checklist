@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { auth } from "@/lib/auth-config";
 import { validateCSRFToken, requiresCSRFValidation, getSessionIdentifier } from "@/lib/csrf-edge";
+import { checkEdgeRateLimit, getRateLimitConfig } from "@/lib/rate-limit-edge";
 
 // Routes that don't require authentication
 const publicRoutes = ["/login", "/setup", "/register", "/forgot-password", "/reset-password", "/api/auth", "/api/health", "/api/debug-auth", "/api/poster/oauth", "/api/poster/webhooks", "/api/setup/complete", "/setup/finish", "/setup/onboarding", "/api/setup/map-categories", "/api/setup/map-ingredients", "/api/invitations"];
@@ -48,17 +49,27 @@ export default auth(async (req) => {
     return NextResponse.next();
   }
 
+  // ── Rate limiting (API routes only, skipped in dev) ──────
+  if (process.env.NODE_ENV !== "development" && pathname.startsWith("/api")) {
+    const ip = req.headers.get("x-forwarded-for") ||
+               req.headers.get("x-real-ip") ||
+               "unknown";
+    const config = getRateLimitConfig(pathname);
+    const result = checkEdgeRateLimit(ip, config.max, config.windowMs);
+
+    if (!result.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many requests" },
+        {
+          status: 429,
+          headers: { "Retry-After": String(result.retryAfter) },
+        }
+      );
+    }
+  }
+
   // Get session from auth
   const session = req.auth;
-  
-  // Debug logging
-  console.log("Middleware check:", { 
-    pathname, 
-    method,
-    hasSession: !!session,
-    sessionRole: session?.user?.role,
-    sessionRestaurant: session?.user?.restaurantId,
-  });
   
   if (!session) {
     // Redirect to login for page requests
@@ -96,12 +107,6 @@ export default auth(async (req) => {
       const isValid = await validateCSRFToken(csrfToken || "", sessionId);
       
       if (!csrfToken || !isValid) {
-        console.log("CSRF validation failed:", { 
-          pathname, 
-          hasToken: !!csrfToken,
-          hasStoredSessionId: !!storedSessionId,
-          usingStoredId: !!storedSessionId,
-        });
         return NextResponse.json(
           { success: false, error: "CSRF token invalid or missing" },
           { status: 403 }

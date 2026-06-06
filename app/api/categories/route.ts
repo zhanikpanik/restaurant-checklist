@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { getCached, invalidateCache } from "@/lib/server-cache";
 import type { ProductCategory, ApiResponse } from "@/types";
 
 // GET /api/categories - Get all categories
@@ -23,22 +24,32 @@ export async function GET(request: NextRequest) {
       restaurantId = auth.restaurantId;
     }
 
-    const categories = await withTenant(restaurantId, async (client) => {
-      const result = await client.query<ProductCategory>(
-        `SELECT pc.*, s.name as supplier_name
-         FROM product_categories pc
-         LEFT JOIN suppliers s ON pc.supplier_id = s.id
-         WHERE pc.restaurant_id = $1
-         ORDER BY pc.name`,
-        [restaurantId]
-      );
-      return result.rows;
-    });
+    const categories = await getCached(
+      `categories:${restaurantId}`,
+      120_000, // 2 min TTL
+      async () => {
+        return await withTenant(restaurantId, async (client) => {
+          const result = await client.query<ProductCategory>(
+            `SELECT pc.*, s.name as supplier_name
+             FROM product_categories pc
+             LEFT JOIN suppliers s ON pc.supplier_id = s.id
+             WHERE pc.restaurant_id = $1
+             ORDER BY pc.name`,
+            [restaurantId]
+          );
+          return result.rows;
+        });
+      }
+    );
 
-    return NextResponse.json<ApiResponse<ProductCategory[]>>({
-      success: true,
-      data: categories,
-    });
+    return NextResponse.json<ApiResponse<ProductCategory[]>>(
+      { success: true, data: categories },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120',
+        },
+      }
+    );
   } catch (error) {
     console.error("Error fetching categories:", error);
     return NextResponse.json<ApiResponse>(
@@ -110,6 +121,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    invalidateCache(`categories:${restaurantId}`);
+
     return NextResponse.json<ApiResponse<ProductCategory>>({
       success: true,
       data: category,
@@ -166,6 +179,8 @@ export async function PATCH(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    invalidateCache(`categories:${restaurantId}`);
 
     return NextResponse.json<ApiResponse<ProductCategory>>({
       success: true,
@@ -241,6 +256,8 @@ export async function DELETE(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    invalidateCache(`categories:${restaurantId}`);
 
     return NextResponse.json<ApiResponse>({
       success: true,

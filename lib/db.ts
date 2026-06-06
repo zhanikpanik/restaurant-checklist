@@ -11,16 +11,15 @@ if (!databaseUrl) {
 let pool: Pool | null = null;
 
 try {
+  const isLocal = databaseUrl?.includes("localhost") || databaseUrl?.includes("127.0.0.1");
   const isInternal = databaseUrl?.includes("railway.internal");
   
   pool = databaseUrl
     ? new Pool({
         connectionString: databaseUrl,
-        ssl: isInternal
+        ssl: (isLocal || isInternal)
           ? false
-          : {
-              rejectUnauthorized: false,
-            },
+          : { rejectUnauthorized: false },
         // Connection pool settings
         max: 20,
         min: 2,
@@ -74,6 +73,21 @@ if (pool) {
 // Export the pool for querying the database from other parts of the application
 export default pool;
 
+// Auto-migrate schema on first import (in development or when AUTO_MIGRATE=true)
+// Uses dynamic import which works in both dev and production Next.js builds
+if (pool && (process.env.NODE_ENV === "development" || process.env.AUTO_MIGRATE === "true")) {
+  import("@/lib/db-schema")
+    .then(({ setupDatabaseSchema }) => setupDatabaseSchema())
+    .catch((err: Error) =>
+      console.error("❌ Core schema migration failed:", err.message)
+    );
+  import("@/lib/poster-sync-schema")
+    .then(({ setupPosterSyncSchema }) => setupPosterSyncSchema())
+    .catch((err: Error) =>
+      console.error("❌ Poster sync schema migration failed:", err.message)
+    );
+}
+
 /**
  * Execute queries within a tenant context (Row Level Security).
  * 
@@ -111,28 +125,34 @@ export async function withTenant<T>(
     // Execute the callback with tenant context
     return await callback(client);
   } finally {
-    // Reset tenant setting before releasing back to pool
-    await client.query("RESET app.current_tenant");
-    // Always release the client back to the pool
+    // Reset tenant setting before releasing back to pool.
+    // Wrap in try/catch — if the callback errored inside a transaction,
+    // RESET will fail. We must not mask the original error.
+    try {
+      await client.query("RESET app.current_tenant");
+    } catch {
+      // Ignore reset errors — the original error is more important
+    }
+    // Always release the client back to the pool (safe even on broken connections)
     client.release();
   }
 }
 
 /**
- * Execute queries within a transaction with tenant context.
+ * Execute multiple callbacks within a single tenant-scoped connection.
+ * 
+ * This avoids the overhead of acquiring/releasing a pool client and
+ * setting/resetting the tenant variable for each query.
  * 
  * @example
- * ```typescript
- * await withTenantTransaction(restaurantId, async (client) => {
- *   await client.query('INSERT INTO orders ...');
- *   await client.query('UPDATE inventory ...');
- *   // Auto-commits on success, auto-rollbacks on error
- * });
- * ```
+ * const [sections, orders] = await withTenantBatch(restaurantId, [
+ *   (c) => c.query('SELECT * FROM sections'),
+ *   (c) => c.query('SELECT * FROM orders'),
+ * ]);
  */
-export async function withTenantTransaction<T>(
+export async function withTenantBatch<T extends any[]>(
   tenantId: string,
-  callback: (client: import("pg").PoolClient) => Promise<T>
+  callbacks: { [K in keyof T]: (client: import("pg").PoolClient) => Promise<T[K]> }
 ): Promise<T> {
   if (!pool) {
     throw new Error("Database pool not initialized");
@@ -141,18 +161,20 @@ export async function withTenantTransaction<T>(
   const client = await pool.connect();
 
   try {
-    await client.query("BEGIN");
-    // Set the tenant for this session using set_config (supports parameterized values)
-    await client.query("SELECT set_config('app.current_tenant', $1, true)", [tenantId]);
+    await client.query("SELECT set_config('app.current_tenant', $1, false)", [tenantId]);
 
-    const result = await callback(client);
+    const results: any[] = [];
+    for (const cb of callbacks) {
+      results.push(await cb(client));
+    }
 
-    await client.query("COMMIT");
-    return result;
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
+    return results as T;
   } finally {
+    try {
+      await client.query("RESET app.current_tenant");
+    } catch {
+      // Ignore reset errors
+    }
     client.release();
   }
 }
@@ -176,7 +198,11 @@ export async function withoutTenant<T>(
 
   try {
     // Reset tenant setting to ensure no accidental tenant context
-    await client.query("RESET app.current_tenant");
+    try {
+      await client.query("RESET app.current_tenant");
+    } catch {
+      // RESET may fail if no tenant was set — safe to ignore
+    }
     return await callback(client);
   } finally {
     client.release();

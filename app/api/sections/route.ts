@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { getCached, invalidateCache } from "@/lib/server-cache";
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,28 +12,38 @@ export async function GET(request: NextRequest) {
     }
     const { restaurantId } = auth;
 
-    const sections = await withTenant(restaurantId, async (client) => {
-      const result = await client.query(
-        `SELECT
-          s.id,
-          s.name,
-          s.emoji,
-          s.poster_storage_id,
-          COUNT(sp.id) as custom_products_count
-        FROM sections s
-        LEFT JOIN section_products sp ON sp.section_id = s.id AND sp.is_active = true
-        WHERE s.restaurant_id = $1
-        GROUP BY s.id, s.name, s.emoji, s.poster_storage_id
-        ORDER BY s.name`,
-        [restaurantId]
-      );
-      return result.rows;
-    });
+    const sections = await getCached(
+      `sections:${restaurantId}`,
+      60_000, // 1 min TTL — sections change occasionally
+      async () => {
+        return await withTenant(restaurantId, async (client) => {
+          const result = await client.query(
+            `SELECT
+              s.id,
+              s.name,
+              s.emoji,
+              s.poster_storage_id,
+              COUNT(sp.id) as custom_products_count
+            FROM sections s
+            LEFT JOIN section_products sp ON sp.section_id = s.id AND sp.is_active = true
+            WHERE s.restaurant_id = $1
+            GROUP BY s.id, s.name, s.emoji, s.poster_storage_id
+            ORDER BY s.name`,
+            [restaurantId]
+          );
+          return result.rows;
+        });
+      }
+    );
 
-    return NextResponse.json({
-      success: true,
-      data: sections,
-    });
+    return NextResponse.json(
+      { success: true, data: sections },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+        },
+      }
+    );
   } catch (error) {
     console.error("Error fetching sections:", error);
     return NextResponse.json(
@@ -81,6 +92,8 @@ export async function POST(request: NextRequest) {
       );
       return result.rows[0];
     });
+
+    invalidateCache(`sections:${restaurantId}`);
 
     return NextResponse.json({
       success: true,
@@ -146,6 +159,8 @@ export async function PATCH(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    invalidateCache(`sections:${restaurantId}`);
 
     return NextResponse.json({
       success: true,
@@ -223,6 +238,8 @@ export async function DELETE(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    invalidateCache(`sections:${restaurantId}`);
 
     return NextResponse.json({
       success: true,

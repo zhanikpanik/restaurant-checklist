@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { getCached, invalidateCache } from "@/lib/server-cache";
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,49 +26,85 @@ export async function GET(request: NextRequest) {
     const sectionId = searchParams.get("section_id");
     const activeOnly = searchParams.get("active") === "true";
 
-    const products = await withTenant(restaurantId, async (client) => {
-      let query = `SELECT
-          sp.id,
-          sp.name,
-          sp.unit,
-          sp.poster_ingredient_id,
-          sp.section_id,
-          sp.category_id,
-          COALESCE(sp.supplier_id, pc.supplier_id) as supplier_id,
-          sp.is_active,
-          sp.stock,
-          sp.stock_updated_at,
-          pc.name as category_name,
-          COALESCE(sup_direct.name, sup.name) as supplier_name,
-          s.name as section_name
-        FROM section_products sp
-        LEFT JOIN product_categories pc ON sp.category_id = pc.id
-        LEFT JOIN suppliers sup ON pc.supplier_id = sup.id
-        LEFT JOIN suppliers sup_direct ON sp.supplier_id = sup_direct.id
-        LEFT JOIN sections s ON sp.section_id = s.id
-        WHERE s.restaurant_id = $1`;
-      
-      const params: any[] = [restaurantId];
-      
-      if (sectionId) {
-        params.push(Number(sectionId));
-        query += ` AND sp.section_id = $${params.length}`;
-      }
-      
-      if (activeOnly) {
-        query += ` AND sp.is_active = true`;
-      }
-      
-      query += ` ORDER BY sp.name`;
-      
-      const result = await client.query(query, params);
-      return result.rows;
+    const cacheKey = `section-products:${restaurantId}:${sectionId || 'all'}:${activeOnly}`;
+
+    const products = await getCached(cacheKey, 30_000, async () => {
+      return await withTenant(restaurantId, async (client) => {
+        let query = `
+          WITH order_stats AS (
+            SELECT 
+              (item->>'productId')::int as product_id,
+              MAX(o.created_at) as last_order_at,
+              (array_agg((item->>'quantity')::numeric ORDER BY o.created_at DESC))[1] as last_order_qty,
+              SUM((item->>'quantity')::numeric) FILTER (
+                WHERE o.created_at > NOW() - INTERVAL '90 days'
+              ) as total_ordered_90d
+            FROM orders o,
+                 jsonb_array_elements(o.order_data->'items') as item
+            WHERE o.restaurant_id = $1
+              AND o.status IN ('delivered', 'sent', 'pending')
+              AND (item->>'productId') IS NOT NULL
+            GROUP BY (item->>'productId')::int
+          )
+          SELECT
+            sp.id,
+            sp.name,
+            sp.unit,
+            sp.poster_ingredient_id,
+            sp.section_id,
+            sp.category_id,
+            COALESCE(sp.supplier_id, pc.supplier_id) as supplier_id,
+            sp.is_active,
+            sp.is_manual_check,
+            sp.pinned,
+            sp.stock_alert_days,
+            sp.stock,
+            sp.stock_updated_at,
+            pc.name as category_name,
+            COALESCE(sup_direct.name, sup.name) as supplier_name,
+            s.name as section_name,
+            os.last_order_at,
+            os.last_order_qty,
+            os.total_ordered_90d,
+            CASE
+              WHEN os.total_ordered_90d IS NULL OR os.total_ordered_90d = 0 THEN NULL
+              WHEN sp.stock IS NULL OR sp.stock = 0 THEN 0
+              ELSE ROUND((sp.stock / (os.total_ordered_90d / 90.0))::numeric, 1)
+            END as days_remaining
+          FROM section_products sp
+          LEFT JOIN product_categories pc ON sp.category_id = pc.id
+          LEFT JOIN suppliers sup ON pc.supplier_id = sup.id
+          LEFT JOIN suppliers sup_direct ON sp.supplier_id = sup_direct.id
+          LEFT JOIN sections s ON sp.section_id = s.id
+          LEFT JOIN order_stats os ON os.product_id = sp.id
+          WHERE s.restaurant_id = $1`;
+        
+        const params: any[] = [restaurantId];
+        
+        if (sectionId) {
+          params.push(Number(sectionId));
+          query += ` AND sp.section_id = $${params.length}`;
+        }
+        
+        if (activeOnly) {
+          query += ` AND sp.is_active = true`;
+        }
+        
+        query += ` ORDER BY sp.name`;
+        
+        const result = await client.query(query, params);
+        return result.rows;
+      });
     });
 
-    return NextResponse.json({
-      success: true,
-      data: products,
-    });
+    return NextResponse.json(
+      { success: true, data: products },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=15, stale-while-revalidate=30',
+        },
+      }
+    );
   } catch (error) {
     console.error("Error fetching section products:", error);
     return NextResponse.json(
@@ -129,6 +166,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    invalidateCache(`section-products:${restaurantId}`);
+
     return NextResponse.json({
       success: true,
       data: product,
@@ -156,7 +195,7 @@ export async function PATCH(request: NextRequest) {
     const { restaurantId } = auth;
 
     const body = await request.json();
-    const { id, name, unit, section_id, category_id, supplier_id, is_active, stock } = body;
+    const { id, name, unit, section_id, category_id, supplier_id, is_active, stock, is_manual_check, pinned, stock_alert_days } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -176,11 +215,15 @@ export async function PATCH(request: NextRequest) {
              is_active = COALESCE($6, sp.is_active),
              stock = COALESCE($7, sp.stock),
              stock_updated_at = CASE WHEN $7 IS NOT NULL THEN CURRENT_TIMESTAMP ELSE sp.stock_updated_at END,
+             is_manual_check = COALESCE($10, sp.is_manual_check),
+             pinned = COALESCE($11, sp.pinned),
+             stock_alert_days = COALESCE($12, sp.stock_alert_days),
              updated_at = CURRENT_TIMESTAMP
          FROM sections s
          WHERE sp.id = $8 AND sp.section_id = s.id AND s.restaurant_id = $9
          RETURNING sp.*`,
-        [name, unit, section_id, category_id, supplier_id, is_active, stock, id, restaurantId]
+        [name, unit, section_id, category_id, supplier_id, is_active, stock, id, restaurantId,
+         is_manual_check, pinned, stock_alert_days]
       );
       return result.rows[0];
     });
@@ -191,6 +234,8 @@ export async function PATCH(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    invalidateCache(`section-products:${restaurantId}`);
 
     return NextResponse.json({
       success: true,
@@ -272,6 +317,8 @@ export async function DELETE(request: NextRequest) {
         { status: 404 }
       );
     }
+
+    invalidateCache(`section-products:${restaurantId}`);
 
     return NextResponse.json({
       success: true,
