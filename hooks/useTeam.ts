@@ -106,22 +106,26 @@ export function useTeam() {
   const handleGenerateInvite = async () => {
     setInviteLoading(true);
     setError("");
+
+    // Validation before API call
+    if (sections.length === 0) {
+      setError("Сначала синхронизируйте хотя бы один отдел из Poster.");
+      setInviteLoading(false);
+      return;
+    }
+
+    const isManagerOrAdmin = ["admin", "manager"].includes(inviteRole);
+    const sectionsToAssign = isManagerOrAdmin
+      ? sections.map((s) => s.id)
+      : inviteSections;
+
+    if (!isManagerOrAdmin && sectionsToAssign.length === 0) {
+      setError("Выберите хотя бы один отдел");
+      setInviteLoading(false);
+      return;
+    }
+
     try {
-      if (sections.length === 0) {
-        setError("Сначала синхронизируйте хотя бы один отдел из Poster.");
-        return;
-      }
-
-      const isManagerOrAdmin = ["admin", "manager"].includes(inviteRole);
-      const sectionsToAssign = isManagerOrAdmin
-        ? sections.map((s) => s.id)
-        : inviteSections;
-
-      if (!isManagerOrAdmin && sectionsToAssign.length === 0) {
-        setError("Выберите хотя бы один отдел");
-        return;
-      }
-
       const res = await api.post<{ url: string }>("/api/invitations", {
         role: inviteRole,
         can_send_orders: inviteCanSend,
