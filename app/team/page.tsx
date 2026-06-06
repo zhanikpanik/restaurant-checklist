@@ -175,29 +175,44 @@ function PermissionRow({
 }
 
 // ── Invite Modal ────────────────────────────────────────────
-function InviteModal() {
-  const {
-    isInviteModalOpen,
-    setIsInviteModalOpen,
-    inviteUrl,
-    inviteLoading,
-    inviteRole,
-    setInviteRole,
-    inviteSections,
-    setInviteSections,
-    inviteCanSend,
-    setInviteCanSend,
-    inviteCanReceive,
-    setInviteCanReceive,
-    error,
-    sections,
-    handleGenerateInvite,
-  } = useTeam();
+function InviteModal({
+  isOpen,
+  onClose,
+  inviteUrl,
+  inviteLoading,
+  inviteRole,
+  setInviteRole,
+  inviteSections,
+  setInviteSections,
+  inviteCanSend,
+  setInviteCanSend,
+  inviteCanReceive,
+  setInviteCanReceive,
+  error,
+  sections,
+  onGenerate,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  inviteUrl: string;
+  inviteLoading: boolean;
+  inviteRole: string;
+  setInviteRole: (role: any) => void;
+  inviteSections: number[];
+  setInviteSections: (updater: any) => void;
+  inviteCanSend: boolean;
+  setInviteCanSend: (v: boolean) => void;
+  inviteCanReceive: boolean;
+  setInviteCanReceive: (v: boolean) => void;
+  error: string;
+  sections: any[];
+  onGenerate: () => void;
+}) {
 
   return (
     <Modal
-      isOpen={isInviteModalOpen}
-      onClose={() => setIsInviteModalOpen(false)}
+      isOpen={isOpen}
+      onClose={onClose}
       title="Пригласить в команду"
       size="sm"
     >
@@ -275,13 +290,13 @@ function InviteModal() {
                         checked={isAssigned}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setInviteSections((prev) => [
+                            setInviteSections((prev: number[]) => [
                               ...prev,
                               section.id,
                             ]);
                           } else {
-                            setInviteSections((prev) =>
-                              prev.filter((id) => id !== section.id)
+                            setInviteSections((prev: number[]) =>
+                              prev.filter((id: number) => id !== section.id)
                             );
                           }
                         }}
@@ -334,7 +349,7 @@ function InviteModal() {
         ) : (
           <div className="pt-2">
             <Button
-              onClick={handleGenerateInvite}
+              onClick={onGenerate}
               isLoading={inviteLoading}
               className="w-full py-3"
             >
@@ -360,6 +375,20 @@ export default function TeamPage() {
     handleSectionToggle,
     handlePermissionChange,
     handleDelete,
+    isInviteModalOpen,
+    setIsInviteModalOpen,
+    inviteUrl,
+    inviteLoading,
+    inviteRole,
+    setInviteRole,
+    inviteSections,
+    setInviteSections,
+    inviteCanSend,
+    setInviteCanSend,
+    inviteCanReceive,
+    setInviteCanReceive,
+    error: inviteError,
+    handleGenerateInvite,
   } = useTeam();
 
   if (status === "loading" || loading) {
@@ -400,7 +429,23 @@ export default function TeamPage() {
         ))}
       </main>
 
-      <InviteModal />
+      <InviteModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        inviteUrl={inviteUrl}
+        inviteLoading={inviteLoading}
+        inviteRole={inviteRole}
+        setInviteRole={setInviteRole}
+        inviteSections={inviteSections}
+        setInviteSections={setInviteSections}
+        inviteCanSend={inviteCanSend}
+        setInviteCanSend={setInviteCanSend}
+        inviteCanReceive={inviteCanReceive}
+        setInviteCanReceive={setInviteCanReceive}
+        error={inviteError}
+        sections={sections}
+        onGenerate={handleGenerateInvite}
+      />
     </div>
   );
 }
