@@ -117,13 +117,13 @@ export default function HomePage() {
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen pb-20" style={{ background: '#faf9f7' }}>
+    <div className="min-h-screen pb-20 bg-white">
       <div className="max-w-2xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-xl font-semibold text-[#1a1008] mb-1">
             {session?.user?.restaurantName || "Ресторан"}
           </h1>
-          <p className="text-sm text-gray-500">Система управления закупками</p>
+          <p className="text-sm text-gray-400">Система управления закупками</p>
         </div>
 
         <div className="flex flex-col gap-3 md:gap-4">
@@ -186,15 +186,14 @@ export default function HomePage() {
                 <div className="flex flex-col gap-2 mb-2">
                   <Link
                     href="/suppliers-categories"
-                    className="w-full bg-white hover:bg-[#faf9f7] active:bg-[#f5f3f1] transition-colors duration-150 flex items-center overflow-hidden rounded-[14px]"
+                    className="w-full active:bg-black/5 transition-colors flex items-center border-b border-gray-100/80"
                   >
-                    <div className="w-1.5 self-stretch shrink-0 bg-brand-500" />
-                    <div className="flex items-center justify-start px-4 py-3.5 flex-1 min-w-0">
+                    <div className="flex items-center justify-start px-4 py-3 flex-1 min-w-0">
                       <img src="/icons/box.svg" alt="" className="w-8 h-8 mr-3 opacity-70 shrink-0" />
                       <div className="text-left flex-1 min-w-0">
-                        <div className="font-semibold text-[15px] text-[#1a1008]">Поставщики</div>
+                        <div className="font-medium text-base text-[#1a1008]">Поставщики</div>
                         {unsortedCount !== null && unsortedCount > 0 && (
-                          <div className="text-[13px] text-gray-400 mt-0.5">
+                          <div className="text-sm text-gray-400 mt-0.5">
                             {unsortedCount} {plural(unsortedCount, ["товар", "товара", "товаров"])} без поставщика
                           </div>
                         )}
@@ -207,14 +206,13 @@ export default function HomePage() {
 
                   <Link
                     href="/team"
-                    className="w-full bg-white hover:bg-[#faf9f7] active:bg-[#f5f3f1] transition-colors duration-150 flex items-center overflow-hidden rounded-[14px]"
+                    className="w-full active:bg-black/5 transition-colors flex items-center border-b border-gray-100/80"
                   >
-                    <div className="w-1.5 self-stretch shrink-0 bg-brand-600" />
-                    <div className="flex items-center justify-start px-4 py-3.5 flex-1 min-w-0">
+                    <div className="flex items-center justify-start px-4 py-3 flex-1 min-w-0">
                       <img src="/icons/face.svg" alt="" className="w-8 h-8 mr-3 opacity-70 shrink-0" />
                       <div className="text-left flex-1 min-w-0">
-                        <div className="font-semibold text-[15px] text-[#1a1008]">Команда</div>
-                        <div className="text-[13px] text-gray-400 mt-0.5">Доступ и роли</div>
+                        <div className="font-medium text-base text-[#1a1008]">Команда</div>
+                        <div className="text-sm text-gray-400 mt-0.5">Доступ и роли</div>
                       </div>
                       <svg className="w-4 h-4 text-gray-300 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

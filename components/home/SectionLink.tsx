@@ -25,20 +25,17 @@ export function HomeSectionLink({ section }: { section: Section }) {
     <Link
       key={section.id}
       href={`/custom?section_id=${section.id}&dept=${encodeURIComponent(section.name)}`}
-      className="w-full bg-white hover:bg-[#faf9f7] active:bg-[#f5f3f1] transition-colors duration-150 flex items-center overflow-hidden rounded-[14px]"
+      className="w-full active:bg-black/5 transition-colors flex items-center border-b border-gray-100/80"
     >
-      {/* Colored left bar */}
-      <div className={`w-1.5 self-stretch shrink-0 ${getSectionBarColor(section.name)}`} />
-      
-      <div className="flex items-center justify-start px-4 py-3.5 flex-1 min-w-0">
+      <div className="flex items-center justify-start px-4 py-3 flex-1 min-w-0">
         <img
           src={getSectionIcon(section.name)}
           alt={section.name}
-          className="w-8 h-8 md:w-9 md:h-9 mr-3 md:mr-4 opacity-70 shrink-0"
+          className="w-8 h-8 mr-3 opacity-70 shrink-0"
         />
         <div className="text-left flex-1 min-w-0">
-          <div className="font-semibold text-[15px] md:text-base text-[#1a1008]">{section.name}</div>
-          <div className="text-[13px] text-gray-400 mt-0.5">
+          <div className="font-medium text-base text-[#1a1008]">{section.name}</div>
+          <div className="text-sm text-gray-400 mt-0.5">
             {formatProducts(section.custom_products_count || 0)}
           </div>
         </div>

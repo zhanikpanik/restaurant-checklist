@@ -50,7 +50,7 @@ function PendingTab() {
                 return (
                   <div
                     key={item._key}
-                    className={`px-4 py-3 active:bg-black/5 transition-colors ${
+                    className={`px-4 py-2.5 active:bg-black/5 transition-colors ${
                       isZero ? "opacity-40 bg-gray-50" : ""
                     }`}
                   >
@@ -87,7 +87,7 @@ function PendingTab() {
               })}
             </div>
             {canSendOrders && (
-              <div className="px-4 mt-4 mb-8 pb-6 flex gap-2 border-b border-gray-100">
+              <div className="px-4 mt-3 mb-6 pb-4 flex gap-2 border-b border-gray-100">
                 <button
                   onClick={() =>
                     copyOrderToClipboard(supplier, group.items)
@@ -192,7 +192,7 @@ function TransitTab() {
                 return (
                   <div
                     key={idx}
-                    className={`px-4 py-3 active:bg-black/5 transition-colors ${
+                    className={`px-4 py-2.5 active:bg-black/5 transition-colors ${
                       isExcluded
                         ? "opacity-40 bg-gray-50"
                         : isDifferent

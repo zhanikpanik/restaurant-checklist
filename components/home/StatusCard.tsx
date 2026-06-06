@@ -41,23 +41,23 @@ export function HomeStatusCard({ summary }: { summary: OrderSummary }) {
     return (
       <Link
         href="/orders"
-        className="w-full bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
+        className="w-full active:bg-black/5 transition-colors block border-b border-gray-100/80"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <img src="/icons/list.svg" alt="Pending" className="w-9 h-9 opacity-70" />
+            <img src="/icons/list.svg" alt="Pending" className="w-8 h-8 opacity-40" />
             <div>
-              <p className="text-xs text-yellow-700 flex items-center gap-2">
-                <span className="font-bold">
+              <p className="text-sm text-amber-600 flex items-center gap-2">
+                <span className="font-medium">
                   {summary.count} {summary.count === 1 ? "заказ" : "заказа"}
                 </span>
-                <span>•</span>
+                <span>·</span>
                 <span>Ожидают отправки</span>
               </p>
-              <p className="text-sm font-semibold text-gray-800">{deptNames}</p>
+              <p className="text-sm text-[#1a1008] font-medium">{deptNames}</p>
             </div>
           </div>
-          <svg className="w-5 h-5 text-gray-400 group-hover:text-yellow-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </div>
@@ -73,23 +73,23 @@ export function HomeStatusCard({ summary }: { summary: OrderSummary }) {
     return (
       <Link
         href="/orders"
-        className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
+        className="w-full active:bg-black/5 transition-colors block border-b border-gray-100/80"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <img src="/icons/delivery.svg" alt="Transit" className="w-9 h-9 opacity-70" />
+            <img src="/icons/delivery.svg" alt="Transit" className="w-8 h-8 opacity-40" />
             <div>
-              <p className="text-xs text-blue-700 flex items-center gap-2">
-                <span className="font-bold">
+              <p className="text-sm text-blue-600 flex items-center gap-2">
+                <span className="font-medium">
                   {summary.count} {summary.count === 1 ? "поставка" : "поставки"}
                 </span>
-                <span>•</span>
+                <span>·</span>
                 <span>В пути</span>
               </p>
-              <p className="text-sm font-semibold text-gray-800">{supplierNames}</p>
+              <p className="text-sm text-[#1a1008] font-medium">{supplierNames}</p>
             </div>
           </div>
-          <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </div>
@@ -103,23 +103,23 @@ export function HomeStatusCard({ summary }: { summary: OrderSummary }) {
     return (
       <Link
         href="/orders"
-        className="w-full bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
+        className="w-full active:bg-black/5 transition-colors block border-b border-gray-100/80"
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
-            <img src="/icons/box.svg" alt="Order" className="w-9 h-9 opacity-70" />
+            <img src="/icons/box.svg" alt="Order" className="w-8 h-8 opacity-40" />
             <div>
-              <p className="text-xs text-gray-600 flex items-center gap-2">
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+              <p className="text-sm text-gray-500 flex items-center gap-2">
+                <span className={`px-2 py-0.5 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
                   {getStatusLabel(order.status)}
                 </span>
-                <span>•</span>
+                <span>·</span>
                 <span>{formatRelativeDate(order.created_at)}</span>
               </p>
-              <p className="text-sm font-semibold text-gray-800">Последний заказ</p>
+              <p className="text-sm text-[#1a1008] font-medium">Последний заказ</p>
             </div>
           </div>
-          <svg className="w-5 h-5 text-gray-400 group-hover:text-brand-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </div>

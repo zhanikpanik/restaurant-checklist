@@ -310,13 +310,8 @@ export default function CartPage() {
               </div>
             )}
 
-            {/* Summary */}
-            <div className="mt-8 text-base text-gray-500">
-              {cart.items.length} {getPluralForm(cart.items.length, ['ингредиент', 'ингредиента', 'ингредиентов'])}, {supplierNames.length + (itemsBySupplier.noSupplier.length > 0 ? 1 : 0)} {getPluralForm(supplierNames.length + (itemsBySupplier.noSupplier.length > 0 ? 1 : 0), ['поставщик', 'поставщика', 'поставщиков'])}
-            </div>
-
             {/* Notes */}
-            <div className="mt-6">
+            <div className="mt-8">
               <label className="block text-base font-medium text-gray-500 mb-2">
                 Комментарий
               </label>
@@ -327,6 +322,11 @@ export default function CartPage() {
                 className="w-full bg-white rounded-[14px] px-4 py-3.5 resize-none text-base placeholder:text-gray-400 focus:ring-2 focus:ring-brand-500/20 focus:outline-none border border-gray-100"
                 rows={3}
               />
+            </div>
+
+            {/* Summary */}
+            <div className="mt-4 text-base text-gray-500">
+              {cart.items.length} {getPluralForm(cart.items.length, ['ингредиент', 'ингредиента', 'ингредиентов'])}, {supplierNames.length + (itemsBySupplier.noSupplier.length > 0 ? 1 : 0)} {getPluralForm(supplierNames.length + (itemsBySupplier.noSupplier.length > 0 ? 1 : 0), ['поставщик', 'поставщика', 'поставщиков'])}
             </div>
 
           </>
