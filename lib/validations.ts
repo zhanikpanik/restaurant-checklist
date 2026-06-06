@@ -7,11 +7,6 @@ import type { ZodError, ZodIssue } from "zod";
 
 export const idParamSchema = z.coerce.number().int().positive("ID must be a positive integer");
 
-export const paginationSchema = z.object({
-  page: z.coerce.number().int().min(1).optional().default(1),
-  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
-});
-
 // ============================================
 // User Schemas
 // ============================================
@@ -191,28 +186,6 @@ export async function validateBody<T>(
 }
 
 /**
- * Validate URL search params with a Zod schema
- */
-export function validateParams<T>(
-  searchParams: URLSearchParams,
-  schema: z.ZodSchema<T>
-): { success: true; data: T } | { success: false; error: string } {
-  const params: Record<string, string> = {};
-  searchParams.forEach((value, key) => {
-    params[key] = value;
-  });
-  
-  const result = schema.safeParse(params);
-  
-  if (!result.success) {
-    const errors = result.error.issues.map((e: ZodIssue) => `${e.path.join(".")}: ${e.message}`);
-    return { success: false, error: errors.join(", ") };
-  }
-  
-  return { success: true, data: result.data };
-}
-
-/**
  * Validate a single ID parameter
  */
 export function validateId(id: string | null): { success: true; data: number } | { success: false; error: string } {
@@ -229,18 +202,4 @@ export function validateId(id: string | null): { success: true; data: number } |
   return { success: true, data: result.data };
 }
 
-// Export types
-export type CreateUserInput = z.infer<typeof createUserSchema>;
-export type UpdateUserInput = z.infer<typeof updateUserSchema>;
-export type CreateSectionInput = z.infer<typeof createSectionSchema>;
-export type UpdateSectionInput = z.infer<typeof updateSectionSchema>;
-export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
-export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;
-export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
-export type UpdateSupplierInput = z.infer<typeof updateSupplierSchema>;
-export type CreateProductInput = z.infer<typeof createProductSchema>;
-export type UpdateProductInput = z.infer<typeof updateProductSchema>;
-export type CreateOrderInput = z.infer<typeof createOrderSchema>;
-export type UpdateOrderInput = z.infer<typeof updateOrderSchema>;
-export type AssignUserSectionsInput = z.infer<typeof assignUserSectionsSchema>;
-export type CreateSupplyOrderInput = z.infer<typeof createSupplyOrderSchema>;
+

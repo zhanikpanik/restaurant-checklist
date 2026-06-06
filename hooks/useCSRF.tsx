@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
+import { useSession } from "next-auth/react";
 
 interface CSRFContextValue {
   csrfToken: string | null;
@@ -13,6 +14,7 @@ interface CSRFContextValue {
 const CSRFContext = createContext<CSRFContextValue | null>(null);
 
 export function CSRFProvider({ children }: { children: ReactNode }) {
+  const { data: session } = useSession();
   const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,16 +48,21 @@ export function CSRFProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Fetch token on mount
+  // Only fetch token when authenticated (skip on login page)
   useEffect(() => {
-    fetchCSRFToken();
-  }, [fetchCSRFToken]);
+    if (session?.user) {
+      fetchCSRFToken();
+    } else {
+      setIsLoading(false);
+    }
+  }, [session, fetchCSRFToken]);
 
   // Refresh token periodically (every 50 minutes, before 1 hour expiry)
   useEffect(() => {
+    if (!session?.user) return;
     const interval = setInterval(fetchCSRFToken, 50 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [fetchCSRFToken]);
+  }, [session, fetchCSRFToken]);
 
   // Helper function to make fetch requests with CSRF token
   const fetchWithCSRF = useCallback(

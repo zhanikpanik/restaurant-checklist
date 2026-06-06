@@ -22,8 +22,7 @@ const illustrations = {
     <img src="/icons/box.svg" alt="Products" className="w-24 h-24 opacity-50" />
   ),
   users: (
-    // No user icon provided, using tableware as fallback for now or keeping it generic
-    <img src="/icons/tableware.svg" alt="Users" className="w-24 h-24 opacity-50" />
+    <img src="/icons/face.svg" alt="Users" className="w-24 h-24 opacity-50" />
   ),
   categories: (
     <img src="/icons/list.svg" alt="Categories" className="w-24 h-24 opacity-50" />

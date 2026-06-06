@@ -64,6 +64,18 @@ export interface SectionProduct {
   category_id?: number;
   quantity?: number;
   is_active: boolean;
+  is_manual_check?: boolean;
+  pinned?: boolean;
+  stock_alert_days?: number;
+  last_order_at?: string;
+  last_order_qty?: number;
+  days_remaining?: number | null;
+  stock?: number;
+  stock_updated_at?: string;
+  category_name?: string;
+  supplier_name?: string;
+  supplier_id?: number;
+  section_name?: string;
 }
 
 // Category & Supplier Types

@@ -43,7 +43,7 @@ export function PageHeader({
           {showBackButton && (
             <Link
               href={finalBackHref}
-              className={`absolute left-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${backBtnClass}`}
+              className={`absolute left-0 w-10 h-10 rounded-[14px] flex items-center justify-center transition-colors ${backBtnClass}`}
               aria-label={backLabel || "Назад"}
             >
               <svg

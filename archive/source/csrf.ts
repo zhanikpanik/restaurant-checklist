@@ -1,6 +1,19 @@
 import { randomBytes, createHmac, timingSafeEqual } from "crypto";
 
-const CSRF_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "fallback-csrf-secret-change-in-production";
+function getSecret(): string {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("AUTH_SECRET is required in production for CSRF protection");
+    }
+    console.warn("⚠️  AUTH_SECRET not set — CSRF using random per-process secret (DO NOT use in production)");
+    const { randomBytes } = require("crypto");
+    return randomBytes(32).toString("hex");
+  }
+  return secret;
+}
+
+const CSRF_SECRET = getSecret();
 const TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 interface CSRFTokenData {

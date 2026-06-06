@@ -74,6 +74,14 @@ export async function setupUsersSchema() {
       );
     `);
 
+    // Add permission columns (safe migration — skips if they already exist)
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS can_send_orders BOOLEAN DEFAULT false;
+    `);
+    await client.query(`
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS can_receive_supplies BOOLEAN DEFAULT false;
+    `);
+
     // Create indexes
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
@@ -153,16 +161,30 @@ export async function getUsersByRestaurant(restaurantId: string) {
   }
 
   return await withTenant(restaurantId, async (client) => {
-    const result = await client.query(
-      `SELECT id, email, name, role, is_active, last_login, created_at,
-              can_send_orders, can_receive_supplies
-       FROM users
-       WHERE restaurant_id = $1 AND is_active = true
-       ORDER BY created_at DESC`,
-      [restaurantId]
-    );
-
-    return result.rows;
+    try {
+      const result = await client.query(
+        `SELECT id, email, name, role, is_active, last_login, created_at,
+                can_send_orders, can_receive_supplies
+         FROM users
+         WHERE restaurant_id = $1 AND is_active = true
+         ORDER BY created_at DESC`,
+        [restaurantId]
+      );
+      return result.rows;
+    } catch {
+      // Fallback: columns may not exist yet — run migration then retry
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS can_send_orders BOOLEAN DEFAULT false`);
+      await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS can_receive_supplies BOOLEAN DEFAULT false`);
+      const result = await client.query(
+        `SELECT id, email, name, role, is_active, last_login, created_at,
+                can_send_orders, can_receive_supplies
+         FROM users
+         WHERE restaurant_id = $1 AND is_active = true
+         ORDER BY created_at DESC`,
+        [restaurantId]
+      );
+      return result.rows;
+    }
   });
 }
 
@@ -176,6 +198,10 @@ export async function getUsersWithSections(restaurantId: string) {
   }
 
   return await withTenant(restaurantId, async (client) => {
+    // Ensure permission columns exist
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS can_send_orders BOOLEAN DEFAULT false`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS can_receive_supplies BOOLEAN DEFAULT false`);
+
     // Get all users (only active)
     const usersResult = await client.query(
       `SELECT id, email, name, role, is_active, last_login, created_at,
@@ -227,41 +253,40 @@ export async function getUsersWithSections(restaurantId: string) {
 
 /**
  * Update user password
- * Uses withoutTenant since we're updating by user ID (already verified ownership)
  */
-export async function updateUserPassword(userId: number, newPassword: string) {
+export async function updateUserPassword(userId: number, restaurantId: string, newPassword: string) {
   if (!pool) {
     throw new Error("Database pool not initialized");
   }
 
   const passwordHash = await hash(newPassword, 12);
 
-  return await withoutTenant(async (client) => {
+  return await withTenant(restaurantId, async (client) => {
     await client.query(
       `UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [passwordHash, userId]
+       WHERE id = $2 AND restaurant_id = $3`,
+      [passwordHash, userId, restaurantId]
     );
   });
 }
 
 /**
  * Update user role
- * Uses withoutTenant since we're updating by user ID (already verified ownership in route)
  */
 export async function updateUserRole(
   userId: number,
+  restaurantId: string,
   role: "admin" | "manager" | "staff" | "delivery"
 ) {
   if (!pool) {
     throw new Error("Database pool not initialized");
   }
 
-  return await withoutTenant(async (client) => {
+  return await withTenant(restaurantId, async (client) => {
     await client.query(
       `UPDATE users SET role = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $2`,
-      [role, userId]
+       WHERE id = $2 AND restaurant_id = $3`,
+      [role, userId, restaurantId]
     );
   });
 }
@@ -271,13 +296,14 @@ export async function updateUserRole(
  */
 export async function updateUserPermissions(
   userId: number,
+  restaurantId: string,
   permissions: { can_send_orders?: boolean; can_receive_supplies?: boolean }
 ) {
   if (!pool) {
     throw new Error("Database pool not initialized");
   }
 
-  return await withoutTenant(async (client) => {
+  return await withTenant(restaurantId, async (client) => {
     const updates: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -294,7 +320,8 @@ export async function updateUserPermissions(
     if (updates.length === 0) return;
 
     values.push(userId);
-    const query = `UPDATE users SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramIndex}`;
+    values.push(restaurantId);
+    const query = `UPDATE users SET ${updates.join(", ")}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramIndex} AND restaurant_id = $${paramIndex + 1}`;
 
     await client.query(query, values);
   });
@@ -302,35 +329,33 @@ export async function updateUserPermissions(
 
 /**
  * Deactivate user
- * Uses withoutTenant since we're updating by user ID (already verified ownership in route)
  */
-export async function deactivateUser(userId: number) {
+export async function deactivateUser(userId: number, restaurantId: string) {
   if (!pool) {
     throw new Error("Database pool not initialized");
   }
 
-  return await withoutTenant(async (client) => {
+  return await withTenant(restaurantId, async (client) => {
     await client.query(
       `UPDATE users SET is_active = false, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [userId]
+       WHERE id = $1 AND restaurant_id = $2`,
+      [userId, restaurantId]
     );
   });
 }
 
 /**
  * Record user login
- * Uses withoutTenant since we're updating by user ID
  */
-export async function recordUserLogin(userId: number) {
+export async function recordUserLogin(userId: number, restaurantId: string) {
   if (!pool) {
     throw new Error("Database pool not initialized");
   }
 
-  return await withoutTenant(async (client) => {
+  return await withTenant(restaurantId, async (client) => {
     await client.query(
-      `UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1`,
-      [userId]
+      `UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1 AND restaurant_id = $2`,
+      [userId, restaurantId]
     );
   });
 }

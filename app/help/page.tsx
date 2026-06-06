@@ -90,10 +90,10 @@ export default function HelpPage() {
           </h2>
           <div className="space-y-6 text-gray-700">
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">Корзина</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">Заявка</h3>
               <p className="leading-relaxed">
-                Все выбранные товары попадают в корзину. Нажмите на иконку
-                корзины, чтобы просмотреть список. Товары автоматически
+                Все выбранные товары попадают в заявку. Нажмите на кнопку
+                «Заявка», чтобы просмотреть список. Товары автоматически
                 группируются по поставщикам.
               </p>
             </div>

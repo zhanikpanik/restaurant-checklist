@@ -30,26 +30,18 @@ function SetupContent() {
     setSyncError(null);
     
     try {
-      // Sync sections (storages) first
+      // Sync sections (storages) — this also syncs ingredients internally
       const sectionsRes = await fetch("/api/sync-sections");
       const sectionsData = await sectionsRes.json();
       
       if (!sectionsData.success) {
-        console.warn("Sections sync warning:", sectionsData.error);
-      }
-      
-      // Then sync ingredients
-      const ingredientsRes = await fetch("/api/sync-ingredients");
-      const ingredientsData = await ingredientsRes.json();
-      
-      if (!ingredientsData.success) {
-        console.warn("Ingredients sync warning:", ingredientsData.error);
+        console.warn("Sync warning:", sectionsData.error);
       }
       
       setSyncComplete(true);
       console.log("Auto-sync complete:", {
         sections: sectionsData.data?.syncedCount || 0,
-        ingredients: ingredientsData.data?.syncedCount || 0
+        ingredients: sectionsData.data?.ingredientsSynced || 0
       });
     } catch (err) {
       console.error("Auto-sync error:", err);
@@ -82,7 +74,7 @@ function SetupContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8">
         {/* Logo */}
         <div className="flex justify-center mb-6">
@@ -345,7 +337,7 @@ function SetupContent() {
 
 function LoginLoading() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 flex flex-col items-center">
         <img src="/icons/logo.svg" alt="Logo" className="w-20 h-20 mb-6" />
         <div className="text-center text-gray-600">Загрузка...</div>

@@ -5,7 +5,19 @@
  * which runs in Edge Runtime (doesn't support Node.js modules)
  */
 
-const CSRF_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "fallback-csrf-secret-change-in-production";
+function getSecretEdge(): string {
+  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("AUTH_SECRET is required in production for CSRF protection");
+    }
+    console.warn("⚠️  AUTH_SECRET not set — CSRF using random per-request salt (DO NOT use in production)");
+    return "dev-" + Date.now().toString(36);
+  }
+  return secret;
+}
+
+const CSRF_SECRET = getSecretEdge();
 const TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 
 /**

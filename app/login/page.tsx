@@ -155,7 +155,7 @@ function LoginLoading() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 flex items-center justify-center p-4">
       <Suspense fallback={<LoginLoading />}>
         <LoginForm />
       </Suspense>

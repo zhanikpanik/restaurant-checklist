@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { withTenant } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import { logApiError } from "@/lib/sentry";
 import type { ApiResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -31,9 +32,9 @@ export async function POST(request: NextRequest) {
         for (const [orderIdStr, updatedItems] of Object.entries(itemsByOrder)) {
           const orderId = parseInt(orderIdStr);
           
-          // Fetch current order data
+          // Fetch current order data with row lock to prevent race conditions
           const currentOrderRes = await client.query(
-            "SELECT order_data, created_by_role FROM orders WHERE id = $1 AND restaurant_id = $2",
+            "SELECT order_data, created_by_role FROM orders WHERE id = $1 AND restaurant_id = $2 FOR UPDATE",
             [orderId, restaurantId]
           );
           
@@ -119,7 +120,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json<ApiResponse>(result);
   } catch (error) {
-    console.error("Error receiving delivery:", error);
+    logApiError("/api/orders/receive", error);
     return NextResponse.json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

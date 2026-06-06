@@ -1,725 +1,24 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useCart, useSections } from "@/store/useStore";
-import { useToast } from "@/components/ui/Toast";
 import { Modal } from "@/components/ui/Modal";
-import { FormInput, FormSelect, FormButton } from "@/components/ui/BottomSheet"; // keeping these helpers but using standard Modal
-import { StaffManagementModal } from "@/components/department/StaffManagementModal";
+import { FormInput, FormSelect, FormButton } from "@/components/ui/BottomSheet";
 import { DepartmentSettingsModal } from "@/components/department/DepartmentSettingsModal";
-import { QuantityInput } from "@/components/ui/QuantityInput";
-import { api } from "@/lib/api-client";
-import { clientCache, fetchWithCache } from "@/lib/client-cache";
+import {
+  useCustomSection,
+  getStatusLabel,
+  getStatusColor,
+  formatRelativeDate,
+  translateUnit,
+} from "@/hooks/useCustomSection";
+import type { Category } from "@/hooks/useCustomSection";
 
-interface Product {
-  id: number;
-  name: string;
-  unit: string;
-  category_id?: number;
-  category_name?: string;
-  supplier_id?: number;
-  supplier_name?: string;
-  is_active: boolean;
-  poster_ingredient_id?: string;
-}
-
-interface Supplier {
-  id: number;
-  name: string;
-  phone?: string;
-}
-
-interface Category {
-  id: number;
-  name: string;
-  supplier_id?: number;
-}
-
-interface ProductQuantity {
-  [productId: number]: number;
-}
-
-function CustomPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { data: session } = useSession();
-  const cart = useCart();
-  const sectionsStore = useSections();
-  const toast = useToast();
-
-  const sectionId = searchParams.get("section_id");
-  const dept = searchParams.get("dept");
-
-  const isAdmin = session?.user?.role === "admin";
-  const isManager = session?.user?.role === "manager";
-  const canManage = isAdmin || isManager;
-
-  const [products, setProducts] = useState<Product[]>(() => clientCache.get(`custom_products_${sectionId}`) || []);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => clientCache.get("custom_suppliers") || []);
-  const [categories, setCategories] = useState<Category[]>(() => clientCache.get("custom_categories") || []);
-  const [loading, setLoading] = useState(!clientCache.has(`custom_products_${sectionId}`));
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sectionName, setSectionName] = useState(dept || "");
-  const [productQuantities, setProductQuantities] = useState<ProductQuantity>({});
-  
-  // Leftovers (Stock) state
-  const [leftovers, setLeftovers] = useState<Record<string, number>>(() => clientCache.get("custom_leftovers") || {});
-
-  // Last Order state
-  const [lastOrder, setLastOrder] = useState<any>(() => clientCache.get(`custom_last_order_${sectionId}`) || null);
-  const [loadingLastOrder, setLoadingLastOrder] = useState(!clientCache.has(`custom_last_order_${sectionId}`));
-
-  // Caching state
-  const [allProducts, setAllProducts] = useState<Product[]>(() => clientCache.get(`custom_products_${sectionId}`) || []);
-  const [allSuppliers, setAllSuppliers] = useState<Supplier[]>(() => clientCache.get("custom_suppliers") || []);
-  const [allCategories, setAllCategories] = useState<Category[]>(() => clientCache.get("custom_categories") || []);
-  const [dataLoaded, setDataLoaded] = useState(clientCache.has(`custom_products_${sectionId}`));
-
-  // Modal states
-  const [showProductModal, setShowProductModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showStaffModal, setShowStaffModal] = useState(false);
-  const [productForm, setProductForm] = useState({ name: "", unit: "шт", category_id: "" });
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  
-  // Current section data for settings modal
-  const [currentSection, setCurrentSection] = useState<any>(null);
-  
-  // Pending orders count for this department (managers only)
-  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
-
-  // Assigned users count for button label
-  const [assignedUsersCount, setAssignedUsersCount] = useState(0);
-
-  useEffect(() => {
-    if (!sectionId) {
-      router.push("/");
-      return;
-    }
-    loadData();
-  }, [sectionId]);
-
-  // Fetch last order for this section
-  useEffect(() => {
-    const fetchLastOrder = async () => {
-      if (!sectionId) return;
-      
-      try {
-        setLoadingLastOrder(true);
-        const response = await fetch(`/api/orders?section_id=${sectionId}&limit=1`);
-        const data = await response.json();
-        
-        if (data.success && data.data.length > 0) {
-          setLastOrder(data.data[0]);
-        } else {
-          setLastOrder(null);
-        }
-      } catch (error) {
-        console.error("Error loading last order:", error);
-      } finally {
-        setLoadingLastOrder(false);
-      }
-    };
-
-    fetchLastOrder();
-  }, [sectionId]);
-
-  // Helper functions for Last Order card
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "pending": return "Ожидает";
-      case "sent": return "Отправлен";
-      case "delivered": return "Доставлен";
-      case "cancelled": return "Отменен";
-      default: return status;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "sent": return "bg-brand-100 text-brand-800";
-      case "delivered": return "bg-green-100 text-green-800";
-      case "cancelled": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const formatRelativeDate = (date: Date | string) => {
-    const orderDate = new Date(date);
-    const now = new Date();
-    const diffMs = now.getTime() - orderDate.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "только что";
-    if (diffMins < 60) return `${diffMins} мин. назад`;
-    if (diffHours < 24) return `${diffHours} ч. назад`;
-    if (diffDays === 1) return "вчера";
-    return orderDate.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-  };
-
-  const translateUnit = (u: string) => {
-    const unitMap: Record<string, string> = {
-      'kg': 'кг',
-      'l': 'л',
-      'pcs': 'шт',
-      'p': 'шт',
-      'pt': 'шт',
-      'unit': 'шт',
-      'pack': 'уп',
-      'bottle': 'бут',
-      'can': 'банка',
-      'portion': 'порц',
-      'g': 'г',
-      'ml': 'мл'
-    };
-    return unitMap[u.toLowerCase()] || u;
-  };
-
-  const loadData = async () => {
-    if (!dataLoaded) setLoading(true);
-    try {
-      const [sectionsData, productsData, suppliersData, categoriesData, ordersData, leftoversData, usersData] = await Promise.all([
-        fetchWithCache("/api/sections"),
-        fetchWithCache(`/api/section-products?section_id=${sectionId}&active=true`),
-        fetchWithCache("/api/suppliers"),
-        fetchWithCache("/api/categories"),
-        canManage ? fetchWithCache("/api/orders?all=true") : Promise.resolve(null),
-        fetchWithCache("/api/poster/leftovers"),
-        canManage ? fetchWithCache(`/api/user-sections?section_id=${sectionId}`) : Promise.resolve(null),
-      ]);
-
-      let currentSectionName = "";
-      if (sectionsData?.success) {
-        const section = sectionsData.data.find(
-          (s: any) => s.id === Number(sectionId)
-        );
-        if (section) {
-          currentSectionName = section.name;
-          setSectionName(section.name);
-          setCurrentSection(section);
-          sectionsStore.setCurrent(section);
-        }
-      }
-
-      if (productsData?.success) {
-        setAllProducts(productsData.data);
-        setProducts(productsData.data);
-        clientCache.set(`custom_products_${sectionId}`, productsData.data);
-        setDataLoaded(true);
-      }
-
-      if (suppliersData?.success) {
-        setAllSuppliers(suppliersData.data);
-        setSuppliers(suppliersData.data);
-        clientCache.set("custom_suppliers", suppliersData.data);
-      }
-
-      if (categoriesData?.success) {
-        setAllCategories(categoriesData.data);
-        setCategories(categoriesData.data);
-        clientCache.set("custom_categories", categoriesData.data);
-      }
-
-      // Load pending orders count for this department (managers only)
-      if (ordersData?.success && currentSectionName) {
-        const pendingCount = ordersData.data.filter(
-          (o: any) => (o.status === "pending" || o.status === "sent") && 
-                      o.order_data?.department === currentSectionName
-        ).length;
-        setPendingOrdersCount(pendingCount);
-      }
-      
-      // Load leftovers
-      if (leftoversData?.success) {
-        const dataWithDebug = { ...leftoversData.data };
-        if (leftoversData.debug) {
-            // @ts-ignore
-            dataWithDebug._debug_raw = leftoversData.debug;
-        }
-        setLeftovers(dataWithDebug);
-        clientCache.set("custom_leftovers", dataWithDebug);
-      }
-
-      // Load assigned users count
-      if (usersData?.success) {
-        setAssignedUsersCount(usersData.data.length);
-      }
-
-    } catch (error) {
-      console.error("Error loading data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // === CRUD Operations ===
-  
-  const handleCreateProduct = async () => {
-    if (!productForm.name.trim()) {
-      toast.error("Введите название товара");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const data = await api.post("/api/section-products", {
-        name: productForm.name,
-        unit: productForm.unit,
-        section_id: Number(sectionId),
-        category_id: productForm.category_id ? Number(productForm.category_id) : null,
-        is_active: true,
-      });
-
-      if (data.success) {
-        toast.success("Товар добавлен");
-        // Reload to get fresh data with supplier info
-        await loadData();
-        setShowProductModal(false);
-        setProductForm({ name: "", unit: "шт", category_id: "" });
-      } else {
-        toast.error(data.error || "Ошибка создания");
-      }
-    } catch (error) {
-      toast.error("Ошибка создания товара");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDeleteProduct = async (id: number) => {
-    if (!confirm("Удалить товар?")) return;
-    
-    try {
-      const data = await api.delete(`/api/section-products?id=${id}`);
-      
-      if (data.success) {
-        toast.success("Товар удален");
-        setProducts(products.filter(p => p.id !== id));
-      } else {
-        toast.error(data.error || "Ошибка удаления");
-      }
-    } catch (error) {
-      toast.error("Ошибка удаления товара");
-    }
-  };
-
-  const handleEditProduct = (product: Product) => {
-    setEditingProduct(product);
-    setProductForm({
-      name: product.name,
-      unit: product.unit,
-      category_id: product.category_id ? String(product.category_id) : "",
-    });
-    setShowProductModal(true);
-  };
-
-  const handleUpdateProduct = async () => {
-    if (!editingProduct || !productForm.name.trim()) {
-      toast.error("Введите название товара");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const data = await api.patch(`/api/section-products?id=${editingProduct.id}`, {
-        name: productForm.name,
-        unit: productForm.unit,
-        category_id: productForm.category_id ? Number(productForm.category_id) : null,
-      });
-
-      if (data.success) {
-        toast.success("Товар обновлен");
-        await loadData();
-        setShowProductModal(false);
-        setEditingProduct(null);
-        setProductForm({ name: "", unit: "шт", category_id: "" });
-      } else {
-        toast.error(data.error || "Ошибка обновления");
-      }
-    } catch (error) {
-      toast.error("Ошибка обновления товара");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  // Filter products by search query only (no supplier filtering)
-  const currentProducts = useMemo(() => {
-    let filtered = allProducts;
-
-    if (searchQuery.trim()) {
-      filtered = filtered.filter((p) =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [allProducts, searchQuery]);
-
-  const handleSetQuantity = (product: Product, newQty: number) => {
-    if (newQty <= 0) {
-      setProductQuantities((prev) => {
-        const { [product.id]: _, ...rest } = prev;
-        return rest;
-      });
-      const cartId = `product-${product.id}`;
-      cart.remove(cartId);
-    } else {
-      setProductQuantities((prev) => ({
-        ...prev,
-        [product.id]: newQty,
-      }));
-
-      const cartId = `product-${product.id}`;
-      const existingItem = cart.items.find((item) => item.cartId === cartId);
-
-      if (existingItem) {
-        cart.updateQuantity(cartId, newQty);
-      } else {
-        cart.add({
-          cartId,
-          productId: product.id,
-          name: product.name,
-          quantity: newQty,
-          unit: product.unit,
-          category: product.category_name,
-          supplier: product.supplier_name || "",
-          supplier_id: product.supplier_id,
-          poster_id: product.poster_ingredient_id,
-        });
-      }
-    }
-  };
-
-  const handleIncreaseQuantity = (product: Product) => {
-    const currentQty = productQuantities[product.id] || 0;
-    const newQty = currentQty + 1;
-    setProductQuantities((prev) => ({
-      ...prev,
-      [product.id]: newQty,
-    }));
-
-    const cartId = `product-${product.id}`;
-    const existingItem = cart.items.find((item) => item.cartId === cartId);
-
-    if (existingItem) {
-      cart.updateQuantity(cartId, existingItem.quantity + 1);
-    } else {
-      cart.add({
-        cartId,
-        productId: product.id,
-        name: product.name,
-        quantity: 1,
-        unit: product.unit,
-        category: product.category_name,
-        supplier: product.supplier_name || "",
-        supplier_id: product.supplier_id,
-        poster_id: product.poster_ingredient_id,
-      });
-    }
-  };
-
-  const handleDecreaseQuantity = (product: Product) => {
-    const currentQty = productQuantities[product.id] || 0;
-    const newQty = currentQty - 1;
-
-    if (newQty <= 0) {
-      setProductQuantities((prev) => {
-        const { [product.id]: _, ...rest } = prev;
-        return rest;
-      });
-    } else {
-      setProductQuantities((prev) => ({
-        ...prev,
-        [product.id]: newQty,
-      }));
-    }
-
-    const cartId = `product-${product.id}`;
-    const cartItem = cart.items.find((item) => item.cartId === cartId);
-
-    if (cartItem && cartItem.quantity > 1) {
-      cart.updateQuantity(cartId, cartItem.quantity - 1);
-    } else if (cartItem) {
-      cart.remove(cartId);
-    }
-  };
-
-  // === RENDER: Loading State ===
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
-      </div>
-    );
-  }
-
-  // === RENDER: No Suppliers (First Time Setup) - but show products if they exist ===
-  if (suppliers.length === 0 && products.length === 0) {
-    return (
-      <div className="min-h-screen bg-white">
-        <Header
-          sectionName={sectionName}
-          dept={dept}
-          canManage={canManage}
-          pendingOrdersCount={pendingOrdersCount}
-          onAddSupplier={() => router.push('/suppliers-categories')}
-          onOpenSettings={() => setShowSettingsModal(true)}
-          onManageStaff={() => setShowStaffModal(true)}
-          staffCount={assignedUsersCount}
-        />
-        <main className="max-w-md mx-auto px-4 py-12 text-center">
-          <img src="/icons/box.svg" alt="Suppliers" className="w-16 h-16 mx-auto mb-6 opacity-50" />
-          <h2 className="text-xl font-semibold text-gray-800 mb-3">
-            Нет поставщиков
-          </h2>
-          <p className="text-gray-500 mb-6">
-            Создайте первого поставщика, чтобы начать добавлять товары
-          </p>
-          {canManage ? (
-            <Link
-              href="/suppliers-categories"
-              className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-medium px-6 py-3 rounded-lg transition-colors"
-            >
-              <span className="text-lg">+</span>
-              Создать поставщика
-            </Link>
-          ) : (
-            <p className="text-sm text-gray-400">
-              Обратитесь к менеджеру для настройки
-            </p>
-          )}
-        </main>
-      </div>
-    );
-  }
-
-  // === RENDER: Normal View (Products) ===
-  return (
-    <div className="min-h-screen bg-white">
-        <Header
-          sectionName={sectionName}
-          dept={dept}
-          canManage={canManage}
-          pendingOrdersCount={pendingOrdersCount}
-          onAddSupplier={() => router.push('/suppliers-categories')}
-          onOpenSettings={() => setShowSettingsModal(true)}
-          onManageStaff={() => setShowStaffModal(true)}
-          staffCount={assignedUsersCount}
-        />
-
-      {/* Last Order Card - Compact */}
-      {lastOrder && !loadingLastOrder && (
-        <div className="max-w-md mx-auto px-4 pt-4 pb-3">
-          <Link 
-            href="/orders"
-            className="block w-full bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <img src="/icons/box.svg" alt="Order" className="w-9 h-9 opacity-70" />
-                <div>
-                  <p className="text-xs text-gray-600 flex items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(lastOrder.status)}`}>
-                      {getStatusLabel(lastOrder.status)}
-                    </span>
-                    <span>•</span>
-                    <span>{formatRelativeDate(lastOrder.created_at)}</span>
-                  </p>
-                  <p className="text-sm font-semibold text-gray-800">
-                    Последний заказ
-                  </p>
-                </div>
-              </div>
-              <svg className="w-5 h-5 text-gray-400 group-hover:text-brand-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </Link>
-        </div>
-      )}
-
-      {/* Search - only show if there are products */}
-      {allProducts.length > 0 && (
-        <div className="max-w-md mx-auto px-4 py-3">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <img src="/icons/magnifier.svg" alt="Search" className="h-5 w-5 opacity-40" />
-            </div>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-base"
-              placeholder="Поиск товаров..."
-              autoComplete="off"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center"
-              >
-                <svg className="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Products List */}
-      <main className="max-w-md mx-auto px-4 pb-24">
-        {allProducts.length === 0 ? (
-          <div className="text-center py-20 bg-gray-50 rounded-3xl mt-4 border-2 border-dashed border-gray-200">
-            <div className="w-20 h-20 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-6">
-              <img src="/icons/box.svg" alt="Empty" className="w-10 h-10 opacity-30" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">Отдел пуст</h3>
-            <p className="text-gray-500 mb-8 max-w-[240px] mx-auto text-sm leading-relaxed">
-              {canManage 
-                ? "В этом отделе пока нет товаров. Попробуйте синхронизировать данные с Poster." 
-                : "В этом отделе пока нет доступных товаров."}
-            </p>
-            {canManage && (
-              <button
-                onClick={() => router.push('/suppliers-categories')}
-                className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-bold px-8 py-4 rounded-2xl shadow-lg shadow-brand-500/20 transition-all active:scale-[0.98]"
-              >
-                🔄 Синхронизировать
-              </button>
-            )}
-          </div>
-        ) : searchQuery && currentProducts.length === 0 ? (
-          <div className="text-center py-12">
-             <p className="text-gray-500">Товары не найдены</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-200">
-            {currentProducts.map((product) => {
-              const quantity = productQuantities[product.id] || 0;
-              const hasQuantity = quantity > 0;
-              // Check if we have stock info from Poster (if synced)
-              const stock = product.poster_ingredient_id ? leftovers[product.poster_ingredient_id] : undefined;
-
-              return (
-                <div key={product.id} className="bg-white py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
-                      <div className="flex flex-col gap-0.5 mt-0.5">
-                        {product.category_name && (
-                          <p className="text-xs text-gray-500">{product.category_name}</p>
-                        )}
-                        {stock !== undefined && (
-                          <p className={`text-xs font-medium ${stock <= 0 ? 'text-red-500' : 'text-green-600'}`}>
-                            Остаток: {stock} {translateUnit(product.unit)}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {!hasQuantity ? (
-                      <button
-                        onClick={() => handleIncreaseQuantity(product)}
-                        className="ml-3 w-10 h-10 flex items-center justify-center bg-brand-500 hover:bg-brand-600 text-white rounded-xl transition-colors shadow-sm"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                      </button>
-                    ) : (
-                      <div className="ml-3">
-                        <QuantityInput
-                          productName={product.name}
-                          quantity={quantity}
-                          unit={product.unit}
-                          onQuantityChange={(newQty) => handleSetQuantity(product, newQty)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </main>
-
-      {/* Cart Button - Bigger and More Informative */}
-      {cart.count > 0 && (
-        <div className="fixed bottom-4 right-4 z-50">
-          <Link
-            href="/cart"
-            className="flex items-center gap-3 px-6 py-4 bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-xl transition-all hover:shadow-2xl hover:scale-105"
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col items-start">
-                <span className="text-sm font-bold leading-tight">Корзина</span>
-                <span className="text-xs opacity-90 leading-tight">{cart.count} товаров</span>
-              </div>
-            </div>
-          </Link>
-        </div>
-      )}
-
-      {/* Modals */}
-      <ProductModal
-        isOpen={showProductModal}
-        onClose={() => {
-          setShowProductModal(false);
-          setEditingProduct(null);
-          setProductForm({ name: "", unit: "шт", category_id: "" });
-        }}
-        form={productForm}
-        setForm={setProductForm}
-        onSubmit={editingProduct ? handleUpdateProduct : handleCreateProduct}
-        submitting={submitting}
-        categories={categories}
-      />
-      
-      {/* Department Settings Modal */}
-      {currentSection && (
-        <DepartmentSettingsModal
-          isOpen={showSettingsModal}
-          onClose={() => setShowSettingsModal(false)}
-          section={currentSection}
-          onUpdate={loadData}
-        />
-      )}
-
-      {/* Staff Management Modal - Currently disabled in favor of global Team page */}
-      {/* 
-      {currentSection && (
-        <StaffManagementModal
-          isOpen={showStaffModal}
-          onClose={() => setShowStaffModal(false)}
-          section={currentSection}
-          onUpdate={loadData}
-        />
-      )}
-      */}
-    </div>
-  );
-}
-
-// === Header Component ===
+// ── Header ──────────────────────────────────────────────────
 function Header({
   sectionName,
   dept,
   canManage,
-  pendingOrdersCount,
-  onAddSupplier,
-  onOpenSettings,
-  onManageStaff,
-  staffCount = 0,
 }: {
   sectionName: string;
   dept: string | null;
@@ -727,131 +26,223 @@ function Header({
   pendingOrdersCount: number;
   onAddSupplier: () => void;
   onOpenSettings?: () => void;
-  onManageStaff?: () => void;
-  staffCount?: number;
+  assignedUsersCount?: number;
 }) {
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-      <div className="max-w-md mx-auto px-4 py-4">
-        <div className="relative flex items-center justify-between">
-          {/* Back button - Only show for admin/manager */}
-          {canManage ? (
-            <Link
-              href="/"
-              className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
-              aria-label="На главную"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                strokeWidth="2"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </Link>
-          ) : (
-            <div className="w-10 h-10" /> /* Spacer for non-admin users */
-          )}
-
-          <h1 className="absolute left-1/2 -translate-x-1/2 text-xl font-bold text-gray-900 truncate max-w-[200px] text-center">
-            {sectionName || dept || "Товары"}
-          </h1>
-
-          <div className="flex items-center gap-2">
-            
-            {canManage && (
-              <>
-                {/* 
-                {onManageStaff && (
-                  <button
-                    onClick={onManageStaff}
-                    className="px-3 py-1.5 rounded-full text-sm font-medium transition-all active:scale-95 border border-gray-300 text-gray-500 hover:border-brand-400 hover:text-brand-500 bg-white"
-                  >
-                    <span>Персонал</span>
-                  </button>
-                )}
-                */}
-              </>
-            )}
-          </div>
-        </div>
+    <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+      <div className="max-w-md mx-auto px-4 h-14 flex items-center justify-between">
+        {canManage ? (
+          <Link href="/" className="w-10 h-10 rounded-[14px] bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-500" aria-label="На главную">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </Link>
+        ) : (
+          <div className="w-10" />
+        )}
+        <h1 className="text-lg font-semibold text-[#1a1008] truncate max-w-[220px] text-center">
+          {sectionName || dept || 'Товары'}
+        </h1>
+        <div className="w-10" />
       </div>
     </header>
   );
 }
 
-// === Supplier Tabs Component ===
-function SupplierTabs({
-  suppliers,
-  selectedId,
-  onSelect,
-  productCounts,
-}: {
-  suppliers: Supplier[];
-  selectedId: number | null;
-  onSelect: (id: number) => void;
-  productCounts: Record<number, number>;
-}) {
-  if (suppliers.length === 0) return null;
-
+// ── Last Order Card ─────────────────────────────────────────
+function LastOrderCard({ lastOrder }: { lastOrder: any }) {
   return (
-    <div className="bg-gray-50 border-b">
-      <div className="max-w-md mx-auto">
-        <div className="flex gap-1 overflow-x-auto py-3 px-4 scrollbar-hide">
-          {suppliers.map((supplier) => (
-            <div key={supplier.id} className="relative flex items-center">
-              <button
-                onClick={() => onSelect(supplier.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
-                  selectedId === supplier.id
-                    ? "bg-brand-500 text-white shadow-sm"
-                    : "bg-white text-gray-700 hover:bg-gray-100 border border-gray-200"
-                }`}
-              >
-                {supplier.name}
-                {productCounts[supplier.id] > 0 && (
-                  <span
-                    className={`text-xs px-1.5 py-0.5 rounded-full ${
-                      selectedId === supplier.id
-                        ? "bg-brand-500"
-                        : "bg-gray-100"
-                    }`}
-                  >
-                    {productCounts[supplier.id]}
-                  </span>
-                )}
-              </button>
-            </div>
-          ))}
+    <Link href="/orders" className="block bg-white border-b border-gray-100">
+      <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3 group">
+        <img src="/icons/box.svg" alt="" className="w-8 h-8 opacity-40" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-gray-500 flex items-center gap-2">
+            <span className={`px-2 py-0.5 rounded-full text-sm font-medium ${getStatusColor(lastOrder.status)}`}>
+              {getStatusLabel(lastOrder.status)}
+            </span>
+            <span>·</span>
+            <span>{formatRelativeDate(lastOrder.created_at)}</span>
+          </p>
+          <p className="text-sm font-medium text-[#1a1008]">Последний заказ</p>
         </div>
+        <svg className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    </Link>
+  );
+}
+
+// ── Search Bar ──────────────────────────────────────────────
+function SearchBar({
+  value,
+  onChange,
+  onClear,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="px-4 py-3 bg-white border-b border-gray-100">
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+          <img src="/icons/magnifier.svg" alt="" className="h-4 w-4 opacity-35" />
+        </div>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full h-11 pl-10 pr-10 bg-[#f5f3f1] border-0 rounded-[12px] text-base placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:bg-white"
+          placeholder="Поиск товаров..."
+          autoComplete="off"
+        />
+        {value && (
+          <button onClick={onClear} className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-500">
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
-function ProductModal({
+// ── Product List (sectioned: InCart | Low | Rest) ──────────
+function ProductList() {
+  const {
+    lowProducts,
+    restProducts,
+    cart,
+    handleToggleCart,
+  } = useCustomSection();
+
+  const inCartIds = new Set(cart.items.filter(i => i.productId).map(i => i.productId));
+
+  const renderRow = (product: any) => {
+    const isInCart = inCartIds.has(product.id);
+    const days = product.days_remaining;
+    const isLow = days != null && days < (product.stock_alert_days || 2);
+    const isWriteoff = product.is_manual_check;
+    const lastOrder = product.last_order_at;
+    const daysSince = lastOrder ? Math.floor((Date.now() - new Date(lastOrder).getTime()) / 86400000) : null;
+    // Мета-строка: На 4 мес · Осталось 5 кг
+    const metaSegments: { text: string; muted?: boolean }[] = [];
+    
+    if (days != null) {
+      const displayDays = Math.round(days);
+      if (displayDays <= 0) {
+        metaSegments.push({ text: 'Заканчивается' });
+      } else if (displayDays === 1) {
+        metaSegments.push({ text: 'На ', muted: true }, { text: 'день' });
+      } else if (displayDays < 30) {
+        metaSegments.push({ text: 'На ', muted: true }, { text: `${displayDays} дн` });
+      } else if (displayDays < 60) {
+        metaSegments.push({ text: 'На ', muted: true }, { text: 'месяц' });
+      } else if (displayDays < 365) {
+        metaSegments.push({ text: 'На ', muted: true }, { text: `${Math.round(displayDays / 30)} мес` });
+      } else {
+        metaSegments.push({ text: 'Надолго' });
+      }
+    }
+    
+    const stockNum = product.stock != null ? Number(product.stock) : null;
+    if (stockNum != null) {
+      const stockStr = stockNum % 1 === 0 ? stockNum.toString() : stockNum.toFixed(1).replace(/\.0$/, '');
+      if (metaSegments.length > 0) metaSegments.push({ text: ' \u00b7 ', muted: true });
+      metaSegments.push({ text: 'Осталось ', muted: true }, { text: `${stockStr} ${translateUnit(product.unit)}` });
+    }
+    
+    if (isWriteoff && !lastOrder && metaSegments.length === 0) {
+      metaSegments.push({ text: 'Нет заказов' });
+    }
+
+    return (
+      <div
+        key={product.id}
+        onClick={() => handleToggleCart(product)}
+        className="cursor-pointer select-none"
+      >
+        <div
+          className="flex items-center gap-3 min-h-[44px] transition-colors active:bg-black/5"
+        >
+          {/* Leading circle — iOS-style: всегда есть, показывает статус */}
+          <span
+            className={`w-[22px] h-[22px] rounded-full border-2 shrink-0 flex items-center justify-center transition-colors ${
+              isInCart
+                ? 'bg-brand-500 border-brand-500'
+                : 'border-gray-300'
+            }`}
+          >
+            {isInCart && (
+              <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+          </span>
+
+          {/* Name + meta */}
+          <div className="flex-1 min-w-0 py-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-base font-medium text-[#1a1008] truncate">
+                {product.name}
+              </span>
+            </div>
+            {metaSegments.length > 0 && (
+              <p className={`text-sm truncate ${isLow && !isInCart ? 'text-amber-600' : ''}`}>
+                {metaSegments.map((s, i) => (
+                  <span key={i} className={s.muted ? 'text-gray-400' : isLow && !isInCart ? 'text-amber-600' : 'text-[#1a1008]'}>
+                    {s.text}
+                  </span>
+                ))}
+              </p>
+            )}
+          </div>
+        </div>
+        <div className="border-b border-gray-100/80 ml-[50px]" />
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-white">
+      {/* Заканчивается */}
+      {lowProducts.length > 0 && (
+        <>
+          <div className="flex items-center gap-2 py-1.5 bg-amber-50/60 border-b border-amber-100/60">
+            <span className="text-sm font-medium text-amber-600">Заканчивается</span>
+            <span className="text-sm bg-amber-100 text-amber-600 px-1.5 py-px rounded-full font-medium">{lowProducts.length}</span>
+          </div>
+          {lowProducts.map(renderRow)}
+        </>
+      )}
+
+      {/* Остальное */}
+      {restProducts.length > 0 && restProducts.map(renderRow)}
+    </div>
+  );
+}
+
+// ── Product Modal ──────────────────────────────────────────
+function ProductModalContent({
   isOpen,
   onClose,
-  form,
-  setForm,
-  onSubmit,
-  submitting,
-  categories,
 }: {
   isOpen: boolean;
   onClose: () => void;
-  form: { name: string; unit: string; category_id: string };
-  setForm: (form: { name: string; unit: string; category_id: string }) => void;
-  onSubmit: () => void;
-  submitting: boolean;
-  categories: Category[];
 }) {
+  const {
+    productForm,
+    setProductForm,
+    editingProduct,
+    submitting,
+    categories,
+    handleCreateProduct,
+    handleUpdateProduct,
+    closeProductModal,
+  } = useCustomSection();
+
   const unitOptions = [
     { value: "шт", label: "Штуки" },
     { value: "кг", label: "Килограммы" },
@@ -865,30 +256,36 @@ function ProductModal({
       <div className="space-y-4">
         <FormInput
           label="Название"
-          value={form.name}
-          onChange={(v) => setForm({ ...form, name: v })}
+          value={productForm.name}
+          onChange={(v) => setProductForm({ ...productForm, name: v })}
           placeholder="Например: Яблоки"
           required
           autoFocus
         />
         <FormSelect
           label="Единица измерения"
-          value={form.unit}
-          onChange={(v) => setForm({ ...form, unit: v })}
+          value={productForm.unit}
+          onChange={(v) => setProductForm({ ...productForm, unit: v })}
           options={unitOptions}
         />
         {categories.length > 0 && (
           <FormSelect
             label="Категория"
-            value={form.category_id}
-            onChange={(v) => setForm({ ...form, category_id: v })}
-            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            value={productForm.category_id}
+            onChange={(v) => setProductForm({ ...productForm, category_id: v })}
+            options={categories.map((c: Category) => ({
+              value: c.id,
+              label: c.name,
+            }))}
             placeholder="Выберите категорию"
           />
         )}
         <div className="mt-6">
-          <FormButton onClick={onSubmit} loading={submitting}>
-            Добавить товар
+          <FormButton
+            onClick={editingProduct ? handleUpdateProduct : handleCreateProduct}
+            loading={submitting}
+          >
+            {editingProduct ? "Обновить товар" : "Добавить товар"}
           </FormButton>
         </div>
       </div>
@@ -896,15 +293,205 @@ function ProductModal({
   );
 }
 
+// ── Empty State ─────────────────────────────────────────────
+function EmptyState({ canManage }: { canManage: boolean }) {
+  const { router } = useCustomSection();
+  return (
+    <div className="text-center py-16 px-4">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: '#f5f3f1' }}>
+        <img src="/icons/box.svg" alt="" className="w-8 h-8 opacity-25" />
+      </div>
+      <h3 className="text-lg font-semibold text-[#1a1008] mb-1.5">Отдел пуст</h3>
+      <p className="text-sm text-gray-400 mb-8 max-w-[260px] mx-auto leading-relaxed">
+        {canManage
+          ? 'В этом отделе пока нет товаров. Синхронизируйте данные с Poster.'
+          : 'В этом отделе пока нет доступных товаров.'}
+      </p>
+      {canManage && (
+        <button
+          onClick={() => router.push('/suppliers-categories')}
+          className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold px-6 py-3 rounded-[14px] shadow-sm shadow-brand-500/20 transition-all active:scale-[0.98] text-sm"
+        >
+          🔄 Синхронизировать
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── No Suppliers State ──────────────────────────────────────
+function NoSuppliersState({
+  canManage,
+  sectionName,
+  dept,
+  pendingOrdersCount,
+  assignedUsersCount,
+}: {
+  canManage: boolean;
+  sectionName: string;
+  dept: string | null;
+  pendingOrdersCount: number;
+  assignedUsersCount: number;
+}) {
+  const { router, setShowSettingsModal } = useCustomSection();
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Header
+        sectionName={sectionName}
+        dept={dept}
+        canManage={canManage}
+        pendingOrdersCount={pendingOrdersCount}
+        onAddSupplier={() => router.push("/suppliers-categories")}
+        onOpenSettings={() => setShowSettingsModal(true)}
+        assignedUsersCount={assignedUsersCount}
+      />
+      <main className="max-w-md mx-auto px-4 py-12 text-center">
+        <img
+          src="/icons/box.svg"
+          alt="Suppliers"
+          className="w-16 h-16 mx-auto mb-6 opacity-50"
+        />
+        <h2 className="text-xl font-semibold text-[#1a1008] mb-3">
+          Нет поставщиков
+        </h2>
+        <p className="text-gray-500 mb-6">
+          Создайте первого поставщика, чтобы начать добавлять товары
+        </p>
+        {canManage ? (
+          <Link
+            href="/suppliers-categories"
+            className="inline-flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-medium px-6 py-3 rounded-[14px] transition-colors shadow-sm shadow-brand-500/20"
+          >
+            <span className="text-lg">+</span>
+            Создать поставщика
+          </Link>
+        ) : (
+          <p className="text-sm text-gray-400">
+            Обратитесь к менеджеру для настройки
+          </p>
+        )}
+      </main>
+    </div>
+  );
+}
+
+// ── Loading ─────────────────────────────────────────────────
+function LoadingSpinner() {
+  return (
+    <div className="min-h-screen bg-white flex items-center justify-center">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
+    </div>
+  );
+}
+
+// ── Main Page Content ──────────────────────────────────────
+function CustomPageContent() {
+  const {
+    loading,
+    suppliers,
+    products,
+    sectionName,
+    dept,
+    canManage,
+    pendingOrdersCount,
+    assignedUsersCount,
+    lastOrder,
+    loadingLastOrder,
+    searchQuery,
+    setSearchQuery,
+    currentProducts,
+    showProductModal,
+    showSettingsModal,
+    setShowSettingsModal,
+    closeProductModal,
+    currentSection,
+    cart,
+    loadData,
+    router,
+  } = useCustomSection();
+
+  if (loading) return <LoadingSpinner />;
+
+  if (suppliers.length === 0 && products.length === 0) {
+    return (
+      <NoSuppliersState
+        canManage={canManage}
+        sectionName={sectionName}
+        dept={dept}
+        pendingOrdersCount={pendingOrdersCount}
+        assignedUsersCount={assignedUsersCount}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      <Header
+        sectionName={sectionName}
+        dept={dept}
+        canManage={canManage}
+        pendingOrdersCount={pendingOrdersCount}
+        onAddSupplier={() => router.push("/suppliers-categories")}
+        onOpenSettings={() => setShowSettingsModal(true)}
+        assignedUsersCount={assignedUsersCount}
+      />
+
+      {lastOrder && !loadingLastOrder && <LastOrderCard lastOrder={lastOrder} />}
+
+      {products.length > 0 && (
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onClear={() => setSearchQuery("")}
+        />
+      )}
+
+      <main className="max-w-md mx-auto px-4 pb-24">
+        {products.length === 0 ? (
+          <EmptyState canManage={canManage} />
+        ) : searchQuery && currentProducts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">Товары не найдены</p>
+          </div>
+        ) : (
+          <ProductList />
+        )}
+      </main>
+
+      {cart.count > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 p-3" style={{ background: 'linear-gradient(to top, white 60%, transparent)' }}>
+          <Link
+            href="/cart"
+            className="flex items-center justify-center gap-2 w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold text-base py-4 rounded-[14px] shadow-lg shadow-brand-500/20 transition-all active:scale-[0.98]"
+          >
+            📋 Заявка
+            <span className="bg-white/20 text-white text-sm px-2 py-0.5 rounded-full">{cart.count}</span>
+          </Link>
+        </div>
+      )}
+
+      <ProductModalContent
+        isOpen={showProductModal}
+        onClose={closeProductModal}
+      />
+
+      {currentSection && (
+        <DepartmentSettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          section={currentSection}
+          onUpdate={loadData}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Export ──────────────────────────────────────────────────
 export default function CustomPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-white flex items-center justify-center">
-          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-500" />
-        </div>
-      }
-    >
+    <Suspense fallback={<LoadingSpinner />}>
       <CustomPageContent />
     </Suspense>
   );

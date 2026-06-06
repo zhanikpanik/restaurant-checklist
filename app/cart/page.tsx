@@ -8,7 +8,6 @@ import { useCart, useRestaurant, useStore } from "@/store/useStore";
 import { api } from "@/lib/api-client";
 import { getUserRootUrl } from "@/lib/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { QuantityInput } from "@/components/ui/QuantityInput";
 import { clientCache, fetchWithCache } from "@/lib/client-cache";
 import type { CartItem } from "@/types";
 
@@ -105,9 +104,10 @@ export default function CartPage() {
       const formattedItems = cart.items.map(item => ({
         name: item.name,
         quantity: item.quantity,
-        unit: item.unit || "шт", // Default to "шт" if not specified
+        unit: item.unit || "шт",
         category: item.category,
         supplier: item.supplier,
+        supplier_id: item.supplier_id,
         poster_id: item.poster_id,
         productId: item.productId,
       }));
@@ -121,11 +121,9 @@ export default function CartPage() {
       });
 
       if (response.success) {
-        setSubmittedOrderId(response.data?.id || null);
-        setSubmitState('success');
-        // Clear cart immediately after successful order
         cart.clear();
         setNotes("");
+        router.push('/orders');
       } else {
         throw new Error(response.error || "Failed to submit order");
       }
@@ -145,34 +143,33 @@ export default function CartPage() {
   // Success state view
   if (submitState === 'success') {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white">
         <PageHeader
           title="Готово"
           backHref={backLink}
         />
 
-        {/* Success Content */}
-        <div className="max-w-4xl mx-auto p-4">
-          <div className="text-center py-12">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="max-w-md mx-auto p-4">
+          <div className="text-center py-14">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-8">
+            <h2 className="text-xl font-semibold text-[#1a1008] mb-6">
               Заказ успешно отправлен
             </h2>
             
             <div className="space-y-3 max-w-sm mx-auto">
               <button
                 onClick={() => router.push('/orders')}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition-colors"
+                className="w-full bg-brand-500 hover:bg-brand-600 text-white py-3.5 rounded-[14px] font-semibold text-sm transition-colors"
               >
                 Посмотреть в заказах
               </button>
               <button
                 onClick={handleNewOrder}
-                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-medium transition-colors"
+                className="w-full py-3.5 rounded-[14px] font-semibold text-sm text-gray-500 hover:text-gray-500 hover:bg-gray-100 transition-colors"
               >
                 Создать новый заказ
               </button>
@@ -202,30 +199,29 @@ export default function CartPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
       <PageHeader
-        title="Корзина"
+        title="Заявка"
         backHref={backLink}
       />
 
-      {/* Cart Content */}
-      <div className="max-w-4xl mx-auto p-4">
+      <div className="max-w-md mx-auto p-4 pb-24">
         {cart.items.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center py-16">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: '#f5f3f1' }}>
+              <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Корзина пуста
+            <h2 className="text-lg font-semibold text-[#1a1008] mb-1.5">
+              Заявка пуста
             </h2>
-            <p className="text-gray-500 mb-8 max-w-xs mx-auto">
+            <p className="text-sm text-gray-400 mb-8 max-w-xs mx-auto">
               Добавьте ингредиенты из справочника, чтобы сформировать список на закупку.
             </p>
             <Link
               href="/"
-              className="inline-flex bg-brand-500 hover:bg-brand-600 text-white px-8 py-3.5 rounded-xl font-medium shadow-lg shadow-brand-500/30 transition-all active:scale-[0.98]"
+              className="inline-flex bg-brand-500 hover:bg-brand-600 text-white font-semibold px-6 py-3.5 rounded-[14px] shadow-sm shadow-brand-500/20 transition-all active:scale-[0.98] text-sm"
             >
               Перейти к выбору товаров
             </Link>
@@ -233,20 +229,20 @@ export default function CartPage() {
         ) : (
           <>
             {/* Items List - Grouped by Supplier */}
-            <div className="space-y-6">
-              {supplierNames.map((supplierName) => (
-                <div key={supplierName}>
+            <div>
+              {supplierNames.map((supplierName, idx) => (
+                <div key={supplierName} className={idx > 0 ? 'mt-10' : ''}>
                   {/* Supplier Header */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <img src="/icons/box.svg" alt="Supplier" className="w-5 h-5 opacity-70" />
-                    <h3 className="font-semibold text-gray-800">{supplierName}</h3>
-                    <span className="text-sm text-gray-500">
-                      ({formatProductCount(itemsBySupplier.grouped[supplierName].length)})
+                  <div className="flex items-center gap-2 mb-1">
+                    <img src="/icons/box.svg" alt="" className="w-4 h-4 opacity-40" />
+                    <h3 className="text-sm font-semibold text-gray-500">{supplierName}</h3>
+                    <span className="text-sm text-gray-400">
+                      {formatProductCount(itemsBySupplier.grouped[supplierName].length)}
                     </span>
                   </div>
-                  
-                  {/* Items for this supplier */}
-                  <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 divide-y divide-gray-50 overflow-hidden">
+
+                  {/* Items for this supplier — flat rows */}
+                  <div>
                     {itemsBySupplier.grouped[supplierName].map((item) => (
                       <CartItemRow
                         key={item.cartId}
@@ -262,16 +258,16 @@ export default function CartPage() {
 
               {/* Items without supplier */}
               {itemsBySupplier.noSupplier.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <img src="/icons/box.svg" alt="Unassigned" className="w-5 h-5 opacity-70" />
-                    <h3 className="font-semibold text-gray-800">Без поставщика</h3>
-                    <span className="text-sm text-gray-500">
-                      ({formatProductCount(itemsBySupplier.noSupplier.length)})
+                <div className="mt-10">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-sm">⚠️</span>
+                    <h3 className="text-sm font-semibold text-amber-600">Без поставщика</h3>
+                    <span className="text-sm text-amber-600">
+                      {formatProductCount(itemsBySupplier.noSupplier.length)}
                     </span>
                   </div>
                   
-                  <div className="bg-white rounded-2xl shadow-sm ring-1 ring-gray-900/5 divide-y divide-gray-50 overflow-hidden">
+                  <div>
                     {itemsBySupplier.noSupplier.map((item) => (
                       <CartItemRow
                         key={item.cartId}
@@ -286,35 +282,25 @@ export default function CartPage() {
               )}
             </div>
 
-            {/* Bulk Supplier Selection (if there are unassigned items) */}
+            {/* Bulk Supplier Selection */}
             {itemsBySupplier.noSupplier.length > 0 && allSuppliers.length > 0 && (
-              <div className="mt-8 p-6 bg-yellow-50 border border-yellow-200 rounded-2xl shadow-sm">
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center text-yellow-600 flex-shrink-0">
-                    ⚠️
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-yellow-900">Укажите поставщика</h3>
-                    <p className="text-sm text-yellow-700">
-                      Для {itemsBySupplier.noSupplier.length} позиций не указан поставщик. Выберите его для всех сразу:
-                    </p>
-                  </div>
-                </div>
-
+              <div className="mt-4 mx-4 p-4 bg-amber-50 rounded-[14px] border border-amber-100">
+                <p className="text-sm font-medium text-amber-600 mb-2">
+                  Назначить поставщика для {itemsBySupplier.noSupplier.length} позиций:
+                </p>
                 <select
                   value={bulkSupplierId}
                   onChange={(e) => {
                     const id = e.target.value;
                     const supplier = allSuppliers.find(s => s.id.toString() === id);
                     if (supplier) {
-                      // Update all unassigned items in the store
                       itemsBySupplier.noSupplier.forEach(item => {
                         cart.updateItemSupplier(item.cartId, supplier.name, supplier.id);
                       });
                       setBulkSupplierId(id);
                     }
                   }}
-                  className="w-full bg-white border border-yellow-300 rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-yellow-500 focus:outline-none transition-shadow"
+                  className="w-full h-11 bg-white border border-amber-200 rounded-[12px] px-4 text-sm focus:ring-2 focus:ring-brand-500/20 focus:outline-none"
                 >
                   <option value="">Выберите поставщика...</option>
                   {allSuppliers.map((s) => (
@@ -324,58 +310,54 @@ export default function CartPage() {
               </div>
             )}
 
-            {/* Notes Section - No card wrapper */}
-            <div className="mt-8 mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2 pl-1">
-                Примечание к заказу
+            {/* Summary */}
+            <div className="mt-8 text-base text-gray-500">
+              {cart.items.length} {getPluralForm(cart.items.length, ['ингредиент', 'ингредиента', 'ингредиентов'])}, {supplierNames.length + (itemsBySupplier.noSupplier.length > 0 ? 1 : 0)} {getPluralForm(supplierNames.length + (itemsBySupplier.noSupplier.length > 0 ? 1 : 0), ['поставщик', 'поставщика', 'поставщиков'])}
+            </div>
+
+            {/* Notes */}
+            <div className="mt-6">
+              <label className="block text-base font-medium text-gray-500 mb-2">
+                Комментарий
               </label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Добавьте комментарий к заказу..."
-                className="w-full bg-white shadow-sm ring-1 ring-gray-900/5 rounded-2xl px-4 py-4 resize-none focus:ring-2 focus:ring-brand-500 focus:outline-none transition-shadow"
+                placeholder="Например: срочно"
+                className="w-full bg-white rounded-[14px] px-4 py-3.5 resize-none text-base placeholder:text-gray-400 focus:ring-2 focus:ring-brand-500/20 focus:outline-none border border-gray-100"
                 rows={3}
               />
             </div>
 
-            {/* Divider line before Total */}
-            <div className="border-t border-black/30 my-6" />
-
-            {/* Order Summary - No card wrapper */}
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-gray-600">Всего позиций:</span>
-                <span className="font-semibold">{cart.items.length}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Общее количество:</span>
-                <span className="font-semibold">{cart.count}</span>
-              </div>
-            </div>
-
-            {/* Submit Button Only */}
-            <button
-              onClick={handleSubmitOrder}
-              disabled={submitState === 'submitting'}
-              className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white py-4 rounded-2xl font-bold shadow-lg shadow-green-500/30 transition-all active:scale-[0.98] text-lg mt-4"
-            >
-              {submitState === 'submitting' ? (
-                <span className="flex items-center justify-center gap-2">
-                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                  Отправка...
-                </span>
-              ) : (
-                "Отправить заказ"
-              )}
-            </button>
-
-            {/* Error state */}
-            {submitState === 'error' && (
-              <p className="text-red-500 text-center mt-4">
-                Ошибка при отправке заказа. Попробуйте снова.
-              </p>
-            )}
           </>
+        )}
+
+        {/* Sticky submit */}
+        {cart.items.length > 0 && (
+          <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-3" style={{ background: 'linear-gradient(to top, white 60%, transparent)' }}>
+            <div className="max-w-md mx-auto">
+              <button
+                onClick={handleSubmitOrder}
+                disabled={submitState === 'submitting'}
+                className="w-full bg-brand-500 hover:bg-brand-600 disabled:bg-gray-300 text-white font-semibold text-base py-4 rounded-[14px] shadow-lg shadow-brand-500/20 transition-all active:scale-[0.98]"
+              >
+                {submitState === 'submitting' ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                    Отправка...
+                  </span>
+                ) : (
+                  'Отправить заказ'
+                )}
+              </button>
+
+              {submitState === 'error' && (
+                <p className="text-red-500 text-center mt-3 text-sm">
+                  Ошибка при отправке заказа. Попробуйте снова.
+                </p>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -395,30 +377,41 @@ function CartItemRow({
   translateUnit: (u: string) => string;
 }) {
   return (
-    <div className="px-4 py-4 hover:bg-gray-50/50 transition-colors">
-      <div className="flex items-center justify-between">
-        <div className="flex-1 min-w-0 pr-4">
-          <h4 className="font-medium text-gray-900 truncate text-[15px]">{item.name}</h4>
-          <p className="text-[13px] text-gray-500 mt-0.5">{translateUnit(item.unit || "шт")}</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <QuantityInput
-            productName={item.name}
-            quantity={item.quantity}
-            unit={item.unit}
-            onQuantityChange={(newQty) => onQuantityChange(item.cartId, newQty)}
-            compact={true}
-          />
-          <button
-            onClick={onRemove}
-            className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all active:scale-[0.92]"
-            aria-label="Удалить"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
-        </div>
+    <div className="flex items-center gap-3 min-h-[52px] active:bg-black/5 transition-colors border-b border-gray-100/80">
+      <div className="flex-1 min-w-0 py-2">
+        <p className="text-base text-[#1a1008] truncate">
+          {item.name}
+          {' '}
+          <span className="text-gray-400">{translateUnit(item.unit || 'шт')}</span>
+        </p>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={() => onQuantityChange(item.cartId, Math.max(0, item.quantity - 1))}
+          className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 text-gray-500 active:bg-gray-200 transition-colors select-none"
+          aria-label="Уменьшить"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" /></svg>
+        </button>
+        <span className="w-8 text-center text-sm font-semibold tabular-nums select-none">
+          {item.quantity}
+        </span>
+        <button
+          onClick={() => onQuantityChange(item.cartId, item.quantity + 1)}
+          className="w-9 h-9 flex items-center justify-center rounded-lg bg-brand-500 text-white active:bg-brand-600 transition-colors select-none"
+          aria-label="Увеличить"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+        </button>
+        <button
+          onClick={onRemove}
+          className="w-6 h-6 flex items-center justify-center rounded-md text-gray-300 active:text-red-400 active:bg-red-50 transition-colors ml-1"
+          aria-label="Удалить"
+        >
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
     </div>
   );

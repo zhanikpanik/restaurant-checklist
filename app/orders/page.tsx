@@ -1,547 +1,552 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { api } from "@/lib/api-client";
-import { clientCache, fetchWithCache } from "@/lib/client-cache";
-import { getUserRootUrlSync } from "@/lib/navigation";
-import { useToast } from "@/components/ui/Toast";
 import { QuantityInput } from "@/components/ui/QuantityInput";
 import { Modal } from "@/components/ui/Modal";
-import type { Order, Supplier, UserOrderPermissions } from "@/types";
+import { useOrders, translateUnit, formatDate } from "@/hooks/useOrders";
 
-type TabType = "pending" | "transit" | "history";
+// ── Pending Tab ──────────────────────────────────────────────
+function PendingTab() {
+  const {
+    pendingBySupplier,
+    hasPending,
+    hasChanges,
+    canSendOrders,
+    sendingSupplier,
+    updating,
+    handleSetPendingQuantity,
+    handleSaveChanges,
+    copyOrderToClipboard,
+    sendToWhatsApp,
+  } = useOrders();
 
+  if (!hasPending) {
+    return (
+      <div className="text-center py-16 px-4">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: '#f5f3f1' }}>
+          <img src="/icons/box.svg" alt="Box" className="w-8 h-8 opacity-25" />
+        </div>
+        <h3 className="text-xl font-semibold text-[#1a1008] mb-2">Нет заявок</h3>
+        <p className="text-gray-500">Новые заявки появятся здесь</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="bg-white pt-4 pb-2">
+        {pendingBySupplier.map(([supplier, group]) => (
+          <div key={supplier} className="mt-10 first:mt-0">
+            <div className="px-4 mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-medium text-gray-500">{supplier}</h3>
+              <span className="text-sm text-gray-400">
+                {group.items.length} поз.
+              </span>
+            </div>
+            <div className="divide-y divide-gray-100">
+              {group.items.map((item) => {
+                const isZero = item._quantity === 0;
+                return (
+                  <div
+                    key={item._key}
+                    className={`px-4 py-3 active:bg-black/5 transition-colors ${
+                      isZero ? "opacity-40 bg-gray-50" : ""
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1 min-w-0 pr-4">
+                        <h3
+                          className={`text-base font-medium truncate ${
+                            isZero
+                              ? "text-gray-400 line-through"
+                              : "text-[#1a1008]"
+                          }`}
+                        >
+                          {item.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          {item._department || "—"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <QuantityInput
+                          productName={item.name}
+                          quantity={item._quantity}
+                          unit={item.unit || "шт"}
+                          onQuantityChange={(newQty) =>
+                            handleSetPendingQuantity(item._key, newQty)
+                          }
+                          min={0}
+                          compact={true}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {canSendOrders && (
+              <div className="px-4 mt-4 mb-8 pb-6 flex gap-2 border-b border-gray-100">
+                <button
+                  onClick={() =>
+                    copyOrderToClipboard(supplier, group.items)
+                  }
+                  className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-500 rounded-[14px] text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  Скопировать
+                </button>
+                <button
+                  onClick={() => sendToWhatsApp(supplier, group.items)}
+                  disabled={sendingSupplier === supplier}
+                  className="flex-1 bg-[#25D366] hover:bg-[#20bd5a] text-white px-4 py-3 rounded-[14px] text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                  WhatsApp
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {hasChanges && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 px-4 pb-4 pt-3 flex justify-center" style={{ background: 'linear-gradient(to top, white 60%, transparent)' }}
+        >
+          <button
+            onClick={handleSaveChanges}
+            disabled={updating}
+            className="bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm py-4 rounded-[14px] shadow-lg shadow-brand-500/20 transition-all active:scale-[0.98] w-full max-w-md disabled:opacity-70"
+          >
+            {updating ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mx-auto" />
+            ) : (
+              <span className="flex items-center justify-center gap-2">💾 Сохранить</span>
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Transit Tab ──────────────────────────────────────────────
+function TransitTab() {
+  const {
+    sentBySupplier,
+    receivedQuantities,
+    receivedPrices,
+    updating,
+    handleReceivedQuantityChange,
+    handleReceivedPriceChange,
+    handleRevertToPending,
+    handleOpenConfirmModal,
+  } = useOrders();
+
+  if (sentBySupplier.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5" style={{ background: '#f5f3f1' }}>
+          <img
+            src="/icons/delivery.svg"
+            alt="Transit"
+            className="w-8 h-8 opacity-25"
+          />
+        </div>
+        <h3 className="text-xl font-semibold text-[#1a1008] mb-2">Нет доставок</h3>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {sentBySupplier.map(([supplier, group]) => {
+        const acceptedCount = group.items.filter((i) => {
+          const q = receivedQuantities[i._key] ?? i._orderedQty;
+          return (q === "" ? 0 : q) > 0;
+        }).length;
+
+        return (
+          <div key={supplier} className="mb-8 last:mb-0">
+            <div className="px-4 flex items-center justify-between py-2">
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">
+                  {supplier}
+                </h3>
+              </div>
+            </div>
+            <div className="bg-white divide-y divide-gray-100">
+              {group.items.map((item, idx) => {
+                const rawQty =
+                  receivedQuantities[item._key] ?? item._orderedQty;
+                const currentQty = rawQty === "" ? "" : rawQty;
+                const calcQty = rawQty === "" ? 0 : rawQty;
+                const isExcluded = calcQty === 0;
+                const diff = (calcQty as number) - (item._orderedQty ?? 0);
+                const isDifferent = diff !== 0;
+                const orderedTextColor = isDifferent
+                  ? diff < 0
+                    ? "text-orange-600"
+                    : "text-green-600"
+                  : "text-gray-500";
+
+                return (
+                  <div
+                    key={idx}
+                    className={`px-4 py-3 active:bg-black/5 transition-colors ${
+                      isExcluded
+                        ? "opacity-40 bg-gray-50"
+                        : isDifferent
+                          ? "bg-orange-50/30"
+                          : ""
+                    }`}
+                  >
+                    <div className="flex items-end sm:items-center justify-between gap-2 sm:gap-4">
+                      <div className="flex-1 min-w-0 pb-1 sm:pb-0">
+                        <h3
+                          className={`text-base font-medium text-[#1a1008] leading-tight ${
+                            isExcluded ? "line-through" : ""
+                          }`}
+                        >
+                          {item.name}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1 sm:mt-1">
+                          <p
+                            className={`text-sm font-medium ${orderedTextColor} whitespace-nowrap`}
+                          >
+                            Заказано: {item._orderedQty}{" "}
+                            {translateUnit(item.unit || "шт")}
+                            {isDifferent &&
+                              !isExcluded &&
+                              ` (${diff > 0 ? "+" : ""}${diff.toFixed(1)})`}
+                          </p>
+                          {isExcluded && (
+                            <span className="text-sm text-gray-400">
+                              Пропущено
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 sm:gap-4 shrink-0">
+                        {!isExcluded && (
+                          <div className="flex flex-col items-start gap-1">
+                            <span className="text-sm text-gray-400 font-medium">
+                              Цена, ₸
+                            </span>
+                            <input
+                              type="number"
+                              value={
+                                receivedPrices[item._key] ?? item._receivedPrice
+                              }
+                              onChange={(e) =>
+                                handleReceivedPriceChange(
+                                  item._key,
+                                  e.target.value
+                                )
+                              }
+                              onFocus={(e) => e.target.select()}
+                              className="w-16 sm:w-24 bg-white border border-gray-300 rounded-[12px] px-2 sm:px-3 py-1.5 sm:py-2 text-[#1a1008] text-left text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
+                              step="0.01"
+                              min="0"
+                            />
+                          </div>
+                        )}
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="text-sm text-gray-400 font-medium">
+                            Факт
+                          </span>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={currentQty}
+                              onChange={(e) =>
+                                handleReceivedQuantityChange(
+                                  item._key,
+                                  e.target.value
+                                )
+                              }
+                              onFocus={(e) => e.target.select()}
+                              className={`w-20 sm:w-24 border rounded-[12px] pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 text-left text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all ${
+                                isDifferent
+                                  ? "bg-orange-50 border-orange-300 text-orange-600"
+                                  : "bg-white border-gray-300 text-[#1a1008]"
+                              }`}
+                              step="0.01"
+                              min="0"
+                            />
+                            <span
+                              className={`absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-sm font-medium pointer-events-none ${
+                                isDifferent
+                                  ? "text-orange-500"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {translateUnit(item.unit || "шт")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="px-4 py-3 flex gap-3 justify-end border-t border-gray-200 sticky bottom-0 z-30">
+              <button
+                onClick={() => handleRevertToPending(group.items)}
+                disabled={updating}
+                className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-500 rounded-[14px] text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Вернуть
+              </button>
+              <button
+                onClick={() =>
+                  handleOpenConfirmModal(supplier, group.items)
+                }
+                disabled={updating}
+                className="px-6 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-[14px] text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {updating ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  `Принять`
+                )}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── History Tab ──────────────────────────────────────────────
+function HistoryTab() {
+  const { historyOrders } = useOrders();
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  return (
+    <div>
+      {historyOrders.map((order) => (
+        <div key={order.id}>
+          <div
+            onClick={() => setExpandedId(expandedId === order.id ? null : order.id)}
+            className="px-4 py-4 active:bg-black/5 transition-colors cursor-pointer border-b border-gray-100/80"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-base text-[#1a1008] font-medium">
+                #{order.id} · {order.order_data.department}
+              </span>
+              <span
+                className={`text-sm px-2 py-1 rounded-full ${
+                  order.status === "delivered"
+                    ? "bg-green-100 text-green-600"
+                    : "bg-red-100 text-red-500"
+                }`}
+              >
+                {order.status === "delivered" ? "Доставлено" : "Отменено"}
+              </span>
+            </div>
+            <p className="text-sm text-gray-400">
+              {formatDate(order.created_at)} ·{" "}
+              {order.order_data.items?.length || 0} позиций ·{" "}
+              {order.order_data.items?.reduce((sum: number, i: any) => sum + (i.quantity || 0), 0) || 0} ед.
+            </p>
+          </div>
+          {expandedId === order.id && (
+            <div className="px-4 pb-4 divide-y divide-gray-100/80">
+              {order.order_data.items?.map((item: any, idx: number) => (
+                <div key={idx} className="flex items-center justify-between py-2">
+                  <span className="text-sm text-[#1a1008]">{item.name}</span>
+                  <span className="text-sm text-gray-400">
+                    {item.quantity} {translateUnit(item.unit || 'шт')}
+                    {item.price ? ` · ${item.price} ₸` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Delivery Confirmation Modal ──────────────────────────────
+function DeliveryConfirmModal() {
+  const {
+    sentBySupplier,
+    confirmingSupplier,
+    updating,
+    setConfirmingSupplier,
+    handleConfirmDelivery,
+  } = useOrders();
+
+  return (
+    <Modal
+      isOpen={!!confirmingSupplier}
+      onClose={() => !updating && setConfirmingSupplier(null)}
+      title="Расхождения"
+    >
+      <div className="space-y-4 pt-2">
+        <div className="flex items-center gap-3 text-orange-600 bg-orange-50 p-3 rounded-[14px]">
+          <svg
+            className="w-5 h-5 flex-shrink-0"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
+          </svg>
+          <p className="text-sm">
+            Часть товаров не была получена. Что сделать с недостающим
+            количеством?
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() =>
+              confirmingSupplier &&
+              handleConfirmDelivery(
+                confirmingSupplier,
+                sentBySupplier.find((s) => s[0] === confirmingSupplier)?.[1]
+                  .items || [],
+                "transit"
+              )
+            }
+            disabled={updating}
+            className="w-full p-4 text-left hover:bg-gray-50 rounded-[14px] border border-gray-100 transition-colors flex items-center gap-4 group"
+          >
+            <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors shrink-0">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-[#1a1008] text-sm">
+                Оставить «Приёмка»
+              </p>
+              <p className="text-sm text-gray-400">
+                Поставщик довезет их позже
+              </p>
+            </div>
+          </button>
+
+          <button
+            onClick={() =>
+              confirmingSupplier &&
+              handleConfirmDelivery(
+                confirmingSupplier,
+                sentBySupplier.find((s) => s[0] === confirmingSupplier)?.[1]
+                  .items || [],
+                "pending"
+              )
+            }
+            disabled={updating}
+            className="w-full p-4 text-left hover:bg-gray-50 rounded-[14px] border border-gray-100 transition-colors flex items-center gap-4 group"
+          >
+            <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-[#1a1008] text-sm">
+                Вернуть
+              </p>
+              <p className="text-sm text-gray-400">
+                Перезаказать у другого поставщика
+              </p>
+            </div>
+          </button>
+
+          <button
+            onClick={() =>
+              confirmingSupplier &&
+              handleConfirmDelivery(
+                confirmingSupplier,
+                sentBySupplier.find((s) => s[0] === confirmingSupplier)?.[1]
+                  .items || [],
+                "cancel"
+              )
+            }
+            disabled={updating}
+            className="w-full p-4 text-left hover:bg-red-50 rounded-[14px] border border-gray-100 hover:border-red-100 transition-colors flex items-center gap-4 group"
+          >
+            <div className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center group-hover:bg-red-100 transition-colors shrink-0">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-[#1a1008] text-sm text-red-500">
+                Отменить
+              </p>
+              <p className="text-sm text-red-400">Товары больше не нужны</p>
+            </div>
+          </button>
+
+          <button
+            onClick={() => !updating && setConfirmingSupplier(null)}
+            className="w-full p-4 mt-2 text-center font-semibold text-gray-400 hover:text-gray-500 transition-colors"
+          >
+            Отмена
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Main Page ────────────────────────────────────────────────
 export default function OrdersPage() {
-  const { data: session, status } = useSession();
-  const toast = useToast();
-  
-  const [orders, setOrders] = useState<Order[]>(() => clientCache.get("orders_list") || []);
-  const [suppliers, setSuppliers] = useState<Supplier[]>(() => clientCache.get("orders_suppliers") || []);
-  const [permissions, setPermissions] = useState<UserOrderPermissions | null>(() => clientCache.get("orders_permissions") || null);
-  const [loading, setLoading] = useState(!clientCache.has("orders_list"));
-  const [activeTab, setActiveTab] = useState<TabType>("pending");
-  const [updating, setUpdating] = useState(false);
-  const [backLink, setBackLink] = useState<string>("/"); // Dynamic back link based on user role
-  
-  // Quantity adjustments for pending items: { `${orderId}-${itemIdx}`: quantity }
-  const [pendingQuantities, setPendingQuantities] = useState<Record<string, number>>({});
-  
-  // Received quantities for in-transit items: { `${orderId}-${itemIdx}`: quantity }
-  const [receivedQuantities, setReceivedQuantities] = useState<Record<string, number | "">>({});
-  const [receivedPrices, setReceivedPrices] = useState<Record<string, number | "">>({});
-  const [posterPrices, setPosterPrices] = useState<Record<string, { price: number; unit: string }>>(() => clientCache.get("poster_prices") || {});
-  
-  // Track which supplier group is being sent
-  const [sendingSupplier, setSendingSupplier] = useState<string | null>(null);
-  const [confirmingSupplier, setConfirmingSupplier] = useState<string | null>(null);
-
-  const userRole = session?.user?.role || "staff";
-  const isStaff = userRole === "staff";
-  const isManager = userRole === "manager" || userRole === "admin";
-  const canSendOrders = isManager || (permissions?.canSendOrders ?? false);
-
-  useEffect(() => {
-    if (status === "authenticated") {
-      loadData();
-    }
-  }, [status]);
-
-  useEffect(() => {
-    if (status === "authenticated" && activeTab === "transit" && Object.keys(posterPrices).length === 0) {
-      fetchPosterPrices();
-    }
-  }, [status, activeTab]);
-
-  const fetchPosterPrices = async () => {
-    try {
-      const data = await fetchWithCache("/api/poster/ingredients");
-      if (data?.success && data.data) {
-        setPosterPrices(data.data);
-        clientCache.set("poster_prices", data.data);
-      }
-    } catch (e) {
-      console.error("Failed to fetch Poster prices", e);
-    }
-  };
-
-  const loadData = async () => {
-    if (!orders.length) setLoading(true);
-    try {
-      // First load permissions to determine what orders to fetch
-      const permissionsData = await fetchWithCache("/api/user-sections?permissions=true");
-      
-      let userCanSend = isManager;
-      let userSections: { id: number; name: string }[] = [];
-      
-      if (permissionsData?.success && permissionsData.data) {
-        setPermissions(permissionsData.data);
-        clientCache.set("orders_permissions", permissionsData.data);
-        userCanSend = isManager || (permissionsData.data.canSendOrders ?? false);
-        
-        // Extract sections from sectionPermissions
-        userSections = permissionsData.data.sectionPermissions
-          .filter((sp: any) => sp.section_name) // Filter out any without names
-          .map((sp: any) => ({
-            id: sp.section_id,
-            name: sp.section_name!
-          }));
-      }
-
-      // Determine the back link using the navigation helper
-      const rootUrl = getUserRootUrlSync(isManager, null, userSections);
-      setBackLink(rootUrl);
-
-      // Staff without send permission only sees their own orders
-      // Staff with send permission or managers see all orders
-      const ordersUrl = (isStaff && !userCanSend) 
-        ? "/api/orders?my=true&limit=50" 
-        : "/api/orders";
-
-      const [ordersData, suppliersData] = await Promise.all([
-        fetchWithCache(ordersUrl),
-        fetchWithCache("/api/suppliers"),
-      ]);
-
-      if (ordersData?.success && Array.isArray(ordersData.data)) {
-        setOrders(ordersData.data);
-        clientCache.set("orders_list", ordersData.data);
-      }
-      if (suppliersData?.success && Array.isArray(suppliersData.data)) {
-        setSuppliers(suppliersData.data);
-        clientCache.set("orders_suppliers", suppliersData.data);
-      }
-    } catch (error) {
-      console.error("Error loading data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Get pending items as flat list
-  const pendingItems = useMemo(() => {
-    const items: any[] = [];
-    orders.forEach(order => {
-      if (order.status !== 'pending') return;
-      (order.order_data.items || []).forEach((item: any, idx: number) => {
-        const key = `${order.id}-${idx}`;
-        items.push({
-          ...item,
-          _key: key,
-          _orderId: order.id,
-          _itemIdx: idx,
-          _department: order.order_data.department || "Общее",
-          _quantity: pendingQuantities[key] ?? item.quantity ?? 0,
-        });
-      });
-    });
-    return items;
-  }, [orders, pendingQuantities]);
-
-  // Get sent items grouped by supplier
-  const sentBySupplier = useMemo(() => {
-    const groups = new Map<string, { items: any[]; orderIds: Set<number> }>();
-    
-    orders.forEach(order => {
-      if (order.status !== 'sent') return;
-      (order.order_data.items || []).forEach((item: any, idx: number) => {
-        const supplier = item.supplier || "Без поставщика";
-        const key = `${order.id}-${idx}`;
-        
-        if (!groups.has(supplier)) {
-          groups.set(supplier, { items: [], orderIds: new Set() });
-        }
-        
-        const posterInfo = posterPrices[item.poster_id] || 
-                           posterPrices[item.productId] || 
-                           posterPrices[item.ingredient_id];
-        
-        const defaultPrice = receivedPrices[key] ?? item.price ?? posterInfo?.price ?? 0;
-
-        groups.get(supplier)!.items.push({
-          ...item,
-          _key: key,
-          _orderId: order.id,
-          _itemIdx: idx,
-          _orderedQty: item.quantity,
-          _receivedQty: receivedQuantities[key] ?? item.quantity,
-          _receivedPrice: defaultPrice,
-          _posterPrice: posterInfo?.price || 0
-        });
-        groups.get(supplier)!.orderIds.add(order.id);
-      });
-    });
-    
-    return Array.from(groups.entries());
-  }, [orders, receivedQuantities, receivedPrices, posterPrices]);
-
-  // Group pending items by supplier for dispatch
-  const pendingBySupplier = useMemo(() => {
-    const groups = new Map<string, { items: any[]; orderIds: Set<number> }>();
-    
-    pendingItems.filter(i => i._quantity > 0).forEach(item => {
-      const supplier = item.supplier || "Без поставщика";
-      if (!groups.has(supplier)) {
-        groups.set(supplier, { items: [], orderIds: new Set() });
-      }
-      groups.get(supplier)!.items.push(item);
-      groups.get(supplier)!.orderIds.add(item._orderId);
-    });
-    
-    return Array.from(groups.entries());
-  }, [pendingItems]);
-
-  // Group pending items by department for display
-  const pendingByDepartment = useMemo(() => {
-    const deptGroups = new Map<string, any[]>();
-    
-    pendingItems.filter(i => i._quantity > 0).forEach(item => {
-      const dept = item._department || "Общее";
-      if (!deptGroups.has(dept)) {
-        deptGroups.set(dept, []);
-      }
-      deptGroups.get(dept)!.push(item);
-    });
-    
-    return Array.from(deptGroups.entries());
-  }, [pendingItems]);
-
-  // History orders
-  const historyOrders = useMemo(() => {
-    return orders
-      .filter(o => ['delivered', 'cancelled'].includes(o.status))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [orders]);
-
-  // Determine current focus state
-  const hasInTransit = sentBySupplier.length > 0;
-  const hasPending = pendingItems.filter(i => i._quantity > 0).length > 0;
-  const hasChanges = Object.keys(pendingQuantities).length > 0;
-
-  // Handlers
-  const handlePendingQuantityChange = (key: string, delta: number) => {
-    setPendingQuantities(prev => {
-      const item = pendingItems.find(i => i._key === key);
-      if (!item) return prev;
-      const current = prev[key] ?? item.quantity;
-      return { ...prev, [key]: Math.max(0, current + delta) };
-    });
-  };
-
-  const handleSetPendingQuantity = (key: string, value: number) => {
-    setPendingQuantities(prev => ({ ...prev, [key]: Math.max(0, value) }));
-  };
-
-  const handleReceivedQuantityChange = (key: string, value: string | number) => {
-    if (value === "") {
-      setReceivedQuantities(prev => ({ ...prev, [key]: "" }));
-    } else {
-      const num = typeof value === "string" ? parseFloat(value) : value;
-      setReceivedQuantities(prev => ({ ...prev, [key]: Math.max(0, num || 0) }));
-    }
-  };
-
-  const handleReceivedPriceChange = (key: string, value: string) => {
-    if (value === "") {
-      setReceivedPrices(prev => ({ ...prev, [key]: "" }));
-    } else {
-      const num = parseFloat(value) || 0;
-      setReceivedPrices(prev => ({ ...prev, [key]: Math.max(0, num) }));
-    }
-  };
-
-  const handleRemoveItem = (key: string) => {
-    setPendingQuantities(prev => ({ ...prev, [key]: 0 }));
-  };
-
-  // Helper to build update payload
-  const getUpdatesPayload = (items: any[], quantityMap: Record<string, number>, priceMap?: Record<string, number>) => {
-    const affectedOrderIds = new Set<number>();
-    items.forEach(item => {
-      if (quantityMap[item._key] !== undefined || (priceMap && priceMap[item._key] !== undefined)) {
-        affectedOrderIds.add(item._orderId);
-      }
-    });
-    
-    const payload: { id: number, items: any[] }[] = [];
-    
-    affectedOrderIds.forEach(orderId => {
-      const order = orders.find(o => o.id === orderId);
-      if (!order) return;
-      
-      const newItems = (order.order_data.items || []).map((originalItem: any, idx: number) => {
-        const key = `${orderId}-${idx}`;
-        const newQty = quantityMap[key] !== undefined ? quantityMap[key] : originalItem.quantity;
-        const newPrice = priceMap && priceMap[key] !== undefined ? priceMap[key] : originalItem.price;
-        
-        return { ...originalItem, quantity: newQty, price: newPrice };
-      });
-      
-      payload.push({ id: orderId, items: newItems });
-    });
-    
-    return payload;
-  };
-
-  // Save changes without sending
-  const handleSaveChanges = async () => {
-    if (!hasChanges) return;
-    setUpdating(true);
-    
-    try {
-      const updates = getUpdatesPayload(pendingItems, pendingQuantities);
-      const orderIds = updates.map(u => u.id);
-      
-      const response = await api.post("/api/orders/bulk-update", { 
-        ids: orderIds, 
-        status: "pending",
-        updates: updates 
-      });
-      
-      if (response.success) {
-        toast.success("Изменения сохранены");
-        setPendingQuantities({});
-        await loadData();
-      } else {
-        toast.error("Ошибка при сохранении");
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Ошибка сохранения");
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  // Copy order to clipboard as text
-  const copyOrderToClipboard = (supplierName: string, items: any[]) => {
-    const itemsToCopy = items.filter(i => i._quantity > 0);
-    if (itemsToCopy.length === 0) {
-      toast.error("Нет товаров для копирования");
-      return;
-    }
-
-    const restaurantName = session?.user?.restaurantId || "Ресторан";
-    const dateStr = new Date().toLocaleDateString("ru-RU");
-
-    let message = `📦 Заказ от ${restaurantName}\n📅 ${dateStr}\n\n`;
-    itemsToCopy.forEach((item, idx) => {
-      message += `${idx + 1}. ${item.name} — ${item._quantity} ${translateUnit(item.unit || "шт")}\n`;
-    });
-    message += `\n━━━━━━━━━━━━\nИтого: ${itemsToCopy.length} позиций`;
-
-    navigator.clipboard.writeText(message);
-    toast.success("✓ Скопировано в буфер");
-  };
-
-  // Send to WhatsApp
-  const sendToWhatsApp = async (supplierName: string, items: any[]) => {
-    setSendingSupplier(supplierName);
-    
-    const supplier = suppliers.find(s => s.name === supplierName);
-    const cleanPhone = supplier?.phone?.replace(/\D/g, "");
-    const itemsToSend = items.filter(i => i._quantity > 0);
-    
-    if (itemsToSend.length === 0) {
-      toast.error("Нет товаров для отправки");
-      setSendingSupplier(null);
-      return;
-    }
-
-    if (cleanPhone && cleanPhone.length >= 10) {
-      const restaurantName = session?.user?.restaurantId || "Ресторан";
-      const dateStr = new Date().toLocaleDateString("ru-RU");
-
-      let message = `📦 Заказ от ${restaurantName}\n📅 ${dateStr}\n\n`;
-      itemsToSend.forEach((item, idx) => {
-        message += `${idx + 1}. ${item.name} — ${item._quantity} ${translateUnit(item.unit || "шт")}\n`;
-      });
-      message += `\n━━━━━━━━━━━━\nИтого: ${itemsToSend.length} позиций`;
-
-      const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-      window.open(url.length > 2000 ? `https://wa.me/${cleanPhone}` : url, "_blank");
-    } else {
-      toast.warning(`Телефон не найден для "${supplierName}"`);
-    }
-
-    try {
-      const updates = getUpdatesPayload(items, pendingQuantities);
-      const orderIds = [...new Set(items.map(i => i._orderId))];
-      
-      await api.post("/api/orders/bulk-update", { 
-        ids: orderIds, 
-        status: "sent",
-        updates: updates
-      });
-      
-      toast.success("✓ Отправлено");
-      await loadData();
-      setPendingQuantities({});
-    } catch (error) {
-      console.error(error);
-      toast.error("Ошибка при обновлении статуса");
-    } finally {
-      setSendingSupplier(null);
-    }
-  };
-
-  // Revert items to pending
-  const handleRevertToPending = async (items: any[]) => {
-    if (!confirm("Вернуть эти товары в статус 'К отправке'?")) return;
-    setUpdating(true);
-    const orderIds = [...new Set(items.map(i => i._orderId))];
-    try {
-      const updateResult = await api.post("/api/orders/bulk-update", { ids: orderIds, status: "pending" });
-      if (updateResult.success) {
-        toast.success("Заказы возвращены в ожидание");
-        await loadData();
-      } else {
-        toast.error("Ошибка при обновлении");
-      }
-    } catch (e) {
-      console.error(e);
-      toast.error("Ошибка сервера");
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  // Confirm delivery with adjusted quantities and send to Poster
-  const handleConfirmDelivery = async (supplierName: string, items: any[], missingAction: 'transit' | 'pending' | 'cancel' = 'transit') => {
-    setUpdating(true);
-    
-    try {
-      // 1. Prepare items for Poster (ONLY items with Fact > 0)
-      const receivedItems = items.filter(item => {
-        const rawQty = receivedQuantities[item._key] ?? item._orderedQty;
-        const qty = rawQty === "" ? 0 : rawQty;
-        return qty > 0 && (item.poster_id || item.productId);
-      });
-      
-      if (receivedItems.length > 0) {
-        const supplier = suppliers.find(s => s.name === supplierName);
-        const localSupplierId = supplier?.id;
-        
-        const posterPayload = {
-          supplier_id: localSupplierId,
-          storage_id: 1,
-          items: receivedItems.map(item => {
-            const rawQty = receivedQuantities[item._key] ?? item._orderedQty;
-            const rawPrice = receivedPrices[item._key] ?? item._receivedPrice ?? 0;
-            return {
-              ingredient_id: String(item.poster_id || item.productId),
-              quantity: rawQty === "" ? 0 : rawQty,
-              price: rawPrice === "" ? 0 : rawPrice,
-            };
-          }),
-          comment: `Приёмка от ${supplierName}`,
-        };
-        
-        try {
-          const posterResult = await api.post("/api/poster/supply-order", posterPayload) as any;
-          if (posterResult.success && !posterResult.skipped && !posterResult.warning) {
-            toast.success(`✓ Отправлено в Poster`);
-          } else if (posterResult.warning) {
-            toast.warning("Poster: " + posterResult.message);
-          }
-        } catch (posterError) {
-          console.error("Poster error:", posterError);
-          toast.warning("Poster: не удалось создать поставку");
-        }
-      }
-      
-      // 2. Prepare items for the new split API
-      const apiItems = items.map(item => {
-        const rawQty = receivedQuantities[item._key] ?? item._orderedQty;
-        const rawPrice = receivedPrices[item._key] ?? item._receivedPrice ?? 0;
-        return {
-          _orderId: item._orderId,
-          _itemIdx: item._itemIdx,
-          receivedQty: rawQty === "" ? 0 : rawQty,
-          receivedPrice: rawPrice === "" ? 0 : rawPrice,
-        };
-      });
-
-      const updateResult = await api.post("/api/orders/receive", { 
-        items: apiItems,
-        missingItemsAction: missingAction
-      });
-      
-      if (!updateResult.success) {
-        throw new Error(updateResult.error || "Failed to update");
-      }
-      
-      toast.success("✓ Поставка принята");
-      setReceivedQuantities({});
-      setReceivedPrices({});
-      setConfirmingSupplier(null);
-      await loadData();
-    } catch (error) {
-      console.error("Delivery error:", error);
-      toast.error("Ошибка при приёмке");
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handleAcceptAll = async (supplierName: string, items: any[]) => {
-    const newReceivedQty: Record<string, number | ""> = { ...receivedQuantities };
-    const newReceivedPrices: Record<string, number | ""> = { ...receivedPrices };
-    
-    items.forEach(item => {
-      delete newReceivedQty[item._key];
-      delete newReceivedPrices[item._key];
-    });
-    
-    setReceivedQuantities(newReceivedQty);
-    setReceivedPrices(newReceivedPrices);
-    
-    await handleConfirmDelivery(supplierName, items, 'transit');
-  };
-
-  const handleOpenConfirmModal = (supplierName: string, items: any[]) => {
-    const missingItems = items.filter(i => {
-      const q = receivedQuantities[i._key] ?? i._orderedQty;
-      return (q === "" ? 0 : q) === 0;
-    });
-    if (missingItems.length > 0) {
-      setConfirmingSupplier(supplierName);
-    } else {
-      handleConfirmDelivery(supplierName, items, 'transit');
-    }
-  };
-
-  const translateUnit = (unit: string) => {
-    const unitMap: Record<string, string> = {
-      'kg': 'кг',
-      'l': 'л',
-      'pcs': 'шт',
-      'p': 'шт',
-      'pt': 'шт',
-      'unit': 'шт',
-      'pack': 'уп',
-      'bottle': 'бут',
-      'can': 'банка',
-      'portion': 'порц',
-      'g': 'г',
-      'ml': 'мл'
-    };
-    return unitMap[unit.toLowerCase()] || unit;
-  };
-
-  const formatDate = (date: string | Date) => {
-    const d = new Date(date);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
-    if (diffDays === 0) return "Сегодня";
-    if (diffDays === 1) return "Вчера";
-    return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-  };
+  const {
+    loading,
+    activeTab,
+    setActiveTab,
+    canSendOrders,
+    backLink,
+  } = useOrders();
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="w-10 h-10 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -552,40 +557,58 @@ export default function OrdersPage() {
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-2xl mx-auto px-4 py-4">
           <div className="relative flex items-center justify-center mb-4">
-            <Link 
+            <Link
               href={backLink}
-              className="absolute left-0 w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-600"
+              className="absolute left-0 w-10 h-10 rounded-[14px] bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors text-gray-500"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </Link>
-            <h1 className="text-xl font-bold text-gray-900">Заказы</h1>
+            <h1 className="text-xl font-semibold text-[#1a1008]">Заказы</h1>
           </div>
 
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setActiveTab("pending")}
-              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg flex items-center justify-center gap-1 ${
-                activeTab === "pending" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
+              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-md flex items-center justify-center gap-1 ${
+                activeTab === "pending"
+                  ? "bg-white text-[#1a1008] shadow-sm"
+                  : "text-gray-500 hover:text-[#1a1008]"
               }`}
             >
-              <span className="whitespace-nowrap">{canSendOrders ? "Отправить" : "Заявки"}</span>
+              <span className="whitespace-nowrap">
+                Отправить
+              </span>
             </button>
             {canSendOrders && (
               <button
                 onClick={() => setActiveTab("transit")}
-                className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg flex items-center justify-center gap-1 ${
-                  activeTab === "transit" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
+                className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-md flex items-center justify-center gap-1 ${
+                  activeTab === "transit"
+                    ? "bg-white text-[#1a1008] shadow-sm"
+                    : "text-gray-500 hover:text-[#1a1008]"
                 }`}
               >
-                <span className="whitespace-nowrap">В пути</span>
+                <span className="whitespace-nowrap">Приёмка</span>
               </button>
             )}
             <button
               onClick={() => setActiveTab("history")}
-              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-lg flex items-center justify-center gap-1 ${
-                activeTab === "history" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-900"
+              className={`flex-1 py-2 px-2 text-sm font-medium transition-all rounded-md flex items-center justify-center gap-1 ${
+                activeTab === "history"
+                  ? "bg-white text-[#1a1008] shadow-sm"
+                  : "text-gray-500 hover:text-[#1a1008]"
               }`}
             >
               <span className="whitespace-nowrap">История</span>
@@ -595,248 +618,12 @@ export default function OrdersPage() {
       </header>
 
       <main className="max-w-2xl mx-auto">
-        {activeTab === "pending" && (
-          <>
-            {!hasPending ? (
-              <div className="text-center py-16 px-4">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <img src="/icons/box.svg" alt="Box" className="w-10 h-10 opacity-50" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Нет заявок</h3>
-                <p className="text-gray-500">Новые заявки появятся здесь</p>
-              </div>
-            ) : (
-              <div>
-                <div className="bg-white pt-4 pb-2">
-                  {pendingBySupplier.map(([supplier, group]) => (
-                    <div key={supplier} className="mt-6 first:mt-0">
-                      <div className="px-4 mb-3 flex items-center justify-between">
-                        <h3 className="text-sm font-medium text-gray-500">{supplier}</h3>
-                        <span className="text-xs text-gray-400">{group.items.length} поз.</span>
-                      </div>
-                      <div className="divide-y divide-gray-100 border-b border-gray-100">
-                        {group.items.map(item => {
-                          const isZero = item._quantity === 0;
-                          return (
-                            <div key={item._key} className={`px-4 py-4 transition-colors ${isZero ? 'opacity-40 bg-gray-50' : 'hover:bg-gray-50'}`}>
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0 pr-4">
-                                  <h3 className={`font-medium truncate ${isZero ? 'text-gray-500 line-through' : 'text-gray-900'}`}>{item.name}</h3>
-                                  <p className="text-xs text-gray-500 mt-0.5">{item._department || "—"}</p>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <QuantityInput
-                                    productName={item.name}
-                                    quantity={item._quantity}
-                                    unit={item.unit || "шт"}
-                                    onQuantityChange={(newQty) => handleSetPendingQuantity(item._key, newQty)}
-                                    min={0}
-                                    compact={true}
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      {canSendOrders && (
-                        <div className="px-4 mt-4 mb-8 flex gap-2">
-                          <button onClick={() => copyOrderToClipboard(supplier, group.items)} className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-2">Копировать</button>
-                          <button onClick={() => sendToWhatsApp(supplier, group.items)} disabled={sendingSupplier === supplier} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2">Отправить</button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-                {hasChanges && (
-                  <div className="fixed bottom-6 left-0 right-0 px-4 z-50 flex justify-center">
-                    <button onClick={handleSaveChanges} disabled={updating} className="bg-brand-500 hover:bg-brand-600 text-white font-bold py-3 px-8 rounded-full shadow-lg flex items-center gap-2 transition-all transform hover:scale-105 active:scale-95 disabled:opacity-70">
-                      {updating ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : "Сохранить изменения"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
-
-        {activeTab === "transit" && (
-          <div >
-            {sentBySupplier.length === 0 ? (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <img src="/icons/delivery.svg" alt="Transit" className="w-10 h-10 opacity-50" />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Нет доставок</h3>
-              </div>
-            ) : (
-              <div>
-                {sentBySupplier.map(([supplier, group]) => {
-                  const acceptedCount = group.items.filter(i => {
-                    const q = receivedQuantities[i._key] ?? i._orderedQty;
-                    return (q === "" ? 0 : q) > 0;
-                  }).length;
-                  
-                  return (
-                    <div key={supplier} className="mb-8 last:mb-0">
-                      <div className="bg-white px-4 py-3 flex items-center justify-between">
-                        <div>
-                          <h3 className="text-sm font-medium text-gray-500">{supplier}</h3>
-                        </div>
-                      </div>
-                      <div className=" bg-white divide-y divide-gray-100">
-                        {group.items.map((item, idx) => {
-                          const rawQty = receivedQuantities[item._key] ?? item._orderedQty;
-                          const currentQty = rawQty === "" ? "" : rawQty;
-                          const calcQty = rawQty === "" ? 0 : rawQty;
-                          const isExcluded = calcQty === 0;
-                          const diff = calcQty - item._orderedQty;
-                          const isDifferent = diff !== 0;
-                          const orderedTextColor = isDifferent ? (diff < 0 ? "text-orange-600" : "text-green-600") : "text-gray-500";
-                          
-                          return (
-                            <div key={idx} className={`px-4 py-4 transition-colors ${isExcluded ? 'opacity-40 bg-gray-50' : isDifferent ? 'bg-orange-50/30' : 'hover:bg-gray-50'}`}>
-                              <div className="flex items-end sm:items-center justify-between gap-2 sm:gap-4">
-                                <div className="flex-1 min-w-0 pb-1 sm:pb-0">
-                                  <h3 className={`font-medium text-sm sm:text-base text-gray-900 leading-tight ${isExcluded ? 'line-through' : ''}`}>{item.name}</h3>
-                                  <div className="flex items-center gap-2 mt-1 sm:mt-1">
-                                    <p className={`text-[11px] sm:text-xs font-medium ${orderedTextColor} whitespace-nowrap`}>
-                                      Заказано: {item._orderedQty} {translateUnit(item.unit || "шт")}{isDifferent && !isExcluded && ` (${diff > 0 ? '+' : ''}${diff.toFixed(1)})`}
-                                    </p>
-                                    {isExcluded && <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase">Пропущено</span>}
-                                  </div>
-                                </div>
-                                
-                                <div className="flex items-center justify-end gap-2 sm:gap-4 shrink-0">
-                                  {!isExcluded && (
-                                    <div className="flex flex-col items-start gap-1">
-                                      <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Цена, ₸</span>
-                                      <input
-                                        type="number"
-                                        value={receivedPrices[item._key] ?? item._receivedPrice}
-                                        onChange={(e) => handleReceivedPriceChange(item._key, e.target.value)}
-                                        onFocus={(e) => e.target.select()}
-                                        className="w-16 sm:w-24 bg-white border border-gray-300 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2 text-gray-900 text-left text-xs sm:text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all"
-                                        step="0.01"
-                                        min="0"
-                                      />
-                                    </div>                                    
-                                  )}
-                                  <div className="flex flex-col items-start gap-1">
-                                    <span className="text-[9px] sm:text-[10px] text-gray-400 uppercase tracking-wider font-semibold">Факт</span>
-                                    <div className="relative">
-                                      <input
-                                        type="number"
-                                        value={currentQty}
-                                        onChange={(e) => handleReceivedQuantityChange(item._key, e.target.value)}
-                                        onFocus={(e) => e.target.select()}
-                                        className={`w-20 sm:w-24 border rounded-lg pl-2 sm:pl-3 pr-6 sm:pr-8 py-1.5 sm:py-2 text-left text-xs sm:text-sm font-medium focus:ring-2 focus:ring-brand-500 focus:border-brand-500 transition-all ${isDifferent ? 'bg-orange-50 border-orange-300 text-orange-700' : 'bg-white border-gray-300 text-gray-900'}`}
-                                        step="0.01"
-                                        min="0"
-                                      />
-                                      <span className={`absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 text-xs sm:text-sm font-medium pointer-events-none ${isDifferent ? 'text-orange-400' : 'text-gray-400'}`}>
-                                        {translateUnit(item.unit || "шт")}
-                                      </span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                      <div className="px-4 py-3 flex gap-3 justify-end border-t border-gray-200 sticky bottom-0 z-30">
-                        <button onClick={() => handleRevertToPending(group.items)} disabled={updating} className="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50">↩ Вернуть</button>
-                        <button onClick={() => handleOpenConfirmModal(supplier, group.items)} disabled={updating} className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2"> {updating ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : `Принять (${acceptedCount})`} </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "history" && (
-          <div className="bg-white divide-y divide-gray-100">
-            {historyOrders.map(order => (
-              <div key={order.id} className="px-4 py-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-gray-900 font-medium">#{order.id} · {order.order_data.department}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${order.status === 'delivered' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {order.status === 'delivered' ? 'Доставлено' : 'Отменено'}
-                  </span>
-                </div>
-                <p className="text-sm text-slate-400"> {formatDate(order.created_at)} · {order.order_data.items?.length || 0} позиций </p>
-              </div>
-            ))}
-          </div>
-        )}
+        {activeTab === "pending" && <PendingTab />}
+        {activeTab === "transit" && <TransitTab />}
+        {activeTab === "history" && <HistoryTab />}
       </main>
 
-      <Modal
-        isOpen={!!confirmingSupplier}
-        onClose={() => !updating && setConfirmingSupplier(null)}
-        title="Обнаружены расхождения"
-      >
-        <div className="space-y-4 pt-2">
-          <div className="flex items-center gap-3 text-orange-600 bg-orange-50 p-3 rounded-lg">
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-            <p className="text-sm">Часть товаров не была получена. Что сделать с недостающим количеством?</p>
-          </div>
-          
-          <div className="flex flex-col gap-2">
-            <button 
-              onClick={() => confirmingSupplier && handleConfirmDelivery(confirmingSupplier, sentBySupplier.find(s => s[0] === confirmingSupplier)?.[1].items || [], 'transit')}
-              disabled={updating}
-              className="w-full p-4 text-left hover:bg-gray-50 rounded-2xl border border-gray-100 transition-colors flex items-center gap-4 group"
-            >
-              <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </div>
-              <div className="flex-1">
-                <p className="font-bold text-gray-900 text-sm">Оставить «В пути»</p>
-                <p className="text-xs text-gray-400">Поставщик довезет их позже</p>
-              </div>
-            </button>
-
-            <button 
-              onClick={() => confirmingSupplier && handleConfirmDelivery(confirmingSupplier, sentBySupplier.find(s => s[0] === confirmingSupplier)?.[1].items || [], 'pending')}
-              disabled={updating}
-              className="w-full p-4 text-left hover:bg-gray-50 rounded-2xl border border-gray-100 transition-colors flex items-center gap-4 group"
-            >
-              <div className="w-10 h-10 bg-brand-50 text-brand-600 rounded-xl flex items-center justify-center group-hover:bg-brand-100 transition-colors shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
-              </div>
-              <div className="flex-1">
-                <p className="font-bold text-gray-900 text-sm">Вернуть в «Ожидание»</p>
-                <p className="text-xs text-gray-400">Перезаказать у другого поставщика</p>
-              </div>
-            </button>
-
-            <button 
-              onClick={() => confirmingSupplier && handleConfirmDelivery(confirmingSupplier, sentBySupplier.find(s => s[0] === confirmingSupplier)?.[1].items || [], 'cancel')}
-              disabled={updating}
-              className="w-full p-4 text-left hover:bg-red-50 rounded-2xl border border-gray-100 hover:border-red-100 transition-colors flex items-center gap-4 group"
-            >
-              <div className="w-10 h-10 bg-red-50 text-red-600 rounded-xl flex items-center justify-center group-hover:bg-red-100 transition-colors shrink-0">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-              </div>
-              <div className="flex-1">
-                <p className="font-bold text-gray-900 text-sm text-red-600">Отменить товары</p>
-                <p className="text-xs text-red-400">Товары больше не нужны</p>
-              </div>
-            </button>
-
-            <button 
-              onClick={() => !updating && setConfirmingSupplier(null)}
-              className="w-full p-4 mt-2 text-center font-bold text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              Отмена
-            </button>
-          </div>
-        </div>
-      </Modal>
+      <DeliveryConfirmModal />
     </div>
   );
 }

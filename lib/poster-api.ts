@@ -19,12 +19,11 @@ interface PosterApiResponse<T = any> {
 }
 
 // Poster API Configuration
+// NOTE: accessToken is deliberately NOT read from env here.
+// In multi-tenant mode, each restaurant has its own token stored in the DB.
+// Using a single env token would leak data across restaurants.
 export const POSTER_CONFIG: PosterConfig = {
-  // API Base URL
   baseUrl: 'https://joinposter.com/api',
-
-  // Access Token from environment
-  accessToken: process.env.POSTER_ACCESS_TOKEN,
 
   // API Endpoints
   endpoints: {
@@ -292,64 +291,3 @@ export class PosterAPI {
   }
 }
 
-// Export default instance
-export const posterAPI = new PosterAPI();
-
-// OAuth helper functions
-export function getPosterOAuthUrl(restaurantId: string): string {
-  const appId = process.env.POSTER_APP_ID;
-  const redirectUri = process.env.POSTER_REDIRECT_URI;
-
-  if (!appId || !redirectUri) {
-    throw new Error('Poster OAuth configuration missing');
-  }
-
-  const params = new URLSearchParams({
-    application_id: appId,
-    redirect_uri: redirectUri,
-    state: restaurantId,
-    response_type: 'code'
-  });
-
-  return `https://joinposter.com/api/v2/auth?${params.toString()}`;
-}
-
-export async function exchangePosterCode(code: string): Promise<PosterToken> {
-  const appId = process.env.POSTER_APP_ID;
-  const appSecret = process.env.POSTER_APP_SECRET;
-  const redirectUri = process.env.POSTER_REDIRECT_URI;
-
-  if (!appId || !appSecret || !redirectUri) {
-    throw new Error('Poster OAuth configuration missing');
-  }
-
-  const response = await fetch('https://joinposter.com/api/v2/auth/access_token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      application_id: appId,
-      application_secret: appSecret,
-      code,
-      redirect_uri: redirectUri,
-      grant_type: 'authorization_code'
-    }).toString()
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to exchange code: ${response.status}`);
-  }
-
-  const data = await response.json();
-
-  if (data.error) {
-    throw new Error(`OAuth Error: ${data.error_description || data.error}`);
-  }
-
-  return {
-    access_token: data.access_token,
-    refresh_token: data.refresh_token,
-    expires_at: new Date(Date.now() + (data.expires_in * 1000))
-  };
-}

@@ -240,7 +240,7 @@ const filteredOrders = orders.filter((order) => {
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <header className="bg-green-600 text-white px-4 py-4">
+      <header className="bg-brand-500 text-white px-4 py-4">
         <div className="max-w-md mx-auto flex items-center relative">
           <Link
             href="/"
@@ -274,7 +274,7 @@ const filteredOrders = orders.filter((order) => {
             onClick={() => setFilter("all")}
             className={`px-3 py-2 rounded-lg whitespace-nowrap ${
               filter === "all"
-                ? "bg-green-600 text-white"
+                ? "bg-brand-500 text-white"
                 : "bg-gray-200 text-gray-700"
             }`}
           >
@@ -284,7 +284,7 @@ const filteredOrders = orders.filter((order) => {
             onClick={() => setFilter("pending")}
             className={`px-3 py-2 rounded-lg whitespace-nowrap ${
               filter === "pending"
-                ? "bg-green-600 text-white"
+                ? "bg-brand-500 text-white"
                 : "bg-gray-200 text-gray-700"
             }`}
           >
@@ -294,7 +294,7 @@ const filteredOrders = orders.filter((order) => {
             onClick={() => setFilter("sent")}
             className={`px-3 py-2 rounded-lg whitespace-nowrap ${
               filter === "sent"
-                ? "bg-green-600 text-white"
+                ? "bg-brand-500 text-white"
                 : "bg-gray-200 text-gray-700"
             }`}
           >
@@ -304,7 +304,7 @@ const filteredOrders = orders.filter((order) => {
             onClick={() => setFilter("delivered")}
             className={`px-3 py-2 rounded-lg whitespace-nowrap ${
               filter === "delivered"
-                ? "bg-green-600 text-white"
+                ? "bg-brand-500 text-white"
                 : "bg-gray-200 text-gray-700"
             }`}
           >
@@ -469,7 +469,7 @@ const getStatusBadge = (status: string) => {
                         <button
                           onClick={() => handleConfirmDelivery(order)}
                           disabled={updating === order.id}
-                          className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
+                          className="w-full mt-4 bg-brand-500 hover:bg-brand-600 text-white py-3 rounded-lg font-medium transition-colors disabled:opacity-50"
                         >
                           {updating === order.id ? (
                             <span className="inline-flex items-center justify-center gap-2">

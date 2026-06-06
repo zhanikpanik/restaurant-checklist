@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ui/Toast";
-import { BottomSheet, FormInput, FormButton } from "@/components/ui/BottomSheet";
+import { HomeStatusCard } from "@/components/home/StatusCard";
+import { HomeSectionLink } from "@/components/home/SectionLink";
+import { plural } from "@/lib/plural";
 import type { Order } from "@/types";
 import { clientCache, fetchWithCache } from "@/lib/client-cache";
 
@@ -18,360 +20,105 @@ interface Section {
 }
 
 interface OrderSummary {
-  type: 'pending' | 'transit' | 'last_order';
+  type: "pending" | "transit" | "last_order";
   count: number;
-  departments?: Record<string, number>; // Map dept -> count
-  suppliers?: Record<string, number>; // Map supplier -> count
+  departments?: Record<string, number>;
+  suppliers?: Record<string, number>;
   lastOrder?: Order;
 }
 
+interface DashboardData {
+  sections: Section[];
+  userSectionIds: number[];
+  orderSummary: OrderSummary | null;
+  unsortedCount: number | null;
+}
+
+const DASHBOARD_URL = "/api/home-dashboard";
+
 export default function HomePage() {
   const { data: session, status } = useSession();
-  
-  // Use cache to instantly render previously loaded data
+
   const [allSections, setAllSections] = useState<Section[]>(() => {
-    const cached = clientCache.get("/api/sections");
-    return cached?.success ? (cached.data || []) : [];
+    const cached = clientCache.get(DASHBOARD_URL);
+    return cached?.data?.sections || [];
   });
-  
+
   const [userSectionIds, setUserSectionIds] = useState<number[]>(() => {
-    const cached = clientCache.get("/api/user-sections");
-    return cached?.success ? cached.data.map((s: Section) => parseInt(s.id)) : [];
+    const cached = clientCache.get(DASHBOARD_URL);
+    return cached?.data?.userSectionIds || [];
   });
-  
-  const [orderSummary, setOrderSummary] = useState<OrderSummary | null>(() => 
-    clientCache.get("home_order_summary")
-  );
-  
-  const [unsortedCount, setUnsortedCount] = useState<number | null>(() => 
-    clientCache.get("home_unsorted_count")
-  );
-  
-  // Only show loading if we don't have sections cached
-  const [loading, setLoading] = useState(!clientCache.has("/api/sections"));
+
+  const [orderSummary, setOrderSummary] = useState<OrderSummary | null>(() => {
+    const cached = clientCache.get(DASHBOARD_URL);
+    return cached?.data?.orderSummary ?? null;
+  });
+
+  const [unsortedCount, setUnsortedCount] = useState<number | null>(() => {
+    const cached = clientCache.get(DASHBOARD_URL);
+    return cached?.data?.unsortedCount ?? null;
+  });
+
+  const [loading, setLoading] = useState(!clientCache.has(DASHBOARD_URL));
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const toast = useToast();
 
   const isAdmin = session?.user?.role === "admin";
   const isManager = session?.user?.role === "manager";
   const isDelivery = session?.user?.role === "delivery";
   const isStaff = session?.user?.role === "staff";
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      // Fetch fresh data in the background (or foreground if cache was empty)
-      Promise.all([
-        loadSections(),
-        loadUserSections(),
-        loadOrderSummary(),
-        (isAdmin || isManager) ? loadUnsortedCount() : Promise.resolve()
-      ]).finally(() => {
-        setLoading(false);
-      });
-    } else if (status === "unauthenticated") {
-      setLoading(false);
-    }
-  }, [status, session, isAdmin, isManager]);
+  // ── Data loading (single batched request) ─────────────────
 
-  const loadUnsortedCount = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
-      const data = await fetchWithCache("/api/section-products/unsorted-count");
-      if (data.success) {
-        setUnsortedCount(data.count);
-        clientCache.set("home_unsorted_count", data.count);
-      }
-    } catch (err) {
-      console.error("Error loading unsorted count:", err);
-    }
-  };
-
-  const loadSections = async () => {
-    try {
-      if (!allSections.length) setLoading(true);
-      const data = await fetchWithCache("/api/sections");
-
-      if (data.success) {
-        setAllSections(data.data || []);
+      const data = await fetchWithCache(DASHBOARD_URL);
+      if (data.success && data.data) {
+        const d = data.data as DashboardData;
+        setAllSections(d.sections || []);
+        setUserSectionIds(d.userSectionIds || []);
+        setOrderSummary(d.orderSummary ?? null);
+        setUnsortedCount(d.unsortedCount ?? null);
         setError(null);
       } else {
         setError("База данных недоступна. Проверьте подключение.");
       }
-    } catch (err) {
+    } catch {
       setError("Не удалось загрузить данные. Проверьте подключение к базе данных.");
     }
-  };
-
-  const loadUserSections = async () => {
-    try {
-      const data = await fetchWithCache("/api/user-sections");
-      if (data.success) {
-        setUserSectionIds(data.data.map((s: Section) => parseInt(s.id)));
-      }
-    } catch (err) {
-      console.error("Error loading user sections:", err);
-    }
-  };
-
-  const loadOrderSummary = async () => {
-    try {
-      const data = await fetchWithCache("/api/orders?limit=50");
-      
-      if (data.success && Array.isArray(data.data)) {
-        const orders = data.data as Order[];
-        
-        let newSummary: OrderSummary | null = null;
-        
-        // 1. Check for Pending (Priority 1)
-        const pendingOrders = orders.filter(o => o.status === 'pending');
-        if (pendingOrders.length > 0) {
-          const deptCounts: Record<string, number> = {};
-          pendingOrders.forEach(o => {
-            const dept = o.order_data.department || 'Unknown';
-            const count = o.order_data.items?.length || 0;
-            deptCounts[dept] = (deptCounts[dept] || 0) + count;
-          });
-
-          newSummary = {
-            type: 'pending',
-            count: pendingOrders.length,
-            departments: deptCounts
-          };
-        }
-        // 2. Check for In Transit (Priority 2)
-        else if (orders.filter(o => o.status === 'sent').length > 0) {
-          const transitOrders = orders.filter(o => o.status === 'sent');
-          const supplierCounts: Record<string, number> = {};
-          transitOrders.forEach(o => {
-            o.order_data.items?.forEach((i: any) => {
-              if (i.supplier) {
-                // Approximate item count per supplier
-                supplierCounts[i.supplier] = (supplierCounts[i.supplier] || 0) + 1;
-              }
-            });
-          });
-          
-          newSummary = {
-            type: 'transit',
-            count: transitOrders.length,
-            suppliers: supplierCounts
-          };
-        }
-        // 3. Fallback to Last Order (Priority 3)
-        else if (orders.length > 0) {
-          newSummary = {
-            type: 'last_order',
-            count: 1,
-            lastOrder: orders[0]
-          };
-        }
-        
-        if (newSummary) {
-          setOrderSummary(newSummary);
-          clientCache.set("home_order_summary", newSummary);
-        }
-      }
-    } catch (err) {
-      console.error("Error loading orders:", err);
-    }
-  };
-
-  const getPluralForm = (count: number, words: string[]) => {
-    const cases = [2, 0, 1, 1, 1, 2];
-    return words[(count % 100 > 4 && count % 100 < 20) ? 2 : cases[(count % 10 < 5) ? count % 10 : 5]];
-  };
-
-  const formatProductCount = (count: number) => {
-    return `${count} ${getPluralForm(count, ["товар", "товара", "товаров"])}`;
-  };
-
-  const formatOrderCount = (count: number) => {
-    return `${count} ${getPluralForm(count, ["заявка", "заявки", "заявок"])}`;
-  };
-
-  const formatDeliveryCount = (count: number) => {
-    return `${count} ${getPluralForm(count, ["поставка", "поставки", "поставок"])}`;
-  };
-
-  const formatPos = (count: number) => {
-    return `${count} ${getPluralForm(count, ["поз.", "поз.", "поз."])}`; // Short for positions
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "pending": return "Ожидает";
-      case "sent": return "Отправлен";
-      case "delivered": return "Доставлен";
-      case "cancelled": return "Отменен";
-      default: return status;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "pending": return "bg-yellow-100 text-yellow-800";
-      case "sent": return "bg-blue-100 text-blue-800";
-      case "delivered": return "bg-green-100 text-green-800";
-      case "cancelled": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const formatRelativeDate = (date: Date | string) => {
-    const orderDate = new Date(date);
-    const now = new Date();
-    const diffMs = now.getTime() - orderDate.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return "только что";
-    if (diffMins < 60) return `${diffMins} мин. назад`;
-    if (diffHours < 24) return `${diffHours} ч. назад`;
-    if (diffDays === 1) return "вчера";
-    return orderDate.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-  };
-
-  const sections = (isAdmin || isManager)
-    ? allSections
-    : allSections.filter((section) => userSectionIds.includes(parseInt(section.id)));
+  }, []);
 
   useEffect(() => {
+    if (status === "authenticated") {
+      loadDashboard().finally(() => setLoading(false));
+    } else if (status === "unauthenticated") {
+      setLoading(false);
+    }
+  }, [status, loadDashboard]);
+
+  // ── Derived state ─────────────────────────────────────────
+
+  const sections =
+    isAdmin || isManager
+      ? allSections
+      : allSections.filter((s) => userSectionIds.includes(parseInt(s.id)));
+
+  const hasNoAssignedSections =
+    !isAdmin && !isManager && !isDelivery && userSectionIds.length === 0 && allSections.length > 0;
+
+  // Auto-redirect single-section staff
+  useEffect(() => {
     if (!loading && isStaff && sections.length === 1) {
-      const section = sections[0];
-      router.replace(`/custom?section_id=${section.id}&dept=${encodeURIComponent(section.name)}`);
+      const s = sections[0];
+      router.replace(`/custom?section_id=${s.id}&dept=${encodeURIComponent(s.name)}`);
     }
   }, [loading, isStaff, sections, router]);
 
-  const getSectionColors = (name: string) => {
-    const lowerName = name.toLowerCase();
-    if (lowerName.includes("кухня")) return "bg-orange-500 hover:bg-orange-600";
-    if (lowerName.includes("бар")) return "bg-purple-500 hover:bg-purple-600";
-    if (lowerName.includes("горничная")) return "bg-pink-500 hover:bg-pink-600";
-    if (lowerName.includes("склад")) return "bg-gray-500 hover:bg-gray-600";
-    if (lowerName.includes("офис")) return "bg-blue-500 hover:bg-blue-600";
-    if (lowerName.includes("ресепшн")) return "bg-indigo-500 hover:bg-indigo-600";
-    return "bg-teal-500 hover:bg-teal-600";
-  };
-  
-  const getSectionIcon = (name: string) => {
-    const lowerName = name.toLowerCase();
-    if (lowerName.includes("склад")) return "/icons/box.svg";
-    if (lowerName.includes("бар")) return "/icons/martini.svg"; 
-    if (lowerName.includes("хоз") || lowerName.includes("cleaning") || lowerName.includes("горничная")) return "/icons/broom.svg";
-    if (lowerName.includes("кухня")) return "/icons/tableware.svg";
-    return "/icons/tableware.svg";
-  };
-
-  const hasNoAssignedSections = !isAdmin && !isManager && !isDelivery && userSectionIds.length === 0 && allSections.length > 0;
-
-  // === DYNAMIC STATUS CARD RENDERER ===
-  const renderStatusCard = () => {
-    if (!orderSummary) return null;
-
-    if (orderSummary.type === 'pending') {
-      const deptNames = orderSummary.departments 
-        ? Object.keys(orderSummary.departments).join(", ")
-        : "";
-
-      return (
-        <Link 
-          href="/orders" 
-          className="w-full bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/icons/list.svg" alt="Pending" className="w-9 h-9 opacity-70" />
-              <div>
-                <p className="text-xs text-yellow-700 flex items-center gap-2">
-                  <span className="font-bold">{orderSummary.count} {orderSummary.count === 1 ? "заказ" : "заказа"}</span>
-                  <span>•</span>
-                  <span>Ожидают отправки</span>
-                </p>
-                <p className="text-sm font-semibold text-gray-800">
-                  {deptNames}
-                </p>
-              </div>
-            </div>
-            <svg className="w-5 h-5 text-gray-400 group-hover:text-yellow-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-        </Link>
-      );
-    }
-
-    if (orderSummary.type === 'transit') {
-      const supplierNames = orderSummary.suppliers
-        ? Object.keys(orderSummary.suppliers).join(", ")
-        : "";
-
-      return (
-        <Link 
-          href="/orders" 
-          className="w-full bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/icons/delivery.svg" alt="Transit" className="w-9 h-9 opacity-70" />
-              <div>
-                <p className="text-xs text-blue-700 flex items-center gap-2">
-                  <span className="font-bold">{orderSummary.count} {orderSummary.count === 1 ? "поставка" : "поставки"}</span>
-                  <span>•</span>
-                  <span>В пути</span>
-                </p>
-                <p className="text-sm font-semibold text-gray-800">
-                  {supplierNames}
-                </p>
-              </div>
-            </div>
-            <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-        </Link>
-      );
-    }
-
-    // Default: Last Order (History)
-    if (orderSummary.type === 'last_order' && orderSummary.lastOrder) {
-      const order = orderSummary.lastOrder;
-      return (
-        <Link 
-          href="/orders" 
-          className="w-full bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-3 shadow-sm hover:shadow-md transition-all group"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img src="/icons/box.svg" alt="Order" className="w-9 h-9 opacity-70" />
-              <div>
-                <p className="text-xs text-gray-600 flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                    {getStatusLabel(order.status)}
-                  </span>
-                  <span>•</span>
-                  <span>{formatRelativeDate(order.created_at)}</span>
-                </p>
-                <p className="text-sm font-semibold text-gray-800">
-                  Последний заказ
-                </p>
-              </div>
-            </div>
-            <svg className="w-5 h-5 text-gray-400 group-hover:text-brand-600 transition-colors flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-        </Link>
-      );
-    }
-
-    return null;
-  };
+  // ── Render ────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen pb-20" style={{ background: '#faf9f7' }}>
       <div className="max-w-2xl mx-auto px-4 py-8">
-        {/* Restaurant Title */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
             {session?.user?.restaurantName || "Ресторан"}
@@ -380,142 +127,137 @@ export default function HomePage() {
         </div>
 
         <div className="flex flex-col gap-3 md:gap-4">
-          {loading ? (
-            <div className="col-span-full text-center py-8">
-              <div className="animate-spin h-8 w-8 border-b-2 border-blue-600 rounded-full mx-auto mb-4" />
+          {/* Loading */}
+          {loading && (
+            <div className="text-center py-8">
+              <div className="animate-spin h-8 w-8 border-b-2 border-brand-500 rounded-full mx-auto mb-4" />
               <p className="text-gray-600">Загрузка отделов...</p>
             </div>
-          ) : error ? (
-            <div className="col-span-full text-center py-8">
+          )}
+
+          {/* Error */}
+          {!loading && error && (
+            <div className="text-center py-8">
               <div className="text-6xl mb-4">⚠️</div>
-              <h3 className="text-xl font-semibold text-red-700 mb-2">
-                Ошибка загрузки
-              </h3>
+              <h3 className="text-xl font-semibold text-red-700 mb-2">Ошибка загрузки</h3>
               <p className="text-gray-600 mb-4">{error}</p>
               <button
-                onClick={loadSections}
-                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg"
+                onClick={loadDashboard}
+                className="bg-brand-500 hover:bg-brand-600 text-white px-6 py-2 rounded-lg"
               >
                 Попробовать снова
               </button>
             </div>
-          ) : hasNoAssignedSections ? (
-            <div className="col-span-full text-center py-8">
-              <div className="text-6xl mb-4">🔒</div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                Нет доступных отделов
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Вам не назначены отделы. Обратитесь к администратору.
-              </p>
-            </div>
-          ) : allSections.length === 0 ? (
-            <div className="col-span-full text-center py-8">
-              <img src="/icons/box.svg" alt="Empty" className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                Отделы не найдены
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Для текущего ресторана отделы не настроены
-              </p>
-              <div className="space-y-2">
-                {process.env.NODE_ENV === 'development' && (
-                  <Link
-                    href="/dev/switch-restaurant"
-                    className="inline-block bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-lg"
-                  >
-                    Dev: Выбрать другой ресторан
-                  </Link>
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Dynamic Priority Status Card */}
-              {renderStatusCard()}
+          )}
 
-              {/* Admin/Manager Section */}
+          {/* No assigned sections */}
+          {!loading && !error && hasNoAssignedSections && (
+            <div className="text-center py-8">
+              <div className="text-6xl mb-4">🔒</div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">Нет доступных отделов</h3>
+              <p className="text-gray-600 mb-4">Вам не назначены отделы. Обратитесь к администратору.</p>
+            </div>
+          )}
+
+          {/* No sections at all */}
+          {!loading && !error && !hasNoAssignedSections && allSections.length === 0 && (
+            <div className="text-center py-8">
+              <img src="/icons/box.svg" alt="Empty" className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">Отделы не найдены</h3>
+              <p className="text-gray-600 mb-4">Для текущего ресторана отделы не настроены</p>
+              {process.env.NODE_ENV === "development" && (
+                <Link
+                  href="/dev/switch-restaurant"
+                  className="inline-block bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg"
+                >
+                  Dev: Выбрать другой ресторан
+                </Link>
+              )}
+            </div>
+          )}
+
+          {/* Main content */}
+          {!loading && !error && !hasNoAssignedSections && allSections.length > 0 && (
+            <>
+              {orderSummary && <HomeStatusCard summary={orderSummary} />}
+
+              {/* Manager quick-actions */}
               {(isAdmin || isManager) && (
-                <div className="flex flex-col gap-3 md:gap-4 mb-2">
+                <div className="flex flex-col gap-2 mb-2">
                   <Link
                     href="/suppliers-categories"
-                    className="w-full bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white font-medium py-4 px-4 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                    className="w-full bg-white hover:bg-[#faf9f7] active:bg-[#f5f3f1] transition-colors duration-150 flex items-center overflow-hidden rounded-[14px]"
                   >
-                    <img src="/icons/box.svg" alt="Suppliers" className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter shrink-0" />
-                    <div className="text-left flex-1">
-                      <div className="font-semibold text-base md:text-lg">Поставщики</div>
-                      {unsortedCount !== null && unsortedCount > 0 && (
-                        <div className="text-sm opacity-90 font-normal">
-                          {unsortedCount} {getPluralForm(unsortedCount, ["товар", "товара", "товаров"])} без поставщика
-                        </div>
-                      )}
+                    <div className="w-1.5 self-stretch shrink-0 bg-brand-500" />
+                    <div className="flex items-center justify-start px-4 py-3.5 flex-1 min-w-0">
+                      <img src="/icons/box.svg" alt="" className="w-8 h-8 mr-3 opacity-70 shrink-0" />
+                      <div className="text-left flex-1 min-w-0">
+                        <div className="font-semibold text-[15px] text-[#1a1008]">Поставщики</div>
+                        {unsortedCount !== null && unsortedCount > 0 && (
+                          <div className="text-[13px] text-gray-400 mt-0.5">
+                            {unsortedCount} {plural(unsortedCount, ["товар", "товара", "товаров"])} без поставщика
+                          </div>
+                        )}
+                      </div>
+                      <svg className="w-4 h-4 text-gray-300 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
                   </Link>
 
                   <Link
                     href="/team"
-                    className="w-full bg-slate-700 hover:bg-slate-800 active:bg-slate-900 text-white font-medium py-4 px-4 rounded-lg transition-colors duration-200 flex items-center justify-start"
+                    className="w-full bg-white hover:bg-[#faf9f7] active:bg-[#f5f3f1] transition-colors duration-150 flex items-center overflow-hidden rounded-[14px]"
                   >
-                    <img src="/icons/face.svg" alt="Команда" className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter shrink-0" />
-                    <div className="text-left flex-1">
-                      <div className="font-semibold text-base md:text-lg">Команда</div>
-                      <div className="text-sm opacity-90 font-normal">
-                        Доступ и роли
+                    <div className="w-1.5 self-stretch shrink-0 bg-brand-600" />
+                    <div className="flex items-center justify-start px-4 py-3.5 flex-1 min-w-0">
+                      <img src="/icons/face.svg" alt="" className="w-8 h-8 mr-3 opacity-70 shrink-0" />
+                      <div className="text-left flex-1 min-w-0">
+                        <div className="font-semibold text-[15px] text-[#1a1008]">Команда</div>
+                        <div className="text-[13px] text-gray-400 mt-0.5">Доступ и роли</div>
                       </div>
+                      <svg className="w-4 h-4 text-gray-300 shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
                   </Link>
                 </div>
               )}
 
-              {/* Dynamic Sections - Filtered by user assignments */}
+              {/* Sections */}
               {sections.map((section) => (
-                <Link
-                  key={section.id}
-                  href={`/custom?section_id=${section.id}&dept=${encodeURIComponent(section.name)}`}
-                  className={`w-full ${getSectionColors(section.name)} active:opacity-90 text-white font-medium py-4 px-4 md:py-6 md:px-6 rounded-lg transition-colors duration-200 flex items-center justify-start`}
-                >
-                  <img 
-                    src={getSectionIcon(section.name)} 
-                    alt={section.name} 
-                    className="w-8 h-8 md:w-10 md:h-10 mr-3 md:mr-4 invert brightness-0 filter shrink-0" 
-                  />
-                  <div className="text-left flex-1">
-                    <div className="font-semibold text-base md:text-lg">{section.name}</div>
-                    <div className="text-sm opacity-90 font-normal">
-                      {formatProductCount(section.custom_products_count || 0)}
-                    </div>
-                  </div>
-                </Link>
+                <HomeSectionLink key={section.id} section={section} />
               ))}
 
-              {/* Help & Support Footer */}
-              <div className="mt-8 pt-6 border-t border-gray-100">
-                <div className="flex flex-col gap-3">
-                  <Link 
-                    href="/help" 
-                    className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 hover:bg-gray-50 transition-all"
+              {/* Footer */}
+              <div className="mt-8 pt-6">
+                <div className="flex flex-col gap-1">
+                  <Link
+                    href="/help"
+                    className="flex items-center justify-between px-4 py-3.5 rounded-[14px] text-[14px] text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-colors"
                   >
-                    <span className="text-sm font-medium text-gray-700">Помощь и инструкции</span>
+                    Помощь и инструкции
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </Link>
-                  
-                  <a 
-                    href="https://wa.me/77012345678" 
+                  <a
+                    href="https://wa.me/77012345678"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100 hover:bg-gray-50 transition-all"
+                    className="flex items-center justify-between px-4 py-3.5 rounded-[14px] text-[14px] text-gray-400 hover:text-gray-600 hover:bg-white/60 transition-colors"
                   >
-                    <span className="text-sm font-medium text-gray-700">Написать в поддержку</span>
+                    Написать в поддержку
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </a>
                 </div>
               </div>
-
             </>
           )}
         </div>
-
-
       </div>
-
     </div>
   );
 }

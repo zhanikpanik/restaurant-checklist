@@ -134,13 +134,14 @@ export async function PATCH(request: NextRequest) {
     }
 
     const { id, role, can_send_orders, can_receive_supplies } = validation.data;
+    const restaurantId = session.user.restaurantId;
 
     if (role) {
-      await updateUserRole(id, role);
+      await updateUserRole(id, restaurantId, role);
     }
     
     if (can_send_orders !== undefined || can_receive_supplies !== undefined) {
-      await updateUserPermissions(id, { can_send_orders, can_receive_supplies });
+      await updateUserPermissions(id, restaurantId, { can_send_orders, can_receive_supplies });
     }
 
     return NextResponse.json({
@@ -195,7 +196,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    await deactivateUser(userId);
+    await deactivateUser(userId, session.user.restaurantId);
 
     return NextResponse.json({
       success: true,

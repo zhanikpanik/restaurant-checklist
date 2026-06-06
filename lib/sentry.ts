@@ -207,4 +207,4 @@ export function logApiError(
  *    errorTracker.captureException(error);
  */
 
-export default errorTracker;
+

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-indigo-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-orange-50 p-8">
       <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-lg p-8">
         <div className="mb-6">
           <Link
