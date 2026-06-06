@@ -49,8 +49,10 @@ export default auth(async (req) => {
     return NextResponse.next();
   }
 
-  // ── Rate limiting (API routes only, skipped in dev) ──────
-  if (process.env.NODE_ENV !== "development" && pathname.startsWith("/api")) {
+  // ── Rate limiting (API routes only, skipped in dev, disabled for single-instance) ──
+  // Rate limiting disabled for single-instance Railway deployment.
+  // Railway has its own DDoS protection. Re-enable for multi-instance.
+  if (false && process.env.NODE_ENV !== "development" && pathname.startsWith("/api")) {
     // Use restaurant_id as rate limit key (not IP — Railway proxies all traffic)
     const restaurantId = req.cookies.get("restaurant_id")?.value;
     const ip = req.headers.get("x-forwarded-for") ||
